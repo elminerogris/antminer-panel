@@ -21,13 +21,15 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pool2 TEXT, worker2 TEXT, pool3 TEXT, worker3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, ip TEXT, hashrate REAL, temp_max INTEGER, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, ip TEXT, hashrate REAL, temp_max INTEGER, errores INTEGER DEFAULT 0, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
         
         try: c.execute("ALTER TABLE usuarios ADD COLUMN plan TEXT DEFAULT 'Gratis'")
         except: pass
         try: c.execute("ALTER TABLE usuarios ADD COLUMN saldo REAL DEFAULT 0.0")
+        except: pass
+        try: c.execute("ALTER TABLE historial_nube ADD COLUMN errores INTEGER DEFAULT 0")
         except: pass
 
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
@@ -107,7 +109,7 @@ def detalle_minero(ip):
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM mineros_activos WHERE ip=%s", (ip,))
     m = cur.fetchone()
-    cur.execute("SELECT fecha, hashrate, temp_max FROM historial_nube WHERE ip=%s ORDER BY id DESC LIMIT 5000", (ip,))
+    cur.execute("SELECT fecha, hashrate, temp_max, errores FROM historial_nube WHERE ip=%s ORDER BY id DESC LIMIT 5000", (ip,))
     hist = cur.fetchall()
     con.close()
     
@@ -131,7 +133,7 @@ def detalle_minero(ip):
     if not cadenas: cadenas = [{"id": 0, "temp_c": t_val, "temp_p": max(0, t_val-5)}, {"id": 1, "temp_c": max(0, t_val-1), "temp_p": max(0, t_val-6)}, {"id": 2, "temp_c": max(0, t_val-2), "temp_p": max(0, t_val-7)}]
 
     hist.reverse()
-    f_raw, hr_g, tp_g = [], [], []
+    f_raw, hr_g, tp_g, err_g = [], [], [], []
     
     if hist:
         for idx, h in enumerate(hist):
@@ -143,20 +145,21 @@ def detalle_minero(ip):
             if idx > 0:
                 dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
                 if (dt_actual - dt_prev).total_seconds() > 300: 
-                    f_raw.insert(-1, calendar.timegm(dt_prev.timetuple())); hr_g.insert(-1, 0); tp_g.insert(-1, 0)
-            hr_g.append(val_h); tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
+                    f_raw.insert(-1, calendar.timegm(dt_prev.timetuple())); hr_g.insert(-1, 0); tp_g.insert(-1, 0); err_g.insert(-1, 0)
+            hr_g.append(val_h)
+            tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
+            err_g.append(int(h['errores']) if 'errores' in h and h['errores'] else 0)
     else:
-        f_raw = [calendar.timegm(datetime.utcnow().timetuple())]; hr_g = [hr_val]; tp_g = [t_val]
+        f_raw = [calendar.timegm(datetime.utcnow().timetuple())]; hr_g = [hr_val]; tp_g = [t_val]; err_g = [int(m.get('errores', 0))]
         
     dt = {'hashrate': hr_val, 'temp_max': t_val, 'errores': m.get('errores', 0), 'consumo': round(c_val/1000, 1), 'fans': fans, 'uptime': '0d 13h' if not offline else 'Desconectado', 'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0}
     extra = {'worker1': worker1, 'pool1': pool1, 'worker2': worker2, 'pool2': pool2, 'worker3': worker3, 'pool3': pool3, 'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas}
     
-    # Corrección de la eficiencia: prevenir números gigantes asegurando el cálculo correcto en Watts / TH
     eficiencia_val = round(c_val / hr_val, 2) if hr_val > 0 else 0
     if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
     disp = {'eficiencia': eficiencia_val}
     
-    return render_template('detalle.html', active_page='mineros', ip=ip, modelo=m['modelo'], ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g))
+    return render_template('detalle.html', active_page='mineros', ip=ip, modelo=m['modelo'], ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_errores=json.dumps(err_g))
 
 @app.route('/plan')
 @login_required
@@ -308,7 +311,7 @@ def recibir_datos():
                         VALUES (%s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
                         modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, temp_max=EXCLUDED.temp_max, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas''', 
                     (m['ip'], m['modelo'], m['hashrate'], m['temp'], m['consumo'], ahora, err, p1, w1, p2, w2, p3, w3, mc, sr, fw, fs, cadenas_json))
-        cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, fecha) VALUES (%s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], ahora))
+        cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, errores, fecha) VALUES (%s, %s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], err, ahora))
     
     cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'")
     pend = cur.fetchall()
