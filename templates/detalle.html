@@ -269,6 +269,7 @@
     const rawHr = {{ graf_hashrate | safe }};
     const rawTemp = {{ graf_temps | safe }};
     const rawErr = {{ graf_errores | safe }};
+    const rawCadenasHist = {{ graf_cadenas_hist | safe }};
     let chartInstance = null;
     
     function updateChart(rango) {
@@ -281,9 +282,9 @@
         if(rango === '7d') limitDate.setDate(limitDate.getDate() - 7);
         if(rango === '30d') limitDate.setDate(limitDate.getDate() - 30);
         
-        let fL = [], fH = [], fT = [], fE = [];
+        let fL = [], fH = [], fT = [], fE = [], fC = [];
         let labelLimite = (rango === '7d' || rango === '30d') ? limitDate.toLocaleDateString() + ' ' + limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        fL.push(labelLimite); fH.push(null); fT.push(null); fE.push(null);
+        fL.push(labelLimite); fH.push(null); fT.push(null); fE.push(null); fC.push([]);
 
         for(let i=0; i<rawFechas.length; i++) {
             let d = new Date(rawFechas[i] * 1000); 
@@ -291,8 +292,11 @@
                 let timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 let label = timeStr;
                 if(rango === '7d' || rango === '30d') label = d.toLocaleDateString() + ' ' + timeStr;
-                fL.push(label); fH.push(rawHr[i]); fT.push(rawTemp[i]);
+                fL.push(label); 
+                fH.push(rawHr[i]); 
+                fT.push(rawTemp[i]);
                 fE.push(rawErr[i] !== undefined ? rawErr[i] : 0);
+                fC.push(rawCadenasHist[i] !== undefined ? rawCadenasHist[i] : []);
             }
         }
         
@@ -311,6 +315,7 @@
             chartInstance.data.datasets[0].data = fH;
             chartInstance.data.datasets[1].data = fT;
             chartInstance.data.datasets[2].data = fE;
+            chartInstance.options.scales.y1.min = Math.min(...validTemp) > 10 ? Math.min(...validTemp) - 10 : 0;
             chartInstance.update();
         } else {
             const ctx = document.getElementById('hashrateChart').getContext('2d');
@@ -335,11 +340,14 @@
                                     if(context.datasetIndex === 0) { return '⚡ Hashrate: ' + context.parsed.y + ' TH/s'; } 
                                     if(context.datasetIndex === 1) { 
                                         let t = context.parsed.y; 
+                                        let idx = context.dataIndex;
                                         let arr = ['🌡️ Temp Max: ' + t + '°C']; 
-                                        let cadenasData = {{ cadenas_json | safe }};
-                                        for(let c = 0; c < cadenasData.length; c++) { 
-                                            arr.push('    Cadena ' + cadenasData[c].id + ' -> Chip: ' + cadenasData[c].temp_c + '°C | PCB: ' + cadenasData[c].temp_p + '°C'); 
-                                        } 
+                                        let cadenasData = fC[idx] || [];
+                                        if(cadenasData.length > 0) {
+                                            for(let c = 0; c < cadenasData.length; c++) { 
+                                                arr.push('    Cadena ' + cadenasData[c].id + ' -> Chip: ' + cadenasData[c].temp_c + '°C | PCB: ' + cadenasData[c].temp_p + '°C'); 
+                                            }
+                                        }
                                         return arr; 
                                     } 
                                     if(context.datasetIndex === 2) { return '⚠️ Errores HW (en intervalo): ' + context.parsed.y; }
