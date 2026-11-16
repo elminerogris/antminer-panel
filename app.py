@@ -15,7 +15,6 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS historial_nube (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, hashrate REAL, temp_max INTEGER, fecha TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)')
     
-    # Auto-parche para nuevas métricas profundas
     columnas_nuevas = [
         'errores INTEGER', 'worker TEXT', 'pool TEXT', 'mac TEXT', 'serial TEXT', 'firmware TEXT', 'fans TEXT', 
         'pool1 TEXT', 'worker1 TEXT', 'pool2 TEXT', 'worker2 TEXT', 'pool3 TEXT', 'worker3 TEXT',
@@ -55,13 +54,13 @@ def obtener_datos_red():
 # --- 2. PLANTILLAS HTML ADAPTADAS ---
 
 HTML_LOGIN = """
-<!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8"><title>Antminer Tools - Acceso</title>
+<!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8"><title>El Minero Gris - Acceso</title>
 <style>
     :root { --bg-body: #14151f; --bg-card: #1b1d29; --border-color: #292a38; --text-main: #fff; --text-muted: #a5a7b5; --accent-blue: #3366ff; --accent-red: #ff5252; }
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
     .login-card { background: var(--bg-card); padding: 40px 30px; border-radius: 8px; border: 1px solid var(--border-color); width: 100%; max-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     .logo-container { font-weight: bold; font-size: 1.4em; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 30px; }
-    .logo-icon { background: var(--accent-blue); color: white; width: 32px; height: 32px; border-radius: 6px; display: flex; justify-content: center; align-items: center; font-size: 0.9em; }
+    .logo-img { height: 40px; width: auto; object-fit: contain; }
     .logo-text span { color: var(--accent-blue); font-weight: normal; }
     .form-group { margin-bottom: 20px; }
     .form-group label { display: block; font-size: 0.85em; color: var(--text-muted); margin-bottom: 8px; }
@@ -70,7 +69,10 @@ HTML_LOGIN = """
 </style></head>
 <body>
     <div class="login-card">
-        <div class="logo-container"><div class="logo-icon">A</div><div class="logo-text">Antminer <span>Tools</span></div></div>
+        <div class="logo-container">
+            <img src="/static/logo.png" alt="Logo" class="logo-img">
+            <div class="logo-text">El Minero <span>Gris</span></div>
+        </div>
         {% if error %}<div style="color:var(--accent-red); margin-bottom:15px; text-align:center;">{{ error }}</div>{% endif %}
         <form method="POST">
             <div class="form-group"><label>Usuario</label><input type="text" name="username" required></div>
@@ -82,8 +84,9 @@ HTML_LOGIN = """
 """
 
 HTML_LAYOUT = """
-<!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8"><title>Antminer Tools</title>
+<!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8"><title>El Minero Gris</title>
 <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
     :root[data-theme="dark"] { --bg-body: #14151f; --bg-sidebar: #191a24; --bg-card: #1b1d29; --bg-input: #14151f; --border-color: #292a38; --text-main: #fff; --text-muted: #a5a7b5; --text-sub: #8b8d9b; --accent-blue: #3366ff; --accent-green: #00e676; --accent-red: #ff5252; --hover-bg: #202230; --active-bg: #232533; }
     :root[data-theme="light"] { --bg-body: #f4f5f7; --bg-sidebar: #ffffff; --bg-card: #ffffff; --bg-input: #f4f5f7; --border-color: #e2e8f0; --text-main: #1e293b; --text-muted: #64748b; --text-sub: #94a3b8; --accent-blue: #2563eb; --accent-green: #10b981; --accent-red: #ef4444; --hover-bg: #f8fafc; --active-bg: #f1f5f9; }
@@ -93,7 +96,7 @@ HTML_LAYOUT = """
     
     .sidebar { width: 220px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding-top: 15px; z-index: 10; }
     .logo-container { padding: 10px 20px 20px; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); }
-    .logo-icon { background: var(--accent-blue); color: white; width: 24px; height: 24px; border-radius: 4px; display: flex; justify-content: center; align-items: center; font-size: 0.8em; }
+    .logo-img { height: 30px; width: auto; object-fit: contain; }
     .logo-text span { color: var(--accent-blue); font-weight: normal; }
     .menu { list-style: none; padding: 15px 0; margin: 0; flex: 1; }
     .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.9em; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
@@ -118,7 +121,10 @@ HTML_LAYOUT = """
 <body>
     <div id="google_translate_element"></div>
     <div class="sidebar">
-        <div class="logo-container"><div class="logo-icon">A</div><div class="logo-text" translate="no">Antminer <span>Tools</span></div></div>
+        <div class="logo-container">
+            <img src="/static/logo.png" alt="Logo" class="logo-img">
+            <div class="logo-text" translate="no">El Minero <span>Gris</span></div>
+        </div>
         <div class="menu">
             <a href="/" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
             <a href="/granjas" class="{{ 'active' if active_page == 'granjas' else '' }}">🏭 Granjas</a>
@@ -134,7 +140,7 @@ HTML_LAYOUT = """
     </div>
     <div class="right-container">
         <div class="top-bar">
-            <button class="top-btn btn-sync" onclick="sincronizarManual()" id="btnSync">🔄 Sincronizar Red</button>
+            <button class="top-btn btn-sync" onclick="escanearRed()" id="btnSync">🔄 Escanear Red</button>
             <button class="top-btn" onclick="toggleTheme()" id="themeIcon">☀️</button>
             <select class="top-lang-select" id="langSelector" onchange="cambiarIdioma(this.value)">
                 <option value="es">🌐 Español</option><option value="en">🌐 English</option><option value="zh-CN">🌐 中文</option><option value="ru">🌐 Русский</option>
@@ -151,7 +157,14 @@ HTML_LAYOUT = """
         </div>
     </div>
     <script>
-        function sincronizarManual() { let b = document.getElementById('btnSync'); b.innerText = '⏳ Sincronizando...'; b.style.pointerEvents = 'none'; setTimeout(() => { window.location.reload(); }, 500); }
+        function escanearRed() { 
+            let b = document.getElementById('btnSync'); 
+            b.innerText = '⏳ Escaneando...'; 
+            b.style.pointerEvents = 'none'; 
+            fetch('/cmd/all/scan').then(() => {
+                setTimeout(() => { window.location.reload(); }, 1500); 
+            });
+        }
         function googleTranslateElementInit() { new google.translate.TranslateElement({pageLanguage: 'es', autoDisplay: false}, 'google_translate_element'); }
         function cambiarIdioma(lang) { let s = document.querySelector(".goog-te-combo"); if(s){ s.value = lang; s.dispatchEvent(new Event("change")); } }
         function actualizarReloj() { const d = new Date(); document.getElementById('relojTop').innerText = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0'); }
@@ -257,7 +270,7 @@ HTML_RESUMEN = """
     
     <div class="calc-text-ribbon">
         Precio BTC <span class="hl btc-live-text" translate="no">USD {{ flota.precio_btc }}</span> <span class="sep">|</span> 
-        Moneda <span class="hl" translate="no">USD - tipo actualizado solo</span> <span class="sep">|</span> 
+        Moneda <span class="hl" translate="no">USD</span> <span class="sep">|</span> 
         Red <span class="hl" translate="no">{{ flota.red_ehs }} EH/s</span> <span class="sep">|</span> 
         Dificultad <span class="hl" translate="no">{{ flota.dificultad_t }} T</span> <span class="sep">|</span> 
         Recompensa por bloque <span class="hl" translate="no">{{ flota.recompensa_bloque }} BTC</span> <span class="sep">|</span> 
@@ -401,7 +414,7 @@ HTML_DETALLE = """
 </div>
 
 <div class="card" style="padding:20px;">
-    <div class="panel-title">⚡ Panel de control</div>
+    <div class="panel-title" style="justify-content: flex-start;">⚡ Panel de control</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/restart').then(()=>location.reload())">🔄 Reiniciar</button>
         <button class="btn-control" onclick="fetch('/cmd/{{ ip }}/sleep').then(()=>location.reload())">😴 Reposo</button>
@@ -429,7 +442,7 @@ HTML_DETALLE = """
 
 <div class="grid-2">
     <div class="card">
-        <div class="panel-title">🌡️ Temperaturas de cadena</div>
+        <div class="panel-title" style="justify-content: flex-start;">🌡️ Temperaturas de cadena</div>
         <table class="info-table" style="margin-top:15px;">
             <tr>
                 <td>Cadena 0 <span style="font-weight:normal; color:var(--text-muted); font-size:0.8em; margin-left:10px;">{{ ultimo.hashrate_c0 }} TH/s</span></td>
@@ -446,7 +459,7 @@ HTML_DETALLE = """
         </table>
     </div>
     <div class="card">
-        <div class="panel-title">ℹ Información del dispositivo</div>
+        <div class="panel-title" style="justify-content: flex-start;">ℹ Información del dispositivo</div>
         <table class="info-table">
             <tr><td>Modelo</td><td translate="no">{{ modelo }}</td></tr>
             <tr><td>Firmware</td><td translate="no">{{ extra.firmware }} <span style="color:var(--accent-blue); font-size: 0.85em; margin-left: 8px; cursor: pointer;">Buscar actualización</span></td></tr>
@@ -461,7 +474,7 @@ HTML_DETALLE = """
 </div>
 
 <div class="card">
-    <div class="panel-title">⛏ Pools</div>
+    <div class="panel-title" style="justify-content: flex-start;">⛏ Pools</div>
     <table class="info-table" style="text-align: left;">
         <tr style="color:var(--text-muted); font-size:0.75em; text-transform:uppercase;"><th>#</th><th>Pool</th><th>Worker</th><th>Estado</th><th>Aceptados</th><th>Rechazados</th><th></th></tr>
         
@@ -503,7 +516,6 @@ HTML_DETALLE = """
         }
     }
     
-    // JS para los filtros de 6h, 24h, 7d, 30d
     const rawFechas = {{ graf_fechas_raw | safe }};
     const rawHr = {{ graf_hashrate | safe }};
     const rawTemp = {{ graf_temps | safe }};
@@ -557,7 +569,6 @@ HTML_DETALLE = """
             });
         }
     }
-    
     window.onload = function() { updateChart('24h'); };
 </script>
 """
@@ -599,7 +610,7 @@ def index():
             b = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296) if datos_red['dificultad_t'] > 0 else 0
             ib = b * datos_red['precio']; ig += ib
             str_gan = f"-USD {abs(ib):.2f}" if ib < 0 else f"{ib:.2f} USD"
-            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 'tiempo_act': 'hace ' + str(int(segs_desconectado)) + 's', 'hashrate': hr, 'temp_num': t, 'consumo_w': c, 'consumo_kw': round(c/1000, 1), 'eficiencia': round(c/hr, 2) if hr>0 else 0, 'ganancia_neta': str_gan})
+            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 'tiempo_act': 'hace ' + str(int(segs_desconectado)) + 's', 'hashrate': hr, 'temp_num': t, 'consumo_kw': round(c/1000, 1), 'eficiencia': round(c/hr, 2) if hr>0 else 0, 'ganancia_neta': str_gan})
         else:
             offline += 1
             registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 'tiempo_act': 'Offline', 'hashrate': 0, 'temp_num': 0, 'consumo_w': 0, 'consumo_kw': 0, 'eficiencia': 0, 'ganancia_neta': "USD 0.00"})
@@ -613,7 +624,6 @@ def index():
 def detalle_minero(ip):
     con = sqlite3.connect('historial_minero.db'); cur = con.cursor()
     m = cur.execute("SELECT * FROM mineros_activos WHERE ip=?", (ip,)).fetchone()
-    # Traemos 5000 puntos para tener suficientes datos para el filtro de 7d/30d
     hist = cur.execute("SELECT fecha, hashrate, temp_max FROM historial_nube WHERE ip=? ORDER BY id DESC LIMIT 5000", (ip,)).fetchall()
     con.close()
     if not m: return redirect('/')
@@ -636,11 +646,10 @@ def detalle_minero(ip):
     pool3 = ""
 
     hist.reverse()
-    
     f_raw = []; hr_g = []; tp_g = []
     if hist:
         for idx, h in enumerate(hist):
-            f_raw.append(h[0]) # "YYYY-MM-DD HH:MM:SS"
+            f_raw.append(h[0])
             val_h = float(h[1]) if h[1] else 0
             if idx > 0:
                 dt_actual = datetime.strptime(h[0], "%Y-%m-%d %H:%M:%S")
@@ -691,7 +700,7 @@ def recibir_datos():
         err = m.get('errores', 0); wk = m.get('worker', ''); pl = m.get('pool', ''); mc = m.get('mac', ''); sr = m.get('serial', ''); fw = m.get('firmware', ''); fs = m.get('fans', '')
         cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, temp_max, consumo_w, estado, ultima_act, errores, worker, pool, mac, serial, firmware, fans) 
                        VALUES (?, ?, ?, ?, ?, 'online', ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(ip) DO UPDATE SET 
-                       hashrate=excluded.hashrate, temp_max=excluded.temp_max, consumo_w=excluded.consumo_w, ultima_act=excluded.ultima_act, errores=excluded.errores, worker=excluded.worker, pool=excluded.pool, mac=excluded.mac, serial=excluded.serial, firmware=excluded.firmware, fans=excluded.fans''', 
+                       modelo=excluded.modelo, hashrate=excluded.hashrate, temp_max=excluded.temp_max, consumo_w=excluded.consumo_w, ultima_act=excluded.ultima_act, errores=excluded.errores, worker=excluded.worker, pool=excluded.pool, mac=excluded.mac, serial=excluded.serial, firmware=excluded.firmware, fans=excluded.fans''', 
                     (m['ip'], m['modelo'], m['hashrate'], m['temp'], m['consumo'], ahora, err, wk, pl, mc, sr, fw, fs))
         cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, fecha) VALUES (?, ?, ?, ?)", (m['ip'], m['hashrate'], m['temp'], ahora))
     
