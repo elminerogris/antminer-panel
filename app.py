@@ -18,7 +18,7 @@ def init_db():
         con = get_db()
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, hashrate_30m REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pool2 TEXT, worker2 TEXT, pool3 TEXT, worker3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, hashrate_30m REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, ip TEXT, hashrate REAL, temp_max INTEGER, errores INTEGER DEFAULT 0, fecha TEXT)''')
@@ -26,6 +26,12 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
         
         try: c.execute("ALTER TABLE mineros_activos ADD COLUMN hashrate_30m REAL DEFAULT 0.0")
+        except: pass
+        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass1 TEXT DEFAULT '123'")
+        except: pass
+        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass2 TEXT DEFAULT '123'")
+        except: pass
+        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass3 TEXT DEFAULT '123'")
         except: pass
         try: c.execute("ALTER TABLE historial_nube ADD COLUMN errores INTEGER DEFAULT 0")
         except: pass
@@ -142,9 +148,10 @@ def detalle_minero(ip):
     ult = m['ultima_act'] if m['ultima_act'] else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     offline = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() > 180
     
-    pool1 = str(m['pool1']) if m['pool1'] else ""; worker1 = str(m['worker1']) if m['worker1'] else ""
-    pool2 = str(m['pool2']) if m['pool2'] else ""; worker2 = str(m['worker2']) if m['worker2'] else ""
-    pool3 = str(m['pool3']) if m['pool3'] else ""; worker3 = str(m['worker3']) if m['worker3'] else ""
+    pool1 = str(m['pool1']) if m['pool1'] else ""; worker1 = str(m['worker1']) if m['worker1'] else ""; pass1 = str(m['pass1']) if m['pass1'] else "123"
+    pool2 = str(m['pool2']) if m['pool2'] else ""; worker2 = str(m['worker2']) if m['worker2'] else ""; pass2 = str(m['pass2']) if m['pass2'] else "123"
+    pool3 = str(m['pool3']) if m['pool3'] else ""; worker3 = str(m['worker3']) if m['worker3'] else ""; pass3 = str(m['pass3']) if m['pass3'] else "123"
+    
     mac = str(m['mac']) if m['mac'] else "-"; serial = str(m['serial']) if m['serial'] else "-"
     fw = str(m['firmware']) if m['firmware'] else "Desconocido"; fans = str(m['fans']) if m['fans'] else "0 / 0"
     
@@ -176,7 +183,12 @@ def detalle_minero(ip):
         'fans': fans, 'uptime': '0d 13h' if not offline else 'Desconectado', 
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0
     }
-    extra = {'worker1': worker1, 'pool1': pool1, 'worker2': worker2, 'pool2': pool2, 'worker3': worker3, 'pool3': pool3, 'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas}
+    extra = {
+        'worker1': worker1, 'pool1': pool1, 'pass1': pass1, 
+        'worker2': worker2, 'pool2': pool2, 'pass2': pass2, 
+        'worker3': worker3, 'pool3': pool3, 'pass3': pass3, 
+        'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas
+    }
     
     eficiencia_val = round(c_val / hr_val, 2) if hr_val > 0 else 0
     if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
@@ -201,8 +213,11 @@ def comando_minero(ip, accion):
     cmd_str = ""
     if accion in ['restart', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
         cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
-    elif accion == 'setpool': 
-        cmd_str = f"setpool|{request.args.get('url', '')}|{request.args.get('user', '')}"
+    elif accion == 'guardar_pools': 
+        u1 = request.args.get('u1', ''); w1 = request.args.get('w1', ''); p1 = request.args.get('p1', '123')
+        u2 = request.args.get('u2', ''); w2 = request.args.get('w2', ''); p2 = request.args.get('p2', '123')
+        u3 = request.args.get('u3', ''); w3 = request.args.get('w3', ''); p3 = request.args.get('p3', '123')
+        cmd_str = f"guardar_pools|{u1}|{w1}|{p1}|{u2}|{w2}|{p2}|{u3}|{w3}|{p3}"
         
     if cmd_str:
         con = get_db(); con.autocommit = True; cur = con.cursor()
@@ -298,13 +313,15 @@ def recibir_datos():
         fw = m.get('firmware', '')
         fs = m.get('fans', '')
         hr_30 = m.get('hashrate_30m', m['hashrate'])
-        p1 = m.get('pool1', ''); w1 = m.get('worker1', ''); p2 = m.get('pool2', ''); w2 = m.get('worker2', ''); p3 = m.get('pool3', ''); w3 = m.get('worker3', '')
+        p1 = m.get('pool1', ''); w1 = m.get('worker1', ''); pa1 = m.get('pass1', '123')
+        p2 = m.get('pool2', ''); w2 = m.get('worker2', ''); pa2 = m.get('pass2', '123')
+        p3 = m.get('pool3', ''); w3 = m.get('worker3', ''); pa3 = m.get('pass3', '123')
         cadenas_json = json.dumps(m.get('cadenas', []))
         
-        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, hashrate_30m, temp_max, consumo_w, estado, ultima_act, errores, pool1, worker1, pool2, worker2, pool3, worker3, mac, serial, firmware, fans, cadenas) 
-                        VALUES (%s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
-                        modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas''', 
-                    (m['ip'], m['modelo'], m['hashrate'], hr_30, m['temp'], m['consumo'], ahora, err, p1, w1, p2, w2, p3, w3, mc, sr, fw, fs, cadenas_json))
+        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, hashrate_30m, temp_max, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas) 
+                        VALUES (%s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
+                        modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas''', 
+                    (m['ip'], m['modelo'], m['hashrate'], hr_30, m['temp'], m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json))
         cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, errores, fecha) VALUES (%s, %s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], err, ahora))
     
     cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'")
