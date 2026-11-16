@@ -312,6 +312,12 @@ def recibir_datos():
     datos = request.json
     if not datos: return "Error", 400
     con = get_db(); con.autocommit = True; cur = con.cursor()
+    
+    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'")
+    pend = cur.fetchall()
+    ordenes = [{"ip": c[1], "comando": c[2]} for c in pend]
+    for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c[0],))
+
     ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     for m in datos.get('mineros', []):
         err = m.get('errores', 0)
@@ -331,10 +337,6 @@ def recibir_datos():
                     (m['ip'], m['modelo'], m['hashrate'], hr_30, m['temp'], m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json))
         cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, errores, fecha) VALUES (%s, %s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], err, ahora))
     
-    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'")
-    pend = cur.fetchall()
-    ordenes = [{"ip": c[1], "comando": c[2]} for c in pend]
-    for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c[0],))
     con.close()
     return jsonify({"status": "ok", "ordenes": ordenes}), 200
 
