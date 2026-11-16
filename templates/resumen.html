@@ -64,26 +64,6 @@
             <input type="number" id="calcComision" class="calc-input" value="0.00" step="0.1">
         </div>
     </div>
-    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-        <div style="background:rgba(51,102,255,0.05); border:1px solid var(--border-color); padding:10px 15px; border-radius:6px; flex:1; min-width:140px;">
-            <div style="font-size:0.75em; color:var(--text-muted);">BTC / DÍA</div>
-            <div style="font-weight:bold; color:var(--accent-blue); margin-top:4px;" id="resBtcDia">0.00046 BTC</div>
-        </div>
-        <div style="background:rgba(51,102,255,0.05); border:1px solid var(--border-color); padding:10px 15px; border-radius:6px; flex:1; min-width:140px;">
-            <div style="font-size:0.75em; color:var(--text-muted);">USD / DÍA (Ingreso)</div>
-            <div style="font-weight:bold; color:var(--accent-green); margin-top:4px;">{{ flota.ingreso_dia }} USD</div>
-        </div>
-        <div style="background:rgba(51,102,255,0.05); border:1px solid var(--border-color); padding:10px 15px; border-radius:6px; flex:1; min-width:140px;">
-            <div style="font-size:0.75em; color:var(--text-muted);">GANANCIA / DÍA</div>
-            <div style="font-weight:bold; color:var(--accent-green); margin-top:4px;">{{ flota.ganancia_dia }}</div>
-        </div>
-    </div>
-</div>
-
-<!-- CONTROLES GLOBALES DE FLOTA -->
-<div style="margin-bottom:15px; display:flex; gap:10px;">
-    <button class="btn-action" onclick="alert('Funcionalidad masiva a cola')">🔄 Reiniciar Selección</button>
-    <button class="btn-action" onclick="alert('Funcionalidad masiva a cola')">😴 Reposo Selección</button>
 </div>
 
 <!-- TABLA DE MINEROS -->
@@ -100,17 +80,17 @@
             <th>Ganancia</th>
         </tr>
         {% for m in registros %}
-        <tr>
-            <td><input type="checkbox" class="miner-checkbox"></td>
+        <tr style="cursor: pointer;" onclick="window.location.href='/minero/{{ m.ip }}'">
+            <td onclick="event.stopPropagation();"><input type="checkbox" class="miner-checkbox"></td>
             <td>
-                <a href="/minero/{{ m.ip }}" style="color:var(--text-main); font-weight:bold; text-decoration:none;" translate="no">{{ m.ip }}</a>
+                <a href="/minero/{{ m.ip }}" style="color:var(--accent-blue); font-weight:bold; text-decoration:none;" translate="no">{{ m.ip }}</a>
                 <div style="color:var(--text-muted); font-size:0.75em;" translate="no">{{ m.modelo }}</div>
             </td>
             <td>
                 <div>{{ m.estado | safe }}</div>
                 <div style="color:var(--text-muted); font-size:0.75em;">{{ m.tiempo_act }}</div>
             </td>
-            <td style="font-weight:bold; color:var(--accent-blue);" translate="no">{{ m.hashrate }} TH/s</td>
+            <td style="font-weight:bold; color:var(--text-main);" translate="no">{{ m.hashrate }} TH/s</td>
             <td>
                 {% if m.temp_num > 80 %}
                     <span style="color:var(--accent-red); font-weight:bold;">{{ m.temp_num }}°C</span>
