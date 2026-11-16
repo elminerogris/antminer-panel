@@ -79,7 +79,7 @@ def index():
     for m in mineros:
         ip = m['ip']
         mod = m['modelo']
-        nombre_custom = nombres_dict.get(ip, ip.split('.')[-1]) # Nombre por defecto el último octeto si no hay custom
+        nombre_custom = nombres_dict.get(ip, ip.split('.')[-1])
         ult = m['ultima_act'] if m['ultima_act'] else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         hr = float(m['hashrate']) if m['hashrate'] else 0.0
         t = int(m['temp_max']) if m['temp_max'] else 0
@@ -195,6 +195,21 @@ def guardar_nombre():
         con.close()
     return redirect(f'/minero/{ip}')
 
+@app.route('/cmd/<ip>/<accion>')
+@login_required
+def comando_minero(ip, accion):
+    cmd_str = ""
+    if accion in ['restart', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
+        cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
+    elif accion == 'setpool': 
+        cmd_str = f"setpool|{request.args.get('url', '')}|{request.args.get('user', '')}"
+        
+    if cmd_str:
+        con = get_db(); con.autocommit = True; cur = con.cursor()
+        cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con.close()
+    return "OK"
+
 @app.route('/plan')
 @login_required
 def plan(): return render_template('plan.html', active_page='plan', current_plan=session.get('plan', 'Gratis'), saldo=session.get('saldo', 0.0))
@@ -253,6 +268,22 @@ def exportar_csv():
     writer.writerow(['IP', 'Modelo', 'Hashrate (TH/s)', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
     for f in filas: writer.writerow([f['ip'], f['modelo'], f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition":"attachment;filename=Reporte_El_Minero_Gris.csv"})
+
+@app.route('/api/ver_log/<ip>')
+def ver_log(ip):
+    con = get_db(); cur = con.cursor()
+    cur.execute("SELECT contenido FROM logs_mineros WHERE ip=%s", (ip,))
+    log = cur.fetchone(); con.close()
+    return log[0] if log else "Esperando respuesta..."
+
+@app.route('/api/recibir_logs', methods=['POST'])
+def recibir_logs():
+    data = request.json
+    if data and 'ip' in data and 'log' in data:
+        con = get_db(); con.autocommit = True; cur = con.cursor()
+        cur.execute("INSERT INTO logs_mineros (ip, contenido, fecha) VALUES (%s, %s, %s) ON CONFLICT(ip) DO UPDATE SET contenido=EXCLUDED.contenido, fecha=EXCLUDED.fecha", (data['ip'], data['log'], datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con.close()
+    return "OK", 200
 
 @app.route('/api/recibir_datos', methods=['POST'])
 def recibir_datos():
