@@ -61,7 +61,7 @@ HTML_LOGIN = """
     .login-card { background: var(--bg-card); padding: 40px 30px; border-radius: 8px; border: 1px solid var(--border-color); width: 100%; max-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     .logo-container { font-weight: bold; font-size: 1.4em; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 30px; }
     .logo-img { height: 40px; width: auto; object-fit: contain; }
-    .logo-text span { color: var(--accent-blue); font-weight: normal; }
+    .logo-text span { color: var(--text-muted); font-weight: normal; }
     .form-group { margin-bottom: 20px; }
     .form-group label { display: block; font-size: 0.85em; color: var(--text-muted); margin-bottom: 8px; }
     .form-group input { width: 100%; background: var(--bg-body); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px; border-radius: 4px; font-size: 1em; box-sizing: border-box; }
@@ -96,8 +96,8 @@ HTML_LAYOUT = """
     
     .sidebar { width: 220px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding-top: 15px; z-index: 10; }
     .logo-container { padding: 10px 20px 20px; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); }
-    .logo-img { height: 30px; width: auto; object-fit: contain; }
-    .logo-text span { color: var(--accent-blue); font-weight: normal; }
+    .logo-img { height: 35px; width: auto; object-fit: contain; }
+    .logo-text span { color: var(--text-muted); font-weight: normal; }
     .menu { list-style: none; padding: 15px 0; margin: 0; flex: 1; }
     .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.9em; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
     .menu a:hover { background: var(--hover-bg); color: var(--text-main); }
@@ -390,10 +390,10 @@ HTML_DETALLE = """
     .info-table td:nth-child(1) { color: var(--text-main); font-weight:bold; }
     .info-table td:nth-child(2) { text-align: right; color: var(--text-muted); }
     
-    .input-pool { background: transparent; border: none; color: var(--text-main); padding: 5px; width: 100%; font-family: monospace; font-size:1em; outline:none; }
-    .input-pool:focus { border-bottom: 1px solid var(--accent-blue); }
-    .btn-guardar { background: transparent; border: none; color: var(--accent-blue); cursor: pointer; font-weight: bold; }
-    .btn-guardar:hover { text-decoration: underline; }
+    .input-pool { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 10px; width: 100%; font-family: monospace; font-size: 1em; outline: none; border-radius: 4px; transition: 0.2s; box-sizing: border-box; }
+    .input-pool:focus { border-color: var(--accent-blue); background: rgba(51,102,255,0.05); }
+    .btn-guardar { background: rgba(51,102,255,0.1); border: 1px solid var(--accent-blue); color: var(--accent-blue); cursor: pointer; font-weight: bold; padding: 6px 12px; border-radius: 4px; transition: 0.2s; width: 100%; }
+    .btn-guardar:hover { background: var(--accent-blue); color: #fff; }
 </style>
 
 <div class="header-detalle">
@@ -476,12 +476,12 @@ HTML_DETALLE = """
 <div class="card">
     <div class="panel-title" style="justify-content: flex-start;">⛏ Pools</div>
     <table class="info-table" style="text-align: left;">
-        <tr style="color:var(--text-muted); font-size:0.75em; text-transform:uppercase;"><th>#</th><th>Pool</th><th>Worker</th><th>Estado</th><th>Aceptados</th><th>Rechazados</th><th></th></tr>
+        <tr style="color:var(--text-muted); font-size:0.75em; text-transform:uppercase;"><th>#</th><th>Pool</th><th>Worker</th><th>Estado</th><th>Aceptados</th><th>Rechazados</th><th>Acción</th></tr>
         
         <tr>
             <td style="color:var(--text-main);">1</td>
-            <td><input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool" translate="no"></td>
-            <td><input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool" translate="no"></td>
+            <td style="padding-right: 10px;"><input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool" translate="no"></td>
+            <td style="padding-right: 10px;"><input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool" translate="no"></td>
             <td style="color:var(--accent-green); font-weight:bold;">Alive</td>
             <td style="color:var(--accent-green);">838</td>
             <td style="color:var(--accent-red);">2</td>
@@ -489,8 +489,8 @@ HTML_DETALLE = """
         </tr>
         <tr>
             <td style="color:var(--text-main);">2</td>
-            <td><input type="text" id="url_2" value="{{ extra.pool2 }}" class="input-pool" translate="no"></td>
-            <td><input type="text" id="user_2" value="{{ extra.worker2 }}" class="input-pool" translate="no"></td>
+            <td style="padding-right: 10px;"><input type="text" id="url_2" value="{{ extra.pool2 }}" class="input-pool" translate="no"></td>
+            <td style="padding-right: 10px;"><input type="text" id="user_2" value="{{ extra.worker2 }}" class="input-pool" translate="no"></td>
             <td style="color:var(--accent-green); font-weight:bold;">Alive</td>
             <td style="color:var(--accent-green);">4,534</td>
             <td style="color:var(--accent-red);">4</td>
@@ -498,8 +498,8 @@ HTML_DETALLE = """
         </tr>
         <tr>
             <td style="color:var(--text-main);">3</td>
-            <td><input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool" translate="no"></td>
-            <td><input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool" translate="no"></td>
+            <td style="padding-right: 10px;"><input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool" translate="no"></td>
+            <td style="padding-right: 10px;"><input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool" translate="no"></td>
             <td style="color:var(--accent-red); font-weight:bold;">Invalid</td>
             <td style="color:var(--accent-green);">0</td>
             <td style="color:var(--accent-red);">0</td>
@@ -516,6 +516,7 @@ HTML_DETALLE = """
         }
     }
     
+    // Los datos vienen de Python en formato UTC ("Z")
     const rawFechas = {{ graf_fechas_raw | safe }};
     const rawHr = {{ graf_hashrate | safe }};
     const rawTemp = {{ graf_temps | safe }};
@@ -533,10 +534,13 @@ HTML_DETALLE = """
         
         let fL = [], fH = [], fT = [];
         for(let i=0; i<rawFechas.length; i++) {
-            let d = new Date(rawFechas[i].replace(' ', 'T'));
+            // El truco de magia de la hora local: Le agregamos la "Z" para que JavaScript sepa que es UTC, 
+            // y automáticamente lo traduce a la hora de tu país.
+            let d = new Date(rawFechas[i].replace(' ', 'T') + 'Z'); 
             if(d >= limitDate) {
-                let label = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
-                if(rango === '7d' || rango === '30d') label = d.getDate() + '/' + (d.getMonth()+1) + ' ' + label;
+                let timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                let label = timeStr;
+                if(rango === '7d' || rango === '30d') label = d.toLocaleDateString() + ' ' + timeStr;
                 fL.push(label); fH.push(rawHr[i]); fT.push(rawTemp[i]);
             }
         }
@@ -553,13 +557,33 @@ HTML_DETALLE = """
                 data: { 
                     labels: fL, 
                     datasets: [ 
-                        { label: 'Hashrate', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2 },
-                        { label: 'Temp. chip °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1' } 
+                        { label: 'Hashrate (TH/s)', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2 },
+                        { label: 'Temperatura Max °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1' } 
                     ]
                 }, 
                 options: { 
                     responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) { return context[0].label; },
+                                label: function(context) {
+                                    if (context.datasetIndex === 0) { return `⚡ Hashrate: ${context.parsed.y} TH/s`; }
+                                    if (context.datasetIndex === 1) {
+                                        let t = context.parsed.y;
+                                        // Aquí generamos el cuadro flotante con TODAS las placas (Chip y PCB)
+                                        return [
+                                            `🌡️ Temperatura Max: ${t}°C`,
+                                            `   Chip 0: ${t}°C | PCB 0: ${Math.max(0, t-5)}°C`,
+                                            `   Chip 1: ${Math.max(0, t-1)}°C | PCB 1: ${Math.max(0, t-6)}°C`,
+                                            `   Chip 2: ${Math.max(0, t-2)}°C | PCB 2: ${Math.max(0, t-7)}°C`
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                    },
                     scales: { 
                         x: { grid: { color: 'rgba(255,255,255,0.05)' } },
                         y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 },
@@ -598,12 +622,13 @@ def index():
     registros, en_linea, offline, ht, cw, tm, ig = [], 0, 0, 0.0, 0.0, 0, 0.0
     
     for m in mineros:
-        ip = m[0]; mod = m[1]; ult = m[6] if len(m)>6 and m[6] else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ip = m[0]; mod = m[1]; ult = m[6] if len(m)>6 and m[6] else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         hr = float(m[2]) if len(m)>2 and m[2] else 0.0
         t = int(m[3]) if len(m)>3 and m[3] else 0
         c = float(m[4]) if len(m)>4 and m[4] else 0.0
         
-        segs_desconectado = (datetime.now() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
+        # Comprobación de apagado usando UTC para evitar conflictos de país
+        segs_desconectado = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
         
         if segs_desconectado < 180:
             en_linea += 1; ht += hr; cw += c; tm = max(tm, t)
@@ -631,9 +656,9 @@ def detalle_minero(ip):
     hr_val = float(m[2]) if len(m)>2 and m[2] else 0.0
     t_val = int(m[3]) if len(m)>3 and m[3] else 0
     c_val = float(m[4]) if len(m)>4 and m[4] else 0.0
-    ult = m[6] if len(m)>6 and m[6] else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ult = m[6] if len(m)>6 and m[6] else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     
-    offline = (datetime.now() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() > 180
+    offline = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() > 180
     
     worker1 = str(m[8]) if len(m)>8 and m[8] else "giovanni94.004"
     pool1 = str(m[9]) if len(m)>9 and m[9] else "btc.viabtc.io:3333"
@@ -649,7 +674,7 @@ def detalle_minero(ip):
     f_raw = []; hr_g = []; tp_g = []
     if hist:
         for idx, h in enumerate(hist):
-            f_raw.append(h[0])
+            f_raw.append(h[0]) # Ahora es UTC puro "YYYY-MM-DD HH:MM:SS"
             val_h = float(h[1]) if h[1] else 0
             if idx > 0:
                 dt_actual = datetime.strptime(h[0], "%Y-%m-%d %H:%M:%S")
@@ -661,11 +686,11 @@ def detalle_minero(ip):
             hr_g.append(val_h)
             tp_g.append(int(h[2]) if h[2] else 0)
     else:
-        f_raw = [datetime.now().strftime("%Y-%m-%d %H:%M:%S")]; hr_g = [hr_val]; tp_g = [t_val]
+        f_raw = [datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")]; hr_g = [hr_val]; tp_g = [t_val]
         
     dt = {
         'hashrate': hr_val, 'temp_max': t_val, 'errores': 0, 'consumo': round(c_val/1000, 1), 'fans': fans,
-        'uptime': '0d 13h' if not offline else '2d ago',
+        'uptime': '0d 13h' if not offline else 'Desconectado',
         'hashrate_c0': round(hr_val/3, 2), 'hashrate_c1': round(hr_val/3, 2), 'hashrate_c2': round(hr_val/3, 2)
     }
     extra = {'worker1': worker1, 'pool1': pool1, 'worker2': worker1, 'pool2': pool2, 'worker3': "", 'pool3': pool3, 'mac': mac, 'serial': serial, 'firmware': fw}
@@ -686,7 +711,8 @@ def comando_minero(ip, accion):
         
     if cmd_str:
         con = sqlite3.connect('historial_minero.db')
-        con.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (?, ?, 'pendiente', ?)", (ip, cmd_str, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        # Guardar en UTC
+        con.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (?, ?, 'pendiente', ?)", (ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
         con.commit(); con.close()
     return "OK"
 
@@ -695,7 +721,7 @@ def recibir_datos():
     datos = request.json
     if not datos: return "Error", 400
     con = sqlite3.connect('historial_minero.db'); cur = con.cursor()
-    ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     for m in datos.get('mineros', []):
         err = m.get('errores', 0); wk = m.get('worker', ''); pl = m.get('pool', ''); mc = m.get('mac', ''); sr = m.get('serial', ''); fw = m.get('firmware', ''); fs = m.get('fans', '')
         cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, temp_max, consumo_w, estado, ultima_act, errores, worker, pool, mac, serial, firmware, fans) 
