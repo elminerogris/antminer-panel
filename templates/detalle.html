@@ -92,7 +92,16 @@
                 <tr><td>Serie</td><td translate="no">{{ extra.serial }}</td></tr>
                 <tr><td>MAC</td><td translate="no">{{ extra.mac }}</td></tr>
                 <tr><td>IP</td><td translate="no">{{ ip }}</td></tr>
-                <tr><td>Eficiencia</td><td translate="no">{{ dispositivo.eficiencia }} J/TH</td></tr>
+                <tr>
+                    <td>Eficiencia</td>
+                    <td translate="no">
+                        {% if dispositivo.eficiencia and dispositivo.eficiencia > 0 %}
+                            {{ "%.2f"|format(dispositivo.eficiencia | float) }} J/TH
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
                 <tr><td>Ventiladores</td><td translate="no">{{ ultimo.fans }} RPM</td></tr>
             </table>
         </div>
@@ -200,7 +209,7 @@
                                         let t = context.parsed.y; 
                                         let arr = ['🌡️ Temp Max: ' + t + '°C']; 
                                         for(let c = 0; c < cadenasCount; c++) { 
-                                            arr.push('   Cadena ' + c + ' -> Chip: ' + Math.max(0,t-(c*1)) + '°C | PCB: ' + Math.max(0,t-(5+c)) + '°C'); 
+                                            arr.push('    Cadena ' + c + ' -> Chip: ' + Math.max(0,t-(c*1)) + '°C | PCB: ' + Math.max(0,t-(5+c)) + '°C'); 
                                         } 
                                         return arr; 
                                     } 
