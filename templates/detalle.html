@@ -2,15 +2,14 @@
 {% block content %}
 <style>
     .card{background:var(--bg-card);padding:20px;border-radius:8px;border:1px solid var(--border-color);margin-bottom:20px}
-    .header-detalle{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; flex-wrap: wrap;}
-    .btn-volver{color:var(--text-muted);font-size:1.5em;font-weight:bold}
-    .titulo-minero{margin:0;font-size:1.5em;display:flex;align-items:center;gap:10px}
+    .header-detalle{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px; flex-wrap: wrap;}
+    .btn-volver{color:var(--text-muted);font-size:1.5em;font-weight:bold; text-decoration:none; margin-right:15px;}
     .status-banner{background:rgba(255,82,82,0.1);border:1px solid var(--accent-red);padding:15px;border-radius:8px;color:var(--text-main);font-size:0.9em;margin-bottom:20px;display:{{ 'block' if offline else 'none' }}}
     .status-banner span{color:var(--accent-red);font-weight:bold}
-    .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
+    .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px}
     .grid-4 .card{margin-bottom:0}
-    .grid-4 .card h4{margin:0;font-size:0.7em;color:var(--text-muted);text-transform:uppercase}
-    .grid-4 .card .val{font-size:1.6em;font-weight:bold;margin-top:10px;color:var(--accent-blue)}
+    .grid-4 .card h4{margin:0;font-size:0.75em;color:var(--text-muted);text-transform:uppercase}
+    .grid-4 .card .val{font-size:1.6em;font-weight:bold;margin-top:8px;color:var(--accent-blue)}
     .panel-title{font-weight:bold;margin-bottom:15px;display:flex;align-items:center;justify-content:space-between;font-size:1.1em; flex-wrap:wrap;}
     .btn-control{background:transparent;border:1px solid var(--border-color);color:var(--text-main);padding:8px 15px;border-radius:20px;cursor:pointer;font-weight:bold;transition:0.2s;font-size:0.85em;display:flex;align-items:center;gap:6px}
     .btn-control:hover{border-color:var(--accent-blue)}
@@ -29,14 +28,54 @@
     .terminal{background:#000;color:#00e676;padding:15px;border-radius:6px;font-family:monospace;font-size:0.85em;height:300px;overflow-y:scroll;border:1px solid #333;margin-top:20px;display:none;white-space:pre-wrap}
 </style>
 
-<div class="header-detalle"><div style="display:flex; align-items:center; gap:15px;"><a href="/" class="btn-volver">← Volver</a></div></div>
+<!-- CABECERA CON NOMBRE EDITABLE (PROBLEMA 4) -->
+<div class="header-detalle">
+    <div style="display:flex; align-items:center;">
+        <a href="/" class="btn-volver">←</a>
+        <div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <h1 style="margin:0; font-size:1.8em;" id="nombreTexto" translate="no">{{ nombre }}</h1>
+                <span style="width:10px; height:10px; background:{% if offline %}var(--accent-red){% else %}var(--accent-green){% endif %}; border-radius:50%; display:inline-block;"></span>
+                <button onclick="toggleEditarNombre()" style="background:transparent; border:1px solid var(--border-color); color:var(--text-muted); padding:3px 8px; border-radius:4px; cursor:pointer; font-size:0.75em;">✏️ Editar</button>
+            </div>
+            <div style="color:var(--text-muted); font-size:0.9em; margin-top:4px;" translate="no">
+                {{ modelo }} &nbsp;·&nbsp; {{ ip }}
+            </div>
+            
+            <!-- Formulario oculto para editar nombre -->
+            <form id="formNombre" action="/guardar_nombre" method="POST" style="display:none; margin-top:8px; gap:8px; align-items:center;">
+                <input type="hidden" name="ip" value="{{ ip }}">
+                <input type="text" name="nombre" value="{{ nombre }}" class="input-pool" style="width:150px; padding:4px 8px; font-size:0.9em;" required>
+                <button type="submit" style="background:var(--accent-blue); color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:0.8em;">Guardar</button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="status-banner"><span>⛔ Este minero está sin conexión</span> (visto {{ ultimo.uptime }}). Datos históricos.</div>
 
+<!-- TARJETAS SUPERIORES CON HASHRATE 5S, 30M, CONSUMO Y TEMPERATURA -->
 <div class="grid-4">
-    <div class="card"><h4>Hashrate</h4><div class="val" translate="no">{{ ultimo.hashrate }} TH/s</div></div>
-    <div class="card"><h4>Errores</h4><div class="val" style="color:var(--accent-red);" translate="no">{{ ultimo.errores }}</div></div>
-    <div class="card"><h4>Consumo</h4><div class="val" style="color:var(--text-main);" translate="no">{{ ultimo.consumo }} kW</div></div>
-    <div class="card"><h4>Temp Max</h4><div class="val" style="color:var(--accent-green);" translate="no">{{ ultimo.temp_max }}°C</div></div>
+    <div class="card">
+        <h4>Hashrate 5s</h4>
+        <div class="val" translate="no">{{ ultimo.hashrate }} TH/s</div>
+    </div>
+    <div class="card">
+        <h4>Hashrate 30m</h4>
+        <div class="val" style="color:var(--accent-green);" translate="no">{{ ultimo.hashrate_30m }} TH/s</div>
+    </div>
+    <div class="card">
+        <h4>Errores</h4>
+        <div class="val" style="color:var(--accent-red);" translate="no">{{ ultimo.errores }}</div>
+    </div>
+    <div class="card">
+        <h4>Consumo</h4>
+        <div class="val" style="color:var(--text-main);" translate="no">{{ ultimo.consumo }}</div>
+    </div>
+    <div class="card">
+        <h4>Temp Max</h4>
+        <div class="val" style="color:var(--accent-green);" translate="no">{{ ultimo.temp_max }}°C</div>
+    </div>
 </div>
 
 <div class="card" style="padding:20px;">
@@ -150,6 +189,11 @@
 </div>
 
 <script>
+    function toggleEditarNombre() {
+        let f = document.getElementById('formNombre');
+        f.style.display = f.style.display === 'flex' ? 'none' : 'flex';
+    }
+
     function solicitarLogs() { let tb = document.getElementById('terminal-box'); tb.style.display = 'block'; tb.innerText = 'Solicitando logs al agente...'; fetch('/cmd/{{ ip }}/get_log').then(() => { setInterval(async () => { let r = await fetch('/api/ver_log/{{ ip }}'); let txt = await r.text(); if(txt.length > 5) { tb.innerText = txt; tb.scrollTop = tb.scrollHeight; } }, 3000); }); }
     function guardarPool(idx) { let u = document.getElementById('url_' + idx).value, us = document.getElementById('user_' + idx).value; if(confirm('¿Guardar configuración del Pool ' + idx + '?')) { fetch('/cmd/{{ ip }}/setpool?url='+encodeURIComponent(u)+'&user='+encodeURIComponent(us)).then(()=>alert('Cambio enviado a la cola del Agente.')); } }
     
@@ -180,14 +224,11 @@
                 let timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 let label = timeStr;
                 if(rango === '7d' || rango === '30d') label = d.toLocaleDateString() + ' ' + timeStr;
-                fL.push(label); 
-                fH.push(rawHr[i]); 
-                fT.push(rawTemp[i]);
+                fL.push(label); fH.push(rawHr[i]); fT.push(rawTemp[i]);
                 fE.push(rawErr[i] !== undefined ? rawErr[i] : 0);
             }
         }
         
-        // CÁLCULO DE PROMEDIOS PARA MOSTRAR EN LA CABECERA
         let validHr = fH.filter(v => v !== null && v > 0);
         let avgHr = validHr.length > 0 ? (validHr.reduce((a,b)=>a+b,0) / validHr.length).toFixed(2) : "0.00";
         let promEl = document.getElementById('hrPromedio');
