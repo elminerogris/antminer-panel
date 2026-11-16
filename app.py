@@ -174,15 +174,13 @@ def detalle_minero(ip):
                 if (dt_actual - dt_prev).total_seconds() > 300: 
                     f_raw.insert(-1, calendar.timegm(dt_prev.timetuple())); hr_g.insert(-1, 0); tp_g.insert(-1, 0); err_g.insert(-1, 0)
             
-            # PROBLEMA 3: Cálculo de errores por intervalo (no acumulativo)
             total_err_actual = int(h['errores']) if 'errores' in h and h['errores'] else 0
             diff_err = total_err_actual - prev_err
-            if diff_err < 0: diff_err = total_err_actual # si se reinició el minero
+            if diff_err < 0: diff_err = total_err_actual
             err_g.append(max(0, diff_err))
             prev_err = total_err_actual
 
-            hr_g.append(val_h)
-            tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
+            hr_g.append(val_h); tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
     else:
         f_raw = [calendar.timegm(datetime.utcnow().timetuple())]; hr_g = [hr_val]; tp_g = [t_val]; err_g = [0]
         
