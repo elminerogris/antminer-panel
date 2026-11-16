@@ -6,13 +6,20 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'super_secreta_antminer_tools'
 
-# --- 1. BASE DE DATOS Y MOTOR SAAS ---
+# --- 1. BASE DE DATOS Y AUTO-ACTUALIZACIÓN DE ESQUEMA ---
 def init_db():
     conexion = sqlite3.connect('historial_minero.db'); c = conexion.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS cola_comandos (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS historial_nube (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, hashrate REAL, temp_max INTEGER, fecha TEXT)')
+    
+    # Auto-parche para agregar las columnas del Agente V4 sin borrar la DB existente
+    nuevas_columnas = ['errores INTEGER', 'worker TEXT', 'pool TEXT', 'mac TEXT', 'serial TEXT', 'firmware TEXT', 'fans TEXT']
+    for col in nuevas_columnas:
+        try: c.execute(f'ALTER TABLE mineros_activos ADD COLUMN {col}')
+        except: pass # Si ya existe, simplemente continúa
+
     if not c.execute("SELECT * FROM usuarios WHERE username='giovanni'").fetchone():
         c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
     conexion.commit(); conexion.close()
@@ -25,12 +32,12 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-cache_red = {'datos': {'precio': 68792.0, 'dificultad_t': 148.36, 'recompensa': 3.125}, 'ultima_act': 0}
+cache_red = {'datos': {'precio': 64809.0, 'dificultad_t': 134.82, 'recompensa': 3.125, 'red_ehs': 965.11}, 'ultima_act': 0}
 def obtener_datos_red():
     global cache_red
     ahora = time.time()
     if ahora - cache_red['ultima_act'] < 60: return cache_red['datos']
-    datos = {'precio': cache_red['datos']['precio'], 'dificultad_t': cache_red['datos']['dificultad_t'], 'recompensa': 3.125}
+    datos = cache_red['datos'].copy()
     try:
         req_p = urllib.request.Request("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", headers={'User-Agent': 'Mozilla/5.0'})
         datos['precio'] = float(json.loads(urllib.request.urlopen(req_p, timeout=2).read().decode('utf-8'))['price'])
@@ -40,7 +47,7 @@ def obtener_datos_red():
     cache_red['datos'] = datos; cache_red['ultima_act'] = ahora
     return datos
 
-# --- 2. DISEÑOS ORIGINALES PREMIUM (PLANTILLAS) ---
+# --- 2. PLANTILLAS HTML CLON EXACTO ---
 
 HTML_LOGIN = """
 <!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8"><title>Antminer Tools - Acceso</title>
@@ -54,12 +61,12 @@ HTML_LOGIN = """
     .form-group { margin-bottom: 20px; }
     .form-group label { display: block; font-size: 0.85em; color: var(--text-muted); margin-bottom: 8px; }
     .form-group input { width: 100%; background: var(--bg-body); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px; border-radius: 4px; font-size: 1em; box-sizing: border-box; }
-    .btn-login { width: 100%; background: var(--accent-blue); color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1em; margin-top: 10px; }
+    .btn-login { width: 100%; background: var(--accent-blue); color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
 </style></head>
 <body>
     <div class="login-card">
         <div class="logo-container"><div class="logo-icon">A</div><div class="logo-text">Antminer <span>Tools</span></div></div>
-        {% if error %}<div style="color:var(--accent-red); margin-bottom:15px; text-align:center;">{{ error }}</div>{% endif %}
+        {% if error %}<div style="color:var(--accent-red); margin-bottom:15px; text-align:center; font-size:0.9em;">{{ error }}</div>{% endif %}
         <form method="POST">
             <div class="form-group"><label>Usuario</label><input type="text" name="username" required></div>
             <div class="form-group"><label>Contraseña</label><input type="password" name="password" required></div>
@@ -79,7 +86,7 @@ HTML_LAYOUT = """
     .skiptranslate iframe { display: none !important; } body { top: 0px !important; } #google_translate_element { display: none; }
     a { text-decoration: none; color: inherit; }
     
-    .sidebar { width: 220px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding-top: 15px; z-index: 10; transition: 0.3s; }
+    .sidebar { width: 220px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding-top: 15px; z-index: 10; }
     .logo-container { padding: 10px 20px 20px; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); }
     .logo-icon { background: var(--accent-blue); color: white; width: 24px; height: 24px; border-radius: 4px; display: flex; justify-content: center; align-items: center; font-size: 0.8em; }
     .logo-text span { color: var(--accent-blue); font-weight: normal; }
@@ -87,12 +94,11 @@ HTML_LAYOUT = """
     .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.9em; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
     .menu a:hover { background: var(--hover-bg); color: var(--text-main); }
     .menu a.active { background: var(--active-bg); color: var(--text-main); border-left: 3px solid var(--accent-blue); }
-    
     .sidebar-bottom { border-top: 1px solid var(--border-color); padding: 15px 20px; font-size: 0.85em; display: flex; flex-direction: column; gap: 10px; }
     
     .right-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .top-bar { height: 60px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); display: flex; justify-content: flex-end; align-items: center; padding: 0 30px; gap: 15px; transition: 0.3s; }
-    .top-btn, .top-lang-select { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); height: 36px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+    .top-bar { height: 60px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); display: flex; justify-content: flex-end; align-items: center; padding: 0 30px; gap: 15px; }
+    .top-btn, .top-lang-select { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); height: 36px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; justify-content: center; }
     .top-btn { width: 36px; font-size: 1.1em; color: var(--text-muted); }
     .btn-sync { width: auto; padding: 0 15px; color: var(--text-main); }
     .top-lang-select { padding: 0 10px; outline: none; }
@@ -100,7 +106,6 @@ HTML_LAYOUT = """
     .status-envivo { color: var(--accent-green); display: flex; align-items: center; gap: 6px; }
     .dot-pulse { width: 8px; height: 8px; background: var(--accent-green); border-radius: 50%; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); } }
-
     .main-content { flex: 1; padding: 20px 30px; overflow-y: auto; }
 </style>
 </head>
@@ -111,6 +116,7 @@ HTML_LAYOUT = """
         <div class="menu">
             <a href="/" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
             <a href="/granjas" class="{{ 'active' if active_page == 'granjas' else '' }}">🏭 Granjas</a>
+            <a href="/mineros" class="{{ 'active' if active_page == 'mineros' else '' }}">⛏️ Mineros</a>
             <a href="/alertas" class="{{ 'active' if active_page == 'alertas' else '' }}">🔔 Alertas</a>
             <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">📋 Plan</a>
             <a href="/ajustes" class="{{ 'active' if active_page == 'ajustes' else '' }}">⚙️ Ajustes</a>
@@ -122,19 +128,12 @@ HTML_LAYOUT = """
     </div>
     <div class="right-container">
         <div class="top-bar">
-            <button class="top-btn btn-sync" onclick="sincronizarManual()" id="btnSync">🔄 Sincronizar</button>
+            <button class="top-btn btn-sync" onclick="sincronizarManual()" id="btnSync">🔄 Sincronizar Red</button>
             <button class="top-btn" onclick="toggleTheme()" id="themeIcon">☀️</button>
             <select class="top-lang-select" id="langSelector" onchange="cambiarIdioma(this.value)">
-                <option value="es">🌐 Español</option>
-                <option value="en">🌐 English</option>
-                <option value="zh-CN">🌐 中文</option>
-                <option value="ru">🌐 Русский</option>
-                <option value="pt">🌐 Português</option>
-                <option value="fr">🌐 Français</option>
-                <option value="de">🌐 Deutsch</option>
-                <option value="ar">🌐 العربية</option>
-                <option value="tr">🌐 Türkçe</option>
-                <option value="hi">🌐 हिन्दी</option>
+                <option value="es">🌐 Español</option><option value="en">🌐 English</option><option value="zh-CN">🌐 中文</option><option value="ru">🌐 Русский</option>
+                <option value="pt">🌐 Português</option><option value="fr">🌐 Français</option><option value="de">🌐 Deutsch</option>
+                <option value="ar">🌐 العربية</option><option value="tr">🌐 Türkçe</option><option value="hi">🌐 हिन्दी</option>
             </select>
             <div class="top-status">
                 <span id="relojTop" translate="no">00:00</span>
@@ -146,20 +145,12 @@ HTML_LAYOUT = """
         </div>
     </div>
     <script>
-        function sincronizarManual() {
-            let b = document.getElementById('btnSync');
-            b.innerText = '⏳ Sincronizando...'; b.style.pointerEvents = 'none';
-            setTimeout(() => { window.location.reload(); }, 800);
-        }
+        function sincronizarManual() { let b = document.getElementById('btnSync'); b.innerText = '⏳ Sincronizando...'; b.style.pointerEvents = 'none'; setTimeout(() => { window.location.reload(); }, 500); }
         function googleTranslateElementInit() { new google.translate.TranslateElement({pageLanguage: 'es', autoDisplay: false}, 'google_translate_element'); }
         function cambiarIdioma(lang) { let s = document.querySelector(".goog-te-combo"); if(s){ s.value = lang; s.dispatchEvent(new Event("change")); } }
         function actualizarReloj() { const d = new Date(); document.getElementById('relojTop').innerText = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0'); }
         setInterval(actualizarReloj, 1000); actualizarReloj();
-        function toggleTheme() {
-            const h = document.documentElement, i = document.getElementById('themeIcon');
-            if (h.getAttribute('data-theme') === 'dark') { h.setAttribute('data-theme', 'light'); i.innerText = '🌙'; } 
-            else { h.setAttribute('data-theme', 'dark'); i.innerText = '☀️'; }
-        }
+        function toggleTheme() { const h = document.documentElement, i = document.getElementById('themeIcon'); if (h.getAttribute('data-theme') === 'dark') { h.setAttribute('data-theme', 'light'); i.innerText = '🌙'; } else { h.setAttribute('data-theme', 'dark'); i.innerText = '☀️'; } }
     </script>
 </body></html>
 """
@@ -171,49 +162,54 @@ HTML_RESUMEN = """
     .top-stats-grid { display: grid; grid-template-columns: repeat(11, 1fr); gap: 10px; margin-bottom: 25px; }
     .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 10px; display: flex; flex-direction: column; justify-content: center; }
     .stat-card .lbl { font-size: 0.65em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; display: flex; justify-content: space-between; }
-    .stat-card .val { font-size: 1.2em; font-weight: bold; color: var(--text-main); }
+    .stat-card .val { font-size: 1.1em; font-weight: bold; color: var(--text-main); }
     .val-blue { color: var(--accent-blue) !important; } .val-green { color: var(--accent-green) !important; } .val-red { color: var(--accent-red) !important; }
     .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; } .dot-green { background: var(--accent-green); } .dot-red { background: var(--accent-red); }
 
     .calc-panel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 25px; }
-    .calc-title { font-size: 1em; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-    .calc-top-boxes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; margin-bottom: 20px; }
-    .box-mini { border: 1px solid var(--border-color); background: var(--bg-input); border-radius: 6px; padding: 12px 15px; text-align: center; }
+    .calc-title { font-size: 1.1em; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+    
+    .calc-top-boxes { display: flex; gap: 15px; margin-bottom: 20px; }
+    .box-mini { border: 1px solid var(--accent-blue); background: var(--bg-input); border-radius: 6px; padding: 12px 15px; text-align: center; min-width: 120px; }
     .box-mini .v { color: var(--accent-blue); font-weight: bold; font-size: 1.1em; margin-bottom: 6px; }
     .box-mini .l { color: var(--text-sub); font-size: 0.65em; text-transform: uppercase; font-weight: bold; }
     
     .calc-inputs { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; align-items: flex-end; }
     .calc-input-group { flex: 1; min-width: 130px; }
-    .calc-input-group label { display: block; font-size: 0.75em; color: var(--text-muted); margin-bottom: 8px; }
+    .calc-input-group label { display: block; font-size: 0.75em; color: var(--text-muted); margin-bottom: 8px; font-weight:bold;}
     .calc-input-group input { width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px; border-radius: 4px; font-size: 1em; box-sizing: border-box; }
-    .btn-aplicar { height: 41px; background: var(--accent-blue); color: white; border: none; padding: 0 25px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; }
     
-    .calc-resultados { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 15px; }
+    .calc-resultados { display: grid; grid-template-columns: repeat(9, 1fr); gap: 10px; margin-bottom: 20px; }
     .res-box { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 8px; text-align: center; }
-    .res-box .val { font-size: 1.1em; font-weight: bold; margin-bottom: 4px; }
-    .res-box .lbl { font-size: 0.65em; color: var(--text-muted); text-transform: uppercase; }
+    .res-box .val { font-size: 1em; font-weight: bold; margin-bottom: 4px; }
+    .res-box .lbl { font-size: 0.6em; color: var(--text-muted); text-transform: uppercase; font-weight:bold; }
     
+    .calc-text-ribbon { font-size: 0.85em; color: var(--text-muted); margin-bottom: 5px; padding: 5px 0; border-top: 1px solid var(--border-color); padding-top: 15px;}
+    .calc-text-ribbon span.hl { color: var(--text-main); font-weight: bold; }
+    .calc-text-ribbon .sep { margin: 0 10px; color: var(--border-color); }
+
     .tabla-container { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px 20px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.85em; }
-    th { color: var(--text-muted); text-transform: uppercase; background: var(--bg-card); }
-    tr.fila-minero { cursor: pointer; transition: 0.15s ease; }
+    th { color: var(--text-muted); text-transform: uppercase; background: var(--bg-card); font-weight:bold; font-size: 0.75em; }
+    tr.fila-minero { cursor: pointer; transition: 0.15s ease; border-bottom: 1px solid var(--border-color); }
     tr.fila-minero:hover { background: var(--hover-bg); }
     .nombre-link { color: var(--text-main); font-size: 1.1em; font-weight: bold; }
+    .modo-btn { background: rgba(51,102,255,0.1); color: var(--accent-blue); border: 1px solid var(--accent-blue); padding: 4px 10px; border-radius: 12px; font-size: 0.8em; font-weight:bold; }
 </style>
 
 <div class="cabecera">
-    <h1>Resumen de Operaciones</h1>
-    <div class="sub">Estado de la flota · <span id="textoActualizado" style="color:var(--accent-green);">Actualizado hace 1s</span></div>
+    <h1>Resumen</h1>
+    <div class="sub">Estado de la flota en 1 granja(s) · <span id="textoActualizado" style="color:var(--accent-green);">actualizado hace 1s</span></div>
 </div>
 
 <div class="top-stats-grid">
     <div class="stat-card"><div class="lbl">MINEROS ⛏️</div><div class="val val-blue" translate="no">{{ totales }}</div></div>
     <div class="stat-card"><div class="lbl">EN LÍNEA <span class="dot dot-green"></span></div><div class="val val-green" translate="no">{{ en_linea }}</div></div>
-    <div class="stat-card"><div class="lbl">OFFLINE <span class="dot dot-red"></span></div><div class="val val-red" translate="no">{{ offline }}</div></div>
+    <div class="stat-card"><div class="lbl">SIN CONEXIÓN <span class="dot dot-red"></span></div><div class="val val-red" translate="no">{{ offline }}</div></div>
     <div class="stat-card"><div class="lbl">GRANJAS 🏭</div><div class="val val-blue" translate="no">1</div></div>
-    <div class="stat-card"><div class="lbl">ALERTAS 🔔</div><div class="val val-green" translate="no">0</div></div>
-    <div class="stat-card"><div class="lbl">TASA DE HASH ⚡</div><div class="val val-blue" translate="no">{{ flota.hashrate_total }} TH/s</div></div>
+    <div class="stat-card"><div class="lbl">ALERTAS ABIERTAS 🔔</div><div class="val val-red" translate="no">1</div></div>
+    <div class="stat-card"><div class="lbl">HASHRATE ⚡</div><div class="val val-blue" translate="no">{{ flota.hashrate_total }} TH/s</div></div>
     <div class="stat-card"><div class="lbl">CONSUMO 🔌</div><div class="val val-blue" translate="no">{{ flota.consumo_kw }} kW</div></div>
     <div class="stat-card"><div class="lbl">TEMP MÁX 🌡️</div><div class="val val-red" translate="no">{{ flota.temp_max }} °C</div></div>
     <div class="stat-card"><div class="lbl">PRECIO BTC ₿</div><div class="val btc-live-price" translate="no">USD {{ flota.precio_btc }}</div></div>
@@ -222,47 +218,56 @@ HTML_RESUMEN = """
 </div>
 
 <div class="calc-panel">
-    <div class="calc-title">₿ Calculadora de rentabilidad (En vivo)</div>
+    <div class="calc-title">₿ Calculadora de rentabilidad</div>
+    
     <div class="calc-top-boxes">
         <div class="box-mini"><div class="v" id="topBtcDia" translate="no">0.00000000</div><div class="l">BTC / DÍA</div></div>
-        <div class="box-mini"><div class="v" id="topPrecioBtc" style="color:var(--accent-green);" translate="no">${{ flota.precio_btc }}</div><div class="l">PRECIO BTC</div></div>
-        <div class="box-mini"><div class="v" translate="no">USD</div><div class="l">MONEDA</div></div>
-        <div class="box-mini"><div class="v" id="topDificultad" translate="no">{{ flota.dificultad_t }} T</div><div class="l">DIFICULTAD</div></div>
-        <div class="box-mini"><div class="v" translate="no">{{ flota.recompensa_bloque }}</div><div class="l">RECOMPENSA BLOQUE</div></div>
-        <div class="box-mini"><div class="v" id="topTuParte" translate="no">100%</div><div class="l">TU PARTE</div></div>
+        <div class="box-mini"><div class="v" id="topBtcSemana" translate="no">0.00000000</div><div class="l">BTC / SEMANA</div></div>
+        <div class="box-mini"><div class="v" id="topBtcMes" translate="no">0.00000000</div><div class="l">BTC / MES</div></div>
+        <div class="box-mini"><div class="v" id="topBtcAnio" translate="no">0.00000000</div><div class="l">BTC / AÑO</div></div>
     </div>
     
     <div class="calc-inputs">
-        <div class="calc-input-group"><label>Tasa de hash (TH/s)</label><input type="number" id="hashrateInput" value="{{ flota.hashrate_total }}"></div>
-        <div class="calc-input-group"><label>Consumo (W)</label><input type="number" id="consumoInput" value="{{ flota.consumo_w_total }}"></div>
-        <div class="calc-input-group"><label>Electricidad (USD/kWh)</label><input type="number" step="0.01" id="kwhInput" value="0.0"></div>
-        <div class="calc-input-group"><label>Comisión pool (%)</label><input type="number" step="0.1" id="comisionInput" value="0.0"></div>
-        <button class="btn-aplicar" onclick="calcularRentabilidad()">🔄 Actualizar</button>
+        <div class="calc-input-group"><label>Hashrate (TH/s)</label><input type="number" id="hashrateInput" value="{{ flota.hashrate_total }}" oninput="calcularRentabilidad()"></div>
+        <div class="calc-input-group"><label>Consumo (W)</label><input type="number" id="consumoInput" value="{{ flota.consumo_w_total }}" oninput="calcularRentabilidad()"></div>
+        <div class="calc-input-group"><label>Electricidad (USD/kWh)</label><input type="number" step="0.01" id="kwhInput" value="0.08" oninput="calcularRentabilidad()"></div>
+        <div class="calc-input-group"><label>Comisión del pool (%)</label><input type="number" step="0.1" id="comisionInput" value="2.0" oninput="calcularRentabilidad()"></div>
     </div>
     
     <div class="calc-resultados">
         <div class="res-box"><div class="val" id="resBtcDia" translate="no">0.00000000</div><div class="lbl">BTC/DÍA</div></div>
-        <div class="res-box"><div class="val" id="resIngresoDia" translate="no">0.00 USD</div><div class="lbl">INGRESOS / DÍA</div></div>
-        <div class="res-box"><div class="val" id="resElecDia" style="color:var(--accent-red);" translate="no">USD 0.00</div><div class="lbl">LUZ / DÍA</div></div>
-        <div class="res-box"><div class="val" id="resGananciaDia" style="color:var(--accent-red);" translate="no">-USD 0.00</div><div class="lbl">GANANCIA / DÍA</div></div>
-        <div class="res-box"><div class="val" id="resGananciaSemana" style="color:var(--accent-red);" translate="no">-USD 0.00</div><div class="lbl">GANANCIA / SEM</div></div>
-        <div class="res-box"><div class="val" id="resGananciaMes" style="color:var(--accent-red);" translate="no">-USD 0.00</div><div class="lbl">GANANCIA / MES</div></div>
-        <div class="res-box"><div class="val" id="resGananciaAnio" style="color:var(--accent-red);" translate="no">-USD 0.00</div><div class="lbl">GANANCIA / AÑO</div></div>
+        <div class="res-box"><div class="val" id="resIngresoDia" translate="no">USD 0.00</div><div class="lbl">INGRESOS / DÍA</div></div>
+        <div class="res-box"><div class="val" id="resElecDia" style="color:var(--accent-red);" translate="no">USD 0.00</div><div class="lbl">ELECTRICIDAD / DÍA</div></div>
+        <div class="res-box"><div class="val" id="resGananciaDia" style="color:var(--accent-green);" translate="no">USD 0.00</div><div class="lbl">GANANCIA / DÍA</div></div>
+        <div class="res-box"><div class="val" id="resGananciaSemana" style="color:var(--accent-green);" translate="no">USD 0.00</div><div class="lbl">GANANCIA / SEMANA</div></div>
+        <div class="res-box"><div class="val" id="resGananciaMes" style="color:var(--accent-green);" translate="no">USD 0.00</div><div class="lbl">GANANCIA / MES</div></div>
+        <div class="res-box"><div class="val" id="resGananciaAnio" style="color:var(--accent-green);" translate="no">USD 0.00</div><div class="lbl">GANANCIA / AÑO</div></div>
+        <div class="res-box"><div class="val" id="resEq" translate="no">--</div><div class="lbl">EQUILIBRIO /KWH</div></div>
+        <div class="res-box"><div class="val" id="resCosteBtc" translate="no">--</div><div class="lbl">COSTE POR BTC</div></div>
+    </div>
+    
+    <div class="calc-text-ribbon">
+        Precio BTC <span class="hl btc-live-text" translate="no">USD {{ flota.precio_btc }}</span> <span class="sep">|</span> 
+        Moneda <span class="hl" translate="no">USD - tipo actualizado solo</span> <span class="sep">|</span> 
+        Red <span class="hl" translate="no">{{ flota.red_ehs }} EH/s</span> <span class="sep">|</span> 
+        Dificultad <span class="hl" translate="no">{{ flota.dificultad_t }} T</span> <span class="sep">|</span> 
+        Recompensa por bloque <span class="hl" translate="no">{{ flota.recompensa_bloque }} BTC</span> <span class="sep">|</span> 
+        Tu parte <span class="hl" id="ribbonTuParte" translate="no">0.00000000 %</span>
     </div>
 </div>
 
 <div class="tabla-container">
     <table>
-        <tr><th>MINERO</th><th>ESTADO</th><th>TASA DE HASH</th><th>TEMP</th><th>CONSUMO</th><th>EFICIENCIA</th><th>GANANCIA / DÍA</th></tr>
+        <tr><th>MINERO</th><th>ESTADO</th><th>HASHRATE</th><th>TEMP</th><th>CONSUMO</th><th>EFICIENCIA</th><th>MODO</th></tr>
         {% for f in registros %}
-        <tr class="fila-minero" data-hashrate="{{ f.hashrate }}" data-consumo="{{ f.consumo_kw * 1000 }}" onclick="window.location.href='/minero/{{ f.ip }}'">
-            <td><span class="nombre-link" translate="no">{{ f.ip }}</span><br><span style="font-size:0.7em; color:var(--text-sub);" translate="no">{{ f.modelo }}</span></td>
-            <td>{{ f.estado | safe }}</td>
+        <tr class="fila-minero" onclick="window.location.href='/minero/{{ f.ip }}'">
+            <td><span class="nombre-link" translate="no">{{ f.ip.split('.')[-1] }}</span><br><span style="font-size:0.7em; color:var(--text-sub);" translate="no">{{ f.modelo }}</span></td>
+            <td>{{ f.estado | safe }}<br><span style="font-size:0.7em; color:var(--text-sub);" translate="no">{{ f.tiempo_act }}</span></td>
             <td translate="no">{{ f.hashrate }} TH/s</td>
-            <td style="color: {{ 'var(--accent-red)' if f.temp_num > 80 else 'var(--accent-blue)' }};" translate="no">{{ f.temp_num }} °C</td>
+            <td style="color: {{ 'var(--accent-red)' if f.temp_num > 80 else 'var(--accent-green)' }}; font-weight:bold;" translate="no">{{ f.temp_num }}°C</td>
             <td translate="no">{{ f.consumo_kw }} kW</td>
             <td translate="no">{{ f.eficiencia }} J/TH</td>
-            <td class="celda-ganancia" style="font-weight:bold; color: {{ '#ff5252' if '-' in f.ganancia_neta else '#00e676' }};" translate="no">{{ f.ganancia_neta }}</td>
+            <td><span class="modo-btn">Normal</span></td>
         </tr>
         {% endfor %}
     </table>
@@ -272,21 +277,23 @@ HTML_RESUMEN = """
     let PRECIO_BTC = parseFloat("{{ flota.precio_btc_raw }}");
     const DIFICULTAD = parseFloat("{{ flota.dificultad_t }}");
     
-    // FETCH LIVE DE PRECIOS CADA 5 SEGUNDOS (Directo a Binance)
     async function actualizarPrecioEnVivo() {
         try {
             let r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
             let d = await r.json();
             PRECIO_BTC = parseFloat(d.price);
-            
             let fp = PRECIO_BTC.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            document.getElementById('topPrecioBtc').innerText = '$' + fp;
-            
+            document.querySelectorAll('.btc-live-text').forEach(l => l.innerText = 'USD ' + fp);
             document.querySelectorAll('.btc-live-price').forEach(l => l.innerText = 'USD ' + fp);
-            calcularRentabilidad(); // Recalcula la tabla y cajas sin parpadear
+            calcularRentabilidad();
         } catch(e) {}
     }
-    setInterval(actualizarPrecioEnVivo, 5000); // 5 segundos
+    setInterval(actualizarPrecioEnVivo, 5000); 
+
+    function formatVal(val) {
+        if(val < 0) return `<span style="color:var(--accent-red);">-USD ${Math.abs(val).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>`;
+        return `<span style="color:var(--accent-green);">USD ${val.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>`;
+    }
 
     function calcularRentabilidad() {
         let hTH = parseFloat(document.getElementById('hashrateInput').value) || 0;
@@ -294,36 +301,38 @@ HTML_RESUMEN = """
         let cKwh = parseFloat(document.getElementById('kwhInput').value) || 0;
         let pool = parseFloat(document.getElementById('comisionInput').value) || 0;
         
-        let tP = (100 - pool).toFixed(1);
-        if(tP.endsWith('.0')) tP = (100 - pool).toFixed(0);
-        document.getElementById('topTuParte').innerText = tP + '%';
+        let tP = (100 - pool).toFixed(8);
+        document.getElementById('ribbonTuParte').innerText = tP + ' %';
 
         let btcDia = DIFICULTAD > 0 ? (hTH * 3.125 * 86400) / (DIFICULTAD * 4294967296) : 0;
         document.getElementById('topBtcDia').innerText = btcDia.toFixed(8);
+        document.getElementById('topBtcSemana').innerText = (btcDia * 7).toFixed(8);
+        document.getElementById('topBtcMes').innerText = (btcDia * 30).toFixed(6);
+        document.getElementById('topBtcAnio').innerText = (btcDia * 365).toFixed(4);
+        
         document.getElementById('resBtcDia').innerText = btcDia.toFixed(8);
 
-        let inBruto = btcDia * PRECIO_BTC, inNeto = inBruto - (inBruto * (pool / 100)), elecDia = (cW * 24 / 1000) * cKwh, ganDia = inNeto - elecDia;
+        let inBruto = btcDia * PRECIO_BTC;
+        let inNeto = inBruto - (inBruto * (pool / 100));
+        let elecDia = (cW * 24 / 1000) * cKwh;
+        let ganDia = inNeto - elecDia;
 
-        document.getElementById('resIngresoDia').innerText = inNeto.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' USD';
-        document.getElementById('resElecDia').innerText = elecDia <= 0 ? `0.00 USD` : `-${elecDia.toFixed(2)} USD`;
+        document.getElementById('resIngresoDia').innerText = 'USD ' + inNeto.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('resElecDia').innerText = elecDia <= 0 ? `USD 0.00` : `USD ${elecDia.toFixed(2)}`;
         
-        ['Dia', 'Semana', 'Mes', 'Anio'].forEach((p, i) => {
-            let dom = document.getElementById('resGanancia' + p), val = ganDia * [1, 7, 30, 365][i];
-            dom.innerText = val < 0 ? `-${Math.abs(val).toFixed(2)} USD` : `${val.toFixed(2)} USD`;
-            dom.style.color = val < 0 ? 'var(--accent-red)' : 'var(--accent-green)';
-        });
-
-        document.querySelectorAll('.fila-minero').forEach(f => {
-            let fh = parseFloat(f.getAttribute('data-hashrate')) || 0, fc = parseFloat(f.getAttribute('data-consumo')) || 0;
-            let fb = DIFICULTAD > 0 ? (fh * 3.125 * 86400) / (DIFICULTAD * 4294967296) : 0;
-            let fg = (fb * PRECIO_BTC * (1 - pool/100)) - ((fc * 24 / 1000) * cKwh);
-            let c = f.querySelector('.celda-ganancia');
-            if (c) { c.innerText = fg < 0 ? `-${Math.abs(fg).toFixed(2)} USD` : `${fg.toFixed(2)} USD`; c.style.color = fg < 0 ? 'var(--accent-red)' : 'var(--accent-green)'; }
-        });
+        document.getElementById('resGananciaDia').innerHTML = formatVal(ganDia);
+        document.getElementById('resGananciaSemana').innerHTML = formatVal(ganDia * 7);
+        document.getElementById('resGananciaMes').innerHTML = formatVal(ganDia * 30);
+        document.getElementById('resGananciaAnio').innerHTML = formatVal(ganDia * 365);
+        
+        let breakEven = (cW > 0 && inNeto > 0) ? (inNeto / (cW * 24 / 1000)) : 0;
+        document.getElementById('resEq').innerText = breakEven > 0 ? '$' + breakEven.toFixed(4) : '--';
+        
+        let costBtc = btcDia > 0 ? (elecDia / btcDia) : 0;
+        document.getElementById('resCosteBtc').innerText = costBtc > 0 ? '$' + costBtc.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '--';
     }
     window.onload = function() { calcularRentabilidad(); };
-    let segs = 1; setInterval(() => { document.getElementById('textoActualizado').innerText = 'Actualizado hace ' + (++segs) + 's'; }, 1000);
-    setTimeout(() => window.location.reload(), 60000);
+    let segs = 1; setInterval(() => { document.getElementById('textoActualizado').innerText = 'actualizado hace ' + (++segs) + 's'; }, 1000);
 </script>
 """
 
@@ -367,19 +376,19 @@ HTML_DETALLE = """
 <div class="card" style="height: 300px;"><canvas id="hashrateChart"></canvas></div>
 <div class="grid-2">
     <div class="card">
-        <h3 style="color:var(--text-muted); margin-top:0;">TEMPERATURAS DE CADENA</h3>
+        <h3 style="color:var(--text-muted); margin-top:0;">INFORMACIÓN DE CADENAS</h3>
         <table class="info-table">
-            <tr><td>Cadena 0</td><td translate="no">Chip: <span style="color:var(--accent-blue);">{{ v_pools.t0_c }}°C</span> | PCB: {{ v_pools.t0_p }}°C</td></tr>
-            <tr><td>Cadena 1</td><td translate="no">Chip: <span style="color:var(--accent-blue);">{{ v_pools.t1_c }}°C</span> | PCB: {{ v_pools.t1_p }}°C</td></tr>
-            <tr><td>Cadena 2</td><td translate="no">Chip: <span style="color:var(--accent-blue);">{{ v_pools.t2_c }}°C</span> | PCB: {{ v_pools.t2_p }}°C</td></tr>
+            <tr><td>Estado Pool</td><td translate="no"><span style="color:var(--accent-green);">Alive</span></td></tr>
+            <tr><td>Pool URL</td><td translate="no" style="font-size:0.8em; color:var(--accent-blue);">{{ extra.pool }}</td></tr>
+            <tr><td>Worker</td><td translate="no">{{ extra.worker }}</td></tr>
         </table>
     </div>
     <div class="card">
         <h3 style="color:var(--text-muted); margin-top:0;">INFORMACIÓN DEL DISPOSITIVO</h3>
         <table class="info-table">
-            <tr><td>Modelo</td><td translate="no">{{ modelo }}</td></tr>
-            <tr><td>Firmware</td><td translate="no">{{ dispositivo.firmware }}</td></tr>
-            <tr><td>Eficiencia</td><td translate="no">{{ dispositivo.eficiencia }} J/TH</td></tr>
+            <tr><td>MAC Address</td><td translate="no">{{ extra.mac }}</td></tr>
+            <tr><td>Número de Serie</td><td translate="no">{{ extra.serial }}</td></tr>
+            <tr><td>Firmware</td><td translate="no">{{ extra.firmware }}</td></tr>
             <tr><td>Ventiladores</td><td translate="no">{{ ultimo.fans }} RPM</td></tr>
         </table>
     </div>
@@ -399,13 +408,13 @@ HTML_SUBPAGINAS = """
 </style>
 <div class="card-sp">
     <h1 style="margin-top:0;">{{ titulo }}</h1>
-    <p style="color: var(--text-muted); line-height: 1.6;">Esta sección está reservada para el desarrollo de la Fase 3 del SaaS. Aquí los clientes podrán gestionar configuraciones avanzadas, facturación y alertas por Telegram.</p>
+    <p style="color: var(--text-muted); line-height: 1.6;">Sección administrativa para gestión de granjas, facturación y alertas.</p>
     {% if titulo == "⚙️ Ajustes del Sistema" %}
     <hr style="border:0; border-top:1px solid var(--border-color); margin:20px 0;">
     <div style="text-align:left;">
-        <label style="font-size:0.85em;color:var(--text-muted);">Usuario Master</label>
+        <label style="font-size:0.85em;color:var(--text-muted);font-weight:bold;">Usuario Master</label>
         <input type="text" class="input-sp" value="{{ session['usuario'] }}" disabled>
-        <label style="font-size:0.85em;color:var(--text-muted);">API Key (Para el agente.py)</label>
+        <label style="font-size:0.85em;color:var(--text-muted);font-weight:bold;">API Key (Para el agente.py)</label>
         <input type="text" class="input-sp" value="SaaS-Key-{{ session['usuario'] }}-9x8Q2" disabled>
     </div>
     {% endif %}
@@ -413,7 +422,7 @@ HTML_SUBPAGINAS = """
 </div>
 """
 
-# --- 3. RUTAS FLASK ---
+# --- 3. RUTAS FLASK (SÚPER BLINDADAS A FALLOS) ---
 def render_page(active, html_content, **kwargs):
     content = render_template_string(html_content, **kwargs)
     return render_template_string(HTML_LAYOUT, active_page=active, content=content, **kwargs)
@@ -424,16 +433,26 @@ def get_flota_data():
     datos_red = obtener_datos_red()
     registros, en_linea, offline, ht, cw, tm, ig = [], 0, 0, 0.0, 0.0, 0, 0.0
     for m in mineros:
-        ip, mod, hr, t, c, est, ult = m
-        if (datetime.now() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() < 180:
+        # Extracción segura: (ip, modelo, hashrate, temp_max, consumo_w, estado, ultima_act, errores, worker, pool, mac, serial, firmware, fans)
+        ip = m[0]
+        mod = m[1]
+        hr = float(m[2]) if len(m)>2 and m[2] else 0.0
+        t = int(m[3]) if len(m)>3 and m[3] else 0
+        c = float(m[4]) if len(m)>4 and m[4] else 0.0
+        ult = m[6] if len(m)>6 and m[6] else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        segs_desconectado = (datetime.now() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
+        
+        if segs_desconectado < 180:
             en_linea += 1; ht += hr; cw += c; tm = max(tm, t)
             b = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296) if datos_red['dificultad_t'] > 0 else 0
             ib = b * datos_red['precio']; ig += ib
             str_gan = f"-USD {abs(ib):.2f}" if ib < 0 else f"{ib:.2f} USD"
-            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 'hashrate': hr, 'temp_num': t, 'consumo_w': c, 'consumo_kw': round(c/1000, 1), 'eficiencia': round(c/hr, 2) if hr>0 else 0, 'ganancia_neta': str_gan})
+            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 'tiempo_act': 'hace ' + str(int(segs_desconectado)) + 's', 'hashrate': hr, 'temp_num': t, 'consumo_w': c, 'consumo_kw': round(c/1000, 1), 'eficiencia': round(c/hr, 2) if hr>0 else 0, 'ganancia_neta': str_gan})
         else:
-            offline += 1; registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-red);">● Offline</span>', 'hashrate': 0, 'temp_num': 0, 'consumo_w': 0, 'consumo_kw': 0, 'eficiencia': 0, 'ganancia_neta': "0.00 USD"})
-    flota = {'hashrate_total': round(ht, 1), 'consumo_w_total': round(cw, 0), 'consumo_kw': round(cw/1000, 1), 'temp_max': tm, 'precio_btc_raw': datos_red['precio'], 'precio_btc': f"{datos_red['precio']:,.2f}", 'dificultad_t': round(datos_red['dificultad_t'], 2), 'recompensa_bloque': datos_red['recompensa'], 'ingreso_dia': f"{ig:.2f}", 'ganancia_dia': f"{ig:.2f} USD"}
+            offline += 1;
+            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 'tiempo_act': 'Desconectado', 'hashrate': 0, 'temp_num': 0, 'consumo_w': 0, 'consumo_kw': 0, 'eficiencia': 0, 'ganancia_neta': "USD 0.00"})
+    flota = {'hashrate_total': round(ht, 1), 'consumo_w_total': round(cw, 0), 'consumo_kw': round(cw/1000, 1), 'temp_max': tm, 'precio_btc_raw': datos_red['precio'], 'precio_btc': f"{datos_red['precio']:,.2f}", 'dificultad_t': round(datos_red['dificultad_t'], 2), 'recompensa_bloque': datos_red['recompensa'], 'red_ehs': datos_red['red_ehs'], 'ingreso_dia': f"{ig:.2f}", 'ganancia_dia': f"{ig:.2f} USD"}
     return registros, len(mineros), en_linea, offline, flota
 
 @app.route('/')
@@ -450,19 +469,37 @@ def detalle_minero(ip):
     hist = cur.execute("SELECT fecha, hashrate, temp_max FROM historial_nube WHERE ip=? ORDER BY id DESC LIMIT 50", (ip,)).fetchall()
     con.close()
     if not m: return redirect('/')
+    
+    # EXTRACCIÓN BLINDADA 100% PARA EVITAR CAÍDAS
+    h_val = float(m[2]) if len(m)>2 and m[2] is not None else 0.0
+    t_val = int(m[3]) if len(m)>3 and m[3] is not None else 0
+    c_val = float(m[4]) if len(m)>4 and m[4] is not None else 0.0
+    
+    # Nuevos campos del Agente V4 HTTP (con caídas evitadas)
+    errores = int(m[7]) if len(m)>7 and m[7] is not None else 0
+    worker = str(m[8]) if len(m)>8 and m[8] else "No detectado"
+    pool = str(m[9]) if len(m)>9 and m[9] else "No detectado"
+    mac = str(m[10]) if len(m)>10 and m[10] else "-"
+    serial = str(m[11]) if len(m)>11 and m[11] else "-"
+    fw = str(m[12]) if len(m)>12 and m[12] else "Desconocido"
+    fans = str(m[13]) if len(m)>13 and m[13] else "0 / 0"
+    
     hist.reverse()
     f = [h[0].split(' ')[1][:5] for h in hist] if hist else [datetime.now().strftime("%H:%M")]
-    hr = [h[1] for h in hist] if hist else [m[2]]
-    tp = [h[2] for h in hist] if hist else [m[3]]
-    dt = {'hashrate': m[2], 'temp_max': m[3], 'errores': '0', 'consumo': m[4], 'fans': '0 / 0'}
-    disp = {'firmware': 'Antminer (Cloud)', 'eficiencia': round(m[4]/m[2], 2) if m[2] > 0 else 0}
-    vp = {'t0_c': '-', 't0_p': '-', 't1_c': '-', 't1_p': '-', 't2_c': '-', 't2_p': '-'}
-    # ¡VARIABLES ARREGLADAS Y MAPEADAS CORRECTAMENTE!
-    return render_page('resumen', HTML_DETALLE, ip=ip, modelo=m[1], ultimo=dt, disp=disp, v_pools=vp, graf_fechas=json.dumps(f), graf_hashrate=json.dumps(hr), graf_temps=json.dumps(tp))
+    hr = [float(h[1]) if h[1] else 0 for h in hist] if hist else [h_val]
+    tp = [int(h[2]) if h[2] else 0 for h in hist] if hist else [t_val]
+    
+    dt = {'hashrate': h_val, 'temp_max': t_val, 'errores': errores, 'consumo': c_val, 'fans': fans}
+    extra = {'worker': worker, 'pool': pool, 'mac': mac, 'serial': serial, 'firmware': fw}
+    
+    return render_page('resumen', HTML_DETALLE, ip=ip, modelo=m[1], ultimo=dt, extra=extra, graf_fechas=json.dumps(f), graf_hashrate=json.dumps(hr), graf_temps=json.dumps(tp))
 
 @app.route('/granjas')
 @login_required
 def granjas(): return render_page('granjas', HTML_SUBPAGINAS, titulo="🏭 Gestión de Granjas")
+@app.route('/mineros')
+@login_required
+def mineros(): return redirect('/')
 @app.route('/alertas')
 @login_required
 def alertas(): return render_page('alertas', HTML_SUBPAGINAS, titulo="🔔 Centro de Alertas")
@@ -490,7 +527,18 @@ def recibir_datos():
     con = sqlite3.connect('historial_minero.db'); cur = con.cursor()
     ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     for m in datos.get('mineros', []):
-        cur.execute("INSERT INTO mineros_activos (ip, modelo, hashrate, temp_max, consumo_w, estado, ultima_act) VALUES (?, ?, ?, ?, ?, 'online', ?) ON CONFLICT(ip) DO UPDATE SET hashrate=excluded.hashrate, temp_max=excluded.temp_max, consumo_w=excluded.consumo_w, ultima_act=excluded.ultima_act", (m['ip'], m['modelo'], m['hashrate'], m['temp'], m['consumo'], ahora))
+        err = m.get('errores', 0)
+        wk = m.get('worker', '')
+        pl = m.get('pool', '')
+        mc = m.get('mac', '')
+        sr = m.get('serial', '')
+        fw = m.get('firmware', '')
+        fs = m.get('fans', '')
+        
+        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, temp_max, consumo_w, estado, ultima_act, errores, worker, pool, mac, serial, firmware, fans) 
+                       VALUES (?, ?, ?, ?, ?, 'online', ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(ip) DO UPDATE SET 
+                       hashrate=excluded.hashrate, temp_max=excluded.temp_max, consumo_w=excluded.consumo_w, ultima_act=excluded.ultima_act, errores=excluded.errores, worker=excluded.worker, pool=excluded.pool, mac=excluded.mac, serial=excluded.serial, firmware=excluded.firmware, fans=excluded.fans''', 
+                    (m['ip'], m['modelo'], m['hashrate'], m['temp'], m['consumo'], ahora, err, wk, pl, mc, sr, fw, fs))
         cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, fecha) VALUES (?, ?, ?, ?)", (m['ip'], m['hashrate'], m['temp'], ahora))
     
     pend = cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'").fetchall()
