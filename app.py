@@ -10,16 +10,15 @@ DB_URL = os.environ.get("DATABASE_URL", "")
 
 # --- 1. BASE DE DATOS SAAS PROFESIONAL (POSTGRESQL) ---
 def get_db():
-    if not DB_URL: raise Exception("Falta DATABASE_URL en las variables de entorno de Render")
+    if not DB_URL: raise Exception("Falta DATABASE_URL")
     return psycopg2.connect(DB_URL)
 
 def init_db():
     if not DB_URL: return
     try:
         con = get_db()
-        con.autocommit = True # <-- Esto evita el bloqueo de transacciones en PostgreSQL
+        con.autocommit = True # <--- PROTECCIÓN CONTRA EL ERROR 500 RESTAURADA
         c = con.cursor()
-        
         c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pool2 TEXT, worker2 TEXT, pool3 TEXT, worker3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
@@ -27,16 +26,20 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
         
+        # Parches automáticos protegidos por autocommit
+        try: c.execute("ALTER TABLE usuarios ADD COLUMN plan TEXT DEFAULT 'Gratis'")
+        except: pass
+        try: c.execute("ALTER TABLE usuarios ADD COLUMN saldo REAL DEFAULT 0.0")
+        except: pass
+
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
-        if not c.fetchone(): 
-            c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
-            
+        if not c.fetchone(): c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
         con.close()
     except Exception as e:
-        print(f"Error iniciando PostgreSQL: {e}")
+        print(f"Error iniciando BD: {e}")
 
-# Iniciar la base de datos al arrancar el servidor
-init_db()
+try: init_db()
+except: pass
 
 def login_required(f):
     @wraps(f)
@@ -99,85 +102,7 @@ HTML_AUTH = """
 </body></html>
 """
 
-HTML_LAYOUT = """
-<!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8"><title>El Minero Gris</title>
-<script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-    :root[data-theme="dark"] { --bg-body: #14151f; --bg-sidebar: #191a24; --bg-card: #1b1d29; --bg-input: #14151f; --border-color: #292a38; --text-main: #fff; --text-muted: #a5a7b5; --text-sub: #8b8d9b; --accent-blue: #3366ff; --accent-green: #00e676; --accent-red: #ff5252; --hover-bg: #202230; --active-bg: #232533; }
-    :root[data-theme="light"] { --bg-body: #f4f5f7; --bg-sidebar: #ffffff; --bg-card: #ffffff; --bg-input: #f4f5f7; --border-color: #e2e8f0; --text-main: #1e293b; --text-muted: #64748b; --text-sub: #94a3b8; --accent-blue: #2563eb; --accent-green: #10b981; --accent-red: #ef4444; --hover-bg: #f8fafc; --active-bg: #f1f5f9; }
-    body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: 0.3s; top: 0 !important; }
-    .skiptranslate iframe { display: none !important; } body { top: 0px !important; } #google_translate_element { display: none; }
-    a { text-decoration: none; color: inherit; }
-    .sidebar { width: 220px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding-top: 15px; z-index: 10; }
-    .logo-container { padding: 10px 20px 20px; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); }
-    .logo-img { height: 35px; width: auto; object-fit: contain; }
-    .logo-text span { color: var(--text-muted); font-weight: normal; }
-    .menu { list-style: none; padding: 15px 0; margin: 0; flex: 1; }
-    .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.9em; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
-    .menu a:hover { background: var(--hover-bg); color: var(--text-main); }
-    .menu a.active { background: var(--active-bg); color: var(--text-main); border-left: 3px solid var(--accent-blue); }
-    .sidebar-bottom { border-top: 1px solid var(--border-color); padding: 15px 20px; font-size: 0.85em; display: flex; flex-direction: column; gap: 10px; }
-    .right-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .top-bar { height: 60px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); display: flex; justify-content: flex-end; align-items: center; padding: 0 30px; gap: 15px; }
-    .top-btn, .top-lang-select { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); height: 36px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; justify-content: center; }
-    .top-btn { width: 36px; font-size: 1.1em; color: var(--text-muted); }
-    .btn-sync { width: auto; padding: 0 15px; color: var(--text-main); }
-    .btn-sync:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
-    .top-lang-select { padding: 0 10px; outline: none; }
-    .top-status { display: flex; align-items: center; gap: 15px; font-size: 0.85em; color: var(--text-muted); font-weight: bold; margin-left: 10px; }
-    .status-envivo { color: var(--accent-green); display: flex; align-items: center; gap: 6px; }
-    .dot-pulse { width: 8px; height: 8px; background: var(--accent-green); border-radius: 50%; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); } }
-    .main-content { flex: 1; padding: 20px 30px; overflow-y: auto; }
-</style>
-</head>
-<body>
-    <div id="google_translate_element"></div>
-    <div class="sidebar">
-        <div class="logo-container"><img src="/static/logo.png" alt="Logo" class="logo-img"><div class="logo-text" translate="no">El Minero <span>Gris</span></div></div>
-        <div class="menu">
-            <a href="/" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
-            <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a>
-            <a href="/granjas" class="{{ 'active' if active_page == 'granjas' else '' }}">🏭 Granjas</a>
-            <a href="/mineros" class="{{ 'active' if active_page == 'mineros' else '' }}">⛏️ Mineros</a>
-            <a href="/alertas" class="{{ 'active' if active_page == 'alertas' else '' }}">🔔 Alertas</a>
-            <a href="/ajustes" class="{{ 'active' if active_page == 'ajustes' else '' }}">⚙️ Ajustes</a>
-        </div>
-        <div class="sidebar-bottom">
-            <div style="color:var(--text-main); font-weight:bold; display:flex; align-items:center; gap:8px;">👤 {{ session['usuario'] }}</div>
-            <div style="color:var(--accent-green); font-size:1em; font-weight:bold;">$ {{ "%.2f"|format(session.get('saldo', 0.0)) }} USDT</div>
-            <a href="/logout" style="color:var(--accent-red); display:flex; align-items:center; gap:8px;">🚪 Cerrar Sesión</a>
-        </div>
-    </div>
-    <div class="right-container">
-        <div class="top-bar">
-            <button class="top-btn btn-sync" onclick="escanearRed()" id="btnSync">🔄 Escanear Red</button>
-            <button class="top-btn" onclick="toggleTheme()" id="themeIcon">☀️</button>
-            <select class="top-lang-select" id="langSelector" onchange="cambiarIdioma(this.value)">
-                <option value="es">🌐 Español</option><option value="en">🌐 English</option><option value="zh-CN">🌐 中文</option><option value="ru">🌐 Русский</option>
-                <option value="pt">🌐 Português</option><option value="fr">🌐 Français</option><option value="de">🌐 Deutsch</option>
-                <option value="ar">🌐 العربية</option><option value="tr">🌐 Türkçe</option><option value="hi">🌐 हिन्दी</option>
-            </select>
-            <div class="top-status">
-                <span id="relojTop" translate="no">00:00</span>
-                <span class="status-envivo"><div class="dot-pulse"></div> En vivo</span>
-            </div>
-        </div>
-        <div class="main-content">
-            {{ content | safe }}
-        </div>
-    </div>
-    <script>
-        function escanearRed() { let b = document.getElementById('btnSync'); b.innerText = '⏳ Escaneando...'; b.style.pointerEvents = 'none'; fetch('/cmd/all/scan').then(() => { setTimeout(() => { window.location.reload(); }, 1500); }); }
-        function googleTranslateElementInit() { new google.translate.TranslateElement({pageLanguage: 'es', autoDisplay: false}, 'google_translate_element'); }
-        function cambiarIdioma(lang) { let s = document.querySelector(".goog-te-combo"); if(s){ s.value = lang; s.dispatchEvent(new Event("change")); } }
-        function actualizarReloj() { const d = new Date(); document.getElementById('relojTop').innerText = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0'); }
-        setInterval(actualizarReloj, 1000); actualizarReloj();
-        function toggleTheme() { const h = document.documentElement, i = document.getElementById('themeIcon'); if (h.getAttribute('data-theme') === 'dark') { h.setAttribute('data-theme', 'light'); i.innerText = '🌙'; } else { h.setAttribute('data-theme', 'dark'); i.innerText = '☀️'; } }
-    </script>
-</body></html>
-"""
+HTML_LAYOUT = """<!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8"><title>El Minero Gris</title><script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style>:root[data-theme="dark"]{--bg-body:#14151f;--bg-sidebar:#191a24;--bg-card:#1b1d29;--bg-input:#14151f;--border-color:#292a38;--text-main:#fff;--text-muted:#a5a7b5;--text-sub:#8b8d9b;--accent-blue:#3366ff;--accent-green:#00e676;--accent-red:#ff5252;--hover-bg:#202230;--active-bg:#232533}:root[data-theme="light"]{--bg-body:#f4f5f7;--bg-sidebar:#ffffff;--bg-card:#ffffff;--bg-input:#f4f5f7;--border-color:#e2e8f0;--text-main:#1e293b;--text-muted:#64748b;--text-sub:#94a3b8;--accent-blue:#2563eb;--accent-green:#10b981;--accent-red:#ef4444;--hover-bg:#f8fafc;--active-bg:#f1f5f9}body{font-family:'Segoe UI',sans-serif;background:var(--bg-body);color:var(--text-main);margin:0;display:flex;height:100vh;overflow:hidden;transition:0.3s;top:0 !important}.skiptranslate iframe{display:none !important}body{top:0px !important}#google_translate_element{display:none}a{text-decoration:none;color:inherit}.sidebar{width:220px;background:var(--bg-sidebar);border-right:1px solid var(--border-color);display:flex;flex-direction:column;padding-top:15px;z-index:10}.logo-container{padding:10px 20px 20px;font-weight:bold;font-size:1.1em;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border-color)}.logo-img{height:35px;width:auto;object-fit:contain}.logo-text span{color:var(--text-muted);font-weight:normal}.menu{list-style:none;padding:15px 0;margin:0;flex:1}.menu a{display:flex;align-items:center;gap:12px;padding:12px 20px;font-size:0.9em;color:var(--text-muted);cursor:pointer;transition:0.2s}.menu a:hover{background:var(--hover-bg);color:var(--text-main)}.menu a.active{background:var(--active-bg);color:var(--text-main);border-left:3px solid var(--accent-blue)}.sidebar-bottom{border-top:1px solid var(--border-color);padding:15px 20px;font-size:0.85em;display:flex;flex-direction:column;gap:10px}.right-container{flex:1;display:flex;flex-direction:column;overflow:hidden}.top-bar{height:60px;background:var(--bg-body);border-bottom:1px solid var(--border-color);display:flex;justify-content:flex-end;align-items:center;padding:0 30px;gap:15px}.top-btn,.top-lang-select{background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-main);height:36px;border-radius:6px;cursor:pointer;transition:0.2s;font-size:0.85em;font-weight:bold;display:flex;align-items:center;justify-content:center}.top-btn{width:36px;font-size:1.1em;color:var(--text-muted)}.btn-sync{width:auto;padding:0 15px;color:var(--text-main)}.btn-sync:hover{border-color:var(--accent-blue);color:var(--accent-blue)}.top-lang-select{padding:0 10px;outline:none}.top-status{display:flex;align-items:center;gap:15px;font-size:0.85em;color:var(--text-muted);font-weight:bold;margin-left:10px}.status-envivo{color:var(--accent-green);display:flex;align-items:center;gap:6px}.dot-pulse{width:8px;height:8px;background:var(--accent-green);border-radius:50%;animation:pulse 1.5s infinite}@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(0,230,118,0.7)}70%{box-shadow:0 0 0 6px rgba(0,230,118,0)}100%{box-shadow:0 0 0 0 rgba(0,230,118,0)}}.main-content{flex:1;padding:20px 30px;overflow-y:auto}</style></head><body><div id="google_translate_element"></div><div class="sidebar"><div class="logo-container"><img src="/static/logo.png" alt="Logo" class="logo-img"><div class="logo-text" translate="no">El Minero <span>Gris</span></div></div><div class="menu"><a href="/" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a><a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a><a href="/granjas" class="{{ 'active' if active_page == 'granjas' else '' }}">🏭 Granjas</a><a href="/mineros" class="{{ 'active' if active_page == 'mineros' else '' }}">⛏️ Mineros</a><a href="/alertas" class="{{ 'active' if active_page == 'alertas' else '' }}">🔔 Alertas</a><a href="/ajustes" class="{{ 'active' if active_page == 'ajustes' else '' }}">⚙️ Ajustes</a></div><div class="sidebar-bottom"><div style="color:var(--text-main);font-weight:bold;display:flex;align-items:center;gap:8px;">👤 {{ session['usuario'] }}</div><div style="color:var(--accent-green); font-size:1em; font-weight:bold;">$ {{ "%.2f"|format(session.get('saldo', 0.0)) }} USDT</div><a href="/logout" style="color:var(--accent-red);display:flex;align-items:center;gap:8px;">🚪 Cerrar Sesión</a></div></div><div class="right-container"><div class="top-bar"><button class="top-btn btn-sync" onclick="escanearRed()" id="btnSync">🔄 Escanear Red</button><button class="top-btn" onclick="toggleTheme()" id="themeIcon">☀️</button><select class="top-lang-select" id="langSelector" onchange="cambiarIdioma(this.value)"><option value="es">🌐 Español</option><option value="en">🌐 English</option><option value="zh-CN">🌐 中文</option><option value="ru">🌐 Русский</option></select><div class="top-status"><span id="relojTop" translate="no">00:00</span><span class="status-envivo"><div class="dot-pulse"></div> En vivo</span></div></div><div class="main-content">{{ content | safe }}</div></div><script>function escanearRed(){let b=document.getElementById('btnSync');b.innerText='⏳ Escaneando...';b.style.pointerEvents='none';fetch('/cmd/all/scan').then(()=>{setTimeout(()=>{window.location.reload();},1500);});}function googleTranslateElementInit(){new google.translate.TranslateElement({pageLanguage:'es',autoDisplay:false},'google_translate_element');}function cambiarIdioma(lang){let s=document.querySelector(".goog-te-combo");if(s){s.value=lang;s.dispatchEvent(new Event("change"));}}function actualizarReloj(){const d=new Date();document.getElementById('relojTop').innerText=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');}setInterval(actualizarReloj,1000);actualizarReloj();function toggleTheme(){const h=document.documentElement,i=document.getElementById('themeIcon');if(h.getAttribute('data-theme')==='dark'){h.setAttribute('data-theme','light');i.innerText='🌙';}else{h.setAttribute('data-theme','dark');i.innerText='☀️';}}</script></body></html>"""
 
 HTML_PLAN = """
 <style>
@@ -304,7 +229,6 @@ def index():
             registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 'tiempo_act': 'Offline', 'hashrate': 0, 'temp_num': 0, 'consumo_w': 0, 'consumo_kw': 0, 'eficiencia': 0, 'ganancia_neta': "USD 0.00"})
             
     flota = {'hashrate_total': round(ht, 1), 'consumo_w_total': round(cw, 0), 'consumo_kw': round(cw/1000, 1), 'temp_max': tm, 'precio_btc_raw': datos_red['precio'], 'precio_btc': f"{datos_red['precio']:,.2f}", 'dificultad_t': round(datos_red['dificultad_t'], 2), 'recompensa_bloque': datos_red['recompensa'], 'red_ehs': datos_red['red_ehs'], 'ingreso_dia': f"{ig:.2f}", 'ganancia_dia': f"{ig:.2f} USD"}
-    
     return render_template_string(HTML_LAYOUT, active_page='resumen', content=render_template_string(HTML_RESUMEN, registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota))
 
 @app.route('/minero/<ip>')
@@ -358,29 +282,23 @@ def detalle_minero(ip):
 @app.route('/plan')
 @login_required
 def plan():
-    # Asegurar que los datos mostrados están 100% sincronizados con la BD cada vez que entra a la vista
     con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT plan, saldo FROM usuarios WHERE username=%s", (session['usuario'],))
     usr = cur.fetchone(); con.close()
-    
     if usr:
         session['plan'] = usr.get('plan', 'Gratis')
         session['saldo'] = usr.get('saldo', 0.0)
-        
     return render_template_string(HTML_LAYOUT, active_page='plan', content=render_template_string(HTML_PLAN, current_plan=session.get('plan', 'Gratis'), saldo=session.get('saldo', 0.0)))
 
 @app.route('/granjas')
 @login_required
 def granjas(): return render_template_string(HTML_LAYOUT, active_page='granjas', content=render_template_string(HTML_SUBPAGINAS, titulo="🏭 Gestión de Granjas"))
-
 @app.route('/mineros')
 @login_required
 def mineros(): return redirect('/')
-
 @app.route('/alertas')
 @login_required
 def alertas(): return render_template_string(HTML_LAYOUT, active_page='alertas', content=render_template_string(HTML_SUBPAGINAS, titulo="🔔 Centro de Alertas"))
-
 @app.route('/ajustes')
 @login_required
 def ajustes(): return render_template_string(HTML_LAYOUT, active_page='ajustes', content=render_template_string(HTML_SUBPAGINAS, titulo="⚙️ Ajustes del Sistema"))
@@ -393,9 +311,7 @@ def login():
         cur.execute("SELECT * FROM usuarios WHERE username=%s AND password=%s", (u, p))
         usr = cur.fetchone(); con.close()
         if usr:
-            session['usuario'] = u
-            session['plan'] = usr.get('plan', 'Gratis')
-            session['saldo'] = usr.get('saldo', 0.0)
+            session['usuario'] = u; session['plan'] = usr.get('plan', 'Gratis'); session['saldo'] = usr.get('saldo', 0.0)
             return redirect('/')
         return render_template_string(HTML_AUTH, error='Credenciales incorrectas', mode='login')
     return render_template_string(HTML_AUTH, mode='login')
