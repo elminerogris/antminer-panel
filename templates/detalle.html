@@ -203,7 +203,7 @@
     function confirmarAccion(mensaje, url, recargar = false) {
         if (confirm(mensaje)) {
             fetch(url).then(() => {
-                alert('Comando enviado correctamente.');
+                alert('Comando enviado correctamente a la cola.');
                 if (recargar) {
                     setTimeout(() => location.reload(), 1500);
                 }
@@ -269,7 +269,6 @@
     const rawHr = {{ graf_hashrate | safe }};
     const rawTemp = {{ graf_temps | safe }};
     const rawErr = {{ graf_errores | safe }};
-    const cadenasCount = {{ extra.cadenas | length }};
     let chartInstance = null;
     
     function updateChart(rango) {
