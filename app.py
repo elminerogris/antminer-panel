@@ -1,6 +1,6 @@
-from flask import Flask, render_template_string, redirect, request, session, url_for, jsonify, Response
+from flask import Flask, render_template_string, redirect, request, session, url_for, jsonify
 from functools import wraps
-import sqlite3, json, urllib.request, time, calendar, csv, io
+import sqlite3, json, urllib.request, time, calendar
 from datetime import datetime
 
 app = Flask(__name__)
@@ -18,9 +18,8 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS cola_comandos (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS historial_nube (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, hashrate REAL, temp_max INTEGER, fecha TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)')
-    c.execute('CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)')
     
-    columnas_nuevas = ['errores INTEGER', 'worker TEXT', 'pool TEXT', 'mac TEXT', 'serial TEXT', 'firmware TEXT', 'fans TEXT', 'pool1 TEXT', 'worker1 TEXT', 'pool2 TEXT', 'worker2 TEXT', 'pool3 TEXT', 'worker3 TEXT', 'uptime TEXT', 't0_c INTEGER', 't0_p INTEGER', 't1_c INTEGER', 't1_p INTEGER', 't2_c INTEGER', 't2_p INTEGER', 'cadenas TEXT']
+    columnas_nuevas = ['errores INTEGER', 'pool1 TEXT', 'worker1 TEXT', 'pool2 TEXT', 'worker2 TEXT', 'pool3 TEXT', 'worker3 TEXT', 'mac TEXT', 'serial TEXT', 'firmware TEXT', 'fans TEXT', 'cadenas TEXT']
     for col in columnas_nuevas:
         try: c.execute(f'ALTER TABLE mineros_activos ADD COLUMN {col}')
         except: pass
@@ -206,8 +205,6 @@ HTML_RESUMEN = """
     .bulk-bar { margin-bottom: 10px; display: flex; gap: 10px; }
     .btn-bulk { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; transition: 0.2s; }
     .btn-bulk:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
-    .btn-excel { background: rgba(0, 230, 118, 0.1); border: 1px solid var(--accent-green); color: var(--accent-green); }
-    .btn-excel:hover { background: var(--accent-green); color: white; }
 
     .tabla-container { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
@@ -223,7 +220,6 @@ HTML_RESUMEN = """
         <h1>Resumen</h1>
         <div class="sub">Estado de la flota en 1 granja(s) · <span id="textoActualizado" style="color:var(--accent-green);">actualizado hace 1s</span></div>
     </div>
-    <button class="btn-bulk btn-excel" onclick="window.location.href='/exportar_csv'">📥 Exportar CSV Mensual</button>
 </div>
 
 <div class="top-stats-grid">
@@ -396,8 +392,6 @@ HTML_DETALLE = """
     .input-pool:focus { border-color: var(--accent-blue); background: rgba(51,102,255,0.05); }
     .btn-guardar { background: rgba(51,102,255,0.1); border: 1px solid var(--accent-blue); color: var(--accent-blue); cursor: pointer; font-weight: bold; padding: 6px 12px; border-radius: 4px; transition: 0.2s; width: 100%; }
     .btn-guardar:hover { background: var(--accent-blue); color: #fff; }
-    
-    .terminal { background: #000; color: #00e676; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 0.85em; height: 300px; overflow-y: scroll; border: 1px solid #333; margin-top: 20px; display: none; white-space: pre-wrap; }
 </style>
 
 <div class="header-detalle">
@@ -418,22 +412,12 @@ HTML_DETALLE = """
 </div>
 
 <div class="card" style="padding:20px;">
-    <div class="panel-title" style="justify-content: flex-start;">⚡ Perfiles de Energía</div>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
-        <button class="btn-control" style="color:var(--accent-green); border-color:var(--accent-green);" onclick="fetch('/cmd/{{ ip }}/profile_low').then(()=>alert('Perfil Invierno/Eco enviado a la cola.'))">❄️ Modo Invierno (Eco)</button>
-        <button class="btn-control" style="color:var(--accent-red); border-color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/profile_high').then(()=>alert('Perfil Verano/Max enviado a la cola.'))">🔥 Modo Verano (Max)</button>
-    </div>
-
-    <div class="panel-title" style="justify-content: flex-start;">🛠️ Panel de control</div>
+    <div class="panel-title" style="justify-content: flex-start;">⚡ Panel de control</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/restart').then(()=>location.reload())">🔄 Reiniciar</button>
         <button class="btn-control" onclick="fetch('/cmd/{{ ip }}/sleep').then(()=>location.reload())">😴 Reposo</button>
         <button class="btn-control active" onclick="fetch('/cmd/{{ ip }}/normal').then(()=>location.reload())">▶ Normal</button>
-        <button class="btn-control" style="color:gold; border-color:gold;" onclick="fetch('/cmd/{{ ip }}/blink').then(()=>location.reload())">💡 Parpadear LED</button>
-        <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="solicitarLogs()">🖥️ Ver Consola (Logs)</button>
     </div>
-    
-    <div id="terminal-box" class="terminal">Esperando logs del minero...</div>
 </div>
 
 <div class="card">
@@ -455,7 +439,7 @@ HTML_DETALLE = """
         <table class="info-table" style="margin-top:15px;">
             {% for c in extra.cadenas %}
             <tr>
-                <td>Cadena {{ c.id }} <span style="font-weight:normal; color:var(--text-muted); font-size:0.8em; margin-left:10px;">{{ ultimo.hashrate_c0 }} TH/s</span></td>
+                <td>Cadena {{ c.id }}</td>
                 <td>Chip <span style="color:var(--accent-blue); font-weight:bold;">{{ c.temp_c }}°C</span> &nbsp;&nbsp; PCB <span style="color:var(--accent-green); font-weight:bold;">{{ c.temp_p }}°C</span></td>
             </tr>
             {% endfor %}
@@ -511,19 +495,6 @@ HTML_DETALLE = """
 </div>
 
 <script>
-    function solicitarLogs() {
-        let tb = document.getElementById('terminal-box');
-        tb.style.display = 'block';
-        tb.innerText = 'Solicitando logs al agente... Espera unos segundos.';
-        fetch('/cmd/{{ ip }}/get_log').then(() => {
-            setInterval(async () => {
-                let r = await fetch('/api/ver_log/{{ ip }}');
-                let txt = await r.text();
-                if(txt.length > 5) { tb.innerText = txt; tb.scrollTop = tb.scrollHeight; }
-            }, 3000);
-        });
-    }
-
     function guardarPool(idx) {
         let u = document.getElementById('url_' + idx).value, us = document.getElementById('user_' + idx).value;
         if(confirm('¿Guardar configuración del Pool ' + idx + '?')) {
@@ -549,7 +520,7 @@ HTML_DETALLE = """
         
         let fL = [], fH = [], fT = [];
         
-        // PADDING VISUAL PARA EVITAR QUE 6H Y 24H SE VEAN IGUALES SI HAY POCOS DATOS
+        // PADDING: Fuerza al gráfico a verse estirado acorde al rango aunque haya pocos datos guardados
         let labelLimite = (rango === '7d' || rango === '30d') ? limitDate.toLocaleDateString() + ' ' + limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         fL.push(labelLimite); fH.push(null); fT.push(null);
 
@@ -748,8 +719,8 @@ def cmd_bulk():
 @login_required
 def comando_minero(ip, accion):
     cmd_str = ""
-    if accion in ['restart', 'sleep', 'normal', 'blink', 'scan', 'get_log'] or accion.startswith('profile_'): 
-        cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
+    if accion in ['restart', 'sleep', 'normal', 'blink', 'scan']: 
+        cmd_str = accion
     elif accion == 'setpool':
         cmd_str = f"setpool|{request.args.get('url', '')}|{request.args.get('user', '')}"
         
@@ -758,22 +729,6 @@ def comando_minero(ip, accion):
         con.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (?, ?, 'pendiente', ?)", (ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
         con.commit(); con.close()
     return "OK"
-
-@app.route('/api/ver_log/<ip>')
-def ver_log(ip):
-    con = sqlite3.connect('historial_minero.db'); cur = con.cursor()
-    log = cur.execute("SELECT contenido FROM logs_mineros WHERE ip=?", (ip,)).fetchone()
-    con.close()
-    return log[0] if log else "Esperando respuesta del minero..."
-
-@app.route('/api/recibir_logs', methods=['POST'])
-def recibir_logs():
-    data = request.json
-    if data and 'ip' in data and 'log' in data:
-        con = sqlite3.connect('historial_minero.db')
-        con.execute("INSERT INTO logs_mineros (ip, contenido, fecha) VALUES (?, ?, ?) ON CONFLICT(ip) DO UPDATE SET contenido=excluded.contenido, fecha=excluded.fecha", (data['ip'], data['log'], datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-        con.commit(); con.close()
-    return "OK", 200
 
 @app.route('/api/recibir_datos', methods=['POST'])
 def recibir_datos():
