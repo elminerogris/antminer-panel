@@ -6,10 +6,13 @@
     .btn-volver{color:var(--text-muted);font-size:1.5em;font-weight:bold; text-decoration:none; margin-right:15px;}
     .status-banner{background:rgba(255,82,82,0.1);border:1px solid var(--accent-red);padding:15px;border-radius:8px;color:var(--text-main);font-size:0.9em;margin-bottom:20px;display:{{ 'block' if offline else 'none' }}}
     .status-banner span{color:var(--accent-red);font-weight:bold}
-    .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px}
+    
+    /* PROBLEMA 2: Tarjetas superiores con texto en azul agradable (#3366ff) */
+    .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:15px;margin-bottom:20px}
     .grid-4 .card{margin-bottom:0}
     .grid-4 .card h4{margin:0;font-size:0.75em;color:var(--text-muted);text-transform:uppercase}
-    .grid-4 .card .val{font-size:1.6em;font-weight:bold;margin-top:8px;color:var(--accent-blue)}
+    .grid-4 .card .val{font-size:1.5em;font-weight:bold;margin-top:8px;color:#3366ff !important;}
+    
     .panel-title{font-weight:bold;margin-bottom:15px;display:flex;align-items:center;justify-content:space-between;font-size:1.1em; flex-wrap:wrap;}
     .btn-control{background:transparent;border:1px solid var(--border-color);color:var(--text-main);padding:8px 15px;border-radius:20px;cursor:pointer;font-weight:bold;transition:0.2s;font-size:0.85em;display:flex;align-items:center;gap:6px}
     .btn-control:hover{border-color:var(--accent-blue)}
@@ -25,10 +28,10 @@
     .info-table td:nth-child(2){text-align:right;color:var(--text-muted); padding-right:10px;}
     .input-pool{background:rgba(255,255,255,0.05);border:1px solid var(--border-color);color:var(--text-main);padding:8px 10px;width:100%;font-family:monospace;font-size:1em;outline:none;border-radius:4px;box-sizing:border-box}
     .btn-guardar{background:rgba(51,102,255,0.1);border:1px solid var(--accent-blue);color:var(--accent-blue);cursor:pointer;font-weight:bold;padding:6px 12px;border-radius:4px;width:100%}
-    .terminal{background:#000;color:#00e676;padding:15px;border-radius:6px;font-family:monospace;font-size:0.85em;height:300px;overflow-y:scroll;border:1px solid #333;margin-top:20px;display:none;white-space:pre-wrap}
+    .terminal{background:#000;color:#00e676;padding:15px;border-radius:6px;font-family:monospace;font-size:0.85em;height:300px;overflow-y:scroll;border:1px solid #333;margin-top:15px;white-space:pre-wrap}
 </style>
 
-<!-- CABECERA CON NOMBRE EDITABLE (PROBLEMA 4) -->
+<!-- PROBLEMA 4: CABECERA CON NOMBRE EDITABLE, MODELO E IP -->
 <div class="header-detalle">
     <div style="display:flex; align-items:center;">
         <a href="/" class="btn-volver">←</a>
@@ -42,7 +45,6 @@
                 {{ modelo }} &nbsp;·&nbsp; {{ ip }}
             </div>
             
-            <!-- Formulario oculto para editar nombre -->
             <form id="formNombre" action="/guardar_nombre" method="POST" style="display:none; margin-top:8px; gap:8px; align-items:center;">
                 <input type="hidden" name="ip" value="{{ ip }}">
                 <input type="text" name="nombre" value="{{ nombre }}" class="input-pool" style="width:150px; padding:4px 8px; font-size:0.9em;" required>
@@ -54,7 +56,7 @@
 
 <div class="status-banner"><span>⛔ Este minero está sin conexión</span> (visto {{ ultimo.uptime }}). Datos históricos.</div>
 
-<!-- TARJETAS SUPERIORES CON HASHRATE 5S, 30M, CONSUMO Y TEMPERATURA -->
+<!-- PROBLEMA 2 Y 3: TARJETAS SUPERIORES CON HASHRATE 5S, 30M, CONSUMO CORTO Y AZUL -->
 <div class="grid-4">
     <div class="card">
         <h4>Hashrate 5s</h4>
@@ -62,19 +64,19 @@
     </div>
     <div class="card">
         <h4>Hashrate 30m</h4>
-        <div class="val" style="color:var(--accent-green);" translate="no">{{ ultimo.hashrate_30m }} TH/s</div>
+        <div class="val" translate="no">{{ ultimo.hashrate_30m }} TH/s</div>
     </div>
     <div class="card">
         <h4>Errores</h4>
-        <div class="val" style="color:var(--accent-red);" translate="no">{{ ultimo.errores }}</div>
+        <div class="val" style="color:var(--accent-red) !important;" translate="no">{{ ultimo.errores }}</div>
     </div>
     <div class="card">
         <h4>Consumo</h4>
-        <div class="val" style="color:var(--text-main);" translate="no">{{ ultimo.consumo }}</div>
+        <div class="val" translate="no">{{ ultimo.consumo }}</div>
     </div>
     <div class="card">
         <h4>Temp Max</h4>
-        <div class="val" style="color:var(--accent-green);" translate="no">{{ ultimo.temp_max }}°C</div>
+        <div class="val" style="color:var(--accent-green) !important;" translate="no">{{ ultimo.temp_max }}°C</div>
     </div>
 </div>
 
@@ -90,9 +92,9 @@
         <button class="btn-control" onclick="fetch('/cmd/{{ ip }}/sleep').then(()=>location.reload())">😴 Reposo</button>
         <button class="btn-control active" onclick="fetch('/cmd/{{ ip }}/normal').then(()=>location.reload())">▶ Normal</button>
         <button class="btn-control" style="color:gold; border-color:gold;" onclick="fetch('/cmd/{{ ip }}/blink').then(()=>location.reload())">💡 Parpadear LED</button>
-        <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="solicitarLogs()">🖥️ Ver Logs</button>
+        <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="solicitarLogs()">🖥️ Ver Logs Genéricos</button>
     </div>
-    <div id="terminal-box" class="terminal">Esperando logs...</div>
+    <div id="terminal-box" class="terminal" style="display:none;">Esperando logs...</div>
 </div>
 
 <div class="card">
@@ -188,13 +190,51 @@
     </div>
 </div>
 
+<!-- PROBLEMA 4: APARTADO DE LOGS (clog, hlog, dlog) -->
+<div class="card" style="padding:20px;">
+    <div class="panel-title" style="justify-content: flex-start;">📜 Visor de Logs Específicos (clog, hlog, dlog)</div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+        <button class="btn-control" style="border-color:var(--accent-blue); color:var(--accent-blue);" onclick="cargarLogEspecifico('clog')">📄 Ver clog (Control)</button>
+        <button class="btn-control" style="border-color:#ffb300; color:#ffb300;" onclick="cargarLogEspecifico('hlog')">📊 Ver hlog (Hashboard)</button>
+        <button class="btn-control" style="border-color:var(--accent-green); color:var(--accent-green);" onclick="cargarLogEspecifico('dlog')">🔍 Ver dlog (Debug)</button>
+    </div>
+    <div id="log-especifico-box" class="terminal" style="display:none;">Seleccione un tipo de log...</div>
+</div>
+
 <script>
     function toggleEditarNombre() {
         let f = document.getElementById('formNombre');
         f.style.display = f.style.display === 'flex' ? 'none' : 'flex';
     }
 
-    function solicitarLogs() { let tb = document.getElementById('terminal-box'); tb.style.display = 'block'; tb.innerText = 'Solicitando logs al agente...'; fetch('/cmd/{{ ip }}/get_log').then(() => { setInterval(async () => { let r = await fetch('/api/ver_log/{{ ip }}'); let txt = await r.text(); if(txt.length > 5) { tb.innerText = txt; tb.scrollTop = tb.scrollHeight; } }, 3000); }); }
+    function solicitarLogs() { 
+        let tb = document.getElementById('terminal-box'); 
+        tb.style.display = 'block'; 
+        tb.innerText = 'Solicitando logs al agente...'; 
+        fetch('/cmd/{{ ip }}/get_log').then(() => { 
+            setTimeout(async () => { 
+                let r = await fetch('/api/ver_log/{{ ip }}'); 
+                let txt = await r.text(); 
+                tb.innerText = txt; 
+                tb.scrollTop = tb.scrollHeight; 
+            }, 2000); 
+        }); 
+    }
+
+    function cargarLogEspecifico(tipo) {
+        let box = document.getElementById('log-especifico-box');
+        box.style.display = 'block';
+        box.innerText = 'Cargando ' + tipo + '...';
+        fetch('/cmd/{{ ip }}/' + tipo).then(() => {
+            setTimeout(async () => {
+                let r = await fetch('/api/ver_log/{{ ip }}');
+                let txt = await r.text();
+                box.innerText = txt;
+                box.scrollTop = box.scrollHeight;
+            }, 2000);
+        });
+    }
+
     function guardarPool(idx) { let u = document.getElementById('url_' + idx).value, us = document.getElementById('user_' + idx).value; if(confirm('¿Guardar configuración del Pool ' + idx + '?')) { fetch('/cmd/{{ ip }}/setpool?url='+encodeURIComponent(u)+'&user='+encodeURIComponent(us)).then(()=>alert('Cambio enviado a la cola del Agente.')); } }
     
     const rawFechas = {{ graf_fechas_raw | safe }};
