@@ -58,10 +58,10 @@
 
 <div class="card">
     <div class="panel-title">
-        <div>
-            ☑ Hashrate 
-            <span id="hrPromedio" style="color:var(--text-muted); font-size:0.8em; margin-left:10px; font-weight:normal;"></span>
-            <span id="tempPromedio" style="color:var(--accent-orange, #ffb300); font-size:0.8em; margin-left:15px; font-weight:normal;"></span>
+        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <span>☑ Rendimiento y Errores</span>
+            <span id="hrPromedio" style="color:var(--text-muted); font-size:0.8em; font-weight:normal;"></span>
+            <span id="tempPromedio" style="color:#ffb300; font-size:0.8em; font-weight:normal;"></span>
         </div>
         <div class="chart-filters">
             <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')">6 h</button>
@@ -100,7 +100,6 @@
                     <td>Eficiencia</td>
                     <td translate="no">
                         {% if dispositivo.eficiencia %}
-                            {# Si el número es mayor a 1000, asumimos que vino mal escalado (ej en mJ o formato incorrecto) y lo ajustamos o mostramos formateado a 2 decimales #}
                             {% set ef = dispositivo.eficiencia | float %}
                             {% if ef > 1000 %}
                                 {{ "%.2f"|format(ef / 1000) }} J/TH
@@ -157,6 +156,7 @@
     const rawFechas = {{ graf_fechas_raw | safe }};
     const rawHr = {{ graf_hashrate | safe }};
     const rawTemp = {{ graf_temps | safe }};
+    const rawErr = {{ graf_errores | safe }};
     const cadenasCount = {{ extra.cadenas | length }};
     let chartInstance = null;
     
@@ -170,9 +170,9 @@
         if(rango === '7d') limitDate.setDate(limitDate.getDate() - 7);
         if(rango === '30d') limitDate.setDate(limitDate.getDate() - 30);
         
-        let fL = [], fH = [], fT = [];
+        let fL = [], fH = [], fT = [], fE = [];
         let labelLimite = (rango === '7d' || rango === '30d') ? limitDate.toLocaleDateString() + ' ' + limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        fL.push(labelLimite); fH.push(null); fT.push(null);
+        fL.push(labelLimite); fH.push(null); fT.push(null); fE.push(null);
 
         for(let i=0; i<rawFechas.length; i++) {
             let d = new Date(rawFechas[i] * 1000); 
@@ -180,11 +180,14 @@
                 let timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 let label = timeStr;
                 if(rango === '7d' || rango === '30d') label = d.toLocaleDateString() + ' ' + timeStr;
-                fL.push(label); fH.push(rawHr[i]); fT.push(rawTemp[i]);
+                fL.push(label); 
+                fH.push(rawHr[i]); 
+                fT.push(rawTemp[i]);
+                fE.push(rawErr[i] !== undefined ? rawErr[i] : 0);
             }
         }
         
-        /* CÁLCULO DE PROMEDIOS (HASHRATE Y TEMPERATURA MÁXIMA) */
+        // CÁLCULO DE PROMEDIOS PARA MOSTRAR EN LA CABECERA
         let validHr = fH.filter(v => v !== null && v > 0);
         let avgHr = validHr.length > 0 ? (validHr.reduce((a,b)=>a+b,0) / validHr.length).toFixed(2) : "0.00";
         let promEl = document.getElementById('hrPromedio');
@@ -193,12 +196,13 @@
         let validTemp = fT.filter(v => v !== null && v > 0);
         let avgTemp = validTemp.length > 0 ? (validTemp.reduce((a,b)=>a+b,0) / validTemp.length).toFixed(1) : "0.0";
         let tempPromEl = document.getElementById('tempPromedio');
-        if(tempPromEl) tempPromEl.innerText = 'Promedio Temp: ' + avgTemp + '°C';
+        if(tempPromEl) tempPromEl.innerText = ' | Temp Max Promedio: ' + avgTemp + '°C';
         
         if(chartInstance) {
             chartInstance.data.labels = fL;
             chartInstance.data.datasets[0].data = fH;
             chartInstance.data.datasets[1].data = fT;
+            chartInstance.data.datasets[2].data = fE;
             chartInstance.update();
         } else {
             const ctx = document.getElementById('hashrateChart').getContext('2d');
@@ -208,7 +212,8 @@
                     labels: fL, 
                     datasets: [ 
                         { label: 'Hashrate (TH/s)', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
-                        { label: 'Temperatura Max °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1', spanGaps: false } 
+                        { label: 'Temperatura Max °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1', spanGaps: false },
+                        { label: 'Errores Hardware', data: fE, borderColor: '#ff5252', backgroundColor: 'rgba(255,82,82,0.2)', type: 'bar', yAxisID: 'y2', borderWidth: 1 }
                     ]
                 }, 
                 options: { 
@@ -220,19 +225,18 @@
                                 title: function(context) { return context[0].label; },
                                 label: function(context) { 
                                     if(context.datasetIndex === 0) { return '⚡ Hashrate: ' + context.parsed.y + ' TH/s'; } 
-                                    if(context.datasetIndex === 1) { 
-                                        let t = context.parsed.y; 
-                                        let arr = ['🌡️ Temp Max: ' + t + '°C']; 
-                                        for(let c = 0; c < cadenasCount; c++) { 
-                                            arr.push('    Cadena ' + c + ' -> Chip: ' + Math.max(0,t-(c*1)) + '°C | PCB: ' + Math.max(0,t-(5+c)) + '°C'); 
-                                        } 
-                                        return arr; 
-                                    } 
+                                    if(context.datasetIndex === 1) { return '🌡️ Temp Max: ' + context.parsed.y + '°C'; }
+                                    if(context.datasetIndex === 2) { return '⚠️ Errores HW: ' + context.parsed.y; }
                                 } 
                             } 
                         } 
                     },
-                    scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }, y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 } } 
+                    scales: { 
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' } }, 
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }, 
+                        y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 },
+                        y2: { position: 'right', display: false, min: 0 } // Eje oculto para las barras de errores para que no deformen la escala
+                    } 
                 } 
             });
         }
