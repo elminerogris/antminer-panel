@@ -6,28 +6,25 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'super_secreta_antminer_tools'
 
-# URL inyectada automáticamente por Render en el Paso 2
 DB_URL = os.environ.get("DATABASE_URL", "")
 
-# --- 1. BASE DE DATOS PROFESIONAL (POSTGRESQL) ---
+# --- 1. BASE DE DATOS SAAS PROFESIONAL (POSTGRESQL) ---
 def get_db():
-    if not DB_URL: raise Exception("Falta configurar DATABASE_URL en Render")
+    if not DB_URL: raise Exception("Falta DATABASE_URL")
     return psycopg2.connect(DB_URL)
 
 def init_db():
     if not DB_URL: return
     con = get_db(); c = con.cursor()
-    # Sintaxis PostgreSQL
     c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pool2 TEXT, worker2 TEXT, pool3 TEXT, worker3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, ip TEXT, hashrate REAL, temp_max INTEGER, fecha TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
-
+    
     c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
-    if not c.fetchone():
-        c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
+    if not c.fetchone(): c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
     con.commit(); con.close()
 
 try: init_db()
@@ -73,10 +70,7 @@ HTML_LOGIN = """
 </style></head>
 <body>
     <div class="login-card">
-        <div class="logo-container">
-            <img src="/static/logo.png" alt="Logo" class="logo-img">
-            <div class="logo-text">El Minero <span>Gris</span></div>
-        </div>
+        <div class="logo-container"><img src="/static/logo.png" alt="Logo" class="logo-img"><div class="logo-text">El Minero <span>Gris</span></div></div>
         {% if error %}<div style="color:var(--accent-red); margin-bottom:15px; text-align:center;">{{ error }}</div>{% endif %}
         <form method="POST">
             <div class="form-group"><label>Usuario</label><input type="text" name="username" required></div>
@@ -97,7 +91,6 @@ HTML_LAYOUT = """
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: 0.3s; top: 0 !important; }
     .skiptranslate iframe { display: none !important; } body { top: 0px !important; } #google_translate_element { display: none; }
     a { text-decoration: none; color: inherit; }
-    
     .sidebar { width: 220px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding-top: 15px; z-index: 10; }
     .logo-container { padding: 10px 20px 20px; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); }
     .logo-img { height: 35px; width: auto; object-fit: contain; }
@@ -107,7 +100,6 @@ HTML_LAYOUT = """
     .menu a:hover { background: var(--hover-bg); color: var(--text-main); }
     .menu a.active { background: var(--active-bg); color: var(--text-main); border-left: 3px solid var(--accent-blue); }
     .sidebar-bottom { border-top: 1px solid var(--border-color); padding: 15px 20px; font-size: 0.85em; display: flex; flex-direction: column; gap: 10px; }
-    
     .right-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     .top-bar { height: 60px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); display: flex; justify-content: flex-end; align-items: center; padding: 0 30px; gap: 15px; }
     .top-btn, .top-lang-select { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); height: 36px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; justify-content: center; }
@@ -125,10 +117,7 @@ HTML_LAYOUT = """
 <body>
     <div id="google_translate_element"></div>
     <div class="sidebar">
-        <div class="logo-container">
-            <img src="/static/logo.png" alt="Logo" class="logo-img">
-            <div class="logo-text" translate="no">El Minero <span>Gris</span></div>
-        </div>
+        <div class="logo-container"><img src="/static/logo.png" alt="Logo" class="logo-img"><div class="logo-text" translate="no">El Minero <span>Gris</span></div></div>
         <div class="menu">
             <a href="/" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
             <a href="/granjas" class="{{ 'active' if active_page == 'granjas' else '' }}">🏭 Granjas</a>
@@ -161,12 +150,7 @@ HTML_LAYOUT = """
         </div>
     </div>
     <script>
-        function escanearRed() { 
-            let b = document.getElementById('btnSync'); 
-            b.innerText = '⏳ Escaneando...'; 
-            b.style.pointerEvents = 'none'; 
-            fetch('/cmd/all/scan').then(() => { setTimeout(() => { window.location.reload(); }, 1500); });
-        }
+        function escanearRed() { let b = document.getElementById('btnSync'); b.innerText = '⏳ Escaneando...'; b.style.pointerEvents = 'none'; fetch('/cmd/all/scan').then(() => { setTimeout(() => { window.location.reload(); }, 1500); }); }
         function googleTranslateElementInit() { new google.translate.TranslateElement({pageLanguage: 'es', autoDisplay: false}, 'google_translate_element'); }
         function cambiarIdioma(lang) { let s = document.querySelector(".goog-te-combo"); if(s){ s.value = lang; s.dispatchEvent(new Event("change")); } }
         function actualizarReloj() { const d = new Date(); document.getElementById('relojTop').innerText = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0'); }
@@ -187,7 +171,6 @@ HTML_RESUMEN = """
     .stat-card .val { font-size: 1.1em; font-weight: bold; color: var(--text-main); }
     .val-blue { color: var(--accent-blue) !important; } .val-green { color: var(--accent-green) !important; } .val-red { color: var(--accent-red) !important; }
     .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; } .dot-green { background: var(--accent-green); } .dot-red { background: var(--accent-red); }
-
     .calc-panel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 25px; }
     .calc-title { font-size: 1.1em; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
     .calc-top-boxes { display: flex; gap: 15px; margin-bottom: 20px; }
@@ -207,13 +190,11 @@ HTML_RESUMEN = """
     .calc-text-ribbon { font-size: 0.85em; color: var(--text-muted); margin-bottom: 5px; padding: 5px 0; border-top: 1px solid var(--border-color); padding-top: 15px;}
     .calc-text-ribbon span.hl { color: var(--text-main); font-weight: bold; }
     .calc-text-ribbon .sep { margin: 0 10px; color: var(--border-color); }
-
     .bulk-bar { margin-bottom: 10px; display: flex; gap: 10px; }
     .btn-bulk { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; transition: 0.2s; }
     .btn-bulk:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
     .btn-excel { background: rgba(0, 230, 118, 0.1); border: 1px solid var(--accent-green); color: var(--accent-green); }
     .btn-excel:hover { background: var(--accent-green); color: white; }
-
     .tabla-container { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px 20px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.85em; }
@@ -224,10 +205,7 @@ HTML_RESUMEN = """
 </style>
 
 <div class="cabecera">
-    <div>
-        <h1>Resumen</h1>
-        <div class="sub">Estado de la flota en 1 granja(s) · <span id="textoActualizado" style="color:var(--accent-green);">actualizado hace 1s</span></div>
-    </div>
+    <div><h1>Resumen</h1><div class="sub">Estado de la flota en 1 granja(s) · <span id="textoActualizado" style="color:var(--accent-green);">actualizado hace 1s</span></div></div>
     <button class="btn-bulk btn-excel" onclick="window.location.href='/exportar_csv'">📥 Exportar CSV Mensual</button>
 </div>
 
@@ -310,24 +288,14 @@ HTML_RESUMEN = """
 <script>
     let PRECIO_BTC = parseFloat("{{ flota.precio_btc_raw }}");
     const DIFICULTAD = parseFloat("{{ flota.dificultad_t }}");
-    
-    function toggleAll(source) {
-        checkboxes = document.querySelectorAll('.chk-minero');
-        for(var i=0, n=checkboxes.length;i<n;i++) { checkboxes[i].checked = source.checked; }
-    }
-    
+    function toggleAll(source) { checkboxes = document.querySelectorAll('.chk-minero'); for(var i=0, n=checkboxes.length;i<n;i++) { checkboxes[i].checked = source.checked; } }
     function bulkAccion(accion) {
-        let chks = document.querySelectorAll('.chk-minero:checked');
-        let ips = Array.from(chks).map(c => c.value);
+        let chks = document.querySelectorAll('.chk-minero:checked'); let ips = Array.from(chks).map(c => c.value);
         if (ips.length === 0) return alert("Selecciona al menos un minero.");
         if (confirm(`¿Aplicar acción a ${ips.length} minero(s)?`)) {
-            fetch('/cmd_bulk', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ips: ips, accion: accion})
-            }).then(() => { alert("Comandos encolados."); location.reload(); });
+            fetch('/cmd_bulk', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ips: ips, accion: accion}) }).then(() => { alert("Comandos encolados."); location.reload(); });
         }
     }
-
     async function actualizarPrecioEnVivo() {
         try {
             let r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
@@ -339,9 +307,7 @@ HTML_RESUMEN = """
         } catch(e) {}
     }
     setInterval(actualizarPrecioEnVivo, 5000); 
-
     function formatVal(val) { return val < 0 ? `<span style="color:var(--accent-red);">-USD ${Math.abs(val).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>` : `<span style="color:var(--accent-green);">USD ${val.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>`; }
-
     function calcularRentabilidad() {
         let hTH = parseFloat(document.getElementById('hashrateInput').value) || 0, cW = parseFloat(document.getElementById('consumoInput').value) || 0;
         let cKwh = parseFloat(document.getElementById('kwhInput').value) || 0, pool = parseFloat(document.getElementById('comisionInput').value) || 0;
@@ -372,48 +338,34 @@ HTML_DETALLE = """
     .btn-volver { color: var(--text-muted); font-size: 1.5em; font-weight: bold; }
     .titulo-minero { margin: 0; font-size: 1.5em; display: flex; align-items: center; gap: 10px; }
     .estado-punto { height: 12px; width: 12px; background: var(--accent-red); border-radius: 50%; display: inline-block; }
-    
     .status-banner { background: rgba(255,82,82,0.1); border: 1px solid var(--accent-red); padding: 15px; border-radius: 8px; color: var(--text-main); font-size: 0.9em; margin-bottom: 20px; display: {{ 'block' if offline else 'none' }}; }
     .status-banner span { color: var(--accent-red); font-weight: bold; }
-
     .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
     .grid-4 .card { margin-bottom: 0; }
     .grid-4 .card h4 { margin: 0; font-size: 0.7em; color: var(--text-muted); text-transform: uppercase; }
     .grid-4 .card .val { font-size: 1.6em; font-weight: bold; margin-top: 10px; color: var(--accent-blue); }
-    
     .panel-title { font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; font-size:1.1em;}
     .panel-control { display: flex; gap: 10px; margin-bottom: 20px; background: var(--bg-card); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); flex-wrap: wrap; }
     .btn-control { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; transition:0.2s; font-size:0.85em; display:flex; align-items:center; gap:6px;}
     .btn-control:hover { border-color: var(--accent-blue); }
     .btn-control.active { border-color: var(--accent-blue); background: rgba(51,102,255,0.1); color: var(--accent-blue); }
-    
     .chart-filters { display: flex; gap: 5px; }
     .btn-filter { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; transition: 0.2s; }
     .btn-filter.active, .btn-filter:hover { background: rgba(51,102,255,0.1); color: var(--accent-blue); border-color: var(--accent-blue); }
-
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     .info-table { width: 100%; border-collapse: collapse; }
     .info-table td { padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85em; }
     .info-table td:nth-child(1) { color: var(--text-main); font-weight:bold; }
     .info-table td:nth-child(2) { text-align: right; color: var(--text-muted); }
-    
     .input-pool { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 10px; width: 100%; font-family: monospace; font-size: 1em; outline: none; border-radius: 4px; transition: 0.2s; box-sizing: border-box; }
     .input-pool:focus { border-color: var(--accent-blue); background: rgba(51,102,255,0.05); }
     .btn-guardar { background: rgba(51,102,255,0.1); border: 1px solid var(--accent-blue); color: var(--accent-blue); cursor: pointer; font-weight: bold; padding: 6px 12px; border-radius: 4px; transition: 0.2s; width: 100%; }
     .btn-guardar:hover { background: var(--accent-blue); color: #fff; }
-    
     .terminal { background: #000; color: #00e676; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 0.85em; height: 300px; overflow-y: scroll; border: 1px solid #333; margin-top: 20px; display: none; white-space: pre-wrap; }
 </style>
 
-<div class="header-detalle">
-    <div style="display:flex; align-items:center; gap:15px;">
-        <a href="/" class="btn-volver">← Volver</a>
-    </div>
-</div>
-
-<div class="status-banner">
-    <span>⛔ Este minero está sin conexión</span> (visto por última vez {{ ultimo.uptime }}). Los datos de abajo son los últimos recibidos.
-</div>
+<div class="header-detalle"><div style="display:flex; align-items:center; gap:15px;"><a href="/" class="btn-volver">← Volver</a></div></div>
+<div class="status-banner"><span>⛔ Este minero está sin conexión</span> (visto por última vez {{ ultimo.uptime }}). Los datos de abajo son los últimos recibidos.</div>
 
 <div class="grid-4">
     <div class="card"><h4>Hashrate 5S</h4><div class="val" translate="no">{{ ultimo.hashrate }} TH/s</div></div>
@@ -428,7 +380,6 @@ HTML_DETALLE = """
         <button class="btn-control" style="color:var(--accent-green); border-color:var(--accent-green);" onclick="fetch('/cmd/{{ ip }}/profile_low').then(()=>alert('Perfil Invierno/Eco enviado a la cola.'))">❄️ Modo Invierno (Eco)</button>
         <button class="btn-control" style="color:var(--accent-red); border-color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/profile_high').then(()=>alert('Perfil Verano/Max enviado a la cola.'))">🔥 Modo Verano (Max)</button>
     </div>
-
     <div class="panel-title" style="justify-content: flex-start;">🛠️ Panel de control</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/restart').then(()=>location.reload())">🔄 Reiniciar</button>
@@ -441,7 +392,6 @@ HTML_DETALLE = """
         <button class="btn-control" style="color:var(--accent-blue); border-color:var(--accent-blue);">🔍 Find IP</button>
         <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="solicitarLogs()">🖥️ Ver Consola (Logs)</button>
     </div>
-    
     <div id="terminal-box" class="terminal">Esperando logs del minero...</div>
 </div>
 
@@ -520,25 +470,8 @@ HTML_DETALLE = """
 </div>
 
 <script>
-    function solicitarLogs() {
-        let tb = document.getElementById('terminal-box');
-        tb.style.display = 'block';
-        tb.innerText = 'Solicitando logs al agente... Espera unos segundos.';
-        fetch('/cmd/{{ ip }}/get_log').then(() => {
-            setInterval(async () => {
-                let r = await fetch('/api/ver_log/{{ ip }}');
-                let txt = await r.text();
-                if(txt.length > 5) { tb.innerText = txt; tb.scrollTop = tb.scrollHeight; }
-            }, 3000);
-        });
-    }
-
-    function guardarPool(idx) {
-        let u = document.getElementById('url_' + idx).value, us = document.getElementById('user_' + idx).value;
-        if(confirm('¿Guardar configuración del Pool ' + idx + '?')) {
-            fetch('/cmd/{{ ip }}/setpool?url='+encodeURIComponent(u)+'&user='+encodeURIComponent(us)).then(()=>alert('Cambio enviado a la cola del Agente.'));
-        }
-    }
+    function solicitarLogs() { let tb = document.getElementById('terminal-box'); tb.style.display = 'block'; tb.innerText = 'Solicitando logs al agente...'; fetch('/cmd/{{ ip }}/get_log').then(() => { setInterval(async () => { let r = await fetch('/api/ver_log/{{ ip }}'); let txt = await r.text(); if(txt.length > 5) { tb.innerText = txt; tb.scrollTop = tb.scrollHeight; } }, 3000); }); }
+    function guardarPool(idx) { let u = document.getElementById('url_' + idx).value, us = document.getElementById('user_' + idx).value; if(confirm('¿Guardar configuración del Pool ' + idx + '?')) { fetch('/cmd/{{ ip }}/setpool?url='+encodeURIComponent(u)+'&user='+encodeURIComponent(us)).then(()=>alert('Cambio enviado a la cola del Agente.')); } }
     
     const rawFechas = {{ graf_fechas_raw | safe }};
     const rawHr = {{ graf_hashrate | safe }};
@@ -558,6 +491,7 @@ HTML_DETALLE = """
         
         let fL = [], fH = [], fT = [];
         
+        // PADDING VISUAL: Fuerza al gráfico a estirarse en el tiempo
         let labelLimite = (rango === '7d' || rango === '30d') ? limitDate.toLocaleDateString() + ' ' + limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         fL.push(labelLimite); fH.push(null); fT.push(null);
 
@@ -714,4 +648,139 @@ def detalle_minero(ip):
             
             val_h = float(h['hashrate']) if h['hashrate'] else 0
             if idx > 0:
-                dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H
+                dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
+                if (dt_actual - dt_prev).total_seconds() > 300: 
+                    ts_prev = calendar.timegm(dt_prev.timetuple())
+                    f_raw.insert(-1, ts_prev); hr_g.insert(-1, 0); tp_g.insert(-1, 0)
+            hr_g.append(val_h); tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
+    else:
+        f_raw = [calendar.timegm(datetime.utcnow().timetuple())]; hr_g = [hr_val]; tp_g = [t_val]
+        
+    dt = {'hashrate': hr_val, 'temp_max': t_val, 'errores': 0, 'consumo': round(c_val/1000, 1), 'fans': fans, 'uptime': '0d 13h' if not offline else 'Desconectado', 'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0}
+    extra = {'worker1': worker1, 'pool1': pool1, 'worker2': worker2, 'pool2': pool2, 'worker3': worker3, 'pool3': pool3, 'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas}
+    disp = {'eficiencia': round(c_val/hr_val, 2) if hr_val > 0 else 0}
+    
+    return render_template_string(HTML_LAYOUT, active_page='mineros', content=render_template_string(HTML_DETALLE, ip=ip, modelo=m['modelo'], ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g)))
+
+@app.route('/exportar_csv')
+@login_required
+def exportar_csv():
+    con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos")
+    filas = cur.fetchall()
+    con.close()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['IP', 'Modelo', 'Hashrate (TH/s)', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
+    for f in filas: writer.writerow([f['ip'], f['modelo'], f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
+    
+    return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition":"attachment;filename=Reporte_El_Minero_Gris.csv"})
+
+@app.route('/cmd_bulk', methods=['POST'])
+@login_required
+def cmd_bulk():
+    data = request.json
+    accion = data.get('accion')
+    ips = data.get('ips', [])
+    if accion and ips:
+        con = get_db(); cur = con.cursor()
+        for ip in ips:
+            cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, accion, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con.commit(); con.close()
+    return "OK"
+
+@app.route('/cmd/<ip>/<accion>')
+@login_required
+def comando_minero(ip, accion):
+    cmd_str = ""
+    if accion in ['restart', 'sleep', 'normal', 'blink', 'scan', 'get_log'] or accion.startswith('profile_'): 
+        cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
+    elif accion == 'setpool':
+        cmd_str = f"setpool|{request.args.get('url', '')}|{request.args.get('user', '')}"
+        
+    if cmd_str:
+        con = get_db(); cur = con.cursor()
+        cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con.commit(); con.close()
+    return "OK"
+
+@app.route('/api/ver_log/<ip>')
+def ver_log(ip):
+    con = get_db(); cur = con.cursor()
+    cur.execute("SELECT contenido FROM logs_mineros WHERE ip=%s", (ip,))
+    log = cur.fetchone()
+    con.close()
+    return log[0] if log else "Esperando respuesta del minero..."
+
+@app.route('/api/recibir_logs', methods=['POST'])
+def recibir_logs():
+    data = request.json
+    if data and 'ip' in data and 'log' in data:
+        con = get_db(); cur = con.cursor()
+        cur.execute("INSERT INTO logs_mineros (ip, contenido, fecha) VALUES (%s, %s, %s) ON CONFLICT(ip) DO UPDATE SET contenido=EXCLUDED.contenido, fecha=EXCLUDED.fecha", (data['ip'], data['log'], datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con.commit(); con.close()
+    return "OK", 200
+
+@app.route('/api/recibir_datos', methods=['POST'])
+def recibir_datos():
+    datos = request.json
+    if not datos: return "Error", 400
+    con = get_db(); cur = con.cursor()
+    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    for m in datos.get('mineros', []):
+        err = m.get('errores', 0); mc = m.get('mac', ''); sr = m.get('serial', ''); fw = m.get('firmware', ''); fs = m.get('fans', '')
+        p1 = m.get('pool1', ''); w1 = m.get('worker1', ''); p2 = m.get('pool2', ''); w2 = m.get('worker2', ''); p3 = m.get('pool3', ''); w3 = m.get('worker3', '')
+        cadenas_json = json.dumps(m.get('cadenas', []))
+        
+        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, temp_max, consumo_w, estado, ultima_act, errores, pool1, worker1, pool2, worker2, pool3, worker3, mac, serial, firmware, fans, cadenas) 
+                       VALUES (%s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
+                       modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, temp_max=EXCLUDED.temp_max, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas''', 
+                    (m['ip'], m['modelo'], m['hashrate'], m['temp'], m['consumo'], ahora, err, p1, w1, p2, w2, p3, w3, mc, sr, fw, fs, cadenas_json))
+        cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, fecha) VALUES (%s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], ahora))
+    
+    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'")
+    pend = cur.fetchall()
+    ordenes = [{"ip": c[1], "comando": c[2]} for c in pend]
+    for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c[0],))
+    con.commit(); con.close()
+    return jsonify({"status": "ok", "ordenes": ordenes}), 200
+
+@app.route('/granjas')
+@login_required
+def granjas(): return render_template_string(HTML_LAYOUT, active_page='granjas', content=render_template_string(HTML_SUBPAGINAS, titulo="🏭 Gestión de Granjas"))
+
+@app.route('/mineros')
+@login_required
+def mineros(): return redirect('/')
+
+@app.route('/alertas')
+@login_required
+def alertas(): return render_template_string(HTML_LAYOUT, active_page='alertas', content=render_template_string(HTML_SUBPAGINAS, titulo="🔔 Centro de Alertas"))
+
+@app.route('/plan')
+@login_required
+def plan(): return render_template_string(HTML_LAYOUT, active_page='plan', content=render_template_string(HTML_SUBPAGINAS, titulo="📋 Plan y Facturación"))
+
+@app.route('/ajustes')
+@login_required
+def ajustes(): return render_template_string(HTML_LAYOUT, active_page='ajustes', content=render_template_string(HTML_SUBPAGINAS, titulo="⚙️ Ajustes del Sistema"))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        u = request.form.get('username'); p = request.form.get('password')
+        con = get_db(); cur = con.cursor()
+        cur.execute("SELECT id FROM usuarios WHERE username=%s AND password=%s", (u, p))
+        if cur.fetchone():
+            session['usuario'] = u; con.close(); return redirect('/')
+        else: error = 'Credenciales incorrectas'
+        con.close()
+    return render_template_string(HTML_LOGIN, error=error)
+
+@app.route('/logout')
+def logout(): session.clear(); return redirect('/login')
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
