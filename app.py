@@ -6,7 +6,7 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'super_secreta_antminer_tools'
 
-DB_URL = os.environ.get("DATABASE_URL", "")
+DB_URL = os.environ.get("DATABASE_URL", "postgresql://el_minero_gris_database_user:168WxP4afPEwOB9KdtOci5ZbKteegM40@dpg-dbt8ob56e07s73bop9eg-a.oregon-postgres.render.com/el_minero_gris_database")
 
 def get_db():
     if not DB_URL: raise Exception("Falta DATABASE_URL en Render")
@@ -25,25 +25,22 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
         
-        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN hashrate_30m REAL DEFAULT 0.0")
-        except: pass
-        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass1 TEXT DEFAULT '123'")
-        except: pass
-        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass2 TEXT DEFAULT '123'")
-        except: pass
-        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass3 TEXT DEFAULT '123'")
-        except: pass
-        try: c.execute("ALTER TABLE historial_nube ADD COLUMN errores INTEGER DEFAULT 0")
-        except: pass
+        # Forzar la creación de columnas por si la tabla ya existía sin ellas
+        c.execute("ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS hashrate_30m REAL DEFAULT 0.0")
+        c.execute("ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass1 TEXT DEFAULT '123'")
+        c.execute("ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass2 TEXT DEFAULT '123'")
+        c.execute("ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass3 TEXT DEFAULT '123'")
+        c.execute("ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS cadenas TEXT")
+        c.execute("ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS errores INTEGER DEFAULT 0")
 
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         if not c.fetchone(): c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
         con.close()
     except Exception as e:
-        print(f"Error BD: {e}")
+        print(f"Error BD Init: {e}")
 
 try: init_db()
-except: pass
+except Exception as e: print(f"Error init_db: {e}")
 
 def login_required(f):
     @wraps(f)
@@ -134,7 +131,7 @@ def detalle_minero(ip):
     m = cur.fetchone()
     cur.execute("SELECT nombre FROM nombres_mineros WHERE ip=%s", (ip,))
     n_row = cur.fetchone()
-    cur.execute("SELECT fecha, hashrate, temp_max, errores FROM historial_nube WHERE ip=%s ORDER BY id DESC LIMIT 5000", (ip,))
+    cur.execute("SELECT fecha, hashrate, temp_max, errores FROM historial_nube WHERE ip=%s ORDER BY id ASC LIMIT 5000", (ip,))
     hist = cur.fetchall()
     con.close()
     
@@ -160,7 +157,6 @@ def detalle_minero(ip):
     except: cadenas = []
     if not cadenas: cadenas = [{"id": 0, "temp_c": t_val, "temp_p": max(0, t_val-5)}, {"id": 1, "temp_c": max(0, t_val-1), "temp_p": max(0, t_val-6)}, {"id": 2, "temp_c": max(0, t_val-2), "temp_p": max(0, t_val-7)}]
 
-    hist.reverse()
     f_raw, hr_g, tp_g, err_g = [], [], [], []
     prev_err = 0
     if hist:
@@ -171,8 +167,9 @@ def detalle_minero(ip):
             val_h = float(h['hashrate']) if h['hashrate'] else 0
             if idx > 0:
                 dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
-                if (dt_actual - dt_prev).total_seconds() > 300: 
-                    f_raw.insert(-1, calendar.timegm(dt_prev.timetuple())); hr_g.insert(-1, 0); tp_g.insert(-1, 0); err_g.insert(-1, 0)
+                if (dt_actual - dt_prev).total_seconds() > 600: 
+                    f_raw.append(calendar.timegm(dt_prev.timetuple()) + 1)
+                    hr_g.append(0); tp_g.append(0); err_g.append(0)
             
             total_err_actual = int(h['errores']) if 'errores' in h and h['errores'] else 0
             diff_err = total_err_actual - prev_err
@@ -180,7 +177,8 @@ def detalle_minero(ip):
             err_g.append(max(0, diff_err))
             prev_err = total_err_actual
 
-            hr_g.append(val_h); tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
+            hr_g.append(val_h)
+            tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
     else:
         f_raw = [calendar.timegm(datetime.utcnow().timetuple())]; hr_g = [hr_val]; tp_g = [t_val]; err_g = [0]
         
