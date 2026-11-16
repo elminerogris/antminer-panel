@@ -1,33 +1,37 @@
-from flask import Flask, render_template_string, redirect, request, session, url_for, jsonify
+from flask import Flask, render_template_string, redirect, request, session, url_for, jsonify, Response
 from functools import wraps
-import sqlite3, json, urllib.request, time, calendar
+import psycopg2, psycopg2.extras, json, urllib.request, time, calendar, csv, io, os
 from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'super_secreta_antminer_tools'
 
+# URL inyectada automáticamente por Render en el Paso 2
+DB_URL = os.environ.get("DATABASE_URL", "")
+
+# --- 1. BASE DE DATOS PROFESIONAL (POSTGRESQL) ---
 def get_db():
-    con = sqlite3.connect('historial_minero.db')
-    con.row_factory = sqlite3.Row
-    return con
+    if not DB_URL: raise Exception("Falta configurar DATABASE_URL en Render")
+    return psycopg2.connect(DB_URL)
 
 def init_db():
-    con = sqlite3.connect('historial_minero.db'); c = con.cursor()
-    c.execute('CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT)')
-    c.execute('CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT)')
-    c.execute('CREATE TABLE IF NOT EXISTS cola_comandos (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)')
-    c.execute('CREATE TABLE IF NOT EXISTS historial_nube (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, hashrate REAL, temp_max INTEGER, fecha TEXT)')
-    c.execute('CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)')
-    
-    columnas_nuevas = ['errores INTEGER', 'pool1 TEXT', 'worker1 TEXT', 'pool2 TEXT', 'worker2 TEXT', 'pool3 TEXT', 'worker3 TEXT', 'mac TEXT', 'serial TEXT', 'firmware TEXT', 'fans TEXT', 'cadenas TEXT']
-    for col in columnas_nuevas:
-        try: c.execute(f'ALTER TABLE mineros_activos ADD COLUMN {col}')
-        except: pass
+    if not DB_URL: return
+    con = get_db(); c = con.cursor()
+    # Sintaxis PostgreSQL
+    c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pool2 TEXT, worker2 TEXT, pool3 TEXT, worker3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, ip TEXT, hashrate REAL, temp_max INTEGER, fecha TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
 
-    if not c.execute("SELECT * FROM usuarios WHERE username='giovanni'").fetchone():
+    c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
+    if not c.fetchone():
         c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
     con.commit(); con.close()
-init_db()
+
+try: init_db()
+except: pass
 
 def login_required(f):
     @wraps(f)
@@ -50,6 +54,8 @@ def obtener_datos_red():
     except: pass
     cache_red['datos'] = datos; cache_red['ultima_act'] = ahora
     return datos
+
+# --- 2. PLANTILLAS HTML ---
 
 HTML_LOGIN = """
 <!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8"><title>El Minero Gris - Acceso</title>
@@ -205,6 +211,8 @@ HTML_RESUMEN = """
     .bulk-bar { margin-bottom: 10px; display: flex; gap: 10px; }
     .btn-bulk { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; transition: 0.2s; }
     .btn-bulk:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+    .btn-excel { background: rgba(0, 230, 118, 0.1); border: 1px solid var(--accent-green); color: var(--accent-green); }
+    .btn-excel:hover { background: var(--accent-green); color: white; }
 
     .tabla-container { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
@@ -220,6 +228,7 @@ HTML_RESUMEN = """
         <h1>Resumen</h1>
         <div class="sub">Estado de la flota en 1 granja(s) · <span id="textoActualizado" style="color:var(--accent-green);">actualizado hace 1s</span></div>
     </div>
+    <button class="btn-bulk btn-excel" onclick="window.location.href='/exportar_csv'">📥 Exportar CSV Mensual</button>
 </div>
 
 <div class="top-stats-grid">
@@ -392,6 +401,8 @@ HTML_DETALLE = """
     .input-pool:focus { border-color: var(--accent-blue); background: rgba(51,102,255,0.05); }
     .btn-guardar { background: rgba(51,102,255,0.1); border: 1px solid var(--accent-blue); color: var(--accent-blue); cursor: pointer; font-weight: bold; padding: 6px 12px; border-radius: 4px; transition: 0.2s; width: 100%; }
     .btn-guardar:hover { background: var(--accent-blue); color: #fff; }
+    
+    .terminal { background: #000; color: #00e676; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 0.85em; height: 300px; overflow-y: scroll; border: 1px solid #333; margin-top: 20px; display: none; white-space: pre-wrap; }
 </style>
 
 <div class="header-detalle">
@@ -412,12 +423,26 @@ HTML_DETALLE = """
 </div>
 
 <div class="card" style="padding:20px;">
-    <div class="panel-title" style="justify-content: flex-start;">⚡ Panel de control</div>
+    <div class="panel-title" style="justify-content: flex-start;">⚡ Perfiles de Energía</div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
+        <button class="btn-control" style="color:var(--accent-green); border-color:var(--accent-green);" onclick="fetch('/cmd/{{ ip }}/profile_low').then(()=>alert('Perfil Invierno/Eco enviado a la cola.'))">❄️ Modo Invierno (Eco)</button>
+        <button class="btn-control" style="color:var(--accent-red); border-color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/profile_high').then(()=>alert('Perfil Verano/Max enviado a la cola.'))">🔥 Modo Verano (Max)</button>
+    </div>
+
+    <div class="panel-title" style="justify-content: flex-start;">🛠️ Panel de control</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/restart').then(()=>location.reload())">🔄 Reiniciar</button>
         <button class="btn-control" onclick="fetch('/cmd/{{ ip }}/sleep').then(()=>location.reload())">😴 Reposo</button>
         <button class="btn-control active" onclick="fetch('/cmd/{{ ip }}/normal').then(()=>location.reload())">▶ Normal</button>
+        <button class="btn-control" style="color:purple; border-color:purple;">🚀 Turbo</button>
+        <button class="btn-control" style="color:var(--accent-green); border-color:var(--accent-green);">🍃 Eco</button>
+        <button class="btn-control" style="color:gold; border-color:gold;" onclick="fetch('/cmd/{{ ip }}/blink').then(()=>location.reload())">💡 Parpadear LED</button>
+        <button class="btn-control">📊 Actualizar estadísticas</button>
+        <button class="btn-control" style="color:var(--accent-blue); border-color:var(--accent-blue);">🔍 Find IP</button>
+        <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="solicitarLogs()">🖥️ Ver Consola (Logs)</button>
     </div>
+    
+    <div id="terminal-box" class="terminal">Esperando logs del minero...</div>
 </div>
 
 <div class="card">
@@ -439,7 +464,7 @@ HTML_DETALLE = """
         <table class="info-table" style="margin-top:15px;">
             {% for c in extra.cadenas %}
             <tr>
-                <td>Cadena {{ c.id }}</td>
+                <td>Cadena {{ c.id }} <span style="font-weight:normal; color:var(--text-muted); font-size:0.8em; margin-left:10px;">{{ ultimo.hashrate_c0 }} TH/s</span></td>
                 <td>Chip <span style="color:var(--accent-blue); font-weight:bold;">{{ c.temp_c }}°C</span> &nbsp;&nbsp; PCB <span style="color:var(--accent-green); font-weight:bold;">{{ c.temp_p }}°C</span></td>
             </tr>
             {% endfor %}
@@ -495,6 +520,19 @@ HTML_DETALLE = """
 </div>
 
 <script>
+    function solicitarLogs() {
+        let tb = document.getElementById('terminal-box');
+        tb.style.display = 'block';
+        tb.innerText = 'Solicitando logs al agente... Espera unos segundos.';
+        fetch('/cmd/{{ ip }}/get_log').then(() => {
+            setInterval(async () => {
+                let r = await fetch('/api/ver_log/{{ ip }}');
+                let txt = await r.text();
+                if(txt.length > 5) { tb.innerText = txt; tb.scrollTop = tb.scrollHeight; }
+            }, 3000);
+        });
+    }
+
     function guardarPool(idx) {
         let u = document.getElementById('url_' + idx).value, us = document.getElementById('user_' + idx).value;
         if(confirm('¿Guardar configuración del Pool ' + idx + '?')) {
@@ -520,7 +558,6 @@ HTML_DETALLE = """
         
         let fL = [], fH = [], fT = [];
         
-        // PADDING: Fuerza al gráfico a verse estirado acorde al rango aunque haya pocos datos guardados
         let labelLimite = (rango === '7d' || rango === '30d') ? limitDate.toLocaleDateString() + ' ' + limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         fL.push(labelLimite); fH.push(null); fT.push(null);
 
@@ -601,8 +638,9 @@ HTML_SUBPAGINAS = """
 @app.route('/')
 @login_required
 def index():
-    con = get_db(); cur = con.cursor()
-    mineros = cur.execute("SELECT * FROM mineros_activos").fetchall()
+    con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM mineros_activos")
+    mineros = cur.fetchall()
     con.close()
     
     datos_red = obtener_datos_red()
@@ -633,9 +671,11 @@ def index():
 @app.route('/minero/<ip>')
 @login_required
 def detalle_minero(ip):
-    con = get_db(); cur = con.cursor()
-    m = cur.execute("SELECT * FROM mineros_activos WHERE ip=?", (ip,)).fetchone()
-    hist = cur.execute("SELECT fecha, hashrate, temp_max FROM historial_nube WHERE ip=? ORDER BY id DESC LIMIT 5000", (ip,)).fetchall()
+    con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM mineros_activos WHERE ip=%s", (ip,))
+    m = cur.fetchone()
+    cur.execute("SELECT fecha, hashrate, temp_max FROM historial_nube WHERE ip=%s ORDER BY id DESC LIMIT 5000", (ip,))
+    hist = cur.fetchall()
     con.close()
     if not m: return redirect('/')
     
@@ -646,19 +686,19 @@ def detalle_minero(ip):
     
     offline = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() > 180
     
-    pool1 = str(m['pool1']) if 'pool1' in m.keys() and m['pool1'] else ""
-    worker1 = str(m['worker1']) if 'worker1' in m.keys() and m['worker1'] else ""
-    pool2 = str(m['pool2']) if 'pool2' in m.keys() and m['pool2'] else ""
-    worker2 = str(m['worker2']) if 'worker2' in m.keys() and m['worker2'] else ""
-    pool3 = str(m['pool3']) if 'pool3' in m.keys() and m['pool3'] else ""
-    worker3 = str(m['worker3']) if 'worker3' in m.keys() and m['worker3'] else ""
+    pool1 = str(m['pool1']) if m['pool1'] else ""
+    worker1 = str(m['worker1']) if m['worker1'] else ""
+    pool2 = str(m['pool2']) if m['pool2'] else ""
+    worker2 = str(m['worker2']) if m['worker2'] else ""
+    pool3 = str(m['pool3']) if m['pool3'] else ""
+    worker3 = str(m['worker3']) if m['worker3'] else ""
     
     mac = str(m['mac']) if m['mac'] else "-"
     serial = str(m['serial']) if m['serial'] else "-"
     fw = str(m['firmware']) if m['firmware'] else "Desconocido"
     fans = str(m['fans']) if m['fans'] else "0 / 0"
     
-    cadenas_str = m['cadenas'] if 'cadenas' in m.keys() and m['cadenas'] else "[]"
+    cadenas_str = m['cadenas'] if m['cadenas'] else "[]"
     try: cadenas = json.loads(cadenas_str)
     except: cadenas = []
     if not cadenas: 
@@ -674,84 +714,4 @@ def detalle_minero(ip):
             
             val_h = float(h['hashrate']) if h['hashrate'] else 0
             if idx > 0:
-                dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
-                if (dt_actual - dt_prev).total_seconds() > 300: 
-                    ts_prev = calendar.timegm(dt_prev.timetuple())
-                    f_raw.insert(-1, ts_prev); hr_g.insert(-1, 0); tp_g.insert(-1, 0)
-            hr_g.append(val_h); tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
-    else:
-        f_raw = [calendar.timegm(datetime.utcnow().timetuple())]; hr_g = [hr_val]; tp_g = [t_val]
-        
-    dt = {'hashrate': hr_val, 'temp_max': t_val, 'errores': 0, 'consumo': round(c_val/1000, 1), 'fans': fans, 'uptime': '0d 13h' if not offline else 'Desconectado', 'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0}
-    extra = {'worker1': worker1, 'pool1': pool1, 'worker2': worker2, 'pool2': pool2, 'worker3': worker3, 'pool3': pool3, 'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas}
-    disp = {'eficiencia': round(c_val/hr_val, 2) if hr_val > 0 else 0}
-    
-    return render_template_string(HTML_LAYOUT, active_page='mineros', content=render_template_string(HTML_DETALLE, ip=ip, modelo=m['modelo'], ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g)))
-
-@app.route('/exportar_csv')
-@login_required
-def exportar_csv():
-    con = sqlite3.connect('historial_minero.db'); cur = con.cursor()
-    filas = cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos").fetchall()
-    con.close()
-    
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['IP', 'Modelo', 'Hashrate (TH/s)', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
-    for f in filas: writer.writerow([f[0], f[1], f[2], f[3], f[4], f[5]])
-    
-    return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition":"attachment;filename=Reporte_El_Minero_Gris.csv"})
-
-@app.route('/cmd_bulk', methods=['POST'])
-@login_required
-def cmd_bulk():
-    data = request.json
-    accion = data.get('accion')
-    ips = data.get('ips', [])
-    if accion and ips:
-        con = sqlite3.connect('historial_minero.db')
-        for ip in ips:
-            con.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (?, ?, 'pendiente', ?)", (ip, accion, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-        con.commit(); con.close()
-    return "OK"
-
-@app.route('/cmd/<ip>/<accion>')
-@login_required
-def comando_minero(ip, accion):
-    cmd_str = ""
-    if accion in ['restart', 'sleep', 'normal', 'blink', 'scan']: 
-        cmd_str = accion
-    elif accion == 'setpool':
-        cmd_str = f"setpool|{request.args.get('url', '')}|{request.args.get('user', '')}"
-        
-    if cmd_str:
-        con = sqlite3.connect('historial_minero.db')
-        con.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (?, ?, 'pendiente', ?)", (ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-        con.commit(); con.close()
-    return "OK"
-
-@app.route('/api/recibir_datos', methods=['POST'])
-def recibir_datos():
-    datos = request.json
-    if not datos: return "Error", 400
-    con = sqlite3.connect('historial_minero.db'); cur = con.cursor()
-    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    for m in datos.get('mineros', []):
-        err = m.get('errores', 0); mc = m.get('mac', ''); sr = m.get('serial', ''); fw = m.get('firmware', ''); fs = m.get('fans', '')
-        p1 = m.get('pool1', ''); w1 = m.get('worker1', ''); p2 = m.get('pool2', ''); w2 = m.get('worker2', ''); p3 = m.get('pool3', ''); w3 = m.get('worker3', '')
-        cadenas_json = json.dumps(m.get('cadenas', []))
-        
-        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, temp_max, consumo_w, estado, ultima_act, errores, pool1, worker1, pool2, worker2, pool3, worker3, mac, serial, firmware, fans, cadenas) 
-                       VALUES (?, ?, ?, ?, ?, 'online', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(ip) DO UPDATE SET 
-                       modelo=excluded.modelo, hashrate=excluded.hashrate, temp_max=excluded.temp_max, consumo_w=excluded.consumo_w, ultima_act=excluded.ultima_act, errores=excluded.errores, pool1=excluded.pool1, worker1=excluded.worker1, pool2=excluded.pool2, worker2=excluded.worker2, pool3=excluded.pool3, worker3=excluded.worker3, mac=excluded.mac, serial=excluded.serial, firmware=excluded.firmware, fans=excluded.fans, cadenas=excluded.cadenas''', 
-                    (m['ip'], m['modelo'], m['hashrate'], m['temp'], m['consumo'], ahora, err, p1, w1, p2, w2, p3, w3, mc, sr, fw, fs, cadenas_json))
-        cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, fecha) VALUES (?, ?, ?, ?)", (m['ip'], m['hashrate'], m['temp'], ahora))
-    
-    pend = cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'").fetchall()
-    ordenes = [{"ip": c[1], "comando": c[2]} for c in pend]
-    for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=?", (c[0],))
-    con.commit(); con.close()
-    return jsonify({"status": "ok", "ordenes": ordenes}), 200
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+                dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H
