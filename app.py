@@ -6,13 +6,12 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'super_secreta_antminer_tools'
 
-# --- 1. BASE DE DATOS SAAS CON SOPORTE PROFUNDO ---
+# --- 1. BASE DE DATOS SAAS ---
 def init_db():
     conexion = sqlite3.connect('historial_minero.db'); c = conexion.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS cola_comandos (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)')
-    # Tabla de historial modificada para soportar caídas a 0
     c.execute('CREATE TABLE IF NOT EXISTS historial_nube (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, hashrate REAL, temp_max INTEGER, fecha TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)')
     
@@ -181,10 +180,12 @@ HTML_RESUMEN = """
     .box-mini .v { color: var(--accent-blue); font-weight: bold; font-size: 1.1em; margin-bottom: 6px; }
     .box-mini .l { color: var(--text-sub); font-size: 0.65em; text-transform: uppercase; font-weight: bold; }
     
-    .calc-inputs { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; align-items: flex-end; }
+    .calc-inputs { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; margin-bottom: 20px; }
     .calc-input-group { flex: 1; min-width: 130px; }
     .calc-input-group label { display: block; font-size: 0.75em; color: var(--text-muted); margin-bottom: 8px; font-weight:bold;}
     .calc-input-group input { width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 10px; border-radius: 4px; font-size: 1em; box-sizing: border-box; }
+    .btn-aplicar { height: 41px; background: rgba(51,102,255,0.1); color: var(--accent-blue); border: 1px solid var(--accent-blue); padding: 0 25px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; margin-bottom: 1px; }
+    .btn-aplicar:hover { background: var(--accent-blue); color: white; }
     
     .calc-resultados { display: grid; grid-template-columns: repeat(9, 1fr); gap: 10px; margin-bottom: 20px; }
     .res-box { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 8px; text-align: center; }
@@ -235,10 +236,11 @@ HTML_RESUMEN = """
     </div>
     
     <div class="calc-inputs">
-        <div class="calc-input-group"><label>Hashrate (TH/s)</label><input type="number" id="hashrateInput" value="{{ flota.hashrate_total }}" oninput="calcularRentabilidad()"></div>
-        <div class="calc-input-group"><label>Consumo (W)</label><input type="number" id="consumoInput" value="{{ flota.consumo_w_total }}" oninput="calcularRentabilidad()"></div>
-        <div class="calc-input-group"><label>Electricidad (USD/kWh)</label><input type="number" step="0.01" id="kwhInput" value="0.08" oninput="calcularRentabilidad()"></div>
-        <div class="calc-input-group"><label>Comisión del pool (%)</label><input type="number" step="0.1" id="comisionInput" value="2.0" oninput="calcularRentabilidad()"></div>
+        <div class="calc-input-group"><label>Hashrate (TH/s)</label><input type="number" id="hashrateInput" value="{{ flota.hashrate_total }}"></div>
+        <div class="calc-input-group"><label>Consumo (W)</label><input type="number" id="consumoInput" value="{{ flota.consumo_w_total }}"></div>
+        <div class="calc-input-group"><label>Electricidad (USD/kWh)</label><input type="number" step="0.01" id="kwhInput" value="0.00"></div>
+        <div class="calc-input-group"><label>Comisión del pool (%)</label><input type="number" step="0.1" id="comisionInput" value="0.0"></div>
+        <button class="btn-aplicar" onclick="calcularRentabilidad()">Aplicar</button>
     </div>
     
     <div class="calc-resultados">
@@ -259,7 +261,7 @@ HTML_RESUMEN = """
         Red <span class="hl" translate="no">{{ flota.red_ehs }} EH/s</span> <span class="sep">|</span> 
         Dificultad <span class="hl" translate="no">{{ flota.dificultad_t }} T</span> <span class="sep">|</span> 
         Recompensa por bloque <span class="hl" translate="no">{{ flota.recompensa_bloque }} BTC</span> <span class="sep">|</span> 
-        Tu parte <span class="hl" id="ribbonTuParte" translate="no">0.00000000 %</span>
+        Tu parte <span class="hl" id="ribbonTuParte" translate="no">100.00 %</span>
     </div>
 </div>
 
@@ -308,7 +310,7 @@ HTML_RESUMEN = """
         let cKwh = parseFloat(document.getElementById('kwhInput').value) || 0;
         let pool = parseFloat(document.getElementById('comisionInput').value) || 0;
         
-        let tP = (100 - pool).toFixed(8);
+        let tP = (100 - pool).toFixed(2);
         document.getElementById('ribbonTuParte').innerText = tP + ' %';
 
         let btcDia = DIFICULTAD > 0 ? (hTH * 3.125 * 86400) / (DIFICULTAD * 4294967296) : 0;
@@ -359,12 +361,16 @@ HTML_DETALLE = """
     .grid-4 .card h4 { margin: 0; font-size: 0.7em; color: var(--text-muted); text-transform: uppercase; }
     .grid-4 .card .val { font-size: 1.6em; font-weight: bold; margin-top: 10px; color: var(--accent-blue); }
     
-    .panel-title { font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; font-size:1.1em;}
+    .panel-title { font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; font-size:1.1em;}
     .panel-control { display: flex; gap: 10px; margin-bottom: 20px; background: var(--bg-card); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); flex-wrap: wrap; }
     .btn-control { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; transition:0.2s; font-size:0.85em; display:flex; align-items:center; gap:6px;}
     .btn-control:hover { border-color: var(--accent-blue); }
     .btn-control.active { border-color: var(--accent-blue); background: rgba(51,102,255,0.1); color: var(--accent-blue); }
     
+    .chart-filters { display: flex; gap: 5px; }
+    .btn-filter { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; transition: 0.2s; }
+    .btn-filter.active, .btn-filter:hover { background: rgba(51,102,255,0.1); color: var(--accent-blue); border-color: var(--accent-blue); }
+
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     .info-table { width: 100%; border-collapse: collapse; }
     .info-table td { padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85em; }
@@ -409,7 +415,15 @@ HTML_DETALLE = """
 </div>
 
 <div class="card">
-    <div class="panel-title">☑ Hashrate — últimas 24h</div>
+    <div class="panel-title">
+        <div>☑ Hashrate</div>
+        <div class="chart-filters">
+            <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')">6 h</button>
+            <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')">24 h</button>
+            <button class="btn-filter" id="btn-7d" onclick="updateChart('7d')">7 d</button>
+            <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')">30 d</button>
+        </div>
+    </div>
     <div style="height: 300px;"><canvas id="hashrateChart"></canvas></div>
 </div>
 
@@ -488,26 +502,63 @@ HTML_DETALLE = """
             fetch('/cmd/{{ ip }}/setpool?url='+encodeURIComponent(u)+'&user='+encodeURIComponent(us)).then(()=>alert('Cambio enviado a la cola del Agente.'));
         }
     }
-    const ctx = document.getElementById('hashrateChart').getContext('2d');
-    new Chart(ctx, { 
-        type: 'line', 
-        data: { 
-            labels: {{ graf_fechas | safe }}, 
-            datasets: [ 
-                { label: 'Hashrate', data: {{ graf_hashrate | safe }}, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2 },
-                { label: 'Temp. chip °C', data: {{ graf_temps | safe }}, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1' } 
-            ]
-        }, 
-        options: { 
-            responsive: true, maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            scales: { 
-                x: { grid: { color: 'rgba(255,255,255,0.05)' } },
-                y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 },
-                y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 }
-            } 
-        } 
-    });
+    
+    // JS para los filtros de 6h, 24h, 7d, 30d
+    const rawFechas = {{ graf_fechas_raw | safe }};
+    const rawHr = {{ graf_hashrate | safe }};
+    const rawTemp = {{ graf_temps | safe }};
+    let chartInstance = null;
+    
+    function updateChart(rango) {
+        document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + rango).classList.add('active');
+        
+        let limitDate = new Date();
+        if(rango === '6h') limitDate.setHours(limitDate.getHours() - 6);
+        if(rango === '24h') limitDate.setHours(limitDate.getHours() - 24);
+        if(rango === '7d') limitDate.setDate(limitDate.getDate() - 7);
+        if(rango === '30d') limitDate.setDate(limitDate.getDate() - 30);
+        
+        let fL = [], fH = [], fT = [];
+        for(let i=0; i<rawFechas.length; i++) {
+            let d = new Date(rawFechas[i].replace(' ', 'T'));
+            if(d >= limitDate) {
+                let label = d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+                if(rango === '7d' || rango === '30d') label = d.getDate() + '/' + (d.getMonth()+1) + ' ' + label;
+                fL.push(label); fH.push(rawHr[i]); fT.push(rawTemp[i]);
+            }
+        }
+        
+        if(chartInstance) {
+            chartInstance.data.labels = fL;
+            chartInstance.data.datasets[0].data = fH;
+            chartInstance.data.datasets[1].data = fT;
+            chartInstance.update();
+        } else {
+            const ctx = document.getElementById('hashrateChart').getContext('2d');
+            chartInstance = new Chart(ctx, { 
+                type: 'line', 
+                data: { 
+                    labels: fL, 
+                    datasets: [ 
+                        { label: 'Hashrate', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2 },
+                        { label: 'Temp. chip °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1' } 
+                    ]
+                }, 
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: { 
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 },
+                        y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 }
+                    } 
+                } 
+            });
+        }
+    }
+    
+    window.onload = function() { updateChart('24h'); };
 </script>
 """
 
@@ -548,10 +599,10 @@ def index():
             b = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296) if datos_red['dificultad_t'] > 0 else 0
             ib = b * datos_red['precio']; ig += ib
             str_gan = f"-USD {abs(ib):.2f}" if ib < 0 else f"{ib:.2f} USD"
-            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 'tiempo_act': 'hace ' + str(int(segs_desconectado)) + 's', 'hashrate': hr, 'temp_num': t, 'consumo_kw': round(c/1000, 1), 'eficiencia': round(c/hr, 2) if hr>0 else 0, 'ganancia_neta': str_gan})
+            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 'tiempo_act': 'hace ' + str(int(segs_desconectado)) + 's', 'hashrate': hr, 'temp_num': t, 'consumo_w': c, 'consumo_kw': round(c/1000, 1), 'eficiencia': round(c/hr, 2) if hr>0 else 0, 'ganancia_neta': str_gan})
         else:
             offline += 1
-            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 'tiempo_act': '2d ago', 'hashrate': 0, 'temp_num': 0, 'consumo_kw': 0, 'eficiencia': 0, 'ganancia_neta': "USD 0.00"})
+            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 'tiempo_act': 'Offline', 'hashrate': 0, 'temp_num': 0, 'consumo_w': 0, 'consumo_kw': 0, 'eficiencia': 0, 'ganancia_neta': "USD 0.00"})
             
     flota = {'hashrate_total': round(ht, 1), 'consumo_w_total': round(cw, 0), 'consumo_kw': round(cw/1000, 1), 'temp_max': tm, 'precio_btc_raw': datos_red['precio'], 'precio_btc': f"{datos_red['precio']:,.2f}", 'dificultad_t': round(datos_red['dificultad_t'], 2), 'recompensa_bloque': datos_red['recompensa'], 'red_ehs': datos_red['red_ehs'], 'ingreso_dia': f"{ig:.2f}", 'ganancia_dia': f"{ig:.2f} USD"}
     
@@ -562,11 +613,11 @@ def index():
 def detalle_minero(ip):
     con = sqlite3.connect('historial_minero.db'); cur = con.cursor()
     m = cur.execute("SELECT * FROM mineros_activos WHERE ip=?", (ip,)).fetchone()
-    hist = cur.execute("SELECT fecha, hashrate, temp_max FROM historial_nube WHERE ip=? ORDER BY id DESC LIMIT 200", (ip,)).fetchall()
+    # Traemos 5000 puntos para tener suficientes datos para el filtro de 7d/30d
+    hist = cur.execute("SELECT fecha, hashrate, temp_max FROM historial_nube WHERE ip=? ORDER BY id DESC LIMIT 5000", (ip,)).fetchall()
     con.close()
     if not m: return redirect('/')
     
-    # Extraer variables y proteger contra vacíos
     hr_val = float(m[2]) if len(m)>2 and m[2] else 0.0
     t_val = int(m[3]) if len(m)>3 and m[3] else 0
     c_val = float(m[4]) if len(m)>4 and m[4] else 0.0
@@ -574,7 +625,6 @@ def detalle_minero(ip):
     
     offline = (datetime.now() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() > 180
     
-    # Extraer campos profundos V4
     worker1 = str(m[8]) if len(m)>8 and m[8] else "giovanni94.004"
     pool1 = str(m[9]) if len(m)>9 and m[9] else "btc.viabtc.io:3333"
     mac = str(m[10]) if len(m)>10 and m[10] else "02:99:FB:13:CE:B0"
@@ -587,25 +637,22 @@ def detalle_minero(ip):
 
     hist.reverse()
     
-    # Generador inteligente del Gráfico (Si está Offline, pone Hashrate en 0 en lugar de unir puntos)
-    f = []; hr_g = []; tp_g = []
+    f_raw = []; hr_g = []; tp_g = []
     if hist:
         for idx, h in enumerate(hist):
-            f.append(h[0].split(' ')[1][:5])
+            f_raw.append(h[0]) # "YYYY-MM-DD HH:MM:SS"
             val_h = float(h[1]) if h[1] else 0
-            
-            # Detectar "huecos" de tiempo (ej. estuvo apagado 1 hora)
             if idx > 0:
                 dt_actual = datetime.strptime(h[0], "%Y-%m-%d %H:%M:%S")
                 dt_prev = datetime.strptime(hist[idx-1][0], "%Y-%m-%d %H:%M:%S")
-                if (dt_actual - dt_prev).total_seconds() > 300: # Si pasaron más de 5 mins
-                    f.insert(-1, dt_prev.strftime("%H:%M"))
-                    hr_g.insert(-1, 0) # Caída a 0 en el gráfico
+                if (dt_actual - dt_prev).total_seconds() > 300: 
+                    f_raw.insert(-1, dt_prev.strftime("%Y-%m-%d %H:%M:%S"))
+                    hr_g.insert(-1, 0) 
                     tp_g.insert(-1, 0)
             hr_g.append(val_h)
             tp_g.append(int(h[2]) if h[2] else 0)
     else:
-        f = [datetime.now().strftime("%H:%M")]; hr_g = [hr_val]; tp_g = [t_val]
+        f_raw = [datetime.now().strftime("%Y-%m-%d %H:%M:%S")]; hr_g = [hr_val]; tp_g = [t_val]
         
     dt = {
         'hashrate': hr_val, 'temp_max': t_val, 'errores': 0, 'consumo': round(c_val/1000, 1), 'fans': fans,
@@ -616,7 +663,7 @@ def detalle_minero(ip):
     disp = {'eficiencia': round(c_val/hr_val, 2) if hr_val > 0 else 0}
     vp = {'t0_c': t_val, 't0_p': max(0, t_val-5), 't1_c': max(0, t_val-1), 't1_p': max(0, t_val-6), 't2_c': max(0, t_val-2), 't2_p': max(0, t_val-7)}
     
-    return render_template_string(HTML_LAYOUT, active_page='mineros', content=render_template_string(HTML_DETALLE, ip=ip, nombre=ip, modelo=m[1], ultimo=dt, extra=extra, dispositivo=disp, v_pools=vp, offline=offline, graf_fechas=json.dumps(f), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g)))
+    return render_template_string(HTML_LAYOUT, active_page='mineros', content=render_template_string(HTML_DETALLE, ip=ip, modelo=m[1], ultimo=dt, extra=extra, dispositivo=disp, v_pools=vp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g)))
 
 @app.route('/cmd/<ip>/<accion>')
 @login_required
