@@ -79,15 +79,15 @@
 <div class="card" style="padding:20px;">
     <div class="panel-title" style="justify-content: flex-start;">⚡ Perfiles de Energía</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
-        <button class="btn-control" style="color:var(--accent-green); border-color:var(--accent-green);" onclick="fetch('/cmd/{{ ip }}/profile_low').then(()=>alert('Perfil Invierno a cola.'))">❄️ Invierno (Eco)</button>
-        <button class="btn-control" style="color:var(--accent-red); border-color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/profile_high').then(()=>alert('Perfil Verano a cola.'))">🔥 Verano (Max)</button>
+        <button class="btn-control" style="color:var(--accent-green); border-color:var(--accent-green);" onclick="confirmarAccion('¿Estás seguro de aplicar el perfil Invierno (Eco)?', '/cmd/{{ ip }}/profile_low')">❄️ Invierno (Eco)</button>
+        <button class="btn-control" style="color:var(--accent-red); border-color:var(--accent-red);" onclick="confirmarAccion('¿Estás seguro de aplicar el perfil Verano (Max)?', '/cmd/{{ ip }}/profile_high')">🔥 Verano (Max)</button>
     </div>
     <div class="panel-title" style="justify-content: flex-start;">🛠️ Panel de control</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/restart').then(()=>location.reload())">🔄 Reiniciar</button>
-        <button class="btn-control" onclick="fetch('/cmd/{{ ip }}/sleep').then(()=>location.reload())">😴 Reposo</button>
-        <button class="btn-control active" onclick="fetch('/cmd/{{ ip }}/normal').then(()=>location.reload())">▶ Normal</button>
-        <button class="btn-control" style="color:gold; border-color:gold;" onclick="fetch('/cmd/{{ ip }}/blink').then(()=>location.reload())">💡 Parpadear LED</button>
+        <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="confirmarAccion('¿Deseas reiniciar este minero?', '/cmd/{{ ip }}/restart', true)">🔄 Reiniciar</button>
+        <button class="btn-control" onclick="confirmarAccion('¿Deseas poner en reposo este minero?', '/cmd/{{ ip }}/sleep', true)">😴 Reposo</button>
+        <button class="btn-control active" onclick="confirmarAccion('¿Deseas poner en modo normal este minero?', '/cmd/{{ ip }}/normal', true)">▶ Normal</button>
+        <button class="btn-control" style="color:gold; border-color:gold;" onclick="confirmarAccion('¿Deseas hacer parpadear el LED de este minero?', '/cmd/{{ ip }}/blink')">💡 Parpadear LED</button>
         <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="solicitarLogs()">🖥️ Ver Logs Genéricos</button>
     </div>
     <div id="terminal-box" class="terminal" style="display:none;">Esperando logs...</div>
@@ -154,7 +154,6 @@
     </div>
 </div>
 
-<!-- PROBLEMA 2: BOTÓN DE GUARDAR EN LA MISMA FILA DEL TÍTULO -->
 <div class="card" style="padding:0; overflow:hidden;">
     <div class="panel-title" style="padding: 20px 20px 0 20px; display:flex; justify-content:space-between; align-items:center;">
         <span>⛏ Pools de Minería</span>
@@ -201,6 +200,17 @@
 </div>
 
 <script>
+    function confirmarAccion(mensaje, url, recargar = false) {
+        if (confirm(mensaje)) {
+            fetch(url).then(() => {
+                alert('Comando enviado correctamente.');
+                if (recargar) {
+                    setTimeout(() => location.reload(), 1500);
+                }
+            });
+        }
+    }
+
     function toggleEditarNombre() {
         let f = document.getElementById('formNombre');
         f.style.display = f.style.display === 'flex' ? 'none' : 'flex';
@@ -221,9 +231,9 @@
         let u2 = document.getElementById('url_2').value, w2 = document.getElementById('user_2').value, p2 = document.getElementById('pass_2').value;
         let u3 = document.getElementById('url_3').value, w3 = document.getElementById('user_3').value, p3 = document.getElementById('pass_3').value;
         
-        if(confirm('¿Guardar la configuración completa de los 3 pools para este minero?')) {
+        if(confirm('¿Deseas guardar y aplicar la configuración completa de los 3 pools en este minero?')) {
             let urlCmd = `/cmd/{{ ip }}/guardar_pools?u1=${encodeURIComponent(u1)}&w1=${encodeURIComponent(w1)}&p1=${encodeURIComponent(p1)}&u2=${encodeURIComponent(u2)}&w2=${encodeURIComponent(w2)}&p2=${encodeURIComponent(p2)}&u3=${encodeURIComponent(u3)}&w3=${encodeURIComponent(w3)}&p3=${encodeURIComponent(p3)}`;
-            fetch(urlCmd).then(() => alert('Configuración enviada a la cola del Agente.'));
+            fetch(urlCmd).then(() => alert('Configuración de pools enviada al agente con éxito.'));
         }
     }
 
@@ -324,8 +334,16 @@
                                 title: function(context) { return context[0].label; },
                                 label: function(context) { 
                                     if(context.datasetIndex === 0) { return '⚡ Hashrate: ' + context.parsed.y + ' TH/s'; } 
-                                    if(context.datasetIndex === 1) { return '🌡️ Temp Max: ' + context.parsed.y + '°C'; }
-                                    if(context.datasetIndex === 2) { return '⚠️ Errores HW: ' + context.parsed.y; }
+                                    if(context.datasetIndex === 1) { 
+                                        let t = context.parsed.y; 
+                                        let arr = ['🌡️ Temp Max: ' + t + '°C']; 
+                                        let cadenasData = {{ cadenas_json | safe }};
+                                        for(let c = 0; c < cadenasData.length; c++) { 
+                                            arr.push('    Cadena ' + cadenasData[c].id + ' -> Chip: ' + cadenasData[c].temp_c + '°C | PCB: ' + cadenasData[c].temp_p + '°C'); 
+                                        } 
+                                        return arr; 
+                                    } 
+                                    if(context.datasetIndex === 2) { return '⚠️ Errores HW (en intervalo): ' + context.parsed.y; }
                                 } 
                             } 
                         } 
