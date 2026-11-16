@@ -154,4 +154,230 @@ def detalle_minero(ip):
         cadenas = []
         
     if not cadenas: 
-        cadenas = [{"id": 0, "temp_c": t_val, "temp_p
+        cadenas = [{"id": 0, "temp_c": t_val, "temp_p": max(0, t_val-5)}, {"id": 1, "temp_c": max(0, t_val-1), "temp_p": max(0, t_val-6)}, {"id": 2, "temp_c": max(0, t_val-2), "temp_p": max(0, t_val-7)}]
+
+    hist.reverse()
+    f_raw = []
+    hr_g = []
+    tp_g = []
+    
+    if hist:
+        for idx, h in enumerate(hist):
+            dt_actual = datetime.strptime(h['fecha'], "%Y-%m-%d %H:%M:%S")
+            ts = calendar.timegm(dt_actual.timetuple())
+            f_raw.append(ts) 
+            
+            val_h = float(h['hashrate']) if h['hashrate'] else 0
+            if idx > 0:
+                dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
+                if (dt_actual - dt_prev).total_seconds() > 300: 
+                    f_raw.insert(-1, calendar.timegm(dt_prev.timetuple()))
+                    hr_g.insert(-1, 0)
+                    tp_g.insert(-1, 0)
+            hr_g.append(val_h)
+            tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
+    else:
+        f_raw = [calendar.timegm(datetime.utcnow().timetuple())]
+        hr_g = [hr_val]
+        tp_g = [t_val]
+        
+    dt = {'hashrate': hr_val, 'temp_max': t_val, 'errores': m['errores'], 'consumo': round(c_val/1000, 1), 'fans': fans, 'uptime': '0d 13h' if not offline else 'Desconectado', 'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0}
+    extra = {'worker1': worker1, 'pool1': pool1, 'worker2': worker2, 'pool2': pool2, 'worker3': worker3, 'pool3': pool3, 'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas}
+    disp = {'eficiencia': round(c_val/hr_val, 2) if hr_val > 0 else 0}
+    
+    return render_template('detalle.html', active_page='mineros', ip=ip, modelo=m['modelo'], ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g))
+
+@app.route('/plan')
+@login_required
+def plan():
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT plan, saldo FROM usuarios WHERE username=%s", (session['usuario'],))
+    usr = cur.fetchone()
+    con.close()
+    
+    if usr:
+        session['plan'] = usr.get('plan', 'Gratis')
+        session['saldo'] = usr.get('saldo', 0.0)
+        
+    return render_template('plan.html', active_page='plan', current_plan=session.get('plan', 'Gratis'), saldo=session.get('saldo', 0.0))
+
+@app.route('/granjas')
+@login_required
+def granjas(): 
+    return render_template('subpaginas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
+
+@app.route('/mineros')
+@login_required
+def mineros(): 
+    return redirect('/')
+
+@app.route('/alertas')
+@login_required
+def alertas(): 
+    return render_template('subpaginas.html', active_page='alertas', titulo="🔔 Centro de Alertas")
+
+@app.route('/ajustes')
+@login_required
+def ajustes(): 
+    return render_template('subpaginas.html', active_page='ajustes', titulo="⚙️ Ajustes del Sistema")
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        u = request.form.get('username')
+        p = request.form.get('password')
+        con = get_db()
+        cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM usuarios WHERE username=%s AND password=%s", (u, p))
+        usr = cur.fetchone()
+        con.close()
+        
+        if usr:
+            session['usuario'] = u
+            session['plan'] = usr.get('plan', 'Gratis')
+            session['saldo'] = usr.get('saldo', 0.0)
+            return redirect('/')
+            
+        return render_template('login.html', error='Credenciales incorrectas', mode='login')
+    return render_template('login.html', mode='login')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        u = request.form.get('username')
+        p = request.form.get('password')
+        try:
+            con = get_db()
+            con.autocommit = True
+            cur = con.cursor()
+            cur.execute("INSERT INTO usuarios (username, password, plan, saldo) VALUES (%s, %s, 'Gratis', 0.0)", (u, p))
+            con.close()
+            return render_template('login.html', success='Cuenta creada. Ahora inicia sesión.', mode='login')
+        except Exception as e:
+            return render_template('login.html', error='El nombre de usuario ya está en uso', mode='register')
+            
+    return render_template('login.html', mode='register')
+
+@app.route('/logout')
+def logout(): 
+    session.clear()
+    return redirect('/login')
+
+@app.route('/exportar_csv')
+@login_required
+def exportar_csv():
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos")
+    filas = cur.fetchall()
+    con.close()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['IP', 'Modelo', 'Hashrate (TH/s)', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
+    
+    for f in filas: 
+        writer.writerow([f['ip'], f['modelo'], f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
+        
+    return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition":"attachment;filename=Reporte_El_Minero_Gris.csv"})
+
+@app.route('/cmd_bulk', methods=['POST'])
+@login_required
+def cmd_bulk():
+    data = request.json
+    accion = data.get('accion')
+    ips = data.get('ips', [])
+    
+    if accion and ips:
+        con = get_db()
+        con.autocommit = True
+        cur = con.cursor()
+        for ip in ips: 
+            cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, accion, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con.close()
+        
+    return "OK"
+
+@app.route('/cmd/<ip>/<accion>')
+@login_required
+def comando_minero(ip, accion):
+    cmd_str = ""
+    if accion in ['restart', 'sleep', 'normal', 'blink', 'scan', 'get_log'] or accion.startswith('profile_'): 
+        cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
+    elif accion == 'setpool': 
+        cmd_str = f"setpool|{request.args.get('url', '')}|{request.args.get('user', '')}"
+        
+    if cmd_str:
+        con = get_db()
+        con.autocommit = True
+        cur = con.cursor()
+        cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con.close()
+        
+    return "OK"
+
+@app.route('/api/ver_log/<ip>')
+def ver_log(ip):
+    con = get_db()
+    cur = con.cursor()
+    cur.execute("SELECT contenido FROM logs_mineros WHERE ip=%s", (ip,))
+    log = cur.fetchone()
+    con.close()
+    return log[0] if log else "Esperando respuesta..."
+
+@app.route('/api/recibir_logs', methods=['POST'])
+def recibir_logs():
+    data = request.json
+    if data and 'ip' in data and 'log' in data:
+        con = get_db()
+        con.autocommit = True
+        cur = con.cursor()
+        cur.execute("INSERT INTO logs_mineros (ip, contenido, fecha) VALUES (%s, %s, %s) ON CONFLICT(ip) DO UPDATE SET contenido=EXCLUDED.contenido, fecha=EXCLUDED.fecha", (data['ip'], data['log'], datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con.close()
+    return "OK", 200
+
+@app.route('/api/recibir_datos', methods=['POST'])
+def recibir_datos():
+    datos = request.json
+    if not datos: 
+        return "Error", 400
+        
+    con = get_db()
+    con.autocommit = True
+    cur = con.cursor()
+    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    
+    for m in datos.get('mineros', []):
+        err = m.get('errores', 0)
+        mc = m.get('mac', '')
+        sr = m.get('serial', '')
+        fw = m.get('firmware', '')
+        fs = m.get('fans', '')
+        p1 = m.get('pool1', '')
+        w1 = m.get('worker1', '')
+        p2 = m.get('pool2', '')
+        w2 = m.get('worker2', '')
+        p3 = m.get('pool3', '')
+        w3 = m.get('worker3', '')
+        cadenas_json = json.dumps(m.get('cadenas', []))
+        
+        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, temp_max, consumo_w, estado, ultima_act, errores, pool1, worker1, pool2, worker2, pool3, worker3, mac, serial, firmware, fans, cadenas) 
+                       VALUES (%s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
+                       modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, temp_max=EXCLUDED.temp_max, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas''', 
+                    (m['ip'], m['modelo'], m['hashrate'], m['temp'], m['consumo'], ahora, err, p1, w1, p2, w2, p3, w3, mc, sr, fw, fs, cadenas_json))
+                    
+        cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, fecha) VALUES (%s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], ahora))
+    
+    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'")
+    pend = cur.fetchall()
+    ordenes = [{"ip": c[1], "comando": c[2]} for c in pend]
+    
+    for c in pend: 
+        cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c[0],))
+        
+    con.close()
+    return jsonify({"status": "ok", "ordenes": ordenes}), 200
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
