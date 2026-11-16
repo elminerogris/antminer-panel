@@ -9,13 +9,11 @@ app.secret_key = 'super_secreta_antminer_tools'
 DB_URL = os.environ.get("DATABASE_URL", "")
 
 def get_db():
-    if not DB_URL: 
-        raise Exception("Falta DATABASE_URL en Render")
+    if not DB_URL: raise Exception("Falta DATABASE_URL en Render")
     return psycopg2.connect(DB_URL)
 
 def init_db():
-    if not DB_URL: 
-        return
+    if not DB_URL: return
     try:
         con = get_db()
         con.autocommit = True
@@ -27,33 +25,24 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
         
-        try: 
-            c.execute("ALTER TABLE usuarios ADD COLUMN plan TEXT DEFAULT 'Gratis'")
-        except: 
-            pass
-        
-        try: 
-            c.execute("ALTER TABLE usuarios ADD COLUMN saldo REAL DEFAULT 0.0")
-        except: 
-            pass
+        try: c.execute("ALTER TABLE usuarios ADD COLUMN plan TEXT DEFAULT 'Gratis'")
+        except: pass
+        try: c.execute("ALTER TABLE usuarios ADD COLUMN saldo REAL DEFAULT 0.0")
+        except: pass
 
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
-        if not c.fetchone(): 
-            c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
+        if not c.fetchone(): c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
         con.close()
     except Exception as e:
         print(f"Error BD: {e}")
 
-try: 
-    init_db()
-except: 
-    pass
+try: init_db()
+except: pass
 
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'usuario' not in session: 
-            return redirect(url_for('login'))
+        if 'usuario' not in session: return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -61,20 +50,15 @@ cache_red = {'datos': {'precio': 64809.0, 'dificultad_t': 134.82, 'recompensa': 
 def obtener_datos_red():
     global cache_red
     ahora = time.time()
-    if ahora - cache_red['ultima_act'] < 60: 
-        return cache_red['datos']
-    
+    if ahora - cache_red['ultima_act'] < 60: return cache_red['datos']
     datos = cache_red['datos'].copy()
     try:
         req_p = urllib.request.Request("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", headers={'User-Agent': 'Mozilla/5.0'})
         datos['precio'] = float(json.loads(urllib.request.urlopen(req_p, timeout=2).read().decode('utf-8'))['price'])
         req_d = urllib.request.Request("https://mempool.space/api/v1/difficulty-adjustment", headers={'User-Agent': 'Mozilla/5.0'})
         datos['dificultad_t'] = float(json.loads(urllib.request.urlopen(req_d, timeout=2).read().decode('utf-8'))['difficulty']) / 1_000_000_000_000
-    except: 
-        pass
-    
-    cache_red['datos'] = datos
-    cache_red['ultima_act'] = ahora
+    except: pass
+    cache_red['datos'] = datos; cache_red['ultima_act'] = ahora
     return datos
 
 # --- PLANTILLAS HTML ---
@@ -137,16 +121,18 @@ HTML_LAYOUT = """
     :root[data-theme="dark"] { --bg-body: #14151f; --bg-sidebar: #191a24; --bg-card: #1b1d29; --bg-input: #14151f; --border-color: #292a38; --text-main: #fff; --text-muted: #a5a7b5; --text-sub: #8b8d9b; --accent-blue: #3366ff; --accent-green: #00e676; --accent-red: #ff5252; --hover-bg: #202230; --active-bg: #232533; }
     :root[data-theme="light"] { --bg-body: #f4f5f7; --bg-sidebar: #ffffff; --bg-card: #ffffff; --bg-input: #f4f5f7; --border-color: #e2e8f0; --text-main: #1e293b; --text-muted: #64748b; --text-sub: #94a3b8; --accent-blue: #2563eb; --accent-green: #10b981; --accent-red: #ef4444; --hover-bg: #f8fafc; --active-bg: #f1f5f9; }
     
-    /* FIX IPHONE: Uso de 100dvh (Dynamic Viewport) evita que Safari corte partes de la página */
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100dvh; overflow: hidden; }
     .skiptranslate iframe { display: none !important; } #google_translate_element { display: none; }
     a { text-decoration: none; color: inherit; }
     
-    /* FIX IPHONE: Añadido padding-top env() para esquivar la isla dinámica / notch */
     .sidebar { width: 220px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 1000; transition: transform 0.3s ease; padding-top: env(safe-area-inset-top); }
     .logo-container { padding: 20px; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); }
     .logo-img { height: 35px; width: auto; object-fit: contain; }
     .logo-text span { color: var(--text-muted); font-weight: normal; }
+    
+    /* El selector de idioma para móviles */
+    .sidebar-mobile-lang { display: none; padding: 0 20px 15px; border-bottom: 1px solid var(--border-color); margin-bottom: 10px; }
+    
     .menu { list-style: none; padding: 15px 0; margin: 0; flex: 1; overflow-y: auto; }
     .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.9em; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
     .menu a:hover { background: var(--hover-bg); color: var(--text-main); }
@@ -154,8 +140,6 @@ HTML_LAYOUT = """
     .sidebar-bottom { border-top: 1px solid var(--border-color); padding: 15px 20px; padding-bottom: env(safe-area-inset-bottom); font-size: 0.85em; display: flex; flex-direction: column; gap: 10px; }
     
     .right-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; width: 100%; }
-    
-    /* FIX IPHONE: Padding-top extra a la barra superior para esquivar la barra de navegación móvil */
     .top-bar { min-height: 60px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: env(safe-area-inset-top) 20px 0 20px; }
     .top-bar-left { display: flex; align-items: center; gap: 15px; }
     .top-bar-right { display: flex; align-items: center; gap: 10px; }
@@ -185,6 +169,7 @@ HTML_LAYOUT = """
         .btn-menu { display: flex; }
         .logo-top { display: flex; }
         .top-lang-select, .top-status { display: none; }
+        .sidebar-mobile-lang { display: block; }
         .btn-sync span { display: none; }
         .main-content { padding: 15px 10px; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
     }
@@ -199,6 +184,13 @@ HTML_LAYOUT = """
             <img src="/static/logo.png" alt="Logo" class="logo-img" onerror="this.outerHTML='<span style=\\'font-size:1.5em;\\'>⛏️</span>'">
             <div class="logo-text" translate="no">El Minero <span>Gris</span></div>
         </div>
+        
+        <div class="sidebar-mobile-lang">
+            <select class="top-lang-select" style="width:100%; display:flex;" onchange="cambiarIdioma(this.value)">
+                <option value="es">🌐 Español</option><option value="en">🌐 English</option>
+            </select>
+        </div>
+        
         <div class="menu">
             <a href="/" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
             <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a>
@@ -282,7 +274,6 @@ HTML_RESUMEN = """
     .res-box .val { font-size: 1em; font-weight: bold; margin-bottom: 4px; }
     .res-box .lbl { font-size: 0.6em; color: var(--text-muted); text-transform: uppercase; font-weight:bold; }
     
-    /* FIX CINTA TEXTOS IPHONE: Envolturas para evitar que el texto se parta feo */
     .calc-text-ribbon { display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: center; align-items: center; font-size: 0.85em; color: var(--text-muted); margin-bottom: 5px; padding-top: 15px; border-top: 1px solid var(--border-color); }
     .ribbon-item { white-space: nowrap; }
     .ribbon-item span.hl { color: var(--text-main); font-weight: bold; }
@@ -347,7 +338,6 @@ HTML_RESUMEN = """
         <div class="res-box"><div class="val" id="resCosteBtc" translate="no">--</div><div class="lbl">COSTE BTC</div></div>
     </div>
     
-    <!-- FIX CINTA: Añadida la Recompensa y Tu parte, con diseño flexible para no partirse -->
     <div class="calc-text-ribbon">
         <div class="ribbon-item">Precio BTC <span class="hl btc-live-text" translate="no">USD {{ flota.precio_btc }}</span></div> <span class="ribbon-sep">|</span>
         <div class="ribbon-item">Moneda <span class="hl" translate="no">USD</span></div> <span class="ribbon-sep">|</span>
@@ -663,7 +653,27 @@ HTML_DETALLE = """
                 options: { 
                     responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
-                    plugins: { tooltip: { callbacks: { title: function(context) { return context[0].label; } } } },
+                    
+                    /* FIX TOOLTIPS RESTAURADO AQUI ABAJO */
+                    plugins: { 
+                        tooltip: { 
+                            callbacks: { 
+                                title: function(context) { return context[0].label; },
+                                label: function(context) { 
+                                    if(context.datasetIndex === 0) { return '⚡ Hashrate: ' + context.parsed.y + ' TH/s'; } 
+                                    if(context.datasetIndex === 1) { 
+                                        let t = context.parsed.y; 
+                                        let arr = ['🌡️ Temp Max: ' + t + '°C']; 
+                                        for(let c = 0; c < cadenasCount; c++) { 
+                                            arr.push('   Cadena ' + c + ' -> Chip: ' + Math.max(0,t-(c*1)) + '°C | PCB: ' + Math.max(0,t-(5+c)) + '°C'); 
+                                        } 
+                                        return arr; 
+                                    } 
+                                } 
+                            } 
+                        } 
+                    },
+                    
                     scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }, y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 } } 
                 } 
             });
@@ -799,7 +809,8 @@ def detalle_minero(ip):
         hr_g = [hr_val]
         tp_g = [t_val]
         
-    dt = {'hashrate': hr_val, 'temp_max': t_val, 'errores': m['errores'], 'consumo': round(c_val/1000, 1), 'fans': fans, 'uptime': '0d 13h' if not offline else 'Desconectado', 'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0}
+    # FIX: Se restauró m.get('errores', 0) quitando el 0 estático
+    dt = {'hashrate': hr_val, 'temp_max': t_val, 'errores': m.get('errores', 0), 'consumo': round(c_val/1000, 1), 'fans': fans, 'uptime': '0d 13h' if not offline else 'Desconectado', 'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0}
     extra = {'worker1': worker1, 'pool1': pool1, 'worker2': worker2, 'pool2': pool2, 'worker3': worker3, 'pool3': pool3, 'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas}
     disp = {'eficiencia': round(c_val/hr_val, 2) if hr_val > 0 else 0}
     
