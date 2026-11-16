@@ -66,6 +66,7 @@ def obtener_datos_red():
     cache_red['ultima_act'] = ahora
     return datos
 
+# --- RUTA PRINCIPAL (RESUMEN DE FLOTA Y MINEROS) ---
 @app.route('/')
 @login_required
 def index():
@@ -88,18 +89,35 @@ def index():
         
         segs_desconectado = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
         
+        # Corrección de eficiencia para evitar números enormes
+        eficiencia_val = round(c / hr, 2) if hr > 0 else 0
+        if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
+
         if segs_desconectado < 180:
             en_linea += 1; ht += hr; cw += c; tm = max(tm, t)
             b = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296) if datos_red['dificultad_t'] > 0 else 0
             ib = b * datos_red['precio']; ig += ib
             str_gan = f"-USD {abs(ib):.2f}" if ib < 0 else f"{ib:.2f} USD"
-            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr, 'temp_num': t, 'consumo_kw': round(c/1000, 1), 'eficiencia': round(c/hr, 2) if hr>0 else 0, 'ganancia_neta': str_gan})
+            registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr, 'temp_num': t, 'consumo_kw': round(c/1000, 1), 'eficiencia': eficiencia_val, 'ganancia_neta': str_gan})
         else:
             offline += 1
             registros.append({'ip': ip, 'modelo': mod, 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 'tiempo_act': 'Offline', 'hashrate': 0, 'temp_num': 0, 'consumo_w': 0, 'consumo_kw': 0, 'eficiencia': 0, 'ganancia_neta': "USD 0.00"})
             
-    flota = {'hashrate_total': round(ht, 1), 'consumo_w_total': round(cw, 0), 'consumo_kw': round(cw/1000, 1), 'temp_max': tm, 'precio_btc_raw': datos_red['precio'], 'precio_btc': f"{datos_red['precio']:,.2f}", 'dificultad_t': round(datos_red['dificultad_t'], 2), 'recompensa_bloque': datos_red['recompensa'], 'red_ehs': datos_red['red_ehs'], 'ingreso_dia': f"{ig:.2f}", 'ganancia_dia': f"{ig:.2f} USD"}
+    flota = {
+        'hashrate_total': round(ht, 1), 
+        'consumo_w_total': round(cw, 0), 
+        'consumo_kw': round(cw/1000, 1), 
+        'temp_max': tm, 
+        'precio_btc_raw': datos_red['precio'], 
+        'precio_btc': f"{datos_red['precio']:,.2f}", 
+        'dificultad_t': round(datos_red['dificultad_t'], 2), 
+        'recompensa_bloque': datos_red['recompensa'], 
+        'red_ehs': datos_red['red_ehs'], 
+        'ingreso_dia': f"{ig:.2f}", 
+        'ganancia_dia': f"{ig:.2f} USD"
+    }
     
+    # Renderiza directamente tu archivo resumen.html que tienes en la carpeta templates[cite: 2]
     return render_template('resumen.html', active_page='resumen', registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota)
 
 @app.route('/minero/<ip>')
