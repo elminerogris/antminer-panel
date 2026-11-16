@@ -6,7 +6,7 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'super_secreta_antminer_tools'
 
-DB_URL = os.environ.get("DATABASE_URL", "postgresql://el_minero_gris_database_user:168WxP4afPEwOB9KdtOci5ZbKteegM40@dpg-dbt8ob56e07s73bop9eg-a.oregon-postgres.render.com/el_minero_gris_database")
+DB_URL = os.environ.get("DATABASE_URL", "")
 
 def get_db():
     if not DB_URL: raise Exception("Falta DATABASE_URL en Render")
@@ -21,17 +21,24 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, hashrate_30m REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, ip TEXT, hashrate REAL, temp_max INTEGER, errores INTEGER DEFAULT 0, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, ip TEXT, hashrate REAL, temp_max INTEGER, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
         
-        # Forzar la creación de columnas por si la tabla ya existía sin ellas
-        c.execute("ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS hashrate_30m REAL DEFAULT 0.0")
-        c.execute("ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass1 TEXT DEFAULT '123'")
-        c.execute("ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass2 TEXT DEFAULT '123'")
-        c.execute("ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass3 TEXT DEFAULT '123'")
-        c.execute("ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS cadenas TEXT")
-        c.execute("ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS errores INTEGER DEFAULT 0")
+        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN hashrate_30m REAL DEFAULT 0.0")
+        except: pass
+        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass1 TEXT DEFAULT '123'")
+        except: pass
+        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass2 TEXT DEFAULT '123'")
+        except: pass
+        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass3 TEXT DEFAULT '123'")
+        except: pass
+        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN cadenas TEXT")
+        except: pass
+        try: c.execute("ALTER TABLE historial_nube ADD COLUMN errores INTEGER DEFAULT 0")
+        except: pass
+        try: c.execute("ALTER TABLE historial_nube ADD COLUMN cadenas TEXT")
+        except: pass
 
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         if not c.fetchone(): c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
@@ -131,7 +138,7 @@ def detalle_minero(ip):
     m = cur.fetchone()
     cur.execute("SELECT nombre FROM nombres_mineros WHERE ip=%s", (ip,))
     n_row = cur.fetchone()
-    cur.execute("SELECT fecha, hashrate, temp_max, errores FROM historial_nube WHERE ip=%s ORDER BY id ASC LIMIT 5000", (ip,))
+    cur.execute("SELECT fecha, hashrate, temp_max, errores, cadenas FROM historial_nube WHERE ip=%s ORDER BY id ASC LIMIT 5000", (ip,))
     hist = cur.fetchall()
     con.close()
     
@@ -157,7 +164,7 @@ def detalle_minero(ip):
     except: cadenas = []
     if not cadenas: cadenas = [{"id": 0, "temp_c": t_val, "temp_p": max(0, t_val-5)}, {"id": 1, "temp_c": max(0, t_val-1), "temp_p": max(0, t_val-6)}, {"id": 2, "temp_c": max(0, t_val-2), "temp_p": max(0, t_val-7)}]
 
-    f_raw, hr_g, tp_g, err_g = [], [], [], []
+    f_raw, hr_g, tp_g, err_g, cad_g = [], [], [], [], []
     prev_err = 0
     if hist:
         for idx, h in enumerate(hist):
@@ -169,7 +176,7 @@ def detalle_minero(ip):
                 dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
                 if (dt_actual - dt_prev).total_seconds() > 600: 
                     f_raw.append(calendar.timegm(dt_prev.timetuple()) + 1)
-                    hr_g.append(0); tp_g.append(0); err_g.append(0)
+                    hr_g.append(0); tp_g.append(0); err_g.append(0); cad_g.append([])
             
             total_err_actual = int(h['errores']) if 'errores' in h and h['errores'] else 0
             diff_err = total_err_actual - prev_err
@@ -179,8 +186,15 @@ def detalle_minero(ip):
 
             hr_g.append(val_h)
             tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
+            
+            # Histórico individual de cadenas por registro
+            c_hist_item = []
+            if h.get('cadenas'):
+                try: c_hist_item = json.loads(h['cadenas'])
+                except: pass
+            cad_g.append(c_hist_item if c_hist_item else cadenas)
     else:
-        f_raw = [calendar.timegm(datetime.utcnow().timetuple())]; hr_g = [hr_val]; tp_g = [t_val]; err_g = [0]
+        f_raw = [calendar.timegm(datetime.utcnow().timetuple())]; hr_g = [hr_val]; tp_g = [t_val]; err_g = [0]; cad_g = [cadenas]
         
     dt = {
         'hashrate': hr_val, 'hashrate_30m': hr_30m_val, 'temp_max': t_val, 
@@ -199,7 +213,7 @@ def detalle_minero(ip):
     if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
     disp = {'eficiencia': eficiencia_val}
     
-    return render_template('detalle.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=m['modelo'], ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas))
+    return render_template('detalle.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=m['modelo'], ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas), graf_cadenas_hist=json.dumps(cad_g))
 
 @app.route('/guardar_nombre', methods=['POST'])
 @login_required
@@ -327,13 +341,16 @@ def recibir_datos():
         p1 = m.get('pool1', ''); w1 = m.get('worker1', ''); pa1 = m.get('pass1', '123')
         p2 = m.get('pool2', ''); w2 = m.get('worker2', ''); pa2 = m.get('pass2', '123')
         p3 = m.get('pool3', ''); w3 = m.get('worker3', ''); pa3 = m.get('pass3', '123')
-        cadenas_json = json.dumps(m.get('cadenas', []))
+        cadenas_list = m.get('cadenas', [])
+        cadenas_json = json.dumps(cadenas_list)
         
         cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, hashrate_30m, temp_max, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas) 
                         VALUES (%s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
                         modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas''', 
                     (m['ip'], m['modelo'], m['hashrate'], hr_30, m['temp'], m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json))
-        cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, errores, fecha) VALUES (%s, %s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], err, ahora))
+        
+        # Guardar en el histórico la temperatura y el estado de las cadenas en este momento exacto
+        cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], err, cadenas_json, ahora))
     
     con.close()
     return jsonify({"status": "ok", "ordenes": ordenes}), 200
