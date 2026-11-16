@@ -201,7 +201,7 @@ def detalle_minero(ip):
     if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
     disp = {'eficiencia': eficiencia_val}
     
-    return render_template('detalle.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=m['modelo'], ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_errores=json.dumps(err_g))
+    return render_template('detalle.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=m['modelo'], ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas))
 
 @app.route('/guardar_nombre', methods=['POST'])
 @login_required
