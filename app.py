@@ -6,7 +6,6 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'super_secreta_antminer_tools'
 
-# --- 1. BASE DE DATOS SAAS ---
 def get_db():
     con = sqlite3.connect('historial_minero.db')
     con.row_factory = sqlite3.Row
@@ -52,8 +51,6 @@ def obtener_datos_red():
     except: pass
     cache_red['datos'] = datos; cache_red['ultima_act'] = ahora
     return datos
-
-# --- 2. PLANTILLAS HTML ---
 
 HTML_LOGIN = """
 <!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8"><title>El Minero Gris - Acceso</title>
@@ -281,13 +278,14 @@ HTML_RESUMEN = """
 
 <div class="bulk-bar">
     <button class="btn-bulk" onclick="bulkAccion('restart')">🔄 Reiniciar Seleccionados</button>
+    <button class="btn-bulk" onclick="bulkAccion('sleep')">😴 Reposo Seleccionados</button>
 </div>
 
 <div class="tabla-container">
     <table>
         <tr>
             <th style="width: 30px;"><input type="checkbox" id="chkTodos" onclick="toggleAll(this)"></th>
-            <th>MINERO</th><th>ESTADO</th><th>HASHRATE</th><th>TEMP</th><th>CONSUMO</th><th>EFICIENCIA</th>
+            <th>MINERO</th><th>ESTADO</th><th>HASHRATE</th><th>TEMP</th><th>CONSUMO</th><th>EFICIENCIA</th><th>GANANCIA / DÍA</th>
         </tr>
         {% for f in registros %}
         <tr class="fila-minero">
@@ -298,6 +296,7 @@ HTML_RESUMEN = """
             <td onclick="window.location.href='/minero/{{ f.ip }}'" style="color: {{ 'var(--accent-red)' if f.temp_num > 80 else 'var(--accent-green)' }}; font-weight:bold;" translate="no">{{ f.temp_num }}°C</td>
             <td onclick="window.location.href='/minero/{{ f.ip }}'" translate="no">{{ f.consumo_kw }} kW</td>
             <td onclick="window.location.href='/minero/{{ f.ip }}'" translate="no">{{ f.eficiencia }} J/TH</td>
+            <td onclick="window.location.href='/minero/{{ f.ip }}'" style="font-weight:bold;" translate="no" class="celda-ganancia">{{ f.ganancia_neta }}</td>
         </tr>
         {% endfor %}
     </table>
@@ -398,7 +397,6 @@ HTML_DETALLE = """
     .btn-guardar { background: rgba(51,102,255,0.1); border: 1px solid var(--accent-blue); color: var(--accent-blue); cursor: pointer; font-weight: bold; padding: 6px 12px; border-radius: 4px; transition: 0.2s; width: 100%; }
     .btn-guardar:hover { background: var(--accent-blue); color: #fff; }
     
-    /* Terminal Console */
     .terminal { background: #000; color: #00e676; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 0.85em; height: 300px; overflow-y: scroll; border: 1px solid #333; margin-top: 20px; display: none; white-space: pre-wrap; }
 </style>
 
@@ -420,7 +418,7 @@ HTML_DETALLE = """
 </div>
 
 <div class="card" style="padding:20px;">
-    <div class="panel-title" style="justify-content: flex-start;">⚡ Perfiles de Energía (Overclocking)</div>
+    <div class="panel-title" style="justify-content: flex-start;">⚡ Perfiles de Energía</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
         <button class="btn-control" style="color:var(--accent-green); border-color:var(--accent-green);" onclick="fetch('/cmd/{{ ip }}/profile_low').then(()=>alert('Perfil Invierno/Eco enviado a la cola.'))">❄️ Modo Invierno (Eco)</button>
         <button class="btn-control" style="color:var(--accent-red); border-color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/profile_high').then(()=>alert('Perfil Verano/Max enviado a la cola.'))">🔥 Modo Verano (Max)</button>
@@ -429,6 +427,7 @@ HTML_DETALLE = """
     <div class="panel-title" style="justify-content: flex-start;">🛠️ Panel de control</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/restart').then(()=>location.reload())">🔄 Reiniciar</button>
+        <button class="btn-control" onclick="fetch('/cmd/{{ ip }}/sleep').then(()=>location.reload())">😴 Reposo</button>
         <button class="btn-control active" onclick="fetch('/cmd/{{ ip }}/normal').then(()=>location.reload())">▶ Normal</button>
         <button class="btn-control" style="color:gold; border-color:gold;" onclick="fetch('/cmd/{{ ip }}/blink').then(()=>location.reload())">💡 Parpadear LED</button>
         <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="solicitarLogs()">🖥️ Ver Consola (Logs)</button>
@@ -549,6 +548,11 @@ HTML_DETALLE = """
         if(rango === '30d') limitDate.setDate(limitDate.getDate() - 30);
         
         let fL = [], fH = [], fT = [];
+        
+        // PADDING VISUAL PARA EVITAR QUE 6H Y 24H SE VEAN IGUALES SI HAY POCOS DATOS
+        let labelLimite = (rango === '7d' || rango === '30d') ? limitDate.toLocaleDateString() + ' ' + limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        fL.push(labelLimite); fH.push(null); fT.push(null);
+
         for(let i=0; i<rawFechas.length; i++) {
             let d = new Date(rawFechas[i] * 1000); 
             if(d >= limitDate) {
@@ -571,8 +575,8 @@ HTML_DETALLE = """
                 data: { 
                     labels: fL, 
                     datasets: [ 
-                        { label: 'Hashrate (TH/s)', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2 },
-                        { label: 'Temperatura Max °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1' } 
+                        { label: 'Hashrate (TH/s)', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
+                        { label: 'Temperatura Max °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1', spanGaps: false } 
                     ]
                 }, 
                 options: { 
@@ -696,6 +700,7 @@ def detalle_minero(ip):
             dt_actual = datetime.strptime(h['fecha'], "%Y-%m-%d %H:%M:%S")
             ts = calendar.timegm(dt_actual.timetuple())
             f_raw.append(ts) 
+            
             val_h = float(h['hashrate']) if h['hashrate'] else 0
             if idx > 0:
                 dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
