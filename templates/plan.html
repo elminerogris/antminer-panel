@@ -1,0 +1,86 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+    .card-dark { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 30px; }
+    .plan-title { font-size: 1.5em; font-weight: bold; margin-bottom: 5px; color: var(--text-main); }
+    .plan-price { font-size: 2.5em; font-weight: bold; color: var(--accent-blue); margin: 15px 0; }
+    .plan-price span { font-size: 0.4em; color: var(--text-muted); font-weight: normal; }
+    .plan-features { list-style: none; padding: 0; margin: 20px 0; color: var(--text-muted); line-height: 2; }
+    .plan-features li::before { content: '✔️'; margin-right: 10px; color: var(--accent-green); }
+    .btn-upgrade { background: var(--accent-blue); color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; font-size: 1em; }
+    .btn-upgrade:hover { background: #254ee6; }
+    
+    .wallet-card { background: linear-gradient(135deg, #1b1d29 0%, #14151f 100%); border: 1px solid var(--accent-blue); text-align: center; }
+    .wallet-balance { font-size: 3em; font-weight: bold; color: var(--accent-green); margin: 20px 0; }
+    .deposit-options { display: flex; flex-direction: column; gap: 15px; margin-top: 30px; text-align: left; }
+    .deposit-box { background: var(--bg-body); border: 1px dashed var(--border-color); padding: 15px; border-radius: 6px; }
+    .qr-box { display: flex; align-items: center; gap: 20px; }
+    .qr-img { width: 100px; height: 100px; background: white; padding: 5px; border-radius: 4px; }
+    .copy-text { background: var(--bg-card); padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: monospace; display: flex; justify-content: space-between; color: var(--accent-blue); margin-top: 10px; cursor: pointer;}
+</style>
+
+<div style="margin-bottom: 30px;">
+    <h1 style="margin:0;">💳 Billetera y Planes</h1>
+    <p style="color: var(--text-muted);">Administra tu suscripción, agrega fondos y expande el límite de tu granja.</p>
+</div>
+
+<div class="plan-grid">
+    <div>
+        <div class="card-dark" style="margin-bottom: 20px; {{ 'border-color: var(--accent-green);' if current_plan == 'Gratis' else '' }}">
+            <div class="plan-title">Plan Gratis (Hobby)</div>
+            <div class="plan-price">$0.00 <span>/ mes</span></div>
+            <ul class="plan-features">
+                <li>Monitoreo de hasta 3 mineros.</li>
+                <li>Retención de historial de 24 horas.</li>
+                <li>Soporte comunitario.</li>
+            </ul>
+            <button class="btn-upgrade" style="background:var(--bg-body); color:var(--text-main); border: 1px solid var(--border-color);" disabled>Plan Actual</button>
+        </div>
+
+        <div class="card-dark" style="{{ 'border-color: var(--accent-green);' if current_plan == 'Pro' else '' }}">
+            <div class="plan-title">Plan Profesional</div>
+            <div class="plan-price">$1.50 <span>/ minero / mes</span></div>
+            <ul class="plan-features">
+                <li>Mineros ilimitados.</li>
+                <li>Acciones Masivas (Bulk Actions).</li>
+                <li>Perfiles de Overclock Automático.</li>
+                <li>Exportación CSV e Historial 30 días.</li>
+            </ul>
+            <button class="btn-upgrade" onclick="alert('Contacte al administrador para activar este plan.')">Mejorar a Pro</button>
+        </div>
+    </div>
+
+    <div class="card-dark wallet-card">
+        <h2 style="margin-top:0;">Mi Billetera (Saldo)</h2>
+        <div class="wallet-balance">${{ "%.2f"|format(saldo) }} <span style="font-size:0.4em; color:var(--text-main);">USDT</span></div>
+        <p style="color: var(--text-muted); font-size: 0.9em;">El saldo se debita automáticamente cada mes según tu cantidad de mineros y tu plan activo.</p>
+        
+        <div class="deposit-options">
+            <h3 style="margin-bottom: 0;">⬇️ Agregar Fondos</h3>
+            <div class="deposit-box">
+                <div style="font-weight: bold; color: #FCD535; margin-bottom: 10px;">🟡 Binance Pay (Recomendado)</div>
+                <div class="qr-box">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=235489710" alt="QR Binance" class="qr-img">
+                    <div>
+                        <div style="font-size: 0.85em; color: var(--text-muted);">Escanea el código QR desde tu app de Binance o copia el Pay ID.</div>
+                        <div class="copy-text" onclick="navigator.clipboard.writeText('235489710'); alert('Pay ID Copiado')">
+                            <span>ID: 235489710</span> <span>📋</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="deposit-box">
+                <div style="font-weight: bold; color: var(--accent-green); margin-bottom: 10px;">🟢 Red Tron (TRC20) USDT</div>
+                <div style="font-size: 0.85em; color: var(--text-muted);">Envía USDT únicamente por la red TRC20 a esta dirección:</div>
+                <div class="copy-text" onclick="navigator.clipboard.writeText('TWMxYQ3...Ejemplo...TUgMvR'); alert('Dirección Copiada')">
+                    <span>TWMxYQ3...Ejemplo...TUgMvR</span> <span>📋</span>
+                </div>
+            </div>
+            <div style="font-size: 0.8em; color: var(--text-sub); text-align: center; margin-top: 10px;">
+                Una vez realizado el pago, el saldo se acreditará en tu cuenta en un lapso de 5 a 15 minutos.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
