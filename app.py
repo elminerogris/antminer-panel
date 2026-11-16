@@ -61,7 +61,7 @@ def obtener_datos_red():
     cache_red['datos'] = datos; cache_red['ultima_act'] = ahora
     return datos
 
-# --- PLANTILLAS HTML CON CSS CORREGIDO PARA CELULARES ---
+# --- PLANTILLAS HTML ---
 
 HTML_AUTH = """
 <!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8">
@@ -120,6 +120,7 @@ HTML_LAYOUT = """
 <style>
     :root[data-theme="dark"] { --bg-body: #14151f; --bg-sidebar: #191a24; --bg-card: #1b1d29; --bg-input: #14151f; --border-color: #292a38; --text-main: #fff; --text-muted: #a5a7b5; --text-sub: #8b8d9b; --accent-blue: #3366ff; --accent-green: #00e676; --accent-red: #ff5252; --hover-bg: #202230; --active-bg: #232533; }
     :root[data-theme="light"] { --bg-body: #f4f5f7; --bg-sidebar: #ffffff; --bg-card: #ffffff; --bg-input: #f4f5f7; --border-color: #e2e8f0; --text-main: #1e293b; --text-muted: #64748b; --text-sub: #94a3b8; --accent-blue: #2563eb; --accent-green: #10b981; --accent-red: #ef4444; --hover-bg: #f8fafc; --active-bg: #f1f5f9; }
+    
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; top: 0 !important; }
     .skiptranslate iframe { display: none !important; } body { top: 0px !important; } #google_translate_element { display: none; }
     a { text-decoration: none; color: inherit; }
@@ -148,7 +149,9 @@ HTML_LAYOUT = """
     .status-envivo { color: var(--accent-green); display: flex; align-items: center; gap: 6px; }
     .dot-pulse { width: 8px; height: 8px; background: var(--accent-green); border-radius: 50%; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); } }
-    .main-content { flex: 1; padding: 20px; overflow-y: auto; }
+    
+    /* Agregado padding-bottom extra para que el último minero no quede tapado por la barra de navegación del celular */
+    .main-content { flex: 1; padding: 20px; padding-bottom: 80px; overflow-y: auto; overflow-x: hidden; }
     
     .btn-menu { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); font-size: 1.2em; cursor: pointer; border-radius: 6px; height: 36px; padding: 0 12px; display: none; align-items: center; justify-content: center; transition: 0.2s; }
     .btn-menu:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
@@ -164,7 +167,7 @@ HTML_LAYOUT = """
         .logo-top { display: flex; }
         .top-lang-select, .top-status { display: none; }
         .btn-sync span { display: none; }
-        .main-content { padding: 15px 10px; }
+        .main-content { padding: 15px 10px; padding-bottom: 100px; }
     }
 </style>
 </head>
@@ -234,7 +237,6 @@ HTML_RESUMEN = """
     .cabecera { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
     .cabecera h1 { margin: 0 0 5px 0; font-size: 1.8em; }
     .cabecera .sub { font-size: 0.85em; color: var(--text-sub); }
-    /* Grid adaptativo para celulares (cajas se acomodan solas) */
     .top-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 25px; }
     .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 10px; display: flex; flex-direction: column; justify-content: center; }
     .stat-card .lbl { font-size: 0.65em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; margin-bottom: 6px; display: flex; justify-content: space-between; }
@@ -244,7 +246,6 @@ HTML_RESUMEN = """
     
     .calc-panel { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 25px; }
     .calc-title { font-size: 1.1em; font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-    /* Flex-wrap soluciona el desbordamiento de la calculadora en iPhone */
     .calc-top-boxes { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
     .box-mini { flex: 1; min-width: 110px; border: 1px solid var(--accent-blue); background: var(--bg-input); border-radius: 6px; padding: 12px 10px; text-align: center; }
     .box-mini .v { color: var(--accent-blue); font-weight: bold; font-size: 1.1em; margin-bottom: 6px; }
@@ -257,7 +258,6 @@ HTML_RESUMEN = """
     .btn-aplicar { height: 41px; background: rgba(51,102,255,0.1); color: var(--accent-blue); border: 1px solid var(--accent-blue); padding: 0 25px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap; margin-bottom: 1px; }
     .btn-aplicar:hover { background: var(--accent-blue); color: white; }
     
-    /* Grid adaptativo para los resultados de la calculadora */
     .calc-resultados { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 20px; }
     .res-box { background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px 8px; text-align: center; }
     .res-box .val { font-size: 1em; font-weight: bold; margin-bottom: 4px; }
@@ -273,9 +273,10 @@ HTML_RESUMEN = """
     .btn-excel { background: rgba(0, 230, 118, 0.1); border: 1px solid var(--accent-green); color: var(--accent-green); }
     .btn-excel:hover { background: var(--accent-green); color: white; }
     
-    /* SCROLL HORIZONTAL PARA TABLA EN CELULAR */
-    .tabla-container { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
-    table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+    /* Contenedor que soluciona el fondo cortado y permite scroll horizontal en la tabla */
+    .tabla-wrapper { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 0; width: 100%; box-sizing: border-box; overflow: hidden; }
+    .tabla-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; min-width: 800px; border-collapse: collapse; white-space: nowrap; }
     th, td { padding: 12px 20px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.85em; }
     th { color: var(--text-muted); text-transform: uppercase; background: var(--bg-card); font-weight:bold; font-size: 0.75em; }
     tr.fila-minero { cursor: pointer; transition: 0.15s ease; border-bottom: 1px solid var(--border-color); }
@@ -333,26 +334,27 @@ HTML_RESUMEN = """
     <button class="btn-bulk" onclick="bulkAccion('sleep')">😴 Reposo</button>
 </div>
 
-<!-- Tabla 100% swipeable en iPhone -->
-<div class="tabla-container">
-    <table>
-        <tr>
-            <th style="width:30px;"><input type="checkbox" id="chkTodos" onclick="toggleAll(this)"></th>
-            <th>MINERO</th><th>ESTADO</th><th>HASHRATE</th><th>TEMP</th><th>CONSUMO</th><th>EFICIENCIA</th><th>GANANCIA</th>
-        </tr>
-        {% for f in registros %}
-        <tr class="fila-minero">
-            <td onclick="event.stopPropagation()"><input type="checkbox" class="chk-minero" value="{{ f.ip }}"></td>
-            <td onclick="window.location.href='/minero/{{ f.ip }}'"><span class="nombre-link" translate="no">{{ f.ip.split('.')[-1] }}</span><br><span style="font-size:0.7em; color:var(--text-sub);" translate="no">{{ f.modelo }}</span></td>
-            <td onclick="window.location.href='/minero/{{ f.ip }}'">{{ f.estado | safe }}<br><span style="font-size:0.7em; color:var(--text-sub);" translate="no">{{ f.tiempo_act }}</span></td>
-            <td onclick="window.location.href='/minero/{{ f.ip }}'" translate="no">{{ f.hashrate }} TH/s</td>
-            <td onclick="window.location.href='/minero/{{ f.ip }}'" style="color: {{ 'var(--accent-red)' if f.temp_num > 80 else 'var(--accent-green)' }}; font-weight:bold;" translate="no">{{ f.temp_num }}°C</td>
-            <td onclick="window.location.href='/minero/{{ f.ip }}'" translate="no">{{ f.consumo_kw }} kW</td>
-            <td onclick="window.location.href='/minero/{{ f.ip }}'" translate="no">{{ f.eficiencia }} J/TH</td>
-            <td onclick="window.location.href='/minero/{{ f.ip }}'" style="font-weight:bold;" translate="no" class="celda-ganancia">{{ f.ganancia_neta }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+<div class="tabla-wrapper">
+    <div class="tabla-container">
+        <table>
+            <tr>
+                <th style="width:30px;"><input type="checkbox" id="chkTodos" onclick="toggleAll(this)"></th>
+                <th>MINERO</th><th>ESTADO</th><th>HASHRATE</th><th>TEMP</th><th>CONSUMO</th><th>EFICIENCIA</th><th>GANANCIA</th>
+            </tr>
+            {% for f in registros %}
+            <tr class="fila-minero">
+                <td onclick="event.stopPropagation()"><input type="checkbox" class="chk-minero" value="{{ f.ip }}"></td>
+                <td onclick="window.location.href='/minero/{{ f.ip }}'"><span class="nombre-link" translate="no">{{ f.ip.split('.')[-1] }}</span><br><span style="font-size:0.7em; color:var(--text-sub);" translate="no">{{ f.modelo }}</span></td>
+                <td onclick="window.location.href='/minero/{{ f.ip }}'">{{ f.estado | safe }}<br><span style="font-size:0.7em; color:var(--text-sub);" translate="no">{{ f.tiempo_act }}</span></td>
+                <td onclick="window.location.href='/minero/{{ f.ip }}'" translate="no">{{ f.hashrate }} TH/s</td>
+                <td onclick="window.location.href='/minero/{{ f.ip }}'" style="color: {{ 'var(--accent-red)' if f.temp_num > 80 else 'var(--accent-green)' }}; font-weight:bold;" translate="no">{{ f.temp_num }}°C</td>
+                <td onclick="window.location.href='/minero/{{ f.ip }}'" translate="no">{{ f.consumo_kw }} kW</td>
+                <td onclick="window.location.href='/minero/{{ f.ip }}'" translate="no">{{ f.eficiencia }} J/TH</td>
+                <td onclick="window.location.href='/minero/{{ f.ip }}'" style="font-weight:bold;" translate="no" class="celda-ganancia">{{ f.ganancia_neta }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
 </div>
 
 <script>
@@ -367,6 +369,85 @@ HTML_RESUMEN = """
 </script>
 """
 
+HTML_PLAN = """
+<style>
+    .plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+    .card-dark { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 30px; }
+    .plan-title { font-size: 1.5em; font-weight: bold; margin-bottom: 5px; color: var(--text-main); }
+    .plan-price { font-size: 2.5em; font-weight: bold; color: var(--accent-blue); margin: 15px 0; }
+    .plan-price span { font-size: 0.4em; color: var(--text-muted); font-weight: normal; }
+    .plan-features { list-style: none; padding: 0; margin: 20px 0; color: var(--text-muted); line-height: 2; }
+    .plan-features li::before { content: '✔️'; margin-right: 10px; color: var(--accent-green); }
+    .btn-upgrade { background: var(--accent-blue); color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; font-size: 1em; }
+    
+    .wallet-card { background: linear-gradient(135deg, #1b1d29 0%, #14151f 100%); border: 1px solid var(--accent-blue); text-align: center; }
+    .wallet-balance { font-size: 3em; font-weight: bold; color: var(--accent-green); margin: 20px 0; }
+    .deposit-options { display: flex; flex-direction: column; gap: 15px; margin-top: 30px; text-align: left; }
+    .deposit-box { background: var(--bg-body); border: 1px dashed var(--border-color); padding: 15px; border-radius: 6px; }
+    
+    .qr-box { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center;}
+    .qr-img { width: 100px; height: 100px; background: white; padding: 5px; border-radius: 4px; }
+    .copy-text { background: var(--bg-card); padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: monospace; display: flex; justify-content: space-between; color: var(--accent-blue); margin-top: 10px; cursor: pointer; word-break: break-all; gap: 10px;}
+</style>
+
+<div style="margin-bottom: 30px;">
+    <h1 style="margin:0;">💳 Billetera y Planes</h1>
+    <p style="color: var(--text-muted);">Administra tu suscripción y agrega fondos.</p>
+</div>
+
+<div class="plan-grid">
+    <div>
+        <div class="card-dark" style="margin-bottom: 20px; {{ 'border-color: var(--accent-green);' if current_plan == 'Gratis' else '' }}">
+            <div class="plan-title">Plan Gratis (Hobby)</div>
+            <div class="plan-price">$0.00 <span>/ mes</span></div>
+            <ul class="plan-features">
+                <li>Monitoreo de hasta 3 mineros.</li>
+                <li>Retención de historial de 24 horas.</li>
+            </ul>
+            <button class="btn-upgrade" style="background:var(--bg-body); color:var(--text-main); border: 1px solid var(--border-color);" disabled>Plan Actual</button>
+        </div>
+
+        <div class="card-dark" style="{{ 'border-color: var(--accent-green);' if current_plan == 'Pro' else '' }}">
+            <div class="plan-title">Plan Profesional</div>
+            <div class="plan-price">$1.50 <span>/ minero / mes</span></div>
+            <ul class="plan-features">
+                <li>Mineros ilimitados.</li>
+                <li>Acciones Masivas y Perfiles de Overclock.</li>
+            </ul>
+            <button class="btn-upgrade" onclick="alert('Contacte al administrador.')">Mejorar a Pro</button>
+        </div>
+    </div>
+
+    <div class="card-dark wallet-card">
+        <h2 style="margin-top:0;">Mi Billetera (Saldo)</h2>
+        <div class="wallet-balance">${{ "%.2f"|format(saldo) }} <span style="font-size:0.4em; color:var(--text-main);">USDT</span></div>
+        <p style="color: var(--text-muted); font-size: 0.9em;">El saldo se debita automáticamente cada mes.</p>
+        
+        <div class="deposit-options">
+            <h3 style="margin-bottom: 0;">⬇️ Agregar Fondos</h3>
+            <div class="deposit-box">
+                <div style="font-weight: bold; color: #FCD535; margin-bottom: 10px;">🟡 Binance Pay</div>
+                <div class="qr-box">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=235489710" alt="QR" class="qr-img">
+                    <div style="flex:1; min-width: 150px;">
+                        <div style="font-size: 0.85em; color: var(--text-muted);">Escanea o copia el Pay ID.</div>
+                        <div class="copy-text" onclick="navigator.clipboard.writeText('235489710'); alert('Pay ID Copiado')">
+                            <span>ID: 235489710</span> <span>📋</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="deposit-box">
+                <div style="font-weight: bold; color: var(--accent-green); margin-bottom: 10px;">🟢 Red Tron (TRC20) USDT</div>
+                <div class="copy-text" onclick="navigator.clipboard.writeText('TWMxYQ3...Ejemplo...TUgMvR'); alert('Dirección Copiada')">
+                    <span>TWMxYQ3...Ejemplo...TUgMvR</span> <span>📋</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+"""
+
 HTML_DETALLE = """
 <style>
     .card{background:var(--bg-card);padding:20px;border-radius:8px;border:1px solid var(--border-color);margin-bottom:20px}
@@ -375,7 +456,6 @@ HTML_DETALLE = """
     .titulo-minero{margin:0;font-size:1.5em;display:flex;align-items:center;gap:10px}
     .status-banner{background:rgba(255,82,82,0.1);border:1px solid var(--accent-red);padding:15px;border-radius:8px;color:var(--text-main);font-size:0.9em;margin-bottom:20px;display:{{ 'block' if offline else 'none' }}}
     .status-banner span{color:var(--accent-red);font-weight:bold}
-    /* Grid adaptativo para celulares */
     .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
     .grid-4 .card{margin-bottom:0}
     .grid-4 .card h4{margin:0;font-size:0.7em;color:var(--text-muted);text-transform:uppercase}
@@ -386,14 +466,15 @@ HTML_DETALLE = """
     .chart-filters{display:flex;gap:5px; flex-wrap:wrap;}
     .btn-filter{background:transparent;border:1px solid var(--border-color);color:var(--text-muted);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:0.8em;font-weight:bold}
     .btn-filter.active{background:rgba(51,102,255,0.1);color:var(--accent-blue);border-color:var(--accent-blue)}
-    /* Grid adaptativo */
     .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
-    /* Tablas responsive */
-    .table-responsive{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%}
-    .info-table{width:100%;border-collapse:collapse;white-space:nowrap;}
+    
+    /* Scroll Horizontal arreglado para las tablas */
+    .table-responsive{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%; border-radius:6px;}
+    .info-table{width:100%; min-width:500px; border-collapse:collapse;white-space:nowrap;}
     .info-table td{padding:12px 0;border-bottom:1px solid var(--border-color);font-size:0.85em}
-    .info-table td:nth-child(1){color:var(--text-main);font-weight:bold}
-    .info-table td:nth-child(2){text-align:right;color:var(--text-muted)}
+    .info-table td:nth-child(1){color:var(--text-main);font-weight:bold; padding-left:10px;}
+    .info-table td:nth-child(2){text-align:right;color:var(--text-muted); padding-right:10px;}
+    
     .input-pool{background:rgba(255,255,255,0.05);border:1px solid var(--border-color);color:var(--text-main);padding:8px 10px;width:100%;font-family:monospace;font-size:1em;outline:none;border-radius:4px;box-sizing:border-box}
     .btn-guardar{background:rgba(51,102,255,0.1);border:1px solid var(--accent-blue);color:var(--accent-blue);cursor:pointer;font-weight:bold;padding:6px 12px;border-radius:4px;width:100%}
     .terminal{background:#000;color:#00e676;padding:15px;border-radius:6px;font-family:monospace;font-size:0.85em;height:300px;overflow-y:scroll;border:1px solid #333;margin-top:20px;display:none;white-space:pre-wrap}
@@ -440,10 +521,10 @@ HTML_DETALLE = """
 </div>
 
 <div class="grid-2">
-    <div class="card">
-        <div class="panel-title" style="justify-content: flex-start;">🌡️ Cadenas</div>
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">🌡️ Cadenas</div>
         <div class="table-responsive">
-            <table class="info-table" style="margin-top:15px;">
+            <table class="info-table">
                 {% for c in extra.cadenas %}
                 <tr>
                     <td>Cadena {{ c.id }} <span style="font-weight:normal; color:var(--text-muted); font-size:0.8em; margin-left:10px;">{{ ultimo.hashrate_c0 }} TH/s</span></td>
@@ -453,8 +534,8 @@ HTML_DETALLE = """
             </table>
         </div>
     </div>
-    <div class="card">
-        <div class="panel-title" style="justify-content: flex-start;">ℹ Info</div>
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">ℹ Info</div>
         <div class="table-responsive">
             <table class="info-table">
                 <tr><td>Modelo</td><td translate="no">{{ modelo }}</td></tr>
@@ -469,11 +550,13 @@ HTML_DETALLE = """
     </div>
 </div>
 
-<div class="card">
-    <div class="panel-title" style="justify-content: flex-start;">⛏ Pools</div>
+<div class="card" style="padding:0; overflow:hidden;">
+    <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">⛏ Pools</div>
     <div class="table-responsive">
         <table class="info-table" style="text-align: left;">
-            <tr style="color:var(--text-muted); font-size:0.75em; text-transform:uppercase;"><th>#</th><th>Pool</th><th>Worker</th><th>Estado</th><th>Acción</th></tr>
+            <tr style="color:var(--text-muted); font-size:0.75em; text-transform:uppercase;">
+                <th style="padding-left:10px;">#</th><th>Pool</th><th>Worker</th><th>Estado</th><th style="padding-right:10px;">Acción</th>
+            </tr>
             <tr>
                 <td style="color:var(--text-main);">1</td>
                 <td style="padding-right: 10px;"><input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool" translate="no"></td>
@@ -560,87 +643,6 @@ HTML_DETALLE = """
     }
     window.onload = function() { updateChart('24h'); };
 </script>
-"""
-
-HTML_PLAN = """
-<style>
-    /* Grid adaptativo para cajas de pago */
-    .plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
-    .card-dark { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 30px; }
-    .plan-title { font-size: 1.5em; font-weight: bold; margin-bottom: 5px; color: var(--text-main); }
-    .plan-price { font-size: 2.5em; font-weight: bold; color: var(--accent-blue); margin: 15px 0; }
-    .plan-price span { font-size: 0.4em; color: var(--text-muted); font-weight: normal; }
-    .plan-features { list-style: none; padding: 0; margin: 20px 0; color: var(--text-muted); line-height: 2; }
-    .plan-features li::before { content: '✔️'; margin-right: 10px; color: var(--accent-green); }
-    .btn-upgrade { background: var(--accent-blue); color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; font-size: 1em; }
-    
-    .wallet-card { background: linear-gradient(135deg, #1b1d29 0%, #14151f 100%); border: 1px solid var(--accent-blue); text-align: center; }
-    .wallet-balance { font-size: 3em; font-weight: bold; color: var(--accent-green); margin: 20px 0; }
-    .deposit-options { display: flex; flex-direction: column; gap: 15px; margin-top: 30px; text-align: left; }
-    .deposit-box { background: var(--bg-body); border: 1px dashed var(--border-color); padding: 15px; border-radius: 6px; }
-    
-    /* Flex-wrap soluciona el código QR en celular */
-    .qr-box { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center;}
-    .qr-img { width: 100px; height: 100px; background: white; padding: 5px; border-radius: 4px; }
-    .copy-text { background: var(--bg-card); padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: monospace; display: flex; justify-content: space-between; color: var(--accent-blue); margin-top: 10px; cursor: pointer; word-break: break-all; gap: 10px;}
-</style>
-
-<div style="margin-bottom: 30px;">
-    <h1 style="margin:0;">💳 Billetera y Planes</h1>
-    <p style="color: var(--text-muted);">Administra tu suscripción y agrega fondos.</p>
-</div>
-
-<div class="plan-grid">
-    <div>
-        <div class="card-dark" style="margin-bottom: 20px; {{ 'border-color: var(--accent-green);' if current_plan == 'Gratis' else '' }}">
-            <div class="plan-title">Plan Gratis (Hobby)</div>
-            <div class="plan-price">$0.00 <span>/ mes</span></div>
-            <ul class="plan-features">
-                <li>Monitoreo de hasta 3 mineros.</li>
-                <li>Retención de historial de 24 horas.</li>
-            </ul>
-            <button class="btn-upgrade" style="background:var(--bg-body); color:var(--text-main); border: 1px solid var(--border-color);" disabled>Plan Actual</button>
-        </div>
-
-        <div class="card-dark" style="{{ 'border-color: var(--accent-green);' if current_plan == 'Pro' else '' }}">
-            <div class="plan-title">Plan Profesional</div>
-            <div class="plan-price">$1.50 <span>/ minero / mes</span></div>
-            <ul class="plan-features">
-                <li>Mineros ilimitados.</li>
-                <li>Acciones Masivas y Perfiles de Overclock.</li>
-            </ul>
-            <button class="btn-upgrade" onclick="alert('Contacte al administrador.')">Mejorar a Pro</button>
-        </div>
-    </div>
-
-    <div class="card-dark wallet-card">
-        <h2 style="margin-top:0;">Mi Billetera (Saldo)</h2>
-        <div class="wallet-balance">${{ "%.2f"|format(saldo) }} <span style="font-size:0.4em; color:var(--text-main);">USDT</span></div>
-        <p style="color: var(--text-muted); font-size: 0.9em;">El saldo se debita automáticamente cada mes.</p>
-        
-        <div class="deposit-options">
-            <h3 style="margin-bottom: 0;">⬇️ Agregar Fondos</h3>
-            <div class="deposit-box">
-                <div style="font-weight: bold; color: #FCD535; margin-bottom: 10px;">🟡 Binance Pay</div>
-                <div class="qr-box">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=235489710" alt="QR" class="qr-img">
-                    <div style="flex:1; min-width: 150px;">
-                        <div style="font-size: 0.85em; color: var(--text-muted);">Escanea o copia el Pay ID.</div>
-                        <div class="copy-text" onclick="navigator.clipboard.writeText('235489710'); alert('Pay ID Copiado')">
-                            <span>ID: 235489710</span> <span>📋</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="deposit-box">
-                <div style="font-weight: bold; color: var(--accent-green); margin-bottom: 10px;">🟢 Red Tron (TRC20) USDT</div>
-                <div class="copy-text" onclick="navigator.clipboard.writeText('TWMxYQ3...Ejemplo...TUgMvR'); alert('Dirección Copiada')">
-                    <span>TWMxYQ3...Ejemplo...TUgMvR</span> <span>📋</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 """
 
 HTML_SUBPAGINAS = """
