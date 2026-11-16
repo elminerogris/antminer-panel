@@ -187,7 +187,6 @@ def detalle_minero(ip):
             hr_g.append(val_h)
             tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
             
-            # Histórico individual de cadenas por registro
             c_hist_item = []
             if h.get('cadenas'):
                 try: c_hist_item = json.loads(h['cadenas'])
@@ -349,7 +348,6 @@ def recibir_datos():
                         modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas''', 
                     (m['ip'], m['modelo'], m['hashrate'], hr_30, m['temp'], m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json))
         
-        # Guardar en el histórico la temperatura y el estado de las cadenas en este momento exacto
         cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], err, cadenas_json, ahora))
     
     con.close()
