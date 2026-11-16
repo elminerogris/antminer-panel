@@ -64,7 +64,7 @@ def obtener_datos_red():
     cache_red['ultima_act'] = ahora
     return datos
 
-# --- RUTAS DE LA APLICACIÓN (Usando MVC) ---
+# --- RUTAS DE LA APLICACIÓN (Usando MVC con templates) ---
 
 @app.route('/')
 @login_required
@@ -128,13 +128,9 @@ def detalle_minero(ip):
     fw = str(m['firmware']) if m['firmware'] else "Desconocido"; fans = str(m['fans']) if m['fans'] else "0 / 0"
     
     cadenas_str = m['cadenas'] if m['cadenas'] else "[]"
-    try: 
-        cadenas = json.loads(cadenas_str)
-    except: 
-        cadenas = []
-        
-    if not cadenas: 
-        cadenas = [{"id": 0, "temp_c": t_val, "temp_p": max(0, t_val-5)}, {"id": 1, "temp_c": max(0, t_val-1), "temp_p": max(0, t_val-6)}, {"id": 2, "temp_c": max(0, t_val-2), "temp_p": max(0, t_val-7)}]
+    try: cadenas = json.loads(cadenas_str)
+    except: cadenas = []
+    if not cadenas: cadenas = [{"id": 0, "temp_c": t_val, "temp_p": max(0, t_val-5)}, {"id": 1, "temp_c": max(0, t_val-1), "temp_p": max(0, t_val-6)}, {"id": 2, "temp_c": max(0, t_val-2), "temp_p": max(0, t_val-7)}]
 
     hist.reverse()
     f_raw, hr_g, tp_g = [], [], []
@@ -177,23 +173,19 @@ def plan():
 
 @app.route('/granjas')
 @login_required
-def granjas(): 
-    return render_template('subpaginas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
+def granjas(): return render_template('subpaginas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
 
 @app.route('/mineros')
 @login_required
-def mineros(): 
-    return redirect('/')
+def mineros(): return redirect('/')
 
 @app.route('/alertas')
 @login_required
-def alertas(): 
-    return render_template('subpaginas.html', active_page='alertas', titulo="🔔 Centro de Alertas")
+def alertas(): return render_template('subpaginas.html', active_page='alertas', titulo="🔔 Centro de Alertas")
 
 @app.route('/ajustes')
 @login_required
-def ajustes(): 
-    return render_template('subpaginas.html', active_page='ajustes', titulo="⚙️ Ajustes del Sistema")
+def ajustes(): return render_template('subpaginas.html', active_page='ajustes', titulo="⚙️ Ajustes del Sistema")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -231,9 +223,7 @@ def register():
     return render_template('login.html', mode='register')
 
 @app.route('/logout')
-def logout(): 
-    session.clear()
-    return redirect('/login')
+def logout(): session.clear(); return redirect('/login')
 
 @app.route('/exportar_csv')
 @login_required
@@ -247,10 +237,7 @@ def exportar_csv():
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['IP', 'Modelo', 'Hashrate (TH/s)', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
-    
-    for f in filas: 
-        writer.writerow([f['ip'], f['modelo'], f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
-        
+    for f in filas: writer.writerow([f['ip'], f['modelo'], f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition":"attachment;filename=Reporte_El_Minero_Gris.csv"})
 
 @app.route('/cmd_bulk', methods=['POST'])
