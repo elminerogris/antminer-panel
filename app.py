@@ -9,7 +9,7 @@ app.secret_key = 'super_secreta_antminer_tools'
 # --- 1. BASE DE DATOS SAAS ---
 def get_db():
     con = sqlite3.connect('historial_minero.db')
-    con.row_factory = sqlite3.Row # Convierte las filas en diccionarios inmunes a errores de índice
+    con.row_factory = sqlite3.Row
     return con
 
 def init_db():
@@ -20,8 +20,8 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS historial_nube (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT, hashrate REAL, temp_max INTEGER, fecha TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)')
     
-    # Parche para la nueva detección dinámica de placas (cadenas)
-    for col in ['errores INTEGER', 'worker TEXT', 'pool TEXT', 'mac TEXT', 'serial TEXT', 'firmware TEXT', 'fans TEXT', 'cadenas TEXT']:
+    columnas_nuevas = ['errores INTEGER', 'worker TEXT', 'pool TEXT', 'mac TEXT', 'serial TEXT', 'firmware TEXT', 'fans TEXT', 'pool1 TEXT', 'worker1 TEXT', 'pool2 TEXT', 'worker2 TEXT', 'pool3 TEXT', 'worker3 TEXT', 'uptime TEXT', 't0_c INTEGER', 't0_p INTEGER', 't1_c INTEGER', 't1_p INTEGER', 't2_c INTEGER', 't2_p INTEGER', 'cadenas TEXT']
+    for col in columnas_nuevas:
         try: c.execute(f'ALTER TABLE mineros_activos ADD COLUMN {col}')
         except: pass
 
@@ -391,7 +391,7 @@ HTML_DETALLE = """
     .info-table td:nth-child(1) { color: var(--text-main); font-weight:bold; }
     .info-table td:nth-child(2) { text-align: right; color: var(--text-muted); }
     
-    .input-pool { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 10px; width: 100%; font-family: monospace; font-size:1em; outline:none; border-radius: 4px; transition: 0.2s; box-sizing: border-box; }
+    .input-pool { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 10px; width: 100%; font-family: monospace; font-size: 1em; outline: none; border-radius: 4px; transition: 0.2s; box-sizing: border-box; }
     .input-pool:focus { border-color: var(--accent-blue); background: rgba(51,102,255,0.05); }
     .btn-guardar { background: rgba(51,102,255,0.1); border: 1px solid var(--accent-blue); color: var(--accent-blue); cursor: pointer; font-weight: bold; padding: 6px 12px; border-radius: 4px; transition: 0.2s; width: 100%; }
     .btn-guardar:hover { background: var(--accent-blue); color: #fff; }
@@ -447,7 +447,7 @@ HTML_DETALLE = """
         <table class="info-table" style="margin-top:15px;">
             {% for c in extra.cadenas %}
             <tr>
-                <td>Cadena {{ c.id }}</td>
+                <td>Cadena {{ c.id }} <span style="font-weight:normal; color:var(--text-muted); font-size:0.8em; margin-left:10px;">{{ ultimo.hashrate_c0 }} TH/s</span></td>
                 <td>Chip <span style="color:var(--accent-blue); font-weight:bold;">{{ c.temp_c }}°C</span> &nbsp;&nbsp; PCB <span style="color:var(--accent-green); font-weight:bold;">{{ c.temp_p }}°C</span></td>
             </tr>
             {% endfor %}
@@ -472,6 +472,7 @@ HTML_DETALLE = """
     <div class="panel-title" style="justify-content: flex-start;">⛏ Pools</div>
     <table class="info-table" style="text-align: left;">
         <tr style="color:var(--text-muted); font-size:0.75em; text-transform:uppercase;"><th>#</th><th>Pool</th><th>Worker</th><th>Estado</th><th>Aceptados</th><th>Rechazados</th><th>Acción</th></tr>
+        
         <tr>
             <td style="color:var(--text-main);">1</td>
             <td style="padding-right: 10px;"><input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool" translate="no"></td>
@@ -480,6 +481,24 @@ HTML_DETALLE = """
             <td style="color:var(--accent-green);">838</td>
             <td style="color:var(--accent-red);">2</td>
             <td><button class="btn-guardar" onclick="guardarPool(1)">Guardar</button></td>
+        </tr>
+        <tr>
+            <td style="color:var(--text-main);">2</td>
+            <td style="padding-right: 10px;"><input type="text" id="url_2" value="{{ extra.pool2 }}" class="input-pool" translate="no"></td>
+            <td style="padding-right: 10px;"><input type="text" id="user_2" value="{{ extra.worker2 }}" class="input-pool" translate="no"></td>
+            <td style="color:var(--accent-green); font-weight:bold;">Alive</td>
+            <td style="color:var(--accent-green);">4,534</td>
+            <td style="color:var(--accent-red);">4</td>
+            <td><button class="btn-guardar" onclick="guardarPool(2)">Guardar</button></td>
+        </tr>
+        <tr>
+            <td style="color:var(--text-main);">3</td>
+            <td style="padding-right: 10px;"><input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool" translate="no"></td>
+            <td style="padding-right: 10px;"><input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool" translate="no"></td>
+            <td style="color:var(--accent-red); font-weight:bold;">Invalid</td>
+            <td style="color:var(--accent-green);">0</td>
+            <td style="color:var(--accent-red);">0</td>
+            <td><button class="btn-guardar" onclick="guardarPool(3)">Guardar</button></td>
         </tr>
     </table>
 </div>
@@ -492,7 +511,6 @@ HTML_DETALLE = """
         }
     }
     
-    // El Python ahora pasa Timestamps Unix absolutos, matando cualquier bug de zona horaria
     const rawFechas = {{ graf_fechas_raw | safe }};
     const rawHr = {{ graf_hashrate | safe }};
     const rawTemp = {{ graf_temps | safe }};
@@ -511,7 +529,6 @@ HTML_DETALLE = """
         
         let fL = [], fH = [], fT = [];
         for(let i=0; i<rawFechas.length; i++) {
-            // El navegador transforma automáticamente el Unix a la hora exacta de tu país
             let d = new Date(rawFechas[i] * 1000); 
             if(d >= limitDate) {
                 let timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -549,7 +566,6 @@ HTML_DETALLE = """
                                     if (context.datasetIndex === 1) {
                                         let t = context.parsed.y;
                                         let tooltipArr = [`🌡️ Temperatura Max: ${t}°C`];
-                                        // Dibuja el tooltip exacto según la cantidad de placas que detectó el minero
                                         for(let c = 0; c < cadenasCount; c++) {
                                             tooltipArr.push(`   Cadena ${c} -> Chip: ${Math.max(0, t-(c*1))}°C | PCB: ${Math.max(0, t-(5+c))}°C`);
                                         }
@@ -634,8 +650,13 @@ def detalle_minero(ip):
     
     offline = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() > 180
     
-    worker1 = str(m['worker']) if m['worker'] else ""
-    pool1 = str(m['pool']) if m['pool'] else ""
+    pool1 = str(m['pool1']) if 'pool1' in m.keys() and m['pool1'] else ""
+    worker1 = str(m['worker1']) if 'worker1' in m.keys() and m['worker1'] else ""
+    pool2 = str(m['pool2']) if 'pool2' in m.keys() and m['pool2'] else ""
+    worker2 = str(m['worker2']) if 'worker2' in m.keys() and m['worker2'] else ""
+    pool3 = str(m['pool3']) if 'pool3' in m.keys() and m['pool3'] else ""
+    worker3 = str(m['worker3']) if 'worker3' in m.keys() and m['worker3'] else ""
+    
     mac = str(m['mac']) if m['mac'] else "-"
     serial = str(m['serial']) if m['serial'] else "-"
     fw = str(m['firmware']) if m['firmware'] else "Desconocido"
@@ -652,7 +673,7 @@ def detalle_minero(ip):
     if hist:
         for idx, h in enumerate(hist):
             dt_actual = datetime.strptime(h['fecha'], "%Y-%m-%d %H:%M:%S")
-            ts = calendar.timegm(dt_actual.timetuple()) # Convierte a Timestamp de Unix (Inmune a Zonas Horarias)
+            ts = calendar.timegm(dt_actual.timetuple())
             f_raw.append(ts) 
             
             val_h = float(h['hashrate']) if h['hashrate'] else 0
@@ -670,9 +691,10 @@ def detalle_minero(ip):
         
     dt = {
         'hashrate': hr_val, 'temp_max': t_val, 'errores': 0, 'consumo': round(c_val/1000, 1), 'fans': fans,
-        'uptime': '0d 13h' if not offline else 'Desconectado'
+        'uptime': '0d 13h' if not offline else 'Desconectado',
+        'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0
     }
-    extra = {'worker1': worker1, 'pool1': pool1, 'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas}
+    extra = {'worker1': worker1, 'pool1': pool1, 'worker2': worker2, 'pool2': pool2, 'worker3': worker3, 'pool3': pool3, 'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas}
     disp = {'eficiencia': round(c_val/hr_val, 2) if hr_val > 0 else 0}
     
     return render_template_string(HTML_LAYOUT, active_page='mineros', content=render_template_string(HTML_DETALLE, ip=ip, modelo=m['modelo'], ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g)))
@@ -700,13 +722,14 @@ def recibir_datos():
     con = sqlite3.connect('historial_minero.db'); cur = con.cursor()
     ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     for m in datos.get('mineros', []):
-        err = m.get('errores', 0); wk = m.get('worker', ''); pl = m.get('pool', ''); mc = m.get('mac', ''); sr = m.get('serial', ''); fw = m.get('firmware', ''); fs = m.get('fans', '')
+        err = m.get('errores', 0); mc = m.get('mac', ''); sr = m.get('serial', ''); fw = m.get('firmware', ''); fs = m.get('fans', '')
+        p1 = m.get('pool1', ''); w1 = m.get('worker1', ''); p2 = m.get('pool2', ''); w2 = m.get('worker2', ''); p3 = m.get('pool3', ''); w3 = m.get('worker3', '')
         cadenas_json = json.dumps(m.get('cadenas', []))
         
-        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, temp_max, consumo_w, estado, ultima_act, errores, worker, pool, mac, serial, firmware, fans, cadenas) 
-                       VALUES (?, ?, ?, ?, ?, 'online', ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(ip) DO UPDATE SET 
-                       modelo=excluded.modelo, hashrate=excluded.hashrate, temp_max=excluded.temp_max, consumo_w=excluded.consumo_w, ultima_act=excluded.ultima_act, errores=excluded.errores, worker=excluded.worker, pool=excluded.pool, mac=excluded.mac, serial=excluded.serial, firmware=excluded.firmware, fans=excluded.fans, cadenas=excluded.cadenas''', 
-                    (m['ip'], m['modelo'], m['hashrate'], m['temp'], m['consumo'], ahora, err, wk, pl, mc, sr, fw, fs, cadenas_json))
+        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, temp_max, consumo_w, estado, ultima_act, errores, pool1, worker1, pool2, worker2, pool3, worker3, mac, serial, firmware, fans, cadenas) 
+                       VALUES (?, ?, ?, ?, ?, 'online', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(ip) DO UPDATE SET 
+                       modelo=excluded.modelo, hashrate=excluded.hashrate, temp_max=excluded.temp_max, consumo_w=excluded.consumo_w, ultima_act=excluded.ultima_act, errores=excluded.errores, pool1=excluded.pool1, worker1=excluded.worker1, pool2=excluded.pool2, worker2=excluded.worker2, pool3=excluded.pool3, worker3=excluded.worker3, mac=excluded.mac, serial=excluded.serial, firmware=excluded.firmware, fans=excluded.fans, cadenas=excluded.cadenas''', 
+                    (m['ip'], m['modelo'], m['hashrate'], m['temp'], m['consumo'], ahora, err, p1, w1, p2, w2, p3, w3, mc, sr, fw, fs, cadenas_json))
         cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, fecha) VALUES (?, ?, ?, ?)", (m['ip'], m['hashrate'], m['temp'], ahora))
     
     pend = cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'").fetchall()
