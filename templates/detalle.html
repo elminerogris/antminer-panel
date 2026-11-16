@@ -14,6 +14,7 @@
     .panel-title{font-weight:bold;margin-bottom:15px;display:flex;align-items:center;justify-content:space-between;font-size:1.1em; flex-wrap:wrap;}
     .btn-control{background:transparent;border:1px solid var(--border-color);color:var(--text-main);padding:8px 15px;border-radius:20px;cursor:pointer;font-weight:bold;transition:0.2s;font-size:0.85em;display:flex;align-items:center;gap:6px}
     .btn-control:hover{border-color:var(--accent-blue)}
+    .btn-control.active{background:rgba(51,102,255,0.1);color:var(--accent-blue);border-color:var(--accent-blue)}
     .chart-filters{display:flex;gap:5px; flex-wrap:wrap;}
     .btn-filter{background:transparent;border:1px solid var(--border-color);color:var(--text-muted);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:0.8em;font-weight:bold}
     .btn-filter.active{background:rgba(51,102,255,0.1);color:var(--accent-blue);border-color:var(--accent-blue)}
@@ -49,7 +50,7 @@
         <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/restart').then(()=>location.reload())">🔄 Reiniciar</button>
         <button class="btn-control" onclick="fetch('/cmd/{{ ip }}/sleep').then(()=>location.reload())">😴 Reposo</button>
         <button class="btn-control active" onclick="fetch('/cmd/{{ ip }}/normal').then(()=>location.reload())">▶ Normal</button>
-        <button class="btn-control" style="color:gold; border-color:gold;" onclick="fetch('/cmd/{{ ip }}/blink').then(()=>location.reload())">💡 Buscar LED</button>
+        <button class="btn-control" style="color:gold; border-color:gold;" onclick="fetch('/cmd/{{ ip }}/blink').then(()=>location.reload())">💡 Parpadear LED</button>
         <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="solicitarLogs()">🖥️ Ver Logs</button>
     </div>
     <div id="terminal-box" class="terminal">Esperando logs...</div>
@@ -57,7 +58,7 @@
 
 <div class="card">
     <div class="panel-title">
-        <div>☑ Hashrate</div>
+        <div>☑ Hashrate <span id="hrPromedio" style="color:var(--text-muted); font-size:0.8em; margin-left:10px; font-weight:normal;"></span></div>
         <div class="chart-filters">
             <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')">6 h</button>
             <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')">24 h</button>
@@ -70,7 +71,7 @@
 
 <div class="grid-2">
     <div class="card" style="padding:0; overflow:hidden;">
-        <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">🌡️ Cadenas</div>
+        <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">🌡️ Temperaturas de cadena</div>
         <div class="table-responsive">
             <table class="info-table">
                 {% for c in extra.cadenas %}
@@ -83,7 +84,7 @@
         </div>
     </div>
     <div class="card" style="padding:0; overflow:hidden;">
-        <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">ℹ Info</div>
+        <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">ℹ️ Información del dispositivo</div>
         <div class="table-responsive">
             <table class="info-table">
                 <tr><td>Modelo</td><td translate="no">{{ modelo }}</td></tr>
@@ -163,6 +164,12 @@
                 fL.push(label); fH.push(rawHr[i]); fT.push(rawTemp[i]);
             }
         }
+        
+        /* CÁLCULO DE PROMEDIO DE HASHRATE */
+        let validHr = fH.filter(v => v !== null && v > 0);
+        let avgHr = validHr.length > 0 ? (validHr.reduce((a,b)=>a+b,0) / validHr.length).toFixed(2) : "0.00";
+        let promEl = document.getElementById('hrPromedio');
+        if(promEl) promEl.innerText = 'Promedio: ' + avgHr + ' TH/s';
         
         if(chartInstance) {
             chartInstance.data.labels = fL;
