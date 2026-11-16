@@ -58,7 +58,11 @@
 
 <div class="card">
     <div class="panel-title">
-        <div>☑ Hashrate <span id="hrPromedio" style="color:var(--text-muted); font-size:0.8em; margin-left:10px; font-weight:normal;"></span></div>
+        <div>
+            ☑ Hashrate 
+            <span id="hrPromedio" style="color:var(--text-muted); font-size:0.8em; margin-left:10px; font-weight:normal;"></span>
+            <span id="tempPromedio" style="color:var(--accent-orange, #ffb300); font-size:0.8em; margin-left:15px; font-weight:normal;"></span>
+        </div>
         <div class="chart-filters">
             <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')">6 h</button>
             <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')">24 h</button>
@@ -95,8 +99,14 @@
                 <tr>
                     <td>Eficiencia</td>
                     <td translate="no">
-                        {% if dispositivo.eficiencia and dispositivo.eficiencia > 0 %}
-                            {{ "%.2f"|format(dispositivo.eficiencia | float) }} J/TH
+                        {% if dispositivo.eficiencia %}
+                            {# Si el número es mayor a 1000, asumimos que vino mal escalado (ej en mJ o formato incorrecto) y lo ajustamos o mostramos formateado a 2 decimales #}
+                            {% set ef = dispositivo.eficiencia | float %}
+                            {% if ef > 1000 %}
+                                {{ "%.2f"|format(ef / 1000) }} J/TH
+                            {% else %}
+                                {{ "%.2f"|format(ef) }} J/TH
+                            {% endif %}
                         {% else %}
                             -
                         {% endif %}
@@ -174,11 +184,16 @@
             }
         }
         
-        /* CÁLCULO DE PROMEDIO DE HASHRATE */
+        /* CÁLCULO DE PROMEDIOS (HASHRATE Y TEMPERATURA MÁXIMA) */
         let validHr = fH.filter(v => v !== null && v > 0);
         let avgHr = validHr.length > 0 ? (validHr.reduce((a,b)=>a+b,0) / validHr.length).toFixed(2) : "0.00";
         let promEl = document.getElementById('hrPromedio');
         if(promEl) promEl.innerText = 'Promedio: ' + avgHr + ' TH/s';
+
+        let validTemp = fT.filter(v => v !== null && v > 0);
+        let avgTemp = validTemp.length > 0 ? (validTemp.reduce((a,b)=>a+b,0) / validTemp.length).toFixed(1) : "0.0";
+        let tempPromEl = document.getElementById('tempPromedio');
+        if(tempPromEl) tempPromEl.innerText = 'Promedio Temp: ' + avgTemp + '°C';
         
         if(chartInstance) {
             chartInstance.data.labels = fL;
