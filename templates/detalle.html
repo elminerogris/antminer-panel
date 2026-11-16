@@ -6,13 +6,10 @@
     .btn-volver{color:var(--text-muted);font-size:1.5em;font-weight:bold; text-decoration:none; margin-right:15px;}
     .status-banner{background:rgba(255,82,82,0.1);border:1px solid var(--accent-red);padding:15px;border-radius:8px;color:var(--text-main);font-size:0.9em;margin-bottom:20px;display:{{ 'block' if offline else 'none' }}}
     .status-banner span{color:var(--accent-red);font-weight:bold}
-    
-    /* PROBLEMA 2: Tarjetas superiores con texto en azul agradable (#3366ff) */
     .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:15px;margin-bottom:20px}
     .grid-4 .card{margin-bottom:0}
     .grid-4 .card h4{margin:0;font-size:0.75em;color:var(--text-muted);text-transform:uppercase}
     .grid-4 .card .val{font-size:1.5em;font-weight:bold;margin-top:8px;color:#3366ff !important;}
-    
     .panel-title{font-weight:bold;margin-bottom:15px;display:flex;align-items:center;justify-content:space-between;font-size:1.1em; flex-wrap:wrap;}
     .btn-control{background:transparent;border:1px solid var(--border-color);color:var(--text-main);padding:8px 15px;border-radius:20px;cursor:pointer;font-weight:bold;transition:0.2s;font-size:0.85em;display:flex;align-items:center;gap:6px}
     .btn-control:hover{border-color:var(--accent-blue)}
@@ -27,11 +24,10 @@
     .info-table td:nth-child(1){color:var(--text-main);font-weight:bold; padding-left:10px;}
     .info-table td:nth-child(2){text-align:right;color:var(--text-muted); padding-right:10px;}
     .input-pool{background:rgba(255,255,255,0.05);border:1px solid var(--border-color);color:var(--text-main);padding:8px 10px;width:100%;font-family:monospace;font-size:1em;outline:none;border-radius:4px;box-sizing:border-box}
-    .btn-guardar{background:rgba(51,102,255,0.1);border:1px solid var(--accent-blue);color:var(--accent-blue);cursor:pointer;font-weight:bold;padding:6px 12px;border-radius:4px;width:100%}
+    .btn-guardar{background:rgba(51,102,255,0.1);border:1px solid var(--accent-blue);color:var(--accent-blue);cursor:pointer;font-weight:bold;padding:10px 20px;border-radius:6px;width:100%; font-size:1em;}
     .terminal{background:#000;color:#00e676;padding:15px;border-radius:6px;font-family:monospace;font-size:0.85em;height:300px;overflow-y:scroll;border:1px solid #333;margin-top:15px;white-space:pre-wrap}
 </style>
 
-<!-- PROBLEMA 4: CABECERA CON NOMBRE EDITABLE, MODELO E IP -->
 <div class="header-detalle">
     <div style="display:flex; align-items:center;">
         <a href="/" class="btn-volver">←</a>
@@ -56,7 +52,6 @@
 
 <div class="status-banner"><span>⛔ Este minero está sin conexión</span> (visto {{ ultimo.uptime }}). Datos históricos.</div>
 
-<!-- PROBLEMA 2 Y 3: TARJETAS SUPERIORES CON HASHRATE 5S, 30M, CONSUMO CORTO Y AZUL -->
 <div class="grid-4">
     <div class="card">
         <h4>Hashrate 5s</h4>
@@ -158,39 +153,42 @@
     </div>
 </div>
 
+<!-- APARTADO DE POOLS CON AUTORELLENO Y BOTÓN ÚNICO -->
 <div class="card" style="padding:0; overflow:hidden;">
-    <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">⛏ Pools</div>
+    <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">⛏ Pools de Minería</div>
     <div class="table-responsive">
         <table class="info-table" style="text-align: left;">
             <tr style="color:var(--text-muted); font-size:0.75em; text-transform:uppercase;">
-                <th style="padding-left:10px;">#</th><th>Pool</th><th>Worker</th><th>Estado</th><th style="padding-right:10px;">Acción</th>
+                <th style="padding-left:10px;">#</th><th>URL Pool</th><th>Worker (Usuario)</th><th>Contraseña</th><th>Estado</th>
             </tr>
             <tr>
                 <td style="color:var(--text-main);">1</td>
                 <td style="padding-right: 10px;"><input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool" translate="no"></td>
-                <td style="padding-right: 10px;"><input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool" translate="no"></td>
+                <td style="padding-right: 10px;"><input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool" translate="no" oninput="sincronizarWorkers(this.value)"></td>
+                <td style="padding-right: 10px;"><input type="text" id="pass_1" value="{{ extra.pass1 }}" class="input-pool" translate="no" oninput="sincronizarPasss(this.value)"></td>
                 <td style="color:var(--accent-green); font-weight:bold;">Alive</td>
-                <td><button class="btn-guardar" onclick="guardarPool(1)">Guardar</button></td>
             </tr>
             <tr>
                 <td style="color:var(--text-main);">2</td>
                 <td style="padding-right: 10px;"><input type="text" id="url_2" value="{{ extra.pool2 }}" class="input-pool" translate="no"></td>
                 <td style="padding-right: 10px;"><input type="text" id="user_2" value="{{ extra.worker2 }}" class="input-pool" translate="no"></td>
+                <td style="padding-right: 10px;"><input type="text" id="pass_2" value="{{ extra.pass2 }}" class="input-pool" translate="no"></td>
                 <td style="color:var(--accent-green); font-weight:bold;">Alive</td>
-                <td><button class="btn-guardar" onclick="guardarPool(2)">Guardar</button></td>
             </tr>
             <tr>
                 <td style="color:var(--text-main);">3</td>
                 <td style="padding-right: 10px;"><input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool" translate="no"></td>
                 <td style="padding-right: 10px;"><input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool" translate="no"></td>
+                <td style="padding-right: 10px;"><input type="text" id="pass_3" value="{{ extra.pass3 }}" class="input-pool" translate="no"></td>
                 <td style="color:var(--accent-red); font-weight:bold;">Invalid</td>
-                <td><button class="btn-guardar" onclick="guardarPool(3)">Guardar</button></td>
             </tr>
         </table>
     </div>
+    <div style="padding: 20px;">
+        <button class="btn-guardar" onclick="guardarTodosLosPools()">💾 Guardar Configuración de Pools</button>
+    </div>
 </div>
 
-<!-- PROBLEMA 4: APARTADO DE LOGS (clog, hlog, dlog) -->
 <div class="card" style="padding:20px;">
     <div class="panel-title" style="justify-content: flex-start;">📜 Visor de Logs Específicos (clog, hlog, dlog)</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
@@ -205,6 +203,27 @@
     function toggleEditarNombre() {
         let f = document.getElementById('formNombre');
         f.style.display = f.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function sincronizarWorkers(val) {
+        document.getElementById('user_2').value = val;
+        document.getElementById('user_3').value = val;
+    }
+
+    function sincronizarPasss(val) {
+        document.getElementById('pass_2').value = val;
+        document.getElementById('pass_3').value = val;
+    }
+
+    function guardarTodosLosPools() {
+        let u1 = document.getElementById('url_1').value, w1 = document.getElementById('user_1').value, p1 = document.getElementById('pass_1').value;
+        let u2 = document.getElementById('url_2').value, w2 = document.getElementById('user_2').value, p2 = document.getElementById('pass_2').value;
+        let u3 = document.getElementById('url_3').value, w3 = document.getElementById('user_3').value, p3 = document.getElementById('pass_3').value;
+        
+        if(confirm('¿Guardar la configuración completa de los 3 pools para este minero?')) {
+            let urlCmd = `/cmd/{{ ip }}/guardar_pools?u1=${encodeURIComponent(u1)}&w1=${encodeURIComponent(w1)}&p1=${encodeURIComponent(p1)}&u2=${encodeURIComponent(u2)}&w2=${encodeURIComponent(w2)}&p2=${encodeURIComponent(p2)}&u3=${encodeURIComponent(u3)}&w3=${encodeURIComponent(w3)}&p3=${encodeURIComponent(p3)}`;
+            fetch(urlCmd).then(() => alert('Configuración enviada a la cola del Agente.'));
+        }
     }
 
     function solicitarLogs() { 
@@ -234,8 +253,6 @@
             }, 2000);
         });
     }
-
-    function guardarPool(idx) { let u = document.getElementById('url_' + idx).value, us = document.getElementById('user_' + idx).value; if(confirm('¿Guardar configuración del Pool ' + idx + '?')) { fetch('/cmd/{{ ip }}/setpool?url='+encodeURIComponent(u)+'&user='+encodeURIComponent(us)).then(()=>alert('Cambio enviado a la cola del Agente.')); } }
     
     const rawFechas = {{ graf_fechas_raw | safe }};
     const rawHr = {{ graf_hashrate | safe }};
