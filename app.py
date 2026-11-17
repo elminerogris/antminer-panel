@@ -18,7 +18,7 @@ def init_db():
         con = get_db()
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8')''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
@@ -42,6 +42,11 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN status3 TEXT DEFAULT 'Dead'",
             "ALTER TABLE mineros_activos ADD COLUMN acc3 INTEGER DEFAULT 0",
             "ALTER TABLE mineros_activos ADD COLUMN rej3 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN hostname TEXT DEFAULT 'Antminer'",
+            "ALTER TABLE mineros_activos ADD COLUMN net_proto TEXT DEFAULT 'Static'",
+            "ALTER TABLE mineros_activos ADD COLUMN netmask TEXT DEFAULT '255.255.255.0'",
+            "ALTER TABLE mineros_activos ADD COLUMN gateway TEXT DEFAULT '192.168.0.1'",
+            "ALTER TABLE mineros_activos ADD COLUMN dns TEXT DEFAULT '8.8.8.8'",
             "ALTER TABLE historial_nube ADD COLUMN errores INTEGER DEFAULT 0",
             "ALTER TABLE historial_nube ADD COLUMN temp_amb INTEGER DEFAULT 0",
             "ALTER TABLE historial_nube ADD COLUMN cadenas TEXT"
@@ -181,6 +186,13 @@ def detalle_minero(ip):
     mac = str(m.get('mac') or "-"); serial = str(m.get('serial') or "-")
     fw = str(m.get('firmware') or "Desconocido"); fans = str(m.get('fans') or "0 / 0")
     
+    default_gw = ".".join(ip.split('.')[:3]) + ".1" if '.' in ip else "192.168.0.1"
+    hostname = str(m.get('hostname') or f"Antminer{ip.split('.')[-1]}")
+    net_proto = str(m.get('net_proto') or "Static")
+    netmask = str(m.get('netmask') or "255.255.255.0")
+    gateway = str(m.get('gateway') or default_gw)
+    dns = str(m.get('dns') or "8.8.8.8")
+    
     raw_uptime = str(m.get('uptime') or "")
     uptime_val = raw_uptime if (raw_uptime and raw_uptime != "0h 0m") else "En línea"
     if offline: uptime_val = "Desconectado"
@@ -218,7 +230,6 @@ def detalle_minero(ip):
             hr_g.append(val_h)
             tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
             
-            # Si temp_amb es 0 o no existe (ej. S19k Pro), guardamos None para no graficar ceros
             val_amb = int(h.get('temp_amb') or 0)
             tamb_g.append(val_amb if val_amb > 0 else None)
             
@@ -243,7 +254,8 @@ def detalle_minero(ip):
         'worker1': worker1, 'pool1': pool1, 'pass1': pass1, 'status1': status1, 'acc1': acc1, 'rej1': rej1,
         'worker2': worker2, 'pool2': pool2, 'pass2': pass2, 'status2': status2, 'acc2': acc2, 'rej2': rej2,
         'worker3': worker3, 'pool3': pool3, 'pass3': pass3, 'status3': status3, 'acc3': acc3, 'rej3': rej3,
-        'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas
+        'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas,
+        'hostname': hostname, 'net_proto': net_proto, 'netmask': netmask, 'gateway': gateway, 'dns': dns
     }
     
     eficiencia_val = round(c_val / hr_val, 2) if hr_val > 0 else 0
@@ -281,6 +293,14 @@ def comando_minero(ip, accion):
     cmd_str = ""
     if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
         cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
+    elif accion == 'set_network':
+        host = request.args.get('host', 'Antminer')
+        proto = request.args.get('proto', '2')
+        nip = request.args.get('nip', ip)
+        mask = request.args.get('mask', '255.255.255.0')
+        gw = request.args.get('gw', '192.168.0.1')
+        dns = request.args.get('dns', '8.8.8.8')
+        cmd_str = f"set_network|{host}|{proto}|{nip}|{mask}|{gw}|{dns}"
     elif accion == 'guardar_pools': 
         u1 = request.args.get('u1', ''); w1 = request.args.get('w1', ''); p1 = request.args.get('p1', '123')
         u2 = request.args.get('u2', ''); w2 = request.args.get('w2', ''); p2 = request.args.get('p2', '123')
@@ -396,13 +416,19 @@ def recibir_datos():
         p3 = m.get('pool3', ''); w3 = m.get('worker3', ''); pa3 = m.get('pass3', '123')
         st3 = m.get('status3', 'Dead'); ac3 = m.get('acc3', 0); rj3 = m.get('rej3', 0)
         
+        host = m.get('hostname', f"Antminer{m['ip'].split('.')[-1]}")
+        nproto = m.get('net_proto', 'Static')
+        nmask = m.get('netmask', '255.255.255.0')
+        ngw = m.get('gateway', '192.168.0.1')
+        ndns = m.get('dns', '8.8.8.8')
+        
         cadenas_list = m.get('cadenas', [])
         cadenas_json = json.dumps(cadenas_list)
         
-        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
-                        modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3''', 
-                    (m['ip'], m['modelo'], m['hashrate'], hr_30, m['temp'], t_amb, m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3))
+        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
+                        modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns''', 
+                    (m['ip'], m['modelo'], m['hashrate'], hr_30, m['temp'], t_amb, m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns))
         
         cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, temp_amb, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], t_amb, err, cadenas_json, ahora))
     
