@@ -117,7 +117,7 @@ def index():
                 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 
                 'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr, 
                 'hashrate_30m': float(m.get('hashrate_30m', hr)), 
-                'temp_num': t, 'consumo_kw': round(c/1000, 2), 
+                'temp_num': t, 'consumo_kw': f"{round(c/1000, 2)} kW", 
                 'eficiencia': eficiencia_val, 'ganancia_neta': str_gan
             })
         else:
@@ -126,7 +126,7 @@ def index():
                 'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 
                 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 
                 'tiempo_act': 'Offline', 'hashrate': 0, 'hashrate_30m': 0, 'temp_num': 0, 
-                'consumo_kw': 0.0, 'eficiencia': 0, 'ganancia_neta': "USD 0.00"
+                'consumo_kw': '0.0 kW', 'eficiencia': 0, 'ganancia_neta': "USD 0.00"
             })
             
     flota = {
@@ -177,7 +177,10 @@ def detalle_minero(ip):
 
     mac = str(m.get('mac') or "-"); serial = str(m.get('serial') or "-")
     fw = str(m.get('firmware') or "Desconocido"); fans = str(m.get('fans') or "0 / 0")
-    uptime_val = str(m.get('uptime') or "0d 13h") if not offline else "Desconectado"
+    
+    raw_uptime = str(m.get('uptime') or "")
+    uptime_val = raw_uptime if (raw_uptime and raw_uptime != "0h 0m") else "En línea"
+    if offline: uptime_val = "Desconectado"
     
     cadenas_str = m['cadenas'] if m['cadenas'] else "[]"
     try: cadenas = json.loads(cadenas_str)
@@ -217,7 +220,7 @@ def detalle_minero(ip):
         
     dt = {
         'hashrate': hr_val, 'hashrate_30m': hr_30m_val, 'temp_max': t_val, 
-        'errores': m.get('errores', 0), 'consumo': round(c_val/1000, 2), 
+        'errores': m.get('errores', 0), 'consumo': f"{round(c_val/1000, 2)} kW", 
         'fans': fans, 'uptime': uptime_val, 
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0
     }
@@ -263,8 +266,6 @@ def comando_minero(ip, accion):
     cmd_str = ""
     if accion in ['restart', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
         cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
-    elif accion == 'setpool':
-        cmd_str = f"setpool|{request.args.get('url', '')}|{request.args.get('user', '')}"
     elif accion == 'guardar_pools': 
         u1 = request.args.get('u1', ''); w1 = request.args.get('w1', ''); p1 = request.args.get('p1', '123')
         u2 = request.args.get('u2', ''); w2 = request.args.get('w2', ''); p2 = request.args.get('p2', '123')
