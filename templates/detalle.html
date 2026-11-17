@@ -97,7 +97,6 @@
 
 <div class="status-banner"><span>⛔ Este minero está sin conexión</span> (visto {{ ultimo.uptime }}). Datos históricos.</div>
 
-<!-- Tarjetas separadas (5s y 30m) con el mismo color en Hashrate, Errores y Consumo -->
 <div class="grid-4">
     <div class="card"><h4>Hashrate (5s)</h4><div class="val" translate="no">{{ ultimo.hashrate }} TH/s</div></div>
     <div class="card"><h4>Hashrate (30m)</h4><div class="val" translate="no">{{ ultimo.hashrate_30m }} TH/s</div></div>
@@ -315,6 +314,7 @@
     const rawFechas = {{ graf_fechas_raw | safe }};
     const rawHr = {{ graf_hashrate | safe }};
     const rawTemp = {{ graf_temps | safe }};
+    const rawAmb = {{ graf_temp_amb | default('[]') | safe }};
     const rawErr = {{ graf_errores | default('[]') | safe }};
     const cadenasCount = {{ extra.cadenas | length }};
     let chartInstance = null;
@@ -329,9 +329,9 @@
         if(rango === '7d') limitDate.setDate(limitDate.getDate() - 7);
         if(rango === '30d') limitDate.setDate(limitDate.getDate() - 30);
         
-        let fL = [], fH = [], fT = [], fE = [], fDeltaSec = [];
+        let fL = [], fH = [], fT = [], fA = [], fE = [], fDeltaSec = [];
         let labelLimite = (rango === '7d' || rango === '30d') ? limitDate.toLocaleDateString() + ' ' + limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        fL.push(labelLimite); fH.push(null); fT.push(null); fE.push(null); fDeltaSec.push(30);
+        fL.push(labelLimite); fH.push(null); fT.push(null); fA.push(null); fE.push(null); fDeltaSec.push(30);
 
         for(let i=0; i<rawFechas.length; i++) {
             let d = new Date(rawFechas[i] * 1000); 
@@ -342,6 +342,10 @@
                 fL.push(label); 
                 fH.push(rawHr[i]); 
                 fT.push(rawTemp[i]);
+                
+                // Solo guarda temperatura ambiente si es mayor a 0; de lo contrario null
+                let ambVal = (rawAmb.length > i && rawAmb[i] !== null && rawAmb[i] > 0) ? rawAmb[i] : null;
+                fA.push(ambVal);
                 
                 let errIntervalo = (rawErr.length > i && rawErr[i] !== null) ? rawErr[i] : 0;
                 let deltaS = (i > 0 && (rawFechas[i] - rawFechas[i-1]) > 0 && (rawFechas[i] - rawFechas[i-1]) <= 300) ? (rawFechas[i] - rawFechas[i-1]) : 30;
@@ -355,12 +359,47 @@
         let promEl = document.getElementById('hrPromedio');
         if(promEl) promEl.innerText = 'Promedio: ' + avgHr + ' TH/s';
         
+        // Verifica si este minero realmente reporta Temperatura Ambiente (ej. S21 sí, S19k Pro no)
+        let tieneTempAmbiente = fA.some(v => v !== null && v > 0);
+
+        let datasetsList = [
+            { id: 'hr', label: 'Hashrate (TH/s)', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
+            { id: 'tmax', label: 'Temperatura Max °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: false }
+        ];
+
+        if (tieneTempAmbiente) {
+            datasetsList.push({
+                id: 'tamb',
+                label: 'Temp Ambiente °C',
+                data: fA,
+                borderColor: '#00e676',
+                borderDash: [3, 3],
+                tension: 0.1,
+                pointRadius: 0,
+                borderWidth: 1.5,
+                yAxisID: 'y1',
+                spanGaps: true
+            });
+        }
+
+        datasetsList.push({
+            id: 'err',
+            label: 'Errores HW (Nuevos)',
+            data: fE,
+            deltaSecs: fDeltaSec,
+            borderColor: '#ff5252',
+            backgroundColor: 'rgba(255,82,82,0.2)',
+            fill: true,
+            tension: 0.1,
+            pointRadius: 0,
+            borderWidth: 1.5,
+            yAxisID: 'y2',
+            spanGaps: false
+        });
+
         if(chartInstance) {
             chartInstance.data.labels = fL;
-            chartInstance.data.datasets[0].data = fH;
-            chartInstance.data.datasets[1].data = fT;
-            chartInstance.data.datasets[2].data = fE;
-            chartInstance.data.datasets[2].deltaSecs = fDeltaSec;
+            chartInstance.data.datasets = datasetsList;
             chartInstance.update();
         } else {
             const ctx = document.getElementById('hashrateChart').getContext('2d');
@@ -368,11 +407,7 @@
                 type: 'line', 
                 data: { 
                     labels: fL, 
-                    datasets: [ 
-                        { label: 'Hashrate (TH/s)', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
-                        { label: 'Temperatura Max °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1', spanGaps: false },
-                        { label: 'Errores HW (Nuevos)', data: fE, deltaSecs: fDeltaSec, borderColor: '#ff5252', backgroundColor: 'rgba(255,82,82,0.2)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y2', spanGaps: false }
-                    ]
+                    datasets: datasetsList
                 }, 
                 options: { 
                     responsive: true, maintainAspectRatio: false,
@@ -382,8 +417,9 @@
                             callbacks: { 
                                 title: function(context) { return context[0].label; },
                                 label: function(context) { 
-                                    if(context.datasetIndex === 0) { return '⚡ Hashrate: ' + context.parsed.y + ' TH/s'; } 
-                                    if(context.datasetIndex === 1) { 
+                                    let dsId = context.dataset.id;
+                                    if(dsId === 'hr') { return '⚡ Hashrate: ' + context.parsed.y + ' TH/s'; } 
+                                    if(dsId === 'tmax') { 
                                         let t = context.parsed.y; 
                                         let arr = ['🌡️ Temp Max: ' + t + '°C']; 
                                         for(let c = 0; c < cadenasCount; c++) { 
@@ -391,7 +427,11 @@
                                         } 
                                         return arr; 
                                     }
-                                    if(context.datasetIndex === 2) {
+                                    if(dsId === 'tamb') {
+                                        if (context.parsed.y === null || context.parsed.y <= 0) return null;
+                                        return '🍃 Temp Ambiente: ' + context.parsed.y + '°C';
+                                    }
+                                    if(dsId === 'err') {
                                         let errNuevos = context.parsed.y || 0;
                                         let ds = (context.dataset.deltaSecs && context.dataset.deltaSecs[context.dataIndex]) ? context.dataset.deltaSecs[context.dataIndex] : 30;
                                         let porSegundo = (errNuevos / ds).toFixed(2);
