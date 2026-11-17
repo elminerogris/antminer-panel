@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>El Minero Gris</title>
 <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -7,24 +7,25 @@
     :root[data-theme="dark"] { --bg-body: #14151f; --bg-sidebar: #191a24; --bg-card: #1b1d29; --bg-input: #14151f; --border-color: #292a38; --text-main: #fff; --text-muted: #a5a7b5; --text-sub: #8b8d9b; --accent-blue: #3366ff; --accent-green: #00e676; --accent-red: #ff5252; --hover-bg: #202230; --active-bg: #232533; }
     :root[data-theme="light"] { --bg-body: #f4f5f7; --bg-sidebar: #ffffff; --bg-card: #ffffff; --bg-input: #f4f5f7; --border-color: #e2e8f0; --text-main: #1e293b; --text-muted: #64748b; --text-sub: #94a3b8; --accent-blue: #2563eb; --accent-green: #10b981; --accent-red: #ef4444; --hover-bg: #f8fafc; --active-bg: #f1f5f9; }
     
-    body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; top: 0 !important; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100vh; height: 100dvh; overflow: hidden; top: 0 !important; }
     .skiptranslate iframe { display: none !important; } body { top: 0px !important; } #google_translate_element { display: none; }
     a { text-decoration: none; color: inherit; }
     
     /* SIDEBAR */
-    .sidebar { width: 220px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 1000; transition: transform 0.3s ease; }
+    .sidebar { width: 220px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 1000; transition: transform 0.3s ease; padding-top: env(safe-area-inset-top); box-sizing: border-box; }
     .logo-container { padding: 20px; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); }
     .logo-img { height: 35px; width: auto; object-fit: contain; }
     .logo-text span { color: var(--text-muted); font-weight: normal; }
+    .sidebar-mobile-lang { display: none; padding: 12px 20px; border-bottom: 1px solid var(--border-color); }
     .menu { list-style: none; padding: 15px 0; margin: 0; flex: 1; overflow-y: auto; }
     .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.9em; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
     .menu a:hover { background: var(--hover-bg); color: var(--text-main); }
     .menu a.active { background: var(--active-bg); color: var(--text-main); border-left: 3px solid var(--accent-blue); }
-    .sidebar-bottom { border-top: 1px solid var(--border-color); padding: 15px 20px; font-size: 0.85em; display: flex; flex-direction: column; gap: 10px; }
+    .sidebar-bottom { border-top: 1px solid var(--border-color); padding: 15px 20px; padding-bottom: calc(15px + env(safe-area-inset-bottom)); font-size: 0.85em; display: flex; flex-direction: column; gap: 10px; }
     
     /* TOP BAR Y CONTENIDO */
     .right-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; width: 100%; }
-    .top-bar { height: 60px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+    .top-bar { min-height: 60px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: env(safe-area-inset-top) 20px 0 20px; box-sizing: border-box; }
     .top-bar-left { display: flex; align-items: center; gap: 15px; }
     .top-bar-right { display: flex; align-items: center; gap: 10px; }
     
@@ -37,12 +38,12 @@
     .status-envivo { color: var(--accent-green); display: flex; align-items: center; gap: 6px; }
     .dot-pulse { width: 8px; height: 8px; background: var(--accent-green); border-radius: 50%; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); } }
-    .main-content { flex: 1; padding: 20px; overflow-y: auto; }
+    .main-content { flex: 1; padding: 20px; padding-bottom: calc(80px + env(safe-area-inset-bottom)); overflow-y: auto; overflow-x: hidden; }
     
     /* ELEMENTOS EXCLUSIVOS DE MÓVIL */
-    .btn-menu { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); font-size: 1.2em; cursor: pointer; border-radius: 6px; height: 36px; padding: 0 12px; display: none; align-items: center; justify-content: center; transition: 0.2s; }
+    .btn-menu { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); font-size: 0.95em; font-weight: bold; cursor: pointer; border-radius: 6px; height: 36px; padding: 0 12px; display: none; align-items: center; justify-content: center; transition: 0.2s; white-space: nowrap; }
     .btn-menu:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
-    .logo-top { display: none; align-items: center; gap: 8px; font-weight: bold; font-size: 1.1em; }
+    .logo-top { display: none; align-items: center; gap: 8px; font-weight: bold; font-size: 1.1em; white-space: nowrap; }
     .logo-top img { height: 25px; width: auto; }
     .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999; backdrop-filter: blur(2px); }
     .overlay.active { display: block; }
@@ -54,8 +55,10 @@
         .btn-menu { display: flex; }
         .logo-top { display: flex; }
         .top-lang-select { display: none; }
+        .sidebar-mobile-lang { display: block; }
         .top-status { display: none; }
         .btn-sync span { display: none; } /* Oculta el texto "Escanear Red", deja solo el ícono 🔄 para ahorrar espacio */
+        .main-content { padding: 15px 10px; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
     }
 </style>
 </head>
@@ -71,6 +74,23 @@
             <img src="/static/logo.png" alt="Logo" class="logo-img" onerror="this.outerHTML='<span style=\'font-size:1.5em;\'>⛏️</span>'">
             <div class="logo-text" translate="no">El Minero <span>Gris</span></div>
         </div>
+        
+        <!-- Selector de los 10 idiomas para Celular (dentro del menú lateral) -->
+        <div class="sidebar-mobile-lang">
+            <select class="top-lang-select" id="langSelectorMobile" style="width:100%; display:flex;" onchange="cambiarIdioma(this.value)">
+                <option value="es">🌐 Español</option>
+                <option value="en">🌐 English</option>
+                <option value="zh-CN">🌐 中文 (Chino)</option>
+                <option value="hi">🌐 हिन्दी (Hindi)</option>
+                <option value="ar">🌐 العربية (Árabe)</option>
+                <option value="pt">🌐 Português</option>
+                <option value="bn">🌐 বাংলা (Bengalí)</option>
+                <option value="ru">🌐 Русский (Ruso)</option>
+                <option value="fr">🌐 Français</option>
+                <option value="de">🌐 Deutsch</option>
+            </select>
+        </div>
+
         <div class="menu">
             <a href="/" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
             <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a>
@@ -98,11 +118,20 @@
                 <button class="top-btn btn-sync" onclick="escanearRed()" id="btnSync">🔄 <span>Escanear Red</span></button>
             </div>
             
-            <!-- Derecha: Tema, Reloj, Idioma -->
+            <!-- Derecha: Tema, Idioma (10 idiomas), Reloj -->
             <div class="top-bar-right">
                 <button class="top-btn" onclick="toggleTheme()" id="themeIcon">☀️</button>
                 <select class="top-lang-select" id="langSelector" onchange="cambiarIdioma(this.value)">
-                    <option value="es">🌐 Español</option><option value="en">🌐 English</option>
+                    <option value="es">🌐 Español</option>
+                    <option value="en">🌐 English</option>
+                    <option value="zh-CN">🌐 中文 (Chino)</option>
+                    <option value="hi">🌐 हिन्दी (Hindi)</option>
+                    <option value="ar">🌐 العربية (Árabe)</option>
+                    <option value="pt">🌐 Português</option>
+                    <option value="bn">🌐 বাংলা (Bengalí)</option>
+                    <option value="ru">🌐 Русский (Ruso)</option>
+                    <option value="fr">🌐 Français</option>
+                    <option value="de">🌐 Deutsch</option>
                 </select>
                 <div class="top-status">
                     <span id="relojTop" translate="no">00:00</span>
@@ -125,7 +154,14 @@
 
         function escanearRed() { let b = document.getElementById('btnSync'); b.innerHTML = '⏳ <span>Escaneando...</span>'; b.style.pointerEvents = 'none'; fetch('/cmd/all/scan').then(() => { setTimeout(() => { window.location.reload(); }, 1500); }); }
         function googleTranslateElementInit() { new google.translate.TranslateElement({pageLanguage: 'es', autoDisplay: false}, 'google_translate_element'); }
-        function cambiarIdioma(lang) { let s = document.querySelector(".goog-te-combo"); if(s){ s.value = lang; s.dispatchEvent(new Event("change")); } }
+        function cambiarIdioma(lang) {
+            let s = document.querySelector(".goog-te-combo");
+            if (s) { s.value = lang; s.dispatchEvent(new Event("change")); }
+            let d = document.getElementById('langSelector');
+            let m = document.getElementById('langSelectorMobile');
+            if (d) d.value = lang;
+            if (m) m.value = lang;
+        }
         function actualizarReloj() { const d = new Date(); document.getElementById('relojTop').innerText = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0'); }
         setInterval(actualizarReloj, 1000); actualizarReloj();
         function toggleTheme() { const h = document.documentElement, i = document.getElementById('themeIcon'); if (h.getAttribute('data-theme') === 'dark') { h.setAttribute('data-theme', 'light'); i.innerText = '🌙'; } else { h.setAttribute('data-theme', 'dark'); i.innerText = '☀️'; } }
