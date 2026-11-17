@@ -27,13 +27,25 @@
     .grid-4 .card .val{font-size:1.5em;font-weight:bold;margin-top:10px;color:var(--accent-blue)}
     .panel-title{font-weight:bold;margin-bottom:15px;display:flex;align-items:center;justify-content:space-between;font-size:1.1em; flex-wrap:wrap; gap:10px;}
     .pools-header{font-weight:bold;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;font-size:1.1em;flex-wrap:nowrap;gap:10px;border-bottom:1px solid var(--border-color);}
-    .btn-control{background:transparent;border:1px solid var(--border-color);color:var(--text-main);padding:8px 15px;border-radius:20px;cursor:pointer;font-weight:bold;transition:0.2s;font-size:0.85em;display:flex;align-items:center;gap:6px}
-    .btn-control:hover{border-color:var(--accent-blue)}
+    
+    /* Cuadrícula cuadrada para el Panel de Control */
+    .control-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px;}
+    .btn-control{background:rgba(255,255,255,0.02);border:1px solid var(--border-color);color:var(--text-main);padding:14px 12px;border-radius:8px;cursor:pointer;font-weight:bold;transition:0.2s;font-size:0.85em;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;}
+    .btn-control:hover{border-color:var(--accent-blue);background:var(--hover-bg);}
     .btn-control.active{background:rgba(51,102,255,0.1);color:var(--accent-blue);border-color:var(--accent-blue)}
+    
+    /* Estilos para la tarjeta de Configuración de Red (IP) */
+    .net-form-row{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:10px;padding:8px 20px;border-bottom:1px solid var(--border-color);font-size:0.85em;}
+    .net-form-row:last-child{border-bottom:none;}
+    .net-label{color:var(--text-muted);font-weight:bold;}
+    .net-info-box{font-family:monospace;font-size:0.9em;color:var(--text-sub);line-height:1.5;}
+    .select-net{background:var(--bg-input);border:1px solid var(--border-color);color:var(--text-main);padding:8px 10px;width:100%;font-size:0.95em;outline:none;border-radius:4px;box-sizing:border-box;}
+
     .chart-filters{display:flex;gap:5px; flex-wrap:wrap;}
     .btn-filter{background:transparent;border:1px solid var(--border-color);color:var(--text-muted);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:0.8em;font-weight:bold}
     .btn-filter.active{background:rgba(51,102,255,0.1);color:var(--accent-blue);border-color:var(--accent-blue)}
-    .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+    .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:20px;}
+    .grid-2 .card{margin-bottom:0;display:flex;flex-direction:column;justify-content:space-between;}
     .table-responsive{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%; border-radius:6px;}
     .info-table{width:100%; min-width:480px; border-collapse:collapse;white-space:nowrap;}
     .info-table th{padding:10px; border-bottom:1px solid var(--border-color); color:var(--text-muted); font-size:0.75em; text-transform:uppercase; text-align:left;}
@@ -43,9 +55,10 @@
     .info-device td:nth-child(2){text-align:right;color:var(--text-muted);}
     .input-pool{background:rgba(255,255,255,0.05);border:1px solid var(--border-color);color:var(--text-main);padding:8px 10px;width:100%;font-family:monospace;font-size:0.95em;outline:none;border-radius:4px;box-sizing:border-box}
     .input-pool:focus{border-color:var(--accent-blue);}
+    .input-pool:disabled{opacity:0.45;cursor:not-allowed;}
     .btn-guardar{background:rgba(51,102,255,0.1);border:1px solid var(--accent-blue);color:var(--accent-blue);cursor:pointer;font-weight:bold;padding:8px 14px;border-radius:4px;transition:0.2s;white-space:nowrap;flex-shrink:0;}
     .btn-guardar:hover{background:var(--accent-blue);color:#fff;}
-    .terminal{background:#000;color:#00e676;padding:15px;border-radius:6px;font-family:monospace;font-size:0.85em;height:300px;overflow-y:scroll;border:1px solid #333;margin-top:20px;display:none;white-space:pre-wrap}
+    .terminal{background:#000;color:#00e676;padding:15px;border-radius:6px;font-family:monospace;font-size:0.85em;height:260px;overflow-y:scroll;border:1px solid #333;margin-top:15px;display:none;white-space:pre-wrap}
 
     .confirm-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); z-index: 2000; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; backdrop-filter: blur(2px); }
     .confirm-modal-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 24px; max-width: 360px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; }
@@ -105,22 +118,70 @@
     <div class="card"><h4>Temp Max</h4><div class="val" style="color:var(--accent-green);" translate="no">{{ ultimo.temp_max }}°C</div></div>
 </div>
 
-<div class="card" style="padding:20px;">
-    <div class="panel-title" style="justify-content: flex-start;">⚡ Perfiles de Energía</div>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
-        <button class="btn-control" style="color:var(--accent-green); border-color:var(--accent-green);" onclick="pedirConfirmacion('❄️ Perfil Invierno (Eco)', '¿Deseas activar el perfil de bajo consumo (Invierno / Eco) en este minero?', 'profile_low', false)">❄️ Invierno (Eco)</button>
-        <button class="btn-control" style="color:var(--accent-red); border-color:var(--accent-red);" onclick="pedirConfirmacion('🔥 Perfil Verano (Max)', '¿Deseas activar el perfil de máxima potencia (Verano / Max) en este minero?', 'profile_high', false)">🔥 Verano (Max)</button>
+<!-- Fila cuadrada de 2 columnas: Panel de Control (Izquierda) y Configuración IP (Derecha) -->
+<div class="grid-2">
+    <div class="card">
+        <div>
+            <div class="panel-title" style="justify-content: flex-start;">🛠️ Panel de control</div>
+            <p style="color:var(--text-muted); font-size:0.82em; margin-top:0; margin-bottom:15px;">Acciones operativas directas sobre el minero.</p>
+            <div class="control-grid">
+                <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="pedirConfirmacion('🔄 Reiniciar Minero', '¿Estás seguro de que deseas reiniciar el minero ahora?', 'restart', true)">🔄 Reiniciar</button>
+                <button class="btn-control" onclick="pedirConfirmacion('😴 Modo Reposo', '¿Deseas poner el minero en modo Reposo (Sleep)? Detendrá el minado.', 'sleep', true)">😴 Reposo</button>
+                <button class="btn-control active" onclick="pedirConfirmacion('▶ Modo Normal', '¿Deseas reanudar la operación del minero en modo Normal?', 'normal', true)">▶ Normal</button>
+                <button class="btn-control" style="color:gold; border-color:gold;" onclick="pedirConfirmacion('💡 Parpadear LED', '¿Deseas activar o desactivar el parpadeo del LED localizador en este minero?', 'blink', false)">💡 Parpadear LED</button>
+                <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="pedirConfirmacion('🖥️ Ver Logs', '¿Deseas solicitar los registros del sistema (Logs) al minero?', 'logs', false)">🖥️ Ver Logs</button>
+                <button class="btn-control" style="color:#ff9100; border-color:#ff9100;" onclick="pedirConfirmacion('⚠️ Restablecer Minero', '¿Estás seguro de que deseas formatear y restablecer este minero a sus valores de fábrica?', 'reset', true)">⚠️ Restablecer</button>
+            </div>
+        </div>
+        <div id="terminal-box" class="terminal">Esperando logs...</div>
     </div>
-    <div class="panel-title" style="justify-content: flex-start;">🛠️ Panel de control</div>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="pedirConfirmacion('🔄 Reiniciar Minero', '¿Estás seguro de que deseas reiniciar el minero ahora?', 'restart', true)">🔄 Reiniciar</button>
-        <button class="btn-control" onclick="pedirConfirmacion('😴 Modo Reposo', '¿Deseas poner el minero en modo Reposo (Sleep)? Detendrá el minado.', 'sleep', true)">😴 Reposo</button>
-        <button class="btn-control active" onclick="pedirConfirmacion('▶ Modo Normal', '¿Deseas reanudar la operación del minero en modo Normal?', 'normal', true)">▶ Normal</button>
-        <button class="btn-control" style="color:gold; border-color:gold;" onclick="pedirConfirmacion('💡 Parpadear LED', '¿Deseas activar o desactivar el parpadeo del LED localizador en este minero?', 'blink', false)">💡 Parpadear LED</button>
-        <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="pedirConfirmacion('🖥️ Ver Logs', '¿Deseas solicitar los registros del sistema (Logs) al minero?', 'logs', false)">🖥️ Ver Logs</button>
-        <button class="btn-control" style="color:#ff9100; border-color:#ff9100;" onclick="pedirConfirmacion('⚠️ Restablecer Minero', '¿Estás seguro de que deseas restablecer este minero a sus valores de fábrica?', 'reset', true)">⚠️ Restablecer</button>
+
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div class="pools-header">
+            <span>🌐 Configuración IP</span>
+            <button class="btn-guardar" onclick="confirmarCambioIP()">💾 Guardar IP</button>
+        </div>
+        <div>
+            <div class="net-form-row">
+                <div class="net-label">Info Red</div>
+                <div class="net-info-box" translate="no">
+                    eth0<br>
+                    [MAC] {{ extra.mac }}<br>
+                    [IP] {{ ip }}<br>
+                    [Sub] {{ extra.netmask }}
+                </div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">Hostname</div>
+                <div><input type="text" id="net_host" value="{{ extra.hostname }}" class="input-pool" translate="no"></div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">Protocolo</div>
+                <div>
+                    <select id="net_proto" class="select-net" onchange="toggleCamposIP()" translate="no">
+                        <option value="2" {{ 'selected' if extra.net_proto == 'Static' else '' }}>Static</option>
+                        <option value="1" {{ 'selected' if extra.net_proto == 'DHCP' else '' }}>DHCP</option>
+                    </select>
+                </div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">Dirección IP</div>
+                <div><input type="text" id="net_ip" value="{{ ip }}" class="input-pool" translate="no"></div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">Máscara Subred</div>
+                <div><input type="text" id="net_mask" value="{{ extra.netmask }}" class="input-pool" translate="no"></div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">Gateway</div>
+                <div><input type="text" id="net_gw" value="{{ extra.gateway }}" class="input-pool" translate="no"></div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">DNS</div>
+                <div><input type="text" id="net_dns" value="{{ extra.dns }}" class="input-pool" translate="no"></div>
+            </div>
+        </div>
     </div>
-    <div id="terminal-box" class="terminal">Esperando logs...</div>
 </div>
 
 <div class="card">
@@ -231,6 +292,22 @@
     let comandoPendiente = null;
     let recargarPendiente = false;
 
+    function toggleCamposIP() {
+        let esDhcp = document.getElementById('net_proto').value === '1';
+        ['net_ip', 'net_mask', 'net_gw', 'net_dns'].forEach(id => {
+            document.getElementById(id).disabled = esDhcp;
+        });
+    }
+
+    function confirmarCambioIP() {
+        let proto = document.getElementById('net_proto').value;
+        let nuevaIp = document.getElementById('net_ip').value.trim();
+        let msg = proto === '1' 
+            ? '¿Deseas cambiar la configuración de red a modo DHCP automático?' 
+            : `¿Estás seguro de asignar la IP estática ${nuevaIp} a este minero?`;
+        pedirConfirmacion('🌐 Guardar Configuración IP', msg, 'guardar_red', false);
+    }
+
     function pedirConfirmacion(titulo, texto, comando, recargar) {
         comandoPendiente = comando;
         recargarPendiente = recargar;
@@ -252,6 +329,15 @@
 
         if (cmd === 'logs') {
             solicitarLogs();
+        } else if (cmd === 'guardar_red') {
+            let host = encodeURIComponent(document.getElementById('net_host').value.trim());
+            let proto = encodeURIComponent(document.getElementById('net_proto').value);
+            let nip = encodeURIComponent(document.getElementById('net_ip').value.trim());
+            let mask = encodeURIComponent(document.getElementById('net_mask').value.trim());
+            let gw = encodeURIComponent(document.getElementById('net_gw').value.trim());
+            let dns = encodeURIComponent(document.getElementById('net_dns').value.trim());
+            fetch(`/cmd/{{ ip }}/set_network?host=${host}&proto=${proto}&nip=${nip}&mask=${mask}&gw=${gw}&dns=${dns}`)
+                .then(() => alert('Configuración de red enviada a la cola del Agente.'));
         } else {
             fetch('/cmd/{{ ip }}/' + cmd).then(() => {
                 if (rec) {
@@ -459,6 +545,9 @@
             });
         }
     }
-    window.onload = function() { updateChart('24h'); };
+    window.onload = function() {
+        toggleCamposIP();
+        updateChart('24h');
+    };
 </script>
 {% endblock %}
