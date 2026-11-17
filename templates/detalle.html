@@ -316,7 +316,9 @@
     const rawTemp = {{ graf_temps | safe }};
     const rawAmb = {{ graf_temp_amb | default('[]') | safe }};
     const rawErr = {{ graf_errores | default('[]') | safe }};
-    const cadenasCount = {{ extra.cadenas | length }};
+    const rawCadHist = {{ graf_cadenas_hist | default('[]') | safe }};
+    const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
+    const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
     let chartInstance = null;
     
     function updateChart(rango) {
@@ -329,9 +331,9 @@
         if(rango === '7d') limitDate.setDate(limitDate.getDate() - 7);
         if(rango === '30d') limitDate.setDate(limitDate.getDate() - 30);
         
-        let fL = [], fH = [], fT = [], fA = [], fE = [], fDeltaSec = [];
+        let fL = [], fH = [], fT = [], fA = [], fE = [], fDeltaSec = [], fCads = [];
         let labelLimite = (rango === '7d' || rango === '30d') ? limitDate.toLocaleDateString() + ' ' + limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        fL.push(labelLimite); fH.push(null); fT.push(null); fA.push(null); fE.push(null); fDeltaSec.push(30);
+        fL.push(labelLimite); fH.push(null); fT.push(null); fA.push(null); fE.push(null); fDeltaSec.push(30); fCads.push([]);
 
         for(let i=0; i<rawFechas.length; i++) {
             let d = new Date(rawFechas[i] * 1000); 
@@ -343,14 +345,17 @@
                 fH.push(rawHr[i]); 
                 fT.push(rawTemp[i]);
                 
-                // Solo guarda temperatura ambiente si es mayor a 0; de lo contrario null
                 let ambVal = (rawAmb.length > i && rawAmb[i] !== null && rawAmb[i] > 0) ? rawAmb[i] : null;
+                if (ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) {
+                    ambVal = tempAmbActual;
+                }
                 fA.push(ambVal);
                 
                 let errIntervalo = (rawErr.length > i && rawErr[i] !== null) ? rawErr[i] : 0;
                 let deltaS = (i > 0 && (rawFechas[i] - rawFechas[i-1]) > 0 && (rawFechas[i] - rawFechas[i-1]) <= 300) ? (rawFechas[i] - rawFechas[i-1]) : 30;
                 fE.push(errIntervalo);
                 fDeltaSec.push(deltaS);
+                fCads.push((rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales);
             }
         }
         
@@ -359,12 +364,11 @@
         let promEl = document.getElementById('hrPromedio');
         if(promEl) promEl.innerText = 'Promedio: ' + avgHr + ' TH/s';
         
-        // Verifica si este minero realmente reporta Temperatura Ambiente (ej. S21 sí, S19k Pro no)
-        let tieneTempAmbiente = fA.some(v => v !== null && v > 0);
+        let tieneTempAmbiente = fA.some(v => v !== null && v > 0) || (tempAmbActual > 0);
 
         let datasetsList = [
             { id: 'hr', label: 'Hashrate (TH/s)', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
-            { id: 'tmax', label: 'Temperatura Max °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: false }
+            { id: 'tmax', label: 'Temperatura Max °C', data: fT, cadsHist: fCads, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: false }
         ];
 
         if (tieneTempAmbiente) {
@@ -421,15 +425,19 @@
                                     if(dsId === 'hr') { return '⚡ Hashrate: ' + context.parsed.y + ' TH/s'; } 
                                     if(dsId === 'tmax') { 
                                         let t = context.parsed.y; 
-                                        let arr = ['🌡️ Temp Max: ' + t + '°C']; 
-                                        for(let c = 0; c < cadenasCount; c++) { 
-                                            arr.push('   Placa #' + c + ' -> Chip: ' + Math.max(0,t-(c*1)) + '°C | PCB: ' + Math.max(0,t-(5+c)) + '°C'); 
-                                        } 
+                                        let arr = ['🌡️ Temp Max: ' + t + '°C'];
+                                        let cads = (context.dataset.cadsHist && context.dataset.cadsHist[context.dataIndex]) ? context.dataset.cadsHist[context.dataIndex] : cadenasActuales;
+                                        if (cads && cads.length > 0) {
+                                            for(let c = 0; c < cads.length; c++) {
+                                                arr.push('   Placa #' + cads[c].id + ' -> Chip: ' + cads[c].temp_c + '°C | PCB: ' + cads[c].temp_p + '°C');
+                                            }
+                                        }
                                         return arr; 
                                     }
                                     if(dsId === 'tamb') {
-                                        if (context.parsed.y === null || context.parsed.y <= 0) return null;
-                                        return '🍃 Temp Ambiente: ' + context.parsed.y + '°C';
+                                        let valA = context.parsed.y || tempAmbActual;
+                                        if (!valA || valA <= 0) return null;
+                                        return '🍃 Temp Ambiente: ' + valA + '°C';
                                     }
                                     if(dsId === 'err') {
                                         let errNuevos = context.parsed.y || 0;
