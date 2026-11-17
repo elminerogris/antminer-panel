@@ -5,14 +5,20 @@
     .header-detalle{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px; flex-wrap: wrap; gap:10px;}
     .btn-volver{color:var(--text-muted);font-size:1.2em;font-weight:bold;margin-top:4px;}
     .titulo-minero{margin:0;font-size:1.4em;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-    .subtitulo-modelo{font-size:0.9em; color:var(--text-muted); font-weight:normal; margin-top:4px; margin-left:22px;}
+    .subtitulo-modelo{font-size:0.9em; color:var(--text-muted); font-weight:normal; margin-top:4px; margin-left:22px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
     
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
     .dot-online { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
     .dot-offline { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
     
-    .btn-edit-name { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 0.65em; transition: 0.2s; display: inline-flex; align-items: center; gap: 4px; }
+    .btn-edit-name { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.65em; transition: 0.2s; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; }
     .btn-edit-name:hover { border-color: var(--accent-blue); color: var(--text-main); }
+    
+    /* Edición de nombre en el mismo lugar (Inline) */
+    .inline-edit-form { display: none; align-items: center; gap: 6px; margin: 0; }
+    .input-inline-name { background: var(--bg-input); border: 1px solid var(--accent-blue); color: var(--text-main); padding: 4px 10px; border-radius: 6px; font-size: 0.85em; font-weight: bold; width: 160px; outline: none; }
+    .btn-inline-save { background: var(--accent-blue); color: #fff; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.65em; font-weight: bold; cursor: pointer; }
+    .btn-inline-cancel { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 6px; padding: 4px 8px; font-size: 0.65em; cursor: pointer; }
 
     .status-banner{background:rgba(255,82,82,0.1);border:1px solid var(--accent-red);padding:15px;border-radius:8px;color:var(--text-main);font-size:0.9em;margin-bottom:20px;display:{{ 'block' if offline else 'none' }}}
     .status-banner span{color:var(--accent-red);font-weight:bold}
@@ -49,17 +55,27 @@
         <div>
             <h2 class="titulo-minero">
                 <span class="status-dot {{ 'dot-offline' if offline else 'dot-online' }}"></span>
-                <span translate="no">{{ nombre }}</span>
-                <span style="font-size:0.65em; color:var(--text-muted); font-weight:normal;" translate="no">({{ ip }})</span>
-                <button type="button" class="btn-edit-name" onclick="editarNombre()">✏️ Editar</button>
+                
+                <!-- Vista normal del nombre -->
+                <span id="textoNombreMinero" translate="no">{{ nombre }}</span>
+                <button type="button" id="btnEditarNombre" class="btn-edit-name" onclick="mostrarEdicionNombre()">✏️ Editar</button>
+                
+                <!-- Formulario inline en el mismo lugar -->
+                <form id="formNombreInline" class="inline-edit-form" action="/guardar_nombre" method="POST">
+                    <input type="hidden" name="ip" value="{{ ip }}">
+                    <input type="text" name="nombre" id="inputNombreInline" class="input-inline-name" value="{{ nombre }}" required>
+                    <button type="submit" class="btn-inline-save">💾 Guardar</button>
+                    <button type="button" class="btn-inline-cancel" onclick="cancelarEdicionNombre()">✖</button>
+                </form>
             </h2>
-            <div class="subtitulo-modelo" translate="no">{{ modelo }}</div>
+            <!-- Modelo e IP en la misma fila con el mismo formato -->
+            <div class="subtitulo-modelo" translate="no">
+                <span>{{ modelo }}</span>
+                <span>·</span>
+                <span>{{ ip }}</span>
+            </div>
         </div>
     </div>
-    <form id="formNombre" action="/guardar_nombre" method="POST" style="display:none;">
-        <input type="hidden" name="ip" value="{{ ip }}">
-        <input type="hidden" name="nombre" id="inputNombreOculto" value="{{ nombre }}">
-    </form>
 </div>
 
 <div class="status-banner"><span>⛔ Este minero está sin conexión</span> (visto {{ ultimo.uptime }}). Datos históricos.</div>
@@ -193,6 +209,22 @@
 </div>
 
 <script>
+    function mostrarEdicionNombre() {
+        document.getElementById('textoNombreMinero').style.display = 'none';
+        document.getElementById('btnEditarNombre').style.display = 'none';
+        let form = document.getElementById('formNombreInline');
+        form.style.display = 'inline-flex';
+        let input = document.getElementById('inputNombreInline');
+        input.focus();
+        input.select();
+    }
+
+    function cancelarEdicionNombre() {
+        document.getElementById('formNombreInline').style.display = 'none';
+        document.getElementById('textoNombreMinero').style.display = 'inline';
+        document.getElementById('btnEditarNombre').style.display = 'inline-flex';
+    }
+
     function sincronizarWorker(valor) {
         let u2 = document.getElementById('user_2');
         let u3 = document.getElementById('user_3');
@@ -205,15 +237,6 @@
         let p3 = document.getElementById('pass_3');
         if (p2) p2.value = valor;
         if (p3) p3.value = valor;
-    }
-
-    function editarNombre() {
-        let actual = "{{ nombre }}";
-        let nuevo = prompt("Ingresa el nuevo nombre para este minero:", actual);
-        if (nuevo !== null && nuevo.trim() !== "") {
-            document.getElementById('inputNombreOculto').value = nuevo.trim();
-            document.getElementById('formNombre').submit();
-        }
     }
 
     function solicitarLogs() { let tb = document.getElementById('terminal-box'); tb.style.display = 'block'; tb.innerText = 'Solicitando logs al agente...'; fetch('/cmd/{{ ip }}/get_log').then(() => { setInterval(async () => { let r = await fetch('/api/ver_log/{{ ip }}'); let txt = await r.text(); if(txt.length > 5) { tb.innerText = txt; tb.scrollTop = tb.scrollHeight; } }, 3000); }); }
