@@ -30,10 +30,11 @@
     .btn-filter.active{background:rgba(51,102,255,0.1);color:var(--accent-blue);border-color:var(--accent-blue)}
     .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
     .table-responsive{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%; border-radius:6px;}
-    .info-table{width:100%; min-width:550px; border-collapse:collapse;white-space:nowrap;}
+    .info-table{width:100%; min-width:480px; border-collapse:collapse;white-space:nowrap;}
     .info-table th{padding:10px; border-bottom:1px solid var(--border-color); color:var(--text-muted); font-size:0.75em; text-transform:uppercase; text-align:left;}
     .info-table td{padding:12px 10px;border-bottom:1px solid var(--border-color);font-size:0.85em}
     .info-table td:nth-child(1){color:var(--text-main);font-weight:bold;}
+    .info-device{min-width:100% !important;}
     .info-device td:nth-child(2){text-align:right;color:var(--text-muted);}
     .input-pool{background:rgba(255,255,255,0.05);border:1px solid var(--border-color);color:var(--text-main);padding:8px 10px;width:100%;font-family:monospace;font-size:0.95em;outline:none;border-radius:4px;box-sizing:border-box}
     .input-pool:focus{border-color:var(--accent-blue);}
@@ -102,13 +103,26 @@
 
 <div class="grid-2">
     <div class="card" style="padding:0; overflow:hidden;">
-        <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">🌡️ Temperaturas de cadena</div>
+        <div class="panel-title" style="padding: 20px 20px 0 20px; justify-content: flex-start;">🎛️ Placas de Hash</div>
         <div class="table-responsive">
-            <table class="info-table info-device">
+            <table class="info-table">
+                <tr>
+                    <th>Placa</th>
+                    <th>Hashrate</th>
+                    <th translate="no">chipNum</th>
+                    <th translate="no">hwNum</th>
+                    <th>Temperaturas</th>
+                </tr>
                 {% for c in extra.cadenas %}
                 <tr>
-                    <td>Cadena {{ c.id }} <span style="font-weight:normal; color:var(--text-muted); font-size:0.8em; margin-left:10px;">{{ ultimo.hashrate_c0 }} TH/s</span></td>
-                    <td>Chip <span style="color:var(--accent-blue); font-weight:bold;">{{ c.temp_c }}°C</span> &nbsp;&nbsp; PCB <span style="color:var(--accent-green); font-weight:bold;">{{ c.temp_p }}°C</span></td>
+                    <td>#{{ c.id }}</td>
+                    <td translate="no">{{ c.hr if c.hr is defined and c.hr > 0 else ultimo.hashrate_c0 }} TH/s</td>
+                    <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ c.chips if c.chips is defined else '-' }}</td>
+                    <td style="color:{{ 'var(--accent-red)' if (c.hw is defined and c.hw > 0) else 'var(--text-muted)' }}; font-weight:bold;" translate="no">{{ c.hw if c.hw is defined else 0 }}</td>
+                    <td translate="no">
+                        Chip <span style="color:var(--accent-blue); font-weight:bold;">{{ c.temp_c }}°C</span> &nbsp;|&nbsp;
+                        PCB <span style="color:var(--accent-green); font-weight:bold;">{{ c.temp_p }}°C</span>
+                    </td>
                 </tr>
                 {% endfor %}
             </table>
@@ -137,7 +151,7 @@
         <button class="btn-guardar" onclick="guardarTodasPools()">💾 Guardar Todos los Pools</button>
     </div>
     <div class="table-responsive">
-        <table class="info-table">
+        <table class="info-table" style="min-width:550px;">
             <tr>
                 <th>#</th>
                 <th>Pool URL</th>
@@ -284,7 +298,7 @@
                                         let t = context.parsed.y; 
                                         let arr = ['🌡️ Temp Max: ' + t + '°C']; 
                                         for(let c = 0; c < cadenasCount; c++) { 
-                                            arr.push('   Cadena ' + c + ' -> Chip: ' + Math.max(0,t-(c*1)) + '°C | PCB: ' + Math.max(0,t-(5+c)) + '°C'); 
+                                            arr.push('   Placa #' + c + ' -> Chip: ' + Math.max(0,t-(c*1)) + '°C | PCB: ' + Math.max(0,t-(5+c)) + '°C'); 
                                         } 
                                         return arr; 
                                     } 
