@@ -93,19 +93,21 @@ def obtener_datos_red():
 def index():
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos")
+    cur.execute("SELECT * FROM mineros_activos ORDER BY ip ASC")
     mineros = cur.fetchall()
     cur.execute("SELECT * FROM nombres_mineros")
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
     con.close()
     
     datos_red = obtener_datos_red()
-    registros, en_linea, offline, ht, cw, tm, ig = [], 0, 0, 0.0, 0.0, 0, 0.0
+    registros, en_linea, offline = [], 0, 0
+    ht, kt, gt, cw, tm, ig = 0.0, 0.0, 0.0, 0.0, 0, 0.0
     
     for m in mineros:
         ip = m['ip']
         mod = m['modelo']
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
+        unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
         nombre_custom = nombres_dict.get(ip, ip.split('.')[-1])
         ult = m['ultima_act'] if m['ultima_act'] else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         hr = float(m['hashrate']) if m['hashrate'] else 0.0
@@ -119,15 +121,19 @@ def index():
         if segs_desconectado < 180:
             en_linea += 1
             if unidad == 'TH/s': ht += hr
+            elif unidad == 'kSol/s': kt += hr
+            elif unidad == 'GH/s': gt += hr
+            
             cw += c; tm = max(tm, t)
             if unidad == 'TH/s' and datos_red['dificultad_t'] > 0:
                 b = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)
                 ib = b * datos_red['precio']; ig += ib
+                str_gan = f"-USD {abs(ib):.2f}" if ib < 0 else f"{ib:.2f} USD"
             else:
-                ib = 0.0
-            str_gan = f"-USD {abs(ib):.2f}" if ib < 0 else f"{ib:.2f} USD"
+                str_gan = "Pool Externa"
+                
             registros.append({
-                'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad,
+                'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad, 'unidad_efi': unidad_efi,
                 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 
                 'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr, 
                 'hashrate_30m': float(m.get('hashrate_30m', hr)), 
@@ -137,14 +143,17 @@ def index():
         else:
             offline += 1
             registros.append({
-                'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad,
+                'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad, 'unidad_efi': unidad_efi,
                 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 
                 'tiempo_act': 'Offline', 'hashrate': 0, 'hashrate_30m': 0, 'temp_num': 0, 
                 'consumo_kw': '0.0 kW', 'eficiencia': 0, 'ganancia_neta': "USD 0.00"
             })
             
     flota = {
-        'hashrate_total': round(ht, 1), 'consumo_w_total': round(cw, 0), 
+        'hashrate_total': round(ht, 1),
+        'ksol_total': round(kt, 1),
+        'ghs_total': round(gt, 1),
+        'consumo_w_total': round(cw, 0), 
         'consumo_kw': round(cw/1000, 1), 'temp_max': tm, 
         'precio_btc_raw': datos_red['precio'],
         'precio_btc': f"{datos_red['precio']:,.2f}", 
