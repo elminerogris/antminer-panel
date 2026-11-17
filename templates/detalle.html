@@ -28,13 +28,11 @@
     .panel-title{font-weight:bold;margin-bottom:15px;display:flex;align-items:center;justify-content:space-between;font-size:1.1em; flex-wrap:wrap; gap:10px;}
     .pools-header{font-weight:bold;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;font-size:1.1em;flex-wrap:nowrap;gap:10px;border-bottom:1px solid var(--border-color);}
     
-    /* Cuadrícula cuadrada para el Panel de Control */
     .control-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px;}
     .btn-control{background:rgba(255,255,255,0.02);border:1px solid var(--border-color);color:var(--text-main);padding:14px 12px;border-radius:8px;cursor:pointer;font-weight:bold;transition:0.2s;font-size:0.85em;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;box-sizing:border-box;}
     .btn-control:hover{border-color:var(--accent-blue);background:var(--hover-bg);}
     .btn-control.active{background:rgba(51,102,255,0.1);color:var(--accent-blue);border-color:var(--accent-blue)}
     
-    /* Barra de herramientas y pestañas de la Terminal de Logs */
     .terminal-wrapper{display:none;margin-top:15px;border:1px solid #333;border-radius:6px;overflow:hidden;background:#0a0a0f;}
     .terminal-header{background:#14151f;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333;flex-wrap:wrap;gap:8px;}
     .terminal-tabs{display:flex;gap:6px;flex-wrap:wrap;}
@@ -47,7 +45,6 @@
     .btn-log-close:hover{border-color:var(--accent-red);color:var(--accent-red);}
     .terminal{background:#000;color:#00e676;padding:15px;font-family:monospace;font-size:0.82em;height:240px;overflow-y:scroll;white-space:pre-wrap;margin:0;}
 
-    /* Estilos para la tarjeta de Configuración de Red (IP) */
     .net-form-row{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:10px;padding:8px 20px;border-bottom:1px solid var(--border-color);font-size:0.85em;}
     .net-form-row:last-child{border-bottom:none;}
     .net-label{color:var(--text-muted);font-weight:bold;}
@@ -124,8 +121,8 @@
 <div class="status-banner"><span>⛔ Este minero está sin conexión</span> (visto {{ ultimo.uptime }}). Datos históricos.</div>
 
 <div class="grid-4">
-    <div class="card"><h4>Hashrate (5s)</h4><div class="val" translate="no">{{ ultimo.hashrate }} TH/s</div></div>
-    <div class="card"><h4>Hashrate (30m)</h4><div class="val" translate="no">{{ ultimo.hashrate_30m }} TH/s</div></div>
+    <div class="card"><h4>Hashrate (5s)</h4><div class="val" translate="no">{{ ultimo.hashrate }} {{ ultimo.unidad }}</div></div>
+    <div class="card"><h4>Hashrate (30m)</h4><div class="val" translate="no">{{ ultimo.hashrate_30m }} {{ ultimo.unidad }}</div></div>
     <div class="card"><h4>Errores HW</h4><div class="val" translate="no">{{ ultimo.errores }}</div></div>
     <div class="card"><h4>Consumo</h4><div class="val" translate="no">{{ ultimo.consumo }}</div></div>
     <div class="card"><h4>Temp Max</h4><div class="val" style="color:var(--accent-green);" translate="no">{{ ultimo.temp_max }}°C</div></div>
@@ -147,7 +144,6 @@
             </div>
         </div>
         
-        <!-- Terminal con selector de tipos de Log, Copiar y Cerrar -->
         <div id="terminal-wrapper" class="terminal-wrapper">
             <div class="terminal-header">
                 <div class="terminal-tabs">
@@ -180,7 +176,7 @@
                 {% for c in extra.cadenas %}
                 <tr>
                     <td>#{{ c.id }}</td>
-                    <td translate="no">{{ c.hr if c.hr is defined and c.hr > 0 else ultimo.hashrate_c0 }} TH/s</td>
+                    <td translate="no">{{ c.hr if c.hr is defined and c.hr > 0 else ultimo.hashrate_c0 }} {{ ultimo.unidad }}</td>
                     <td style="color:var(--text-muted);" translate="no">{{ (c.freq ~ ' MHz') if (c.freq is defined and c.freq > 0) else '-' }}</td>
                     <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ c.chips if c.chips is defined else '-' }}</td>
                     <td style="color:{{ 'var(--accent-red)' if (c.hw is defined and c.hw > 0) else 'var(--text-muted)' }}; font-weight:bold;" translate="no">{{ c.hw if c.hw is defined else 0 }}</td>
@@ -263,19 +259,19 @@
         <div class="table-responsive">
             <table class="info-table info-device">
                 <tr><td>Modelo</td><td translate="no">{{ modelo }}</td></tr>
-                <tr><td>Firmware</td><td translate="no">{{ extra.firmware }}</td></tr>
+                <tr><td>Firmware / Sistema</td><td translate="no">{{ extra.firmware }}</td></tr>
                 <tr><td>Serie</td><td translate="no">{{ extra.serial }}</td></tr>
                 <tr><td>MAC</td><td translate="no">{{ extra.mac }}</td></tr>
                 <tr><td>IP</td><td translate="no">{{ ip }}</td></tr>
-                <tr><td>Eficiencia</td><td translate="no">{{ dispositivo.eficiencia }} J/TH</td></tr>
+                <tr><td>Eficiencia</td><td translate="no">{{ dispositivo.eficiencia }} {{ ultimo.unidad_efi }}</td></tr>
                 <tr><td>Tiempo activo</td><td translate="no">{{ ultimo.uptime }}</td></tr>
-                <tr><td>Ventiladores</td><td translate="no">{{ ultimo.fans }} RPM</td></tr>
+                <tr><td>{{ 'Refrigeración' if 'Hydro' in ultimo.fans else 'Ventiladores' }}</td><td translate="no">{{ ultimo.fans }}</td></tr>
             </table>
         </div>
     </div>
 </div>
 
-<!-- FILA 4: Pools con cálculo de Tasa de Rechazo (%) -->
+<!-- FILA 4: Pools -->
 <div class="card" style="padding:0; overflow:hidden;">
     <div class="pools-header">
         <span>⛏ Pools</span>
@@ -342,6 +338,7 @@
     let comandoPendiente = null;
     let recargarPendiente = false;
     let logInterval = null;
+    const unidadMinero = "{{ ultimo.unidad }}";
 
     function toggleCamposIP() {
         let esDhcp = document.getElementById('net_proto').value === '1';
@@ -534,19 +531,19 @@
         let validHr = fH.filter(v => v !== null && v > 0);
         let avgHr = validHr.length > 0 ? (validHr.reduce((a,b)=>a+b,0) / validHr.length).toFixed(2) : "0.00";
         let promEl = document.getElementById('hrPromedio');
-        if(promEl) promEl.innerText = 'Promedio: ' + avgHr + ' TH/s';
+        if(promEl) promEl.innerText = 'Promedio: ' + avgHr + ' ' + unidadMinero;
         
         let tieneTempAmbiente = fA.some(v => v !== null && v > 0) || (tempAmbActual > 0);
 
         let datasetsList = [
-            { id: 'hr', label: 'Hashrate (TH/s)', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
+            { id: 'hr', label: 'Hashrate (' + unidadMinero + ')', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
             { id: 'tmax', label: 'Temperatura Max °C', data: fT, cadsHist: fCads, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: false }
         ];
 
         if (tieneTempAmbiente) {
             datasetsList.push({
                 id: 'tamb',
-                label: 'Temp Ambiente °C',
+                label: 'Temp Ambiente / Entrada °C',
                 data: fA,
                 borderColor: '#00e676',
                 borderDash: [3, 3],
@@ -594,7 +591,7 @@
                                 title: function(context) { return context[0].label; },
                                 label: function(context) { 
                                     let dsId = context.dataset.id;
-                                    if(dsId === 'hr') { return '⚡ Hashrate: ' + context.parsed.y + ' TH/s'; } 
+                                    if(dsId === 'hr') { return '⚡ Hashrate: ' + context.parsed.y + ' ' + unidadMinero; } 
                                     if(dsId === 'tmax') { 
                                         let t = context.parsed.y; 
                                         let arr = ['🌡️ Temp Max: ' + t + '°C'];
