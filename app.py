@@ -18,27 +18,35 @@ def init_db():
         con = get_db()
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, hashrate_30m REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, hashrate REAL, hashrate_30m REAL, temp_max INTEGER, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, ip TEXT, hashrate REAL, temp_max INTEGER, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
         
-        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN hashrate_30m REAL DEFAULT 0.0")
-        except: pass
-        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass1 TEXT DEFAULT '123'")
-        except: pass
-        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass2 TEXT DEFAULT '123'")
-        except: pass
-        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN pass3 TEXT DEFAULT '123'")
-        except: pass
-        try: c.execute("ALTER TABLE mineros_activos ADD COLUMN cadenas TEXT")
-        except: pass
-        try: c.execute("ALTER TABLE historial_nube ADD COLUMN errores INTEGER DEFAULT 0")
-        except: pass
-        try: c.execute("ALTER TABLE historial_nube ADD COLUMN cadenas TEXT")
-        except: pass
+        columnas_nuevas = [
+            "ALTER TABLE mineros_activos ADD COLUMN hashrate_30m REAL DEFAULT 0.0",
+            "ALTER TABLE mineros_activos ADD COLUMN pass1 TEXT DEFAULT '123'",
+            "ALTER TABLE mineros_activos ADD COLUMN pass2 TEXT DEFAULT '123'",
+            "ALTER TABLE mineros_activos ADD COLUMN pass3 TEXT DEFAULT '123'",
+            "ALTER TABLE mineros_activos ADD COLUMN cadenas TEXT",
+            "ALTER TABLE mineros_activos ADD COLUMN uptime TEXT DEFAULT '0h 0m'",
+            "ALTER TABLE mineros_activos ADD COLUMN status1 TEXT DEFAULT 'Alive'",
+            "ALTER TABLE mineros_activos ADD COLUMN acc1 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN rej1 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN status2 TEXT DEFAULT 'Alive'",
+            "ALTER TABLE mineros_activos ADD COLUMN acc2 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN rej2 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN status3 TEXT DEFAULT 'Dead'",
+            "ALTER TABLE mineros_activos ADD COLUMN acc3 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN rej3 INTEGER DEFAULT 0",
+            "ALTER TABLE historial_nube ADD COLUMN errores INTEGER DEFAULT 0",
+            "ALTER TABLE historial_nube ADD COLUMN cadenas TEXT"
+        ]
+        for col_sql in columnas_nuevas:
+            try: c.execute(col_sql)
+            except: pass
 
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         if not c.fetchone(): c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
@@ -109,7 +117,7 @@ def index():
                 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 
                 'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr, 
                 'hashrate_30m': float(m.get('hashrate_30m', hr)), 
-                'temp_num': t, 'consumo_kw': f"{round(c/1000, 2)} kW", 
+                'temp_num': t, 'consumo_kw': round(c/1000, 2), 
                 'eficiencia': eficiencia_val, 'ganancia_neta': str_gan
             })
         else:
@@ -118,13 +126,17 @@ def index():
                 'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 
                 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 
                 'tiempo_act': 'Offline', 'hashrate': 0, 'hashrate_30m': 0, 'temp_num': 0, 
-                'consumo_kw': '0.0 kW', 'eficiencia': 0, 'ganancia_neta': "USD 0.00"
+                'consumo_kw': 0.0, 'eficiencia': 0, 'ganancia_neta': "USD 0.00"
             })
             
     flota = {
         'hashrate_total': round(ht, 1), 'consumo_w_total': round(cw, 0), 
         'consumo_kw': round(cw/1000, 1), 'temp_max': tm, 
+        'precio_btc_raw': datos_red['precio'],
         'precio_btc': f"{datos_red['precio']:,.2f}", 
+        'dificultad_t': round(datos_red['dificultad_t'], 2),
+        'recompensa_bloque': datos_red['recompensa'],
+        'red_ehs': datos_red['red_ehs'],
         'ingreso_dia': f"{ig:.2f}", 'ganancia_dia': f"{ig:.2f} USD"
     }
     return render_template('resumen.html', active_page='resumen', registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota)
@@ -152,12 +164,20 @@ def detalle_minero(ip):
     ult = m['ultima_act'] if m['ultima_act'] else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     offline = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() > 180
     
-    pool1 = str(m['pool1']) if m['pool1'] else ""; worker1 = str(m['worker1']) if m['worker1'] else ""; pass1 = str(m['pass1']) if m['pass1'] else "123"
-    pool2 = str(m['pool2']) if m['pool2'] else ""; worker2 = str(m['worker2']) if m['worker2'] else ""; pass2 = str(m['pass2']) if m['pass2'] else "123"
-    pool3 = str(m['pool3']) if m['pool3'] else ""; worker3 = str(m['worker3']) if m['worker3'] else ""; pass3 = str(m['pass3']) if m['pass3'] else "123"
+    pool1 = str(m.get('pool1') or ""); worker1 = str(m.get('worker1') or ""); pass1 = str(m.get('pass1') or "123")
+    pool2 = str(m.get('pool2') or ""); worker2 = str(m.get('worker2') or ""); pass2 = str(m.get('pass2') or "123")
+    pool3 = str(m.get('pool3') or ""); worker3 = str(m.get('worker3') or ""); pass3 = str(m.get('pass3') or "123")
     
-    mac = str(m['mac']) if m['mac'] else "-"; serial = str(m['serial']) if m['serial'] else "-"
-    fw = str(m['firmware']) if m['firmware'] else "Desconocido"; fans = str(m['fans']) if m['fans'] else "0 / 0"
+    status1 = str(m.get('status1') or ("Alive" if pool1 else "Dead"))
+    acc1 = int(m.get('acc1') or 0); rej1 = int(m.get('rej1') or 0)
+    status2 = str(m.get('status2') or ("Alive" if pool2 else "Dead"))
+    acc2 = int(m.get('acc2') or 0); rej2 = int(m.get('rej2') or 0)
+    status3 = str(m.get('status3') or ("Alive" if pool3 else "Dead"))
+    acc3 = int(m.get('acc3') or 0); rej3 = int(m.get('rej3') or 0)
+
+    mac = str(m.get('mac') or "-"); serial = str(m.get('serial') or "-")
+    fw = str(m.get('firmware') or "Desconocido"); fans = str(m.get('fans') or "0 / 0")
+    uptime_val = str(m.get('uptime') or "0d 13h") if not offline else "Desconectado"
     
     cadenas_str = m['cadenas'] if m['cadenas'] else "[]"
     try: cadenas = json.loads(cadenas_str)
@@ -197,14 +217,14 @@ def detalle_minero(ip):
         
     dt = {
         'hashrate': hr_val, 'hashrate_30m': hr_30m_val, 'temp_max': t_val, 
-        'errores': m.get('errores', 0), 'consumo': f"{round(c_val/1000, 2)} kW", 
-        'fans': fans, 'uptime': '0d 13h' if not offline else 'Desconectado', 
+        'errores': m.get('errores', 0), 'consumo': round(c_val/1000, 2), 
+        'fans': fans, 'uptime': uptime_val, 
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0
     }
     extra = {
-        'worker1': worker1, 'pool1': pool1, 'pass1': pass1, 
-        'worker2': worker2, 'pool2': pool2, 'pass2': pass2, 
-        'worker3': worker3, 'pool3': pool3, 'pass3': pass3, 
+        'worker1': worker1, 'pool1': pool1, 'pass1': pass1, 'status1': status1, 'acc1': acc1, 'rej1': rej1,
+        'worker2': worker2, 'pool2': pool2, 'pass2': pass2, 'status2': status2, 'acc2': acc2, 'rej2': rej2,
+        'worker3': worker3, 'pool3': pool3, 'pass3': pass3, 'status3': status3, 'acc3': acc3, 'rej3': rej3,
         'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas
     }
     
@@ -225,12 +245,26 @@ def guardar_nombre():
         con.close()
     return redirect(f'/minero/{ip}')
 
+@app.route('/cmd_bulk', methods=['POST'])
+@login_required
+def cmd_bulk():
+    data = request.json
+    accion = data.get('accion')
+    ips = data.get('ips', [])
+    if accion and ips:
+        con = get_db(); con.autocommit = True; cur = con.cursor()
+        for ip in ips: cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, accion, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con.close()
+    return "OK"
+
 @app.route('/cmd/<ip>/<accion>')
 @login_required
 def comando_minero(ip, accion):
     cmd_str = ""
     if accion in ['restart', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
         cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
+    elif accion == 'setpool':
+        cmd_str = f"setpool|{request.args.get('url', '')}|{request.args.get('user', '')}"
     elif accion == 'guardar_pools': 
         u1 = request.args.get('u1', ''); w1 = request.args.get('w1', ''); p1 = request.args.get('p1', '123')
         u2 = request.args.get('u2', ''); w2 = request.args.get('w2', ''); p2 = request.args.get('p2', '123')
@@ -336,17 +370,22 @@ def recibir_datos():
         sr = m.get('serial', '')
         fw = m.get('firmware', '')
         fs = m.get('fans', '')
+        up = m.get('uptime', '0h 0m')
         hr_30 = m.get('hashrate_30m', m['hashrate'])
         p1 = m.get('pool1', ''); w1 = m.get('worker1', ''); pa1 = m.get('pass1', '123')
+        st1 = m.get('status1', 'Alive'); ac1 = m.get('acc1', 0); rj1 = m.get('rej1', 0)
         p2 = m.get('pool2', ''); w2 = m.get('worker2', ''); pa2 = m.get('pass2', '123')
+        st2 = m.get('status2', 'Alive'); ac2 = m.get('acc2', 0); rj2 = m.get('rej2', 0)
         p3 = m.get('pool3', ''); w3 = m.get('worker3', ''); pa3 = m.get('pass3', '123')
+        st3 = m.get('status3', 'Dead'); ac3 = m.get('acc3', 0); rj3 = m.get('rej3', 0)
+        
         cadenas_list = m.get('cadenas', [])
         cadenas_json = json.dumps(cadenas_list)
         
-        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, hashrate_30m, temp_max, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas) 
-                        VALUES (%s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
-                        modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas''', 
-                    (m['ip'], m['modelo'], m['hashrate'], hr_30, m['temp'], m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json))
+        cur.execute('''INSERT INTO mineros_activos (ip, modelo, hashrate, hashrate_30m, temp_max, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3) 
+                        VALUES (%s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
+                        modelo=EXCLUDED.modelo, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3''', 
+                    (m['ip'], m['modelo'], m['hashrate'], hr_30, m['temp'], m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3))
         
         cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], err, cadenas_json, ahora))
     
