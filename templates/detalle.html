@@ -46,7 +46,30 @@
     .btn-guardar{background:rgba(51,102,255,0.1);border:1px solid var(--accent-blue);color:var(--accent-blue);cursor:pointer;font-weight:bold;padding:8px 14px;border-radius:4px;transition:0.2s;white-space:nowrap;flex-shrink:0;}
     .btn-guardar:hover{background:var(--accent-blue);color:#fff;}
     .terminal{background:#000;color:#00e676;padding:15px;border-radius:6px;font-family:monospace;font-size:0.85em;height:300px;overflow-y:scroll;border:1px solid #333;margin-top:20px;display:none;white-space:pre-wrap}
+
+    /* Modal de Confirmar / Cancelar */
+    .confirm-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); z-index: 2000; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; backdrop-filter: blur(2px); }
+    .confirm-modal-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 24px; max-width: 360px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; }
+    .confirm-modal-title { font-size: 1.15em; font-weight: bold; margin-bottom: 10px; color: var(--text-main); }
+    .confirm-modal-text { font-size: 0.9em; color: var(--text-muted); margin-bottom: 22px; line-height: 1.4; }
+    .confirm-modal-actions { display: flex; gap: 10px; justify-content: center; }
+    .btn-modal-confirm { flex: 1; background: var(--accent-blue); color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
+    .btn-modal-confirm:hover { opacity: 0.9; }
+    .btn-modal-cancel { flex: 1; background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
+    .btn-modal-cancel:hover { border-color: var(--accent-red); color: var(--accent-red); }
 </style>
+
+<!-- Cuadro Modal de Confirmación -->
+<div class="confirm-modal-overlay" id="confirmModal">
+    <div class="confirm-modal-box">
+        <div class="confirm-modal-title" id="confirmModalTitle">Confirmar acción</div>
+        <div class="confirm-modal-text" id="confirmModalText">¿Estás seguro de que deseas aplicar esta acción en el minero?</div>
+        <div class="confirm-modal-actions">
+            <button type="button" class="btn-modal-cancel" onclick="cerrarConfirmacion()">Cancelar</button>
+            <button type="button" class="btn-modal-confirm" id="btnConfirmarAccion">Confirmar</button>
+        </div>
+    </div>
+</div>
 
 <div class="header-detalle">
     <div style="display:flex; align-items:flex-start; gap:15px; flex-wrap:wrap;">
@@ -86,16 +109,17 @@
 <div class="card" style="padding:20px;">
     <div class="panel-title" style="justify-content: flex-start;">⚡ Perfiles de Energía</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color);">
-        <button class="btn-control" style="color:var(--accent-green); border-color:var(--accent-green);" onclick="fetch('/cmd/{{ ip }}/profile_low').then(()=>alert('Perfil Invierno a cola.'))">❄️ Invierno (Eco)</button>
-        <button class="btn-control" style="color:var(--accent-red); border-color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/profile_high').then(()=>alert('Perfil Verano a cola.'))">🔥 Verano (Max)</button>
+        <button class="btn-control" style="color:var(--accent-green); border-color:var(--accent-green);" onclick="pedirConfirmacion('❄️ Perfil Invierno (Eco)', '¿Deseas activar el perfil de bajo consumo (Invierno / Eco) en este minero?', 'profile_low', false)">❄️ Invierno (Eco)</button>
+        <button class="btn-control" style="color:var(--accent-red); border-color:var(--accent-red);" onclick="pedirConfirmacion('🔥 Perfil Verano (Max)', '¿Deseas activar el perfil de máxima potencia (Verano / Max) en este minero?', 'profile_high', false)">🔥 Verano (Max)</button>
     </div>
     <div class="panel-title" style="justify-content: flex-start;">🛠️ Panel de control</div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="fetch('/cmd/{{ ip }}/restart').then(()=>location.reload())">🔄 Reiniciar</button>
-        <button class="btn-control" onclick="fetch('/cmd/{{ ip }}/sleep').then(()=>location.reload())">😴 Reposo</button>
-        <button class="btn-control active" onclick="fetch('/cmd/{{ ip }}/normal').then(()=>location.reload())">▶ Normal</button>
-        <button class="btn-control" style="color:gold; border-color:gold;" onclick="fetch('/cmd/{{ ip }}/blink').then(()=>location.reload())">💡 Parpadear LED</button>
-        <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="solicitarLogs()">🖥️ Ver Logs</button>
+        <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="pedirConfirmacion('🔄 Reiniciar Minero', '¿Estás seguro de que deseas reiniciar el minero ahora?', 'restart', true)">🔄 Reiniciar</button>
+        <button class="btn-control" onclick="pedirConfirmacion('😴 Modo Reposo', '¿Deseas poner el minero en modo Reposo (Sleep)? Detendrá el minado.', 'sleep', true)">😴 Reposo</button>
+        <button class="btn-control active" onclick="pedirConfirmacion('▶ Modo Normal', '¿Deseas reanudar la operación del minero en modo Normal?', 'normal', true)">▶ Normal</button>
+        <button class="btn-control" style="color:gold; border-color:gold;" onclick="pedirConfirmacion('💡 Parpadear LED', '¿Deseas activar o desactivar el parpadeo del LED localizador en este minero?', 'blink', false)">💡 Parpadear LED</button>
+        <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="pedirConfirmacion('🖥️ Ver Logs', '¿Deseas solicitar los registros del sistema (Logs) al minero?', 'logs', false)">🖥️ Ver Logs</button>
+        <button class="btn-control" style="color:#ff9100; border-color:#ff9100;" onclick="pedirConfirmacion('⚠️ Restablecer Minero', '¿Estás seguro de que deseas restablecer este minero a sus valores de fábrica?', 'reset', true)">⚠️ Restablecer</button>
     </div>
     <div id="terminal-box" class="terminal">Esperando logs...</div>
 </div>
@@ -205,6 +229,41 @@
 </div>
 
 <script>
+    let comandoPendiente = null;
+    let recargarPendiente = false;
+
+    function pedirConfirmacion(titulo, texto, comando, recargar) {
+        comandoPendiente = comando;
+        recargarPendiente = recargar;
+        document.getElementById('confirmModalTitle').innerText = titulo;
+        document.getElementById('confirmModalText').innerText = texto;
+        document.getElementById('confirmModal').style.display = 'flex';
+    }
+
+    function cerrarConfirmacion() {
+        comandoPendiente = null;
+        document.getElementById('confirmModal').style.display = 'none';
+    }
+
+    document.getElementById('btnConfirmarAccion').addEventListener('click', function() {
+        if (!comandoPendiente) return;
+        let cmd = comandoPendiente;
+        let rec = recargarPendiente;
+        cerrarConfirmacion();
+
+        if (cmd === 'logs') {
+            solicitarLogs();
+        } else {
+            fetch('/cmd/{{ ip }}/' + cmd).then(() => {
+                if (rec) {
+                    location.reload();
+                } else {
+                    alert('Orden enviada a la cola del Agente.');
+                }
+            });
+        }
+    });
+
     function mostrarEdicionNombre() {
         document.getElementById('textoNombreMinero').style.display = 'none';
         document.getElementById('btnEditarNombre').style.display = 'none';
@@ -284,7 +343,6 @@
                 fH.push(rawHr[i]); 
                 fT.push(rawTemp[i]);
                 
-                // Errores exclusivos de ese intervalo (no acumulativos)
                 let errIntervalo = (rawErr.length > i && rawErr[i] !== null) ? rawErr[i] : 0;
                 let deltaS = (i > 0 && (rawFechas[i] - rawFechas[i-1]) > 0 && (rawFechas[i] - rawFechas[i-1]) <= 300) ? (rawFechas[i] - rawFechas[i-1]) : 30;
                 fE.push(errIntervalo);
