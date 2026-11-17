@@ -5,6 +5,16 @@
     .header-detalle{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; flex-wrap: wrap; gap:10px;}
     .btn-volver{color:var(--text-muted);font-size:1.2em;font-weight:bold}
     .titulo-minero{margin:0;font-size:1.4em;display:flex;align-items:center;gap:10px}
+    
+    /* Luz de estado Online / Offline junto al nombre */
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .dot-online { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+    .dot-offline { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+    
+    /* Botón de editar nombre al lado del título */
+    .btn-edit-name { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 0.7em; transition: 0.2s; display: inline-flex; align-items: center; gap: 4px; }
+    .btn-edit-name:hover { border-color: var(--accent-blue); color: var(--text-main); }
+
     .status-banner{background:rgba(255,82,82,0.1);border:1px solid var(--accent-red);padding:15px;border-radius:8px;color:var(--text-main);font-size:0.9em;margin-bottom:20px;display:{{ 'block' if offline else 'none' }}}
     .status-banner span{color:var(--accent-red);font-weight:bold}
     .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:15px;margin-bottom:20px}
@@ -33,14 +43,18 @@
 </style>
 
 <div class="header-detalle">
-    <div style="display:flex; align-items:center; gap:15px;">
+    <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
         <a href="/" class="btn-volver">← Volver</a>
-        <h2 class="titulo-minero" translate="no">{{ nombre }} <span style="font-size:0.65em; color:var(--text-muted); font-weight:normal;">({{ ip }})</span></h2>
+        <h2 class="titulo-minero">
+            <span class="status-dot {{ 'dot-offline' if offline else 'dot-online' }}"></span>
+            <span translate="no">{{ nombre }}</span>
+            <span style="font-size:0.65em; color:var(--text-muted); font-weight:normal;" translate="no">({{ ip }})</span>
+            <button type="button" class="btn-edit-name" onclick="editarNombre()">✏️ Editar</button>
+        </h2>
     </div>
-    <form action="/guardar_nombre" method="POST" style="display:flex; gap:8px;">
+    <form id="formNombre" action="/guardar_nombre" method="POST" style="display:none;">
         <input type="hidden" name="ip" value="{{ ip }}">
-        <input type="text" name="nombre" value="{{ nombre }}" placeholder="Alias del minero" class="input-pool" style="width:150px;">
-        <button type="submit" class="btn-guardar">Renombrar</button>
+        <input type="hidden" name="nombre" id="inputNombreOculto" value="{{ nombre }}">
     </form>
 </div>
 
@@ -129,7 +143,6 @@
                 <th>Estado</th>
                 <th>Aceptados</th>
                 <th>Rechazados</th>
-                <th>Acción</th>
             </tr>
             <tr>
                 <td>1</td>
@@ -139,7 +152,6 @@
                 <td style="color:{{ 'var(--accent-green)' if extra.status1 == 'Alive' else 'var(--accent-red)' }}; font-weight:bold;" translate="no">{{ extra.status1 }}</td>
                 <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ "{:,}".format(extra.acc1) }}</td>
                 <td style="color:var(--accent-red); font-weight:bold;" translate="no">{{ "{:,}".format(extra.rej1) }}</td>
-                <td><button class="btn-guardar" onclick="guardarTodasPools()">Guardar</button></td>
             </tr>
             <tr>
                 <td>2</td>
@@ -149,7 +161,6 @@
                 <td style="color:{{ 'var(--accent-green)' if extra.status2 == 'Alive' else 'var(--accent-red)' }}; font-weight:bold;" translate="no">{{ extra.status2 }}</td>
                 <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ "{:,}".format(extra.acc2) }}</td>
                 <td style="color:var(--accent-red); font-weight:bold;" translate="no">{{ "{:,}".format(extra.rej2) }}</td>
-                <td><button class="btn-guardar" onclick="guardarTodasPools()">Guardar</button></td>
             </tr>
             <tr>
                 <td>3</td>
@@ -159,13 +170,21 @@
                 <td style="color:{{ 'var(--accent-green)' if extra.status3 == 'Alive' else 'var(--accent-red)' }}; font-weight:bold;" translate="no">{{ extra.status3 }}</td>
                 <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ "{:,}".format(extra.acc3) }}</td>
                 <td style="color:var(--accent-red); font-weight:bold;" translate="no">{{ "{:,}".format(extra.rej3) }}</td>
-                <td><button class="btn-guardar" onclick="guardarTodasPools()">Guardar</button></td>
             </tr>
         </table>
     </div>
 </div>
 
 <script>
+    function editarNombre() {
+        let actual = "{{ nombre }}";
+        let nuevo = prompt("Ingresa el nuevo nombre para este minero:", actual);
+        if (nuevo !== null && nuevo.trim() !== "") {
+            document.getElementById('inputNombreOculto').value = nuevo.trim();
+            document.getElementById('formNombre').submit();
+        }
+    }
+
     function solicitarLogs() { let tb = document.getElementById('terminal-box'); tb.style.display = 'block'; tb.innerText = 'Solicitando logs al agente...'; fetch('/cmd/{{ ip }}/get_log').then(() => { setInterval(async () => { let r = await fetch('/api/ver_log/{{ ip }}'); let txt = await r.text(); if(txt.length > 5) { tb.innerText = txt; tb.scrollTop = tb.scrollHeight; } }, 3000); }); }
     
     function guardarTodasPools() {
