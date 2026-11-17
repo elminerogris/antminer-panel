@@ -2,17 +2,16 @@
 {% block content %}
 <style>
     .card{background:var(--bg-card);padding:20px;border-radius:8px;border:1px solid var(--border-color);margin-bottom:20px}
-    .header-detalle{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; flex-wrap: wrap; gap:10px;}
-    .btn-volver{color:var(--text-muted);font-size:1.2em;font-weight:bold}
-    .titulo-minero{margin:0;font-size:1.4em;display:flex;align-items:center;gap:10px}
+    .header-detalle{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px; flex-wrap: wrap; gap:10px;}
+    .btn-volver{color:var(--text-muted);font-size:1.2em;font-weight:bold;margin-top:4px;}
+    .titulo-minero{margin:0;font-size:1.4em;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .subtitulo-modelo{font-size:0.9em; color:var(--text-muted); font-weight:normal; margin-top:4px; margin-left:22px;}
     
-    /* Luz de estado Online / Offline junto al nombre */
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
     .dot-online { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
     .dot-offline { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
     
-    /* Botón de editar nombre al lado del título */
-    .btn-edit-name { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 0.7em; transition: 0.2s; display: inline-flex; align-items: center; gap: 4px; }
+    .btn-edit-name { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 0.65em; transition: 0.2s; display: inline-flex; align-items: center; gap: 4px; }
     .btn-edit-name:hover { border-color: var(--accent-blue); color: var(--text-main); }
 
     .status-banner{background:rgba(255,82,82,0.1);border:1px solid var(--accent-red);padding:15px;border-radius:8px;color:var(--text-main);font-size:0.9em;margin-bottom:20px;display:{{ 'block' if offline else 'none' }}}
@@ -22,6 +21,7 @@
     .grid-4 .card h4{margin:0;font-size:0.7em;color:var(--text-muted);text-transform:uppercase}
     .grid-4 .card .val{font-size:1.6em;font-weight:bold;margin-top:10px;color:var(--accent-blue)}
     .panel-title{font-weight:bold;margin-bottom:15px;display:flex;align-items:center;justify-content:space-between;font-size:1.1em; flex-wrap:wrap; gap:10px;}
+    .pools-header{font-weight:bold;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;font-size:1.1em;flex-wrap:nowrap;gap:10px;border-bottom:1px solid var(--border-color);}
     .btn-control{background:transparent;border:1px solid var(--border-color);color:var(--text-main);padding:8px 15px;border-radius:20px;cursor:pointer;font-weight:bold;transition:0.2s;font-size:0.85em;display:flex;align-items:center;gap:6px}
     .btn-control:hover{border-color:var(--accent-blue)}
     .btn-control.active{background:rgba(51,102,255,0.1);color:var(--accent-blue);border-color:var(--accent-blue)}
@@ -37,20 +37,23 @@
     .info-device td:nth-child(2){text-align:right;color:var(--text-muted);}
     .input-pool{background:rgba(255,255,255,0.05);border:1px solid var(--border-color);color:var(--text-main);padding:8px 10px;width:100%;font-family:monospace;font-size:0.95em;outline:none;border-radius:4px;box-sizing:border-box}
     .input-pool:focus{border-color:var(--accent-blue);}
-    .btn-guardar{background:rgba(51,102,255,0.1);border:1px solid var(--accent-blue);color:var(--accent-blue);cursor:pointer;font-weight:bold;padding:8px 14px;border-radius:4px;transition:0.2s;}
+    .btn-guardar{background:rgba(51,102,255,0.1);border:1px solid var(--accent-blue);color:var(--accent-blue);cursor:pointer;font-weight:bold;padding:8px 14px;border-radius:4px;transition:0.2s;white-space:nowrap;flex-shrink:0;}
     .btn-guardar:hover{background:var(--accent-blue);color:#fff;}
     .terminal{background:#000;color:#00e676;padding:15px;border-radius:6px;font-family:monospace;font-size:0.85em;height:300px;overflow-y:scroll;border:1px solid #333;margin-top:20px;display:none;white-space:pre-wrap}
 </style>
 
 <div class="header-detalle">
-    <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
+    <div style="display:flex; align-items:flex-start; gap:15px; flex-wrap:wrap;">
         <a href="/" class="btn-volver">← Volver</a>
-        <h2 class="titulo-minero">
-            <span class="status-dot {{ 'dot-offline' if offline else 'dot-online' }}"></span>
-            <span translate="no">{{ nombre }}</span>
-            <span style="font-size:0.65em; color:var(--text-muted); font-weight:normal;" translate="no">({{ ip }})</span>
-            <button type="button" class="btn-edit-name" onclick="editarNombre()">✏️ Editar</button>
-        </h2>
+        <div>
+            <h2 class="titulo-minero">
+                <span class="status-dot {{ 'dot-offline' if offline else 'dot-online' }}"></span>
+                <span translate="no">{{ nombre }}</span>
+                <span style="font-size:0.65em; color:var(--text-muted); font-weight:normal;" translate="no">({{ ip }})</span>
+                <button type="button" class="btn-edit-name" onclick="editarNombre()">✏️ Editar</button>
+            </h2>
+            <div class="subtitulo-modelo" translate="no">{{ modelo }}</div>
+        </div>
     </div>
     <form id="formNombre" action="/guardar_nombre" method="POST" style="display:none;">
         <input type="hidden" name="ip" value="{{ ip }}">
@@ -63,7 +66,7 @@
 <div class="grid-4">
     <div class="card"><h4>Hashrate (5s / 30m)</h4><div class="val" translate="no">{{ ultimo.hashrate }} <span style="font-size:0.55em; color:var(--text-muted);">/ {{ ultimo.hashrate_30m }} TH/s</span></div></div>
     <div class="card"><h4>Errores HW</h4><div class="val" style="color:var(--accent-red);" translate="no">{{ ultimo.errores }}</div></div>
-    <div class="card"><h4>Consumo</h4><div class="val" style="color:var(--text-main);" translate="no">{{ ultimo.consumo }} kW</div></div>
+    <div class="card"><h4>Consumo</h4><div class="val" style="color:var(--text-main);" translate="no">{{ ultimo.consumo }}</div></div>
     <div class="card"><h4>Temp Max</h4><div class="val" style="color:var(--accent-green);" translate="no">{{ ultimo.temp_max }}°C</div></div>
 </div>
 
@@ -129,7 +132,7 @@
 </div>
 
 <div class="card" style="padding:0; overflow:hidden;">
-    <div class="panel-title" style="padding: 20px 20px 0 20px;">
+    <div class="pools-header">
         <span>⛏ Pools</span>
         <button class="btn-guardar" onclick="guardarTodasPools()">💾 Guardar Todos los Pools</button>
     </div>
@@ -147,8 +150,8 @@
             <tr>
                 <td>1</td>
                 <td><input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool" translate="no"></td>
-                <td><input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool" translate="no"></td>
-                <td><input type="text" id="pass_1" value="{{ extra.pass1 }}" class="input-pool" style="width:70px;" translate="no"></td>
+                <td><input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool" oninput="sincronizarWorker(this.value)" translate="no"></td>
+                <td><input type="text" id="pass_1" value="{{ extra.pass1 }}" class="input-pool" style="width:70px;" oninput="sincronizarPass(this.value)" translate="no"></td>
                 <td style="color:{{ 'var(--accent-green)' if extra.status1 == 'Alive' else 'var(--accent-red)' }}; font-weight:bold;" translate="no">{{ extra.status1 }}</td>
                 <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ "{:,}".format(extra.acc1) }}</td>
                 <td style="color:var(--accent-red); font-weight:bold;" translate="no">{{ "{:,}".format(extra.rej1) }}</td>
@@ -176,6 +179,20 @@
 </div>
 
 <script>
+    function sincronizarWorker(valor) {
+        let u2 = document.getElementById('user_2');
+        let u3 = document.getElementById('user_3');
+        if (u2) u2.value = valor;
+        if (u3) u3.value = valor;
+    }
+
+    function sincronizarPass(valor) {
+        let p2 = document.getElementById('pass_2');
+        let p3 = document.getElementById('pass_3');
+        if (p2) p2.value = valor;
+        if (p3) p3.value = valor;
+    }
+
     function editarNombre() {
         let actual = "{{ nombre }}";
         let nuevo = prompt("Ingresa el nuevo nombre para este minero:", actual);
