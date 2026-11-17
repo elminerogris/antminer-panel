@@ -185,7 +185,12 @@ def detalle_minero(ip):
     cadenas_str = m['cadenas'] if m['cadenas'] else "[]"
     try: cadenas = json.loads(cadenas_str)
     except: cadenas = []
-    if not cadenas: cadenas = [{"id": 0, "temp_c": t_val, "temp_p": max(0, t_val-5)}, {"id": 1, "temp_c": max(0, t_val-1), "temp_p": max(0, t_val-6)}, {"id": 2, "temp_c": max(0, t_val-2), "temp_p": max(0, t_val-7)}]
+    if not cadenas: 
+        cadenas = [
+            {"id": 0, "temp_c": t_val, "temp_p": max(0, t_val-5), "chips": 114, "hw": 0, "hr": round(hr_val/3, 2)}, 
+            {"id": 1, "temp_c": max(0, t_val-1), "temp_p": max(0, t_val-6), "chips": 114, "hw": 0, "hr": round(hr_val/3, 2)}, 
+            {"id": 2, "temp_c": max(0, t_val-2), "temp_p": max(0, t_val-7), "chips": 114, "hw": 0, "hr": round(hr_val/3, 2)}
+        ]
 
     f_raw, hr_g, tp_g, err_g, cad_g = [], [], [], [], []
     prev_err = 0
@@ -264,7 +269,7 @@ def cmd_bulk():
 @login_required
 def comando_minero(ip, accion):
     cmd_str = ""
-    if accion in ['restart', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
+    if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
         cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
     elif accion == 'guardar_pools': 
         u1 = request.args.get('u1', ''); w1 = request.args.get('w1', ''); p1 = request.args.get('p1', '123')
