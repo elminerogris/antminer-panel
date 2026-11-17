@@ -14,7 +14,6 @@
     .btn-edit-name { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.65em; transition: 0.2s; display: inline-flex; align-items: center; gap: 4px; font-weight: bold; }
     .btn-edit-name:hover { border-color: var(--accent-blue); color: var(--text-main); }
     
-    /* Edición de nombre en el mismo lugar (Inline) */
     .inline-edit-form { display: none; align-items: center; gap: 6px; margin: 0; }
     .input-inline-name { background: var(--bg-input); border: 1px solid var(--accent-blue); color: var(--text-main); padding: 4px 10px; border-radius: 6px; font-size: 0.85em; font-weight: bold; width: 160px; outline: none; }
     .btn-inline-save { background: var(--accent-blue); color: #fff; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.65em; font-weight: bold; cursor: pointer; }
@@ -56,11 +55,9 @@
             <h2 class="titulo-minero">
                 <span class="status-dot {{ 'dot-offline' if offline else 'dot-online' }}"></span>
                 
-                <!-- Vista normal del nombre -->
                 <span id="textoNombreMinero" translate="no">{{ nombre }}</span>
                 <button type="button" id="btnEditarNombre" class="btn-edit-name" onclick="mostrarEdicionNombre()">✏️ Editar</button>
                 
-                <!-- Formulario inline en el mismo lugar -->
                 <form id="formNombreInline" class="inline-edit-form" action="/guardar_nombre" method="POST">
                     <input type="hidden" name="ip" value="{{ ip }}">
                     <input type="text" name="nombre" id="inputNombreInline" class="input-inline-name" value="{{ nombre }}" required>
@@ -68,7 +65,6 @@
                     <button type="button" class="btn-inline-cancel" onclick="cancelarEdicionNombre()">✖</button>
                 </form>
             </h2>
-            <!-- Modelo e IP en la misma fila con el mismo formato -->
             <div class="subtitulo-modelo" translate="no">
                 <span>{{ modelo }}</span>
                 <span>·</span>
@@ -260,6 +256,7 @@
     const rawFechas = {{ graf_fechas_raw | safe }};
     const rawHr = {{ graf_hashrate | safe }};
     const rawTemp = {{ graf_temps | safe }};
+    const rawErr = {{ graf_errores | default('[]') | safe }};
     const cadenasCount = {{ extra.cadenas | length }};
     let chartInstance = null;
     
@@ -273,9 +270,9 @@
         if(rango === '7d') limitDate.setDate(limitDate.getDate() - 7);
         if(rango === '30d') limitDate.setDate(limitDate.getDate() - 30);
         
-        let fL = [], fH = [], fT = [];
+        let fL = [], fH = [], fT = [], fE = [], fDeltaSec = [];
         let labelLimite = (rango === '7d' || rango === '30d') ? limitDate.toLocaleDateString() + ' ' + limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : limitDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        fL.push(labelLimite); fH.push(null); fT.push(null);
+        fL.push(labelLimite); fH.push(null); fT.push(null); fE.push(null); fDeltaSec.push(30);
 
         for(let i=0; i<rawFechas.length; i++) {
             let d = new Date(rawFechas[i] * 1000); 
@@ -283,7 +280,15 @@
                 let timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 let label = timeStr;
                 if(rango === '7d' || rango === '30d') label = d.toLocaleDateString() + ' ' + timeStr;
-                fL.push(label); fH.push(rawHr[i]); fT.push(rawTemp[i]);
+                fL.push(label); 
+                fH.push(rawHr[i]); 
+                fT.push(rawTemp[i]);
+                
+                // Errores exclusivos de ese intervalo (no acumulativos)
+                let errIntervalo = (rawErr.length > i && rawErr[i] !== null) ? rawErr[i] : 0;
+                let deltaS = (i > 0 && (rawFechas[i] - rawFechas[i-1]) > 0 && (rawFechas[i] - rawFechas[i-1]) <= 300) ? (rawFechas[i] - rawFechas[i-1]) : 30;
+                fE.push(errIntervalo);
+                fDeltaSec.push(deltaS);
             }
         }
         
@@ -296,6 +301,8 @@
             chartInstance.data.labels = fL;
             chartInstance.data.datasets[0].data = fH;
             chartInstance.data.datasets[1].data = fT;
+            chartInstance.data.datasets[2].data = fE;
+            chartInstance.data.datasets[2].deltaSecs = fDeltaSec;
             chartInstance.update();
         } else {
             const ctx = document.getElementById('hashrateChart').getContext('2d');
@@ -305,7 +312,8 @@
                     labels: fL, 
                     datasets: [ 
                         { label: 'Hashrate (TH/s)', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
-                        { label: 'Temperatura Max °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1', spanGaps: false } 
+                        { label: 'Temperatura Max °C', data: fT, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1, yAxisID: 'y1', spanGaps: false },
+                        { label: 'Errores HW (Nuevos)', data: fE, deltaSecs: fDeltaSec, borderColor: '#ff5252', backgroundColor: 'rgba(255,82,82,0.2)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y2', spanGaps: false }
                     ]
                 }, 
                 options: { 
@@ -324,12 +332,23 @@
                                             arr.push('   Placa #' + c + ' -> Chip: ' + Math.max(0,t-(c*1)) + '°C | PCB: ' + Math.max(0,t-(5+c)) + '°C'); 
                                         } 
                                         return arr; 
-                                    } 
+                                    }
+                                    if(context.datasetIndex === 2) {
+                                        let errNuevos = context.parsed.y || 0;
+                                        let ds = (context.dataset.deltaSecs && context.dataset.deltaSecs[context.dataIndex]) ? context.dataset.deltaSecs[context.dataIndex] : 30;
+                                        let porSegundo = (errNuevos / ds).toFixed(2);
+                                        return `⚠️ Errores HW: ${errNuevos} nuevos (${porSegundo} /s)`;
+                                    }
                                 } 
                             } 
                         } 
                     },
-                    scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }, y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 } } 
+                    scales: { 
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' } }, 
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }, 
+                        y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 },
+                        y2: { display: false, min: 0, suggestedMax: 10 }
+                    } 
                 } 
             });
         }
