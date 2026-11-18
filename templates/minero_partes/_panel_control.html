@@ -1,0 +1,125 @@
+<div class="confirm-modal-overlay" id="confirmModal">
+    <div class="confirm-modal-box">
+        <div class="confirm-modal-title" id="confirmModalTitle">Confirmar acción</div>
+        <div class="confirm-modal-text" id="confirmModalText">¿Estás seguro de que deseas aplicar esta acción en el minero?</div>
+        <div class="confirm-modal-actions">
+            <button type="button" class="btn-modal-cancel" onclick="cerrarConfirmacion()">Cancelar</button>
+            <button type="button" class="btn-modal-confirm" id="btnConfirmarAccion">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div>
+        <div class="panel-title" style="justify-content: flex-start;">🛠️ Panel de control</div>
+        <p style="color:var(--text-muted); font-size:0.8em; margin-top:0; margin-bottom:12px;">Acciones operativas directas sobre el minero.</p>
+        <div class="control-grid">
+            <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="pedirConfirmacion('🔄 Reiniciar Minero', '¿Estás seguro de que deseas reiniciar el minero ahora?', 'restart', true)">🔄 Reiniciar</button>
+            <button class="btn-control" onclick="pedirConfirmacion('😴 Modo Reposo', '¿Deseas poner el minero en modo Reposo (Sleep)? Detendrá el minado.', 'sleep', true)">😴 Reposo</button>
+            <button class="btn-control active" onclick="pedirConfirmacion('▶ Modo Normal', '¿Deseas reanudar la operación del minero en modo Normal?', 'normal', true)">▶ Normal</button>
+            <button class="btn-control" style="color:gold; border-color:gold;" onclick="pedirConfirmacion('💡 Parpadear LED', '¿Deseas activar o desactivar el parpadeo del LED localizador en este minero?', 'blink', false)">💡 Parpadear LED</button>
+            <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="pedirConfirmacion('🖥️ Ver Logs', '¿Deseas solicitar los registros del sistema (Logs) al minero?', 'logs', false)">🖥️ Ver Logs</button>
+            <button class="btn-control" style="color:#ff9100; border-color:#ff9100;" onclick="pedirConfirmacion('⚠️ Restablecer Minero', '¿Estás seguro de que deseas formatear y restablecer este minero a sus valores de fábrica?', 'reset', true)">⚠️ Restablecer</button>
+        </div>
+    </div>
+    
+    <div id="terminal-wrapper" class="terminal-wrapper">
+        <div class="terminal-header">
+            <div class="terminal-tabs">
+                <button type="button" class="btn-log-tab active" id="tab-get_log" onclick="cambiarTipoLog('get_log')">General</button>
+                <button type="button" class="btn-log-tab" id="tab-clog" onclick="cambiarTipoLog('clog')" translate="no">Kernel (clog)</button>
+                <button type="button" class="btn-log-tab" id="tab-hlog" onclick="cambiarTipoLog('hlog')" translate="no">Hash (hlog)</button>
+                <button type="button" class="btn-log-tab" id="tab-dlog" onclick="cambiarTipoLog('dlog')" translate="no">Driver (dlog)</button>
+            </div>
+            <div class="terminal-actions">
+                <button type="button" class="btn-log-action" id="btnCopyLog" onclick="copiarLogs()">📋 Copiar</button>
+                <button type="button" class="btn-log-action btn-log-close" onclick="cerrarLogs()">✖ Cerrar</button>
+            </div>
+        </div>
+        <div id="terminal-box" class="terminal">Esperando logs...</div>
+    </div>
+</div>
+
+<script>
+    let comandoPendiente = null;
+    let recargarPendiente = false;
+    let logInterval = null;
+
+    function pedirConfirmacion(titulo, texto, comando, recargar) {
+        comandoPendiente = comando;
+        recargarPendiente = recargar;
+        document.getElementById('confirmModalTitle').innerText = titulo;
+        document.getElementById('confirmModalText').innerText = texto;
+        document.getElementById('confirmModal').style.display = 'flex';
+    }
+
+    function cerrarConfirmacion() {
+        comandoPendiente = null;
+        document.getElementById('confirmModal').style.display = 'none';
+    }
+
+    document.getElementById('btnConfirmarAccion').addEventListener('click', function() {
+        if (!comandoPendiente) return;
+        let cmd = comandoPendiente;
+        let rec = recargarPendiente;
+        cerrarConfirmacion();
+
+        if (cmd === 'logs') {
+            solicitarLogs('get_log');
+        } else if (cmd === 'guardar_red') {
+            let host = encodeURIComponent(document.getElementById('net_host').value.trim());
+            let proto = encodeURIComponent(document.getElementById('net_proto').value);
+            let nip = encodeURIComponent(document.getElementById('net_ip').value.trim());
+            let mask = encodeURIComponent(document.getElementById('net_mask').value.trim());
+            let gw = encodeURIComponent(document.getElementById('net_gw').value.trim());
+            let dns = encodeURIComponent(document.getElementById('net_dns').value.trim());
+            fetch(`/cmd/{{ ip }}/set_network?host=${host}&proto=${proto}&nip=${nip}&mask=${mask}&gw=${gw}&dns=${dns}`)
+                .then(() => alert('Configuración de red enviada a la cola del Agente.'));
+        } else {
+            fetch('/cmd/{{ ip }}/' + cmd).then(() => {
+                if (rec) {
+                    location.reload();
+                } else {
+                    alert('Orden enviada a la cola del Agente.');
+                }
+            });
+        }
+    });
+
+    function solicitarLogs(tipo = 'get_log') {
+        document.getElementById('terminal-wrapper').style.display = 'block';
+        let tb = document.getElementById('terminal-box');
+        tb.innerText = 'Solicitando ' + tipo + ' al agente... (puede tardar hasta 30s)';
+        fetch('/cmd/{{ ip }}/' + tipo).then(() => {
+            if (logInterval) clearInterval(logInterval);
+            logInterval = setInterval(async () => {
+                let r = await fetch('/api/ver_log/{{ ip }}');
+                let txt = await r.text();
+                if (txt.length > 5 && !txt.startsWith('Esperando')) {
+                    tb.innerText = txt;
+                }
+            }, 3000);
+        });
+    }
+
+    function cambiarTipoLog(tipo) {
+        document.querySelectorAll('.btn-log-tab').forEach(b => b.classList.remove('active'));
+        let tabBtn = document.getElementById('tab-' + tipo);
+        if (tabBtn) tabBtn.classList.add('active');
+        solicitarLogs(tipo);
+    }
+
+    function copiarLogs() {
+        let txt = document.getElementById('terminal-box').innerText;
+        navigator.clipboard.writeText(txt).then(() => {
+            let btn = document.getElementById('btnCopyLog');
+            btn.innerText = '✅ Copiado';
+            setTimeout(() => { btn.innerText = '📋 Copiar'; }, 2000);
+        });
+    }
+
+    function cerrarLogs() {
+        document.getElementById('terminal-wrapper').style.display = 'none';
+        if (logInterval) clearInterval(logInterval);
+    }
+</script>
