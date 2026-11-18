@@ -81,7 +81,7 @@
     const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
     let chartInstance = null;
-    let titulosTooltip = [];
+    let rangoActual = '24h';
     let cursorDentroArea = false;
 
     function formatearFechaTooltip(d) {
@@ -125,13 +125,21 @@
             return;
         }
 
-        const idx = tooltip.dataPoints[0].dataIndex;
-        const titulo = titulosTooltip[idx] || tooltip.title[0] || '';
+        const dp0 = tooltip.dataPoints[0];
+        if (dp0.parsed.y === null || dp0.parsed.y === undefined) {
+            ttEl.style.display = 'none';
+            return;
+        }
+
+        const idx = dp0.dataIndex;
+        const tsSegundos = dp0.parsed.x;
+        const titulo = formatearFechaTooltip(new Date(tsSegundos * 1000));
         let html = `<div class="tt-title">${titulo}</div>`;
 
         tooltip.dataPoints.forEach(dp => {
             const dsId = dp.dataset.id;
             const valY = dp.parsed.y;
+            if (valY === null || valY === undefined) return;
 
             if (dsId === 'hr') {
                 html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${valY} ${unidadMinero}</b></div>`;
@@ -170,7 +178,6 @@
         if (posX < minX) posX = minX;
         if (posX > maxX) posX = maxX;
 
-        // Anclado exactamente en la línea roja del 0 (chartArea.bottom)
         ttEl.style.left = posX + 'px';
         ttEl.style.top = (chartArea.bottom + 2) + 'px';
     }
@@ -186,7 +193,6 @@
             const y = clientY - rect.top;
             const ca = chartInstance.chartArea;
 
-            // Si el mouse/dedo baja de la línea roja del 0 (ca.bottom) o sale de los bordes del gráfico, ocultar de inmediato
             if (y > ca.bottom || y < ca.top || x < ca.left || x > ca.right) {
                 ocultarTooltipGris();
             } else {
@@ -216,81 +222,93 @@
     }
 
     function updateChart(rango) {
+        rangoActual = rango;
         document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
         document.getElementById('btn-' + rango).classList.add('active');
         ocultarTooltipGris();
         
-        let limitDate = new Date();
-        if(rango === '6h') limitDate.setHours(limitDate.getHours() - 6);
-        if(rango === '24h') limitDate.setHours(limitDate.getHours() - 24);
-        if(rango === '7d') limitDate.setDate(limitDate.getDate() - 7);
-        if(rango === '30d') limitDate.setDate(limitDate.getDate() - 30);
-        
-        let fL = [], fTooltip = [], fH = [], fT = [], fA = [], fE = [], fDeltaSec = [], fCads = [];
-        fL.push(formatearEtiquetaEjeX(limitDate, rango));
-        fTooltip.push(formatearFechaTooltip(limitDate));
-        fH.push(null); fT.push(null); fA.push(null); fE.push(null); fDeltaSec.push(30); fCads.push([]);
+        // Calcular el tiempo exacto en segundos (Escala de tiempo real proporcional)
+        const ultimoTsDato = rawFechas.length > 0 ? rawFechas[rawFechas.length - 1] : Math.floor(Date.now() / 1000);
+        const nowTs = Math.max(Math.floor(Date.now() / 1000), ultimoTsDato);
+        let segundosRango = 24 * 3600;
+        if (rango === '6h') segundosRango = 6 * 3600;
+        if (rango === '24h') segundosRango = 24 * 3600;
+        if (rango === '7d') segundosRango = 7 * 86400;
+        if (rango === '30d') segundosRango = 30 * 86400;
 
-        for(let i=0; i<rawFechas.length; i++) {
-            let d = new Date(rawFechas[i] * 1000); 
-            if(d >= limitDate) {
-                fL.push(formatearEtiquetaEjeX(d, rango)); 
-                fTooltip.push(formatearFechaTooltip(d));
-                fH.push(rawHr[i]); 
-                fT.push(rawTemp[i]);
+        const minTs = nowTs - segundosRango;
+        
+        let ptsH = [], ptsT = [], ptsA = [], ptsE = [], fDeltaSec = [], fCads = [];
+        let valoresHrPromedio = [];
+
+        for (let i = 0; i < rawFechas.length; i++) {
+            let ts = rawFechas[i];
+            if (ts >= minTs) {
+                let hVal = rawHr[i];
+                let tVal = rawTemp[i];
+
+                // Si es un punto artificial de corte (>600s sin conexión), insertar null para cortar la línea
+                let esCorte = (hVal === 0 && tVal === 0 && i > 0 && (ts - rawFechas[i-1]) <= 2);
+
+                ptsH.push({ x: ts, y: esCorte ? null : hVal });
+                ptsT.push({ x: ts, y: esCorte ? null : tVal });
+
+                if (!esCorte && hVal !== null && hVal > 0) {
+                    valoresHrPromedio.push(hVal);
+                }
                 
                 let ambVal = (rawAmb.length > i && rawAmb[i] !== null && rawAmb[i] > 0) ? rawAmb[i] : null;
                 if (ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) {
                     ambVal = tempAmbActual;
                 }
-                fA.push(ambVal);
+                ptsA.push({ x: ts, y: esCorte ? null : ambVal });
                 
                 let errIntervalo = (rawErr.length > i && rawErr[i] !== null) ? rawErr[i] : 0;
-                let deltaS = (i > 0 && (rawFechas[i] - rawFechas[i-1]) > 0 && (rawFechas[i] - rawFechas[i-1]) <= 300) ? (rawFechas[i] - rawFechas[i-1]) : 30;
-                fE.push(errIntervalo);
+                let deltaS = (i > 0 && (ts - rawFechas[i-1]) > 0 && (ts - rawFechas[i-1]) <= 300) ? (ts - rawFechas[i-1]) : 30;
+                ptsE.push({ x: ts, y: esCorte ? null : errIntervalo });
                 fDeltaSec.push(deltaS);
                 fCads.push((rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales);
             }
         }
-        titulosTooltip = fTooltip;
         
-        let validHr = fH.filter(v => v !== null && v > 0);
-        let avgHr = validHr.length > 0 ? (validHr.reduce((a,b)=>a+b,0) / validHr.length).toFixed(2) : "0.00";
+        let avgHr = valoresHrPromedio.length > 0 ? (valoresHrPromedio.reduce((a,b)=>a+b,0) / valoresHrPromedio.length).toFixed(2) : "0.00";
         let promEl = document.getElementById('hrPromedio');
         if(promEl) promEl.innerText = 'Promedio: ' + avgHr + ' ' + unidadMinero;
         
-        let tieneTempAmbiente = fA.some(v => v !== null && v > 0) || (tempAmbActual > 0);
+        let tieneTempAmbiente = ptsA.some(p => p.y !== null && p.y > 0) || (tempAmbActual > 0);
 
         let datasetsList = [
-            { id: 'hr', label: 'Hashrate (' + unidadMinero + ')', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
-            { id: 'tmax', label: 'Temperatura Max °C', data: fT, cadsHist: fCads, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: false }
+            { id: 'hr', label: 'Hashrate (' + unidadMinero + ')', data: ptsH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
+            { id: 'tmax', label: 'Temperatura Max °C', data: ptsT, cadsHist: fCads, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: false }
         ];
 
         if (tieneTempAmbiente) {
             datasetsList.push({
-                id: 'tamb', label: 'Temp Ambiente / Entrada °C', data: fA,
+                id: 'tamb', label: 'Temp Ambiente / Entrada °C', data: ptsA,
                 borderColor: '#00e676', borderDash: [3, 3], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: true
             });
         }
 
         datasetsList.push({
-            id: 'err', label: 'Errores HW (Nuevos)', data: fE, deltaSecs: fDeltaSec,
+            id: 'err', label: 'Errores HW (Nuevos)', data: ptsE, deltaSecs: fDeltaSec,
             borderColor: '#ff5252', backgroundColor: 'rgba(255,82,82,0.2)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y2', spanGaps: false
         });
 
         if(chartInstance) {
-            chartInstance.data.labels = fL;
+            chartInstance.options.scales.x.min = minTs;
+            chartInstance.options.scales.x.max = nowTs;
             chartInstance.data.datasets = datasetsList;
             chartInstance.update();
         } else {
             const ctx = document.getElementById('hashrateChart').getContext('2d');
             chartInstance = new Chart(ctx, { 
                 type: 'line', 
-                data: { labels: fL, datasets: datasetsList },
+                data: { datasets: datasetsList },
                 options: { 
+                    parsed: false,
                     responsive: true, maintainAspectRatio: false,
                     layout: { padding: { bottom: 0 } },
-                    interaction: { mode: 'index', intersect: false },
+                    interaction: { mode: 'index', axis: 'x', intersect: false },
                     plugins: { 
                         tooltip: { 
                             enabled: false,
@@ -299,22 +317,28 @@
                     },
                     scales: { 
                         x: { 
+                            type: 'linear',
+                            min: minTs,
+                            max: nowTs,
                             grid: { color: 'rgba(255,255,255,0.05)' },
                             afterBuildTicks: function(axis) {
-                                const totalLabels = axis.chart.data.labels ? axis.chart.data.labels.length : 0;
-                                if (totalLabels <= 1) return;
                                 const esMovil = window.innerWidth <= 768;
-                                const numTicks = Math.min(esMovil ? 7 : 11, totalLabels);
+                                const numTicks = esMovil ? 6 : 10;
                                 const nuevosTicks = [];
+                                const start = axis.min;
+                                const end = axis.max;
                                 for (let i = 0; i < numTicks; i++) {
-                                    const idx = Math.round(i * (totalLabels - 1) / (numTicks - 1));
-                                    nuevosTicks.push({ value: idx });
+                                    const valTs = Math.round(start + (i * (end - start) / (numTicks - 1)));
+                                    nuevosTicks.push({ value: valTs });
                                 }
                                 axis.ticks = nuevosTicks;
                             },
                             ticks: { 
                                 minRotation: 0, maxRotation: 0, autoSkip: false,
-                                color: '#8b8d9c', font: { size: 11 }
+                                color: '#8b8d9c', font: { size: 11 },
+                                callback: function(value) {
+                                    return formatearEtiquetaEjeX(new Date(value * 1000), rangoActual);
+                                }
                             }
                         }, 
                         y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }, 
