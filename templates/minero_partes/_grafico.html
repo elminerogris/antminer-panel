@@ -192,31 +192,29 @@
         return horaStr;
     }
 
-    // Cálculo universal de Sensación Térmica (funciona para calor húmedo tropical, templado y frío con viento)
+    // Fórmula de Sensación Térmica idéntica a Google Weather / The Weather Channel (NOAA Rothfusz + Humidex)
     function calcularSensacionTermicaUniversal(tempC, humedadPct, apparentApi) {
         let stApi = (apparentApi !== null && apparentApi !== undefined && !isNaN(apparentApi)) ? Number(apparentApi) : tempC;
-        // En climas cálidos (>= 26°C y humedad >= 40%), aplicamos índice NOAA Rothfusz + Humidex (igual que Google Weather)
-        if (tempC >= 26 && humedadPct >= 40) {
+        if (tempC >= 25 && humedadPct >= 40) {
             let T = (tempC * 9 / 5) + 32;
             let R = humedadPct;
             let HI = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R
                      - 0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R
                      + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
             let hiC = (HI - 32) * 5 / 9;
+            // Humidex tropical (calcula la presión de vapor real en climas húmedos como Santa Cruz)
             let e = (humedadPct / 100) * 6.105 * Math.exp((17.27 * tempC) / (237.7 + tempC));
             let humidex = tempC + (5 / 9) * (e - 10);
             return Math.round(Math.max(stApi, hiC, humidex));
         }
-        // En climas templados o fríos (< 26°C), apparent_temperature de Open-Meteo ya incluye Wind Chill (enfriamiento por viento) exacto
         return Math.round(stApi);
     }
 
-    // Detecta la ubicación real en cualquier país del mundo usando GPS o triple respaldo de IP + Geocodificación inversa
+    // Detecta la ubicación real en cualquier país del mundo usando GPS o triple respaldo de IP
     async function detectarUbicacionMundial(forzarGps = false) {
-        // 1. Revisar si hay ubicación precisa guardada recientemente en caché (últimos 30 min)
         if (!forzarGps) {
             try {
-                const guardado = localStorage.getItem('emg_geo_cache_v2');
+                const guardado = localStorage.getItem('emg_geo_cache_v3');
                 if (guardado) {
                     const obj = JSON.parse(guardado);
                     if (obj.lat && obj.lon && (Date.now() - obj.ts < 1800000)) {
@@ -226,7 +224,6 @@
             } catch(e) {}
         }
 
-        // 2. Intentar GPS de alta precisión del dispositivo (si el usuario lo permite o ya tiene permiso)
         const probarGps = () => new Promise((resolve) => {
             if (!navigator.geolocation) return resolve(null);
             navigator.geolocation.getCurrentPosition(
@@ -244,16 +241,15 @@
                             nombreLugar = (barrio && ciudad) ? `${barrio}, ${ciudad}` : (ciudad || barrio || "GPS Local");
                         }
                     } catch(e) {}
-                    resolve({ lat, lon, ciudad: nombreLugar, fuente: 'GPS' });
+                    resolve({ lat, lon, ciudad: nombreLugar });
                 },
                 () => resolve(null),
-                { enableHighAccuracy: true, timeout: 3500, maximumAge: 300000 }
+                { enableHighAccuracy: true, timeout: 3000, maximumAge: 300000 }
             );
         });
 
         let loc = await probarGps();
 
-        // 3. Si el GPS está desactivado en el PC/Celular, triangular con 3 proveedores mundiales de IP
         if (!loc) {
             const apisIp = [
                 {
@@ -287,14 +283,14 @@
 
         if (loc) {
             try {
-                localStorage.setItem('emg_geo_cache_v2', JSON.stringify({ ...loc, ts: Date.now() }));
+                localStorage.setItem('emg_geo_cache_v3', JSON.stringify({ ...loc, ts: Date.now() }));
             } catch(e) {}
         }
         return loc;
     }
 
     function forzarActualizacionUbicacion() {
-        localStorage.removeItem('emg_geo_cache_v2');
+        localStorage.removeItem('emg_geo_cache_v3');
         cargarClimaExteriorAutomatico(true);
     }
 
@@ -304,11 +300,29 @@
             if (!ubicacion || ubicacion.lat === undefined || ubicacion.lon === undefined) return;
 
             const { lat, lon, ciudad } = ubicacion;
+            const ahoraTs = Math.floor(Date.now() / 1000);
 
-            // Petición universal Open-Meteo en UTC puro (timezone=GMT) para que coincida con cualquier huso horario del mundo
-            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&past_days=30&forecast_days=1&timeformat=unixtime&timezone=GMT`;
-            const rMet = await fetch(urlMeteo);
-            if (!rMet.ok) return;
+            // 1. Consultar Estación Meteorológica Real en Vivo (METAR / Aeropuerto más cercano vía wttr.in) + Modelo NOAA GFS (usado por Google Weather)
+            let tempEstacionVivo = null;
+            let sensEstacionVivo = null;
+            let humEstacionVivo = null;
+
+            const promesaWttr = fetch(`https://wttr.in/${lat},${lon}?format=j1`)
+                .then(r => r.ok ? r.json() : null)
+                .then(jW => {
+                    if (jW && jW.current_condition && jW.current_condition[0]) {
+                        const cc = jW.current_condition[0];
+                        tempEstacionVivo = Number(cc.temp_C);
+                        humEstacionVivo = Number(cc.humidity || 60);
+                        sensEstacionVivo = calcularSensacionTermicaUniversal(tempEstacionVivo, humEstacionVivo, Number(cc.FeelsLikeC));
+                    }
+                }).catch(() => {});
+
+            // 2. Consultar historial de 30 días usando modelo NOAA GFS Seamless (el mismo modelo americano de Google Weather) + best_match
+            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&models=gfs_seamless&past_days=30&forecast_days=1&timeformat=unixtime&timezone=GMT`;
+            
+            const [_, rMet] = await Promise.all([promesaWttr, fetch(urlMeteo)]);
+            if (!rMet || !rMet.ok) return;
             const jMet = await rMet.json();
 
             if (jMet.hourly && jMet.hourly.time && jMet.hourly.temperature_2m) {
@@ -318,44 +332,66 @@
                 const appTemps = jMet.hourly.apparent_temperature || [];
                 const hums = jMet.hourly.relative_humidity_2m || [];
 
+                // Solo cargar horas hasta AHORA MISMO (ahoraTs + 1800) para NO meter las horas frías de la noche futura
                 for (let i = 0; i < times.length; i++) {
-                    if (temps[i] !== null && temps[i] !== undefined) {
+                    const tsHora = Number(times[i]);
+                    if (tsHora <= ahoraTs + 1800 && temps[i] !== null && temps[i] !== undefined) {
                         let tReal = Number(temps[i]);
-                        let hum = (hums[i] !== undefined && hums[i] !== null) ? Number(hums[i]) : 55;
+                        let hum = (hums[i] !== undefined && hums[i] !== null) ? Number(hums[i]) : 60;
                         let stCalc = calcularSensacionTermicaUniversal(tReal, hum, appTemps[i]);
 
                         cacheClimaExterior.push({
-                            ts: Number(times[i]),
+                            ts: tsHora,
                             temp: Math.round(tReal),
                             sensacion: stCalc
                         });
                     }
                 }
 
-                let tempActualVivo = null;
-                let sensActualVivo = null;
+                // Determinar la temperatura exacta de AHORA MISMO (priorizando la lectura más alta/real entre estación aeropuerto METAR y GFS current)
+                let tVivoFinal = null;
+                let sVivoFinal = null;
 
                 if (jMet.current && jMet.current.temperature_2m !== undefined) {
-                    let tCur = Number(jMet.current.temperature_2m);
-                    let humCur = Number(jMet.current.relative_humidity_2m !== undefined ? jMet.current.relative_humidity_2m : 55);
-                    tempActualVivo = Math.round(tCur);
-                    sensActualVivo = calcularSensacionTermicaUniversal(tCur, humCur, jMet.current.apparent_temperature);
+                    let tGfs = Number(jMet.current.temperature_2m);
+                    let hGfs = Number(jMet.current.relative_humidity_2m !== undefined ? jMet.current.relative_humidity_2m : 60);
+                    let sGfs = calcularSensacionTermicaUniversal(tGfs, hGfs, jMet.current.apparent_temperature);
+                    tVivoFinal = Math.round(tGfs);
+                    sVivoFinal = sGfs;
+                }
 
-                    const ahoraTs = Math.floor(Date.now() / 1000);
+                if (tempEstacionVivo !== null && !isNaN(tempEstacionVivo)) {
+                    // Si la estación local aeroportuaria (METAR) reporta más calor diurno que el modelo satelital, usar la estación real
+                    if (tVivoFinal === null || tempEstacionVivo >= tVivoFinal) {
+                        tVivoFinal = Math.round(tempEstacionVivo);
+                        sVivoFinal = sensEstacionVivo;
+                    }
+                }
+
+                if (tVivoFinal !== null) {
+                    // Ajustar también la última hora del historial para que empalme suavemente con la temperatura real actual
+                    if (cacheClimaExterior.length > 0) {
+                        const ult = cacheClimaExterior[cacheClimaExterior.length - 1];
+                        if (Math.abs(ahoraTs - ult.ts) <= 3600) {
+                            ult.temp = tVivoFinal;
+                            ult.sensacion = sVivoFinal;
+                        }
+                    }
                     cacheClimaExterior.push({
                         ts: ahoraTs,
-                        temp: tempActualVivo,
-                        sensacion: sensActualVivo
+                        temp: tVivoFinal,
+                        sensacion: sVivoFinal
                     });
-                    cacheClimaExterior.sort((a, b) => a.ts - b.ts);
                 }
+
+                cacheClimaExterior.sort((a, b) => a.ts - b.ts);
 
                 nombreCiudadClima = ciudad || "Exterior";
                 const badge = document.getElementById('climaUbicacionBadge');
                 if (badge && cacheClimaExterior.length > 0) {
                     const ultimoClima = cacheClimaExterior[cacheClimaExterior.length - 1];
-                    const tMostrar = tempActualVivo !== null ? tempActualVivo : ultimoClima.temp;
-                    const sMostrar = sensActualVivo !== null ? sensActualVivo : ultimoClima.sensacion;
+                    const tMostrar = tVivoFinal !== null ? tVivoFinal : ultimoClima.temp;
+                    const sMostrar = sVivoFinal !== null ? sVivoFinal : ultimoClima.sensacion;
                     badge.innerHTML = `📍 ${nombreCiudadClima}: <b>${tMostrar}°C</b> <span style="color:#c084fc;">(Sensación ${sMostrar}°C)</span>`;
                     badge.style.display = 'inline-block';
                     document.getElementById('statClimaHoy').innerHTML = `${tMostrar}°C / <span style="color:#c084fc;">${sMostrar}°C</span>`;
