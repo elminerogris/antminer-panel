@@ -4,7 +4,8 @@ from functools import wraps
 import psycopg2, psycopg2.extras, json, urllib.request, urllib.parse, time, calendar, csv, io, os, secrets
 from datetime import datetime
 
-app = Flask(__name__)
+# Permite buscar archivos HTML tanto en 'templates/' como en la raíz por si alguno quedó afuera
+app = Flask(__name__, template_folder='templates')
 app.secret_key = 'super_secreta_antminer_tools'
 
 DB_URL = os.environ.get("DATABASE_URL", "")
@@ -16,6 +17,17 @@ def get_db():
 
 def generar_api_key():
     return "EMG-" + secrets.token_hex(8).upper()
+
+def render_seguro(nombre_archivo, **contexto):
+    """Intenta renderizar desde templates/; si el archivo quedó en la raíz de GitHub, lo lee de ahí sin dar Error 500."""
+    try:
+        return render_template(nombre_archivo, **contexto)
+    except TemplateNotFound:
+        if os.path.exists(nombre_archivo):
+            from flask import render_template_string
+            with open(nombre_archivo, 'r', encoding='utf-8') as f:
+                return render_template_string(f.read(), **contexto)
+        return render_template('subpaginas.html', **contexto)
 
 def init_db():
     if not DB_URL: return
@@ -82,6 +94,8 @@ def init_db():
         for u_row in c.fetchall():
             c.execute("UPDATE usuarios SET api_key=%s WHERE id=%s", (generar_api_key(), u_row[0]))
 
+        # Asegurar que los mineros existentes tengan owner='giovanni' si estaba NULL
+        c.execute("UPDATE mineros_activos SET owner='giovanni' WHERE owner IS NULL OR owner=''")
         con.close()
     except Exception as e:
         print(f"Error BD Init: {e}")
@@ -124,15 +138,15 @@ def obtener_datos_red():
     cache_red['ultima_act'] = ahora
     return datos
 
-# --- VISTA: / y /resumen -> templates/resumen.html ---
+# --- VISTA: / y /resumen -> templates/resumen.html (Mantiene 'index' para compatibilidad con layout.html) ---
 @app.route('/')
-@app.route('/resumen')
+@app.route('/resumen', endpoint='resumen')
 @login_required
-def resumen():
+def index():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
+    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s OR owner IS NULL ORDER BY ip ASC", (usr_actual,))
     mineros = cur.fetchall()
     cur.execute("SELECT * FROM nombres_mineros")
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
@@ -201,16 +215,16 @@ def resumen():
         'red_ehs': datos_red['red_ehs'],
         'ingreso_dia': f"{ig:.2f}", 'ganancia_dia': f"{ig:.2f} USD"
     }
-    return render_template('resumen.html', active_page='resumen', registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota)
+    return render_seguro('resumen.html', active_page='resumen', registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota)
 
 # --- VISTA: /minero/<ip> -> templates/minero.html ---
 @app.route('/minero/<ip>')
+@app.route('/minero/<ip>', endpoint='detalle_minero')
 @login_required
 def minero(ip):
-    usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos WHERE ip=%s AND owner=%s", (ip, usr_actual))
+    cur.execute("SELECT * FROM mineros_activos WHERE ip=%s", (ip,))
     m = cur.fetchone()
     cur.execute("SELECT nombre FROM nombres_mineros WHERE ip=%s", (ip,))
     n_row = cur.fetchone()
@@ -324,10 +338,7 @@ def minero(ip):
     if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
     disp = {'eficiencia': eficiencia_val}
     
-    try:
-        return render_template('minero.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str, ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas), graf_cadenas_hist=json.dumps(cad_g))
-    except TemplateNotFound:
-        return render_template('detalle.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str, ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas), graf_cadenas_hist=json.dumps(cad_g))
+    return render_seguro('minero.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str, ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas), graf_cadenas_hist=json.dumps(cad_g))
 
 # --- VISTA: /mineros -> templates/mineros.html ---
 @app.route('/mineros')
@@ -336,7 +347,7 @@ def mineros():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
+    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s OR owner IS NULL ORDER BY ip ASC", (usr_actual,))
     filas = cur.fetchall()
     cur.execute("SELECT * FROM nombres_mineros")
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
@@ -417,7 +428,7 @@ def mineros():
             'pct_rej': pct_rej
         })
 
-    return render_template('mineros.html', active_page='mineros', mineros=lista_mineros, stats=contadores)
+    return render_seguro('mineros.html', active_page='mineros', mineros=lista_mineros, stats=contadores)
 
 # --- VISTA: /alertas -> templates/alertas.html ---
 @app.route('/alertas', methods=['GET', 'POST'])
@@ -465,7 +476,7 @@ def alertas():
     cur.execute("SELECT * FROM registro_alertas WHERE owner=%s ORDER BY id DESC LIMIT 100", (usr_actual,))
     historial = cur.fetchall()
     con.close()
-    return render_template('alertas.html', active_page='alertas', cfg=cfg, historial=historial, msg=msg)
+    return render_seguro('alertas.html', active_page='alertas', cfg=cfg, historial=historial, msg=msg)
 
 # --- VISTA: /ajustes -> templates/ajustes.html ---
 @app.route('/ajustes', methods=['GET', 'POST'])
@@ -512,7 +523,7 @@ def ajustes():
         'subnet': u_data.get('subnet') or '192.168.0',
         'tarifa_kwh': u_data.get('tarifa_kwh') or 0.0
     }
-    return render_template('ajustes.html', active_page='ajustes', user=user_info, msg=msg)
+    return render_seguro('ajustes.html', active_page='ajustes', user=user_info, msg=msg)
 
 @app.route('/descargar_agente')
 @login_required
@@ -525,9 +536,6 @@ def descargar_agente():
     con.close()
     api_k = u.get('api_key') or generar_api_key()
     sub = u.get('subnet') or '192.168.0'
-    host_url = request.host_url.rstrip('/')
-    if host_url.startswith('http://') and 'onrender.com' in host_url:
-        host_url = host_url.replace('http://', 'https://')
 
     try:
         with open('agente.py', 'r', encoding='utf-8') as f:
@@ -541,13 +549,12 @@ def descargar_agente():
 @app.route('/plan')
 @login_required
 def plan():
-    return render_template('plan.html', active_page='plan', current_plan=session.get('plan', 'Gratis'), saldo=session.get('saldo', 0.0))
+    return render_seguro('plan.html', active_page='plan', current_plan=session.get('plan', 'Gratis'), saldo=session.get('saldo', 0.0))
 
 @app.route('/granjas')
 @login_required
 def granjas():
-    try: return render_template('granjas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
-    except TemplateNotFound: return render_template('subpaginas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
+    return render_seguro('granjas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -559,8 +566,8 @@ def login():
         if usr:
             session['usuario'] = u; session['plan'] = usr.get('plan', 'Gratis'); session['saldo'] = usr.get('saldo', 0.0)
             return redirect('/')
-        return render_template('login.html', error='Credenciales incorrectas', mode='login')
-    return render_template('login.html', mode='login')
+        return render_seguro('login.html', error='Credenciales incorrectas', mode='login')
+    return render_seguro('login.html', mode='login')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -570,9 +577,9 @@ def register():
             con = get_db(); con.autocommit = True; cur = con.cursor()
             cur.execute("INSERT INTO usuarios (username, password, plan, saldo, api_key) VALUES (%s, %s, 'Gratis', 0.0, %s)", (u, p, generar_api_key()))
             con.close()
-            return render_template('login.html', success='Cuenta creada con API Key propia. Ahora inicia sesión.', mode='login')
-        except: return render_template('login.html', error='El nombre de usuario ya está en uso', mode='register')
-    return render_template('login.html', mode='register')
+            return render_seguro('login.html', success='Cuenta creada con API Key propia. Ahora inicia sesión.', mode='login')
+        except: return render_seguro('login.html', error='El nombre de usuario ya está en uso', mode='register')
+    return render_seguro('login.html', mode='register')
 
 @app.route('/logout')
 def logout(): session.clear(); return redirect('/login')
@@ -641,7 +648,7 @@ def comando_minero(ip, accion):
 def exportar_csv():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s OR owner IS NULL", (usr_actual,))
     filas = cur.fetchall(); con.close()
     output = io.StringIO(); writer = csv.writer(output)
     writer.writerow(['IP', 'Modelo', 'Hashrate', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
@@ -672,7 +679,6 @@ def recibir_datos():
     con = get_db(); con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
-    # Identificar al dueño de los mineros mediante API Key (si viene vacío, asigna a 'giovanni' por compatibilidad)
     api_key_recibida = str(datos.get('api_key') or '').strip()
     owner_user = 'giovanni'
     u_cfg = None
@@ -684,7 +690,7 @@ def recibir_datos():
         cur.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         u_cfg = cur.fetchone()
 
-    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND owner=%s", (owner_user,))
+    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND (owner=%s OR owner IS NULL)", (owner_user,))
     pend = cur.fetchall()
     ordenes = [{"ip": c['ip'], "comando": c['comando']} for c in pend]
     for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c['id'],))
@@ -729,13 +735,12 @@ def recibir_datos():
         cadenas_json = json.dumps(cadenas_list)
         
         cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
                         owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns''', 
                     (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns))
         
         cur.execute("INSERT INTO historial_nube (owner, ip, hashrate, temp_max, temp_amb, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", (owner_user, ip_m, hr_m, temp_m, t_amb, err, cadenas_json, ahora))
 
-        # Verificación automática de Alertas (enfriamiento de 30 min por IP/tipo)
         if alertas_on:
             if temp_m >= umbral_t:
                 k_al = f"{owner_user}_{ip_m}_TEMP"
