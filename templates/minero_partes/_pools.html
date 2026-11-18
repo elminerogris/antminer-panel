@@ -1,0 +1,93 @@
+<div class="card" style="padding:0; overflow:hidden;">
+    <div class="pools-header">
+        <span>⛏ Pools</span>
+        <button class="btn-guardar" onclick="guardarTodasPools()">💾 Guardar Todos los Pools</button>
+    </div>
+    <div class="table-responsive">
+        <table class="info-table" style="min-width:580px;">
+            <tr>
+                <th>#</th>
+                <th>Pool URL</th>
+                <th>Worker</th>
+                <th>Pass</th>
+                <th>Estado</th>
+                <th>Aceptados</th>
+                <th>Rechazados (%)</th>
+            </tr>
+            {% set tot1 = extra.acc1 + extra.rej1 %}
+            {% set pct1 = (extra.rej1 / tot1 * 100) if tot1 > 0 else 0.0 %}
+            <tr>
+                <td>1</td>
+                <td><input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool" translate="no"></td>
+                <td><input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool" oninput="sincronizarWorker(this.value)" translate="no"></td>
+                <td><input type="text" id="pass_1" value="{{ extra.pass1 }}" class="input-pool" style="width:70px;" oninput="sincronizarPass(this.value)" translate="no"></td>
+                <td style="color:{{ 'var(--accent-green)' if extra.status1 == 'Alive' else 'var(--accent-red)' }}; font-weight:bold;" translate="no">{{ extra.status1 }}</td>
+                <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ "{:,}".format(extra.acc1) }}</td>
+                <td translate="no">
+                    <span style="color:{{ 'var(--accent-red)' if extra.rej1 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej1) }}</span>
+                    <span style="font-size:0.85em; color:{{ 'var(--accent-red)' if pct1 > 1.5 else 'var(--text-muted)' }}; margin-left:4px;">({{ "%.2f"|format(pct1) }}%)</span>
+                </td>
+            </tr>
+            {% set tot2 = extra.acc2 + extra.rej2 %}
+            {% set pct2 = (extra.rej2 / tot2 * 100) if tot2 > 0 else 0.0 %}
+            <tr>
+                <td>2</td>
+                <td><input type="text" id="url_2" value="{{ extra.pool2 }}" class="input-pool" translate="no"></td>
+                <td><input type="text" id="user_2" value="{{ extra.worker2 }}" class="input-pool" translate="no"></td>
+                <td><input type="text" id="pass_2" value="{{ extra.pass2 }}" class="input-pool" style="width:70px;" translate="no"></td>
+                <td style="color:{{ 'var(--accent-green)' if extra.status2 == 'Alive' else 'var(--accent-red)' }}; font-weight:bold;" translate="no">{{ extra.status2 }}</td>
+                <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ "{:,}".format(extra.acc2) }}</td>
+                <td translate="no">
+                    <span style="color:{{ 'var(--accent-red)' if extra.rej2 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej2) }}</span>
+                    <span style="font-size:0.85em; color:{{ 'var(--accent-red)' if pct2 > 1.5 else 'var(--text-muted)' }}; margin-left:4px;">({{ "%.2f"|format(pct2) }}%)</span>
+                </td>
+            </tr>
+            {% set tot3 = extra.acc3 + extra.rej3 %}
+            {% set pct3 = (extra.rej3 / tot3 * 100) if tot3 > 0 else 0.0 %}
+            <tr>
+                <td>3</td>
+                <td><input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool" translate="no"></td>
+                <td><input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool" translate="no"></td>
+                <td><input type="text" id="pass_3" value="{{ extra.pass3 }}" class="input-pool" style="width:70px;" translate="no"></td>
+                <td style="color:{{ 'var(--accent-green)' if extra.status3 == 'Alive' else 'var(--accent-red)' }}; font-weight:bold;" translate="no">{{ extra.status3 }}</td>
+                <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ "{:,}".format(extra.acc3) }}</td>
+                <td translate="no">
+                    <span style="color:{{ 'var(--accent-red)' if extra.rej3 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej3) }}</span>
+                    <span style="font-size:0.85em; color:{{ 'var(--accent-red)' if pct3 > 1.5 else 'var(--text-muted)' }}; margin-left:4px;">({{ "%.2f"|format(pct3) }}%)</span>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<script>
+    function sincronizarWorker(valor) {
+        let u2 = document.getElementById('user_2');
+        let u3 = document.getElementById('user_3');
+        if (u2) u2.value = valor;
+        if (u3) u3.value = valor;
+    }
+
+    function sincronizarPass(valor) {
+        let p2 = document.getElementById('pass_2');
+        let p3 = document.getElementById('pass_3');
+        if (p2) p2.value = valor;
+        if (p3) p3.value = valor;
+    }
+
+    function guardarTodasPools() {
+        let u1 = encodeURIComponent(document.getElementById('url_1').value);
+        let w1 = encodeURIComponent(document.getElementById('user_1').value);
+        let p1 = encodeURIComponent(document.getElementById('pass_1').value || '123');
+        let u2 = encodeURIComponent(document.getElementById('url_2').value);
+        let w2 = encodeURIComponent(document.getElementById('user_2').value);
+        let p2 = encodeURIComponent(document.getElementById('pass_2').value || '123');
+        let u3 = encodeURIComponent(document.getElementById('url_3').value);
+        let w3 = encodeURIComponent(document.getElementById('user_3').value);
+        let p3 = encodeURIComponent(document.getElementById('pass_3').value || '123');
+        if(confirm('¿Guardar configuración de Pools en el minero?')) {
+            fetch(`/cmd/{{ ip }}/guardar_pools?u1=${u1}&w1=${w1}&p1=${p1}&u2=${u2}&w2=${w2}&p2=${p2}&u3=${u3}&w3=${w3}&p3=${p3}`)
+            .then(()=>alert('Configuración de pools enviada a la cola del Agente.'));
+        }
+    }
+</script>
