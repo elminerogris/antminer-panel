@@ -1,15 +1,29 @@
-from flask import Flask, render_template, redirect, request, session, url_for, jsonify, Response
+from flask import Flask, render_template, render_template_string, redirect, request, session, url_for, jsonify, Response
 from jinja2 import TemplateNotFound
 from functools import wraps
-import psycopg2, psycopg2.extras, json, urllib.request, urllib.parse, time, calendar, csv, io, os, secrets
+import psycopg2, psycopg2.extras, json, urllib.request, urllib.parse, time, calendar, csv, io, os, secrets, traceback
 from datetime import datetime
 
-# Permite buscar archivos HTML tanto en 'templates/' como en la raíz por si alguno quedó afuera
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'super_secreta_antminer_tools'
 
 DB_URL = os.environ.get("DATABASE_URL", "")
 ultimo_envio_alerta = {}
+db_inicializada = False
+
+# --- CAPTURADOR DE ERRORES 500 (Muestra el error exacto si algo falla) ---
+@app.errorhandler(Exception)
+def manejar_error_global(e):
+    tb = traceback.format_exc()
+    html_error = f"""
+    <div style="background:#0f111a;color:#fff;font-family:monospace;padding:30px;min-height:100vh;">
+        <h2 style="color:#ff5252;">⚠️ Diagnóstico Técnico de El Minero Gris</h2>
+        <p style="color:#a5a7b5;">Se detectó el siguiente detalle técnico en el servidor:</p>
+        <pre style="background:#000;color:#00e676;padding:20px;border-radius:8px;border:1px solid #333;overflow-x:auto;">{tb}</pre>
+        <a href="/" style="display:inline-block;margin-top:15px;background:#3366ff;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-family:sans-serif;font-weight:bold;">🔄 Reintentar / Ir al Inicio</a>
+    </div>
+    """
+    return html_error, 500
 
 def get_db():
     if not DB_URL: raise Exception("Falta DATABASE_URL en Render")
@@ -19,17 +33,31 @@ def generar_api_key():
     return "EMG-" + secrets.token_hex(8).upper()
 
 def render_seguro(nombre_archivo, **contexto):
-    """Intenta renderizar desde templates/; si el archivo quedó en la raíz de GitHub, lo lee de ahí sin dar Error 500."""
     try:
         return render_template(nombre_archivo, **contexto)
     except TemplateNotFound:
+        # Si el archivo quedó fuera de la carpeta templates/ (en la raíz de GitHub)
         if os.path.exists(nombre_archivo):
-            from flask import render_template_string
             with open(nombre_archivo, 'r', encoding='utf-8') as f:
                 return render_template_string(f.read(), **contexto)
-        return render_template('subpaginas.html', **contexto)
+        # Si es minero.html pero aún se llama detalle.html
+        if nombre_archivo == 'minero.html':
+            try: return render_template('detalle.html', **contexto)
+            except TemplateNotFound: pass
+        # Fallback amigable si una subpágina aún está vacía o no existe
+        html_fallback = """
+        {% extends "layout.html" %}
+        {% block content %}
+        <div style="background:var(--bg-card);padding:30px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+            <h2>{{ titulo | default('Sección activa') }}</h2>
+            <p style="color:var(--text-muted);">El archivo <b>{{ archivo }}</b> no se encontró dentro de la carpeta <code>templates/</code> en GitHub.</p>
+        </div>
+        {% endblock %}
+        """
+        return render_template_string(html_fallback, archivo=nombre_archivo, **contexto)
 
 def init_db():
+    global db_inicializada
     if not DB_URL: return
     try:
         con = get_db()
@@ -94,14 +122,19 @@ def init_db():
         for u_row in c.fetchall():
             c.execute("UPDATE usuarios SET api_key=%s WHERE id=%s", (generar_api_key(), u_row[0]))
 
-        # Asegurar que los mineros existentes tengan owner='giovanni' si estaba NULL
         c.execute("UPDATE mineros_activos SET owner='giovanni' WHERE owner IS NULL OR owner=''")
         con.close()
+        db_inicializada = True
     except Exception as e:
         print(f"Error BD Init: {e}")
 
 try: init_db()
 except Exception as e: print(f"Error init_db: {e}")
+
+@app.before_request
+def asegurar_bd():
+    if not db_inicializada:
+        init_db()
 
 def login_required(f):
     @wraps(f)
@@ -138,9 +171,9 @@ def obtener_datos_red():
     cache_red['ultima_act'] = ahora
     return datos
 
-# --- VISTA: / y /resumen -> templates/resumen.html (Mantiene 'index' para compatibilidad con layout.html) ---
+# --- VISTA: / y /resumen -> templates/resumen.html ---
 @app.route('/')
-@app.route('/resumen', endpoint='resumen')
+@app.route('/resumen')
 @login_required
 def index():
     usr_actual = session.get('usuario', 'giovanni')
@@ -158,16 +191,17 @@ def index():
     
     for m in mineros:
         ip = m['ip']
-        mod = m['modelo']
+        mod = m.get('modelo') or 'Antminer'
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
         nombre_custom = nombres_dict.get(ip, ip.split('.')[-1])
-        ult = m['ultima_act'] if m['ultima_act'] else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        hr = float(m['hashrate']) if m['hashrate'] else 0.0
-        t = int(m['temp_max']) if m['temp_max'] else 0
-        c = float(m['consumo_w']) if m['consumo_w'] else 0.0
+        ult = m.get('ultima_act') or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        hr = float(m['hashrate']) if m.get('hashrate') else 0.0
+        t = int(m['temp_max']) if m.get('temp_max') else 0
+        c = float(m['consumo_w']) if m.get('consumo_w') else 0.0
         
-        segs_desconectado = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
+        try: segs_desconectado = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
+        except: segs_desconectado = 0
         eficiencia_val = round(c / hr, 2) if hr > 0 else 0
         if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
 
@@ -189,7 +223,7 @@ def index():
                 'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad, 'unidad_efi': unidad_efi,
                 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 
                 'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr, 
-                'hashrate_30m': float(m.get('hashrate_30m', hr)), 
+                'hashrate_30m': float(m.get('hashrate_30m') or hr), 
                 'temp_num': t, 'consumo_kw': f"{round(c/1000, 2)} kW", 
                 'eficiencia': eficiencia_val, 'ganancia_neta': str_gan
             })
@@ -219,9 +253,8 @@ def index():
 
 # --- VISTA: /minero/<ip> -> templates/minero.html ---
 @app.route('/minero/<ip>')
-@app.route('/minero/<ip>', endpoint='detalle_minero')
 @login_required
-def minero(ip):
+def detalle_minero(ip):
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM mineros_activos WHERE ip=%s", (ip,))
@@ -238,14 +271,15 @@ def minero(ip):
     unidad_hr = str(m.get('unidad') or ('kSol/s' if 'z15' in mod_str.lower() else 'TH/s'))
     unidad_efi = "J/kSol" if unidad_hr == "kSol/s" else ("J/GH" if unidad_hr == "GH/s" else "J/TH")
     
-    nombre_minero = n_row['nombre'] if n_row and n_row['nombre'] else ip.split('.')[-1]
-    hr_val = float(m['hashrate']) if m['hashrate'] else 0.0
-    hr_30m_val = float(m.get('hashrate_30m', hr_val)) if m.get('hashrate_30m') else hr_val
-    t_val = int(m['temp_max']) if m['temp_max'] else 0
+    nombre_minero = n_row['nombre'] if n_row and n_row.get('nombre') else ip.split('.')[-1]
+    hr_val = float(m['hashrate']) if m.get('hashrate') else 0.0
+    hr_30m_val = float(m.get('hashrate_30m') or hr_val)
+    t_val = int(m['temp_max']) if m.get('temp_max') else 0
     t_amb_val = int(m.get('temp_amb') or 0)
-    c_val = float(m['consumo_w']) if m['consumo_w'] else 0.0
-    ult = m['ultima_act'] if m['ultima_act'] else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    offline = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() > 180
+    c_val = float(m['consumo_w']) if m.get('consumo_w') else 0.0
+    ult = m.get('ultima_act') or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    try: offline = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() > 180
+    except: offline = False
     
     pool1 = str(m.get('pool1') or ""); worker1 = str(m.get('worker1') or ""); pass1 = str(m.get('pass1') or "123")
     pool2 = str(m.get('pool2') or ""); worker2 = str(m.get('worker2') or ""); pass2 = str(m.get('pass2') or "123")
@@ -272,7 +306,7 @@ def minero(ip):
     uptime_val = raw_uptime if (raw_uptime and raw_uptime != "0h 0m") else "En línea"
     if offline: uptime_val = "Desconectado"
     
-    cadenas_str = m['cadenas'] if m['cadenas'] else "[]"
+    cadenas_str = m.get('cadenas') or "[]"
     try: cadenas = json.loads(cadenas_str)
     except: cadenas = []
     if not cadenas: 
@@ -286,24 +320,27 @@ def minero(ip):
     prev_err = 0
     if hist:
         for idx, h in enumerate(hist):
-            dt_actual = datetime.strptime(h['fecha'], "%Y-%m-%d %H:%M:%S")
+            try: dt_actual = datetime.strptime(h['fecha'], "%Y-%m-%d %H:%M:%S")
+            except: continue
             ts = calendar.timegm(dt_actual.timetuple())
             f_raw.append(ts) 
-            val_h = float(h['hashrate']) if h['hashrate'] else 0
+            val_h = float(h['hashrate']) if h.get('hashrate') else 0
             if idx > 0:
-                dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
-                if (dt_actual - dt_prev).total_seconds() > 600: 
-                    f_raw.append(calendar.timegm(dt_prev.timetuple()) + 1)
-                    hr_g.append(0); tp_g.append(0); tamb_g.append(None); err_g.append(0); cad_g.append([])
+                try:
+                    dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
+                    if (dt_actual - dt_prev).total_seconds() > 600: 
+                        f_raw.append(calendar.timegm(dt_prev.timetuple()) + 1)
+                        hr_g.append(0); tp_g.append(0); tamb_g.append(None); err_g.append(0); cad_g.append([])
+                except: pass
             
-            total_err_actual = int(h['errores']) if 'errores' in h and h['errores'] else 0
+            total_err_actual = int(h.get('errores') or 0)
             diff_err = total_err_actual - prev_err
             if diff_err < 0: diff_err = total_err_actual
             err_g.append(max(0, diff_err))
             prev_err = total_err_actual
 
             hr_g.append(val_h)
-            tp_g.append(int(h['temp_max']) if h['temp_max'] else 0)
+            tp_g.append(int(h['temp_max']) if h.get('temp_max') else 0)
             
             val_amb = int(h.get('temp_amb') or 0)
             tamb_g.append(val_amb if val_amb > 0 else None)
@@ -322,7 +359,7 @@ def minero(ip):
     dt = {
         'hashrate': hr_val, 'hashrate_30m': hr_30m_val, 'unidad': unidad_hr, 'unidad_efi': unidad_efi,
         'temp_max': t_val, 'temp_amb': t_amb_val,
-        'errores': m.get('errores', 0), 'consumo': f"{round(c_val/1000, 2)} kW", 
+        'errores': m.get('errores') or 0, 'consumo': f"{round(c_val/1000, 2)} kW", 
         'fans': fans, 'uptime': uptime_val, 
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0
     }
@@ -362,15 +399,16 @@ def mineros():
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
         nombre = nombres_dict.get(ip, ip.split('.')[-1])
-        ult = m['ultima_act'] if m['ultima_act'] else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        segs = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
+        ult = m.get('ultima_act') or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        try: segs = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
+        except: segs = 0
         es_online = segs < 180
 
-        hr = float(m['hashrate']) if (es_online and m['hashrate']) else 0.0
+        hr = float(m['hashrate']) if (es_online and m.get('hashrate')) else 0.0
         hr_30m = float(m.get('hashrate_30m') or hr) if es_online else 0.0
-        t_max = int(m['temp_max']) if (es_online and m['temp_max']) else 0
+        t_max = int(m['temp_max']) if (es_online and m.get('temp_max')) else 0
         t_amb = int(m.get('temp_amb') or 0) if es_online else 0
-        cons_w = float(m['consumo_w']) if (es_online and m['consumo_w']) else 0.0
+        cons_w = float(m['consumo_w']) if (es_online and m.get('consumo_w')) else 0.0
         err_hw = int(m.get('errores') or 0) if es_online else 0
 
         efi = round(cons_w / hr, 2) if hr > 0 else 0.0
@@ -706,9 +744,9 @@ def recibir_datos():
 
     for m in datos.get('mineros', []):
         ip_m = m['ip']
-        mod_m = m['modelo']
-        hr_m = float(m['hashrate'])
-        temp_m = int(m['temp'])
+        mod_m = m.get('modelo') or 'Antminer'
+        hr_m = float(m.get('hashrate') or 0.0)
+        temp_m = int(m.get('temp') or 0)
         unid = m.get('unidad', 'TH/s')
         err = m.get('errores', 0)
         t_amb = int(m.get('temp_amb') or 0)
@@ -737,7 +775,7 @@ def recibir_datos():
         cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns) 
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
                         owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns''', 
-                    (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns))
+                    (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, m.get('consumo', 0), ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns))
         
         cur.execute("INSERT INTO historial_nube (owner, ip, hashrate, temp_max, temp_amb, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", (owner_user, ip_m, hr_m, temp_m, t_amb, err, cadenas_json, ahora))
 
