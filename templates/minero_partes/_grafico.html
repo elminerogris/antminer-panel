@@ -221,7 +221,6 @@
         return Math.round(tempC);
     }
 
-    // Carga el clima exclusivamente para las coordenadas de la GRANJA donde está el Antminer (sin pedir permiso GPS al navegador)
     async function cargarClimaDeLaGranja() {
         try {
             const lat = GRANJA_LAT;
@@ -229,7 +228,6 @@
             const ciudad = GRANJA_CIUDAD;
             const ahoraTs = Math.floor(Date.now() / 1000);
 
-            // 1. Consultar estación aeroportuaria oficial METAR de la zona de la granja
             let tempMetarVivo = null;
             let humMetarVivo = null;
 
@@ -247,7 +245,6 @@
                     }
                 }).catch(() => {});
 
-            // 2. Consultar historial de 30 días de las coordenadas de la granja en Open-Meteo
             const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&past_days=30&forecast_days=1&timeformat=unixtime&timezone=GMT`;
 
             const [_, rMet] = await Promise.all([promesaMetar, fetch(urlMeteo)]);
@@ -295,7 +292,7 @@
                     sensRealHoy = calcularSensacionTermicaNOAA(tempRealHoy, humRealHoy, appCur);
 
                     cacheClimaExterior.push({
-                        ts: ahoraTs,
+                        ts: Math.floor(ahoraTs / 60) * 60,
                         temp: tempRealHoy,
                         sensacion: sensRealHoy
                     });
@@ -486,7 +483,7 @@
                 html += `<div class="tt-row"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación Térmica: <b>${meta.sensacion}°C</b></div>`;
             }
             let errNuevos = meta.err || 0;
-            let ds = meta.deltaS || 30;
+            let ds = meta.deltaS || 60;
             let porSeg = (errNuevos / ds).toFixed(2);
             html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b>${errNuevos} nuevos</b> (${porSeg} /s)</div>`;
         }
@@ -592,11 +589,13 @@
         return mins.length > 0 ? Math.min(...mins) : null;
     }
 
+    // Procesa y consolida los registros para que exista EXACTAMENTE 1 PUNTO POR MINUTO
     function procesarDatosLimpios(minTs) {
-        let crudos = [];
+        let porMinuto = new Map();
+
         for (let i = 0; i < rawFechas.length; i++) {
-            let ts = rawFechas[i];
-            if (ts < minTs) continue;
+            let tsOriginal = rawFechas[i];
+            if (tsOriginal < minTs) continue;
             let hVal = rawHr[i] !== null && rawHr[i] !== undefined ? Number(rawHr[i]) : 0;
             let tVal = rawTemp[i] !== null && rawTemp[i] !== undefined ? Number(rawTemp[i]) : 0;
 
@@ -612,13 +611,48 @@
 
             let cads = (rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales;
             let tMinVal = hVal > 0 ? extraerTempMinimaPlaca(cads, tVal) : null;
-            let objClima = obtenerClimaParaTimestamp(ts);
-            let climaVal = objClima ? objClima.temp : null;
-            let sensVal = objClima ? objClima.sensacion : null;
 
-            crudos.push({ ts, hr: hVal, temp: tVal, tempMin: tMinVal, amb: ambVal, clima: climaVal, sensacion: sensVal, err: errVal, cads });
+            // Redondear el timestamp al inicio del minuto exacto (60s) para garantizar 1 solo punto por minuto
+            let tsMinuto = Math.floor(tsOriginal / 60) * 60;
+
+            if (!porMinuto.has(tsMinuto)) {
+                let objClima = obtenerClimaParaTimestamp(tsMinuto);
+                porMinuto.set(tsMinuto, {
+                    ts: tsMinuto,
+                    hrSum: hVal,
+                    hrCount: 1,
+                    hr: hVal,
+                    temp: tVal,
+                    tempMin: tMinVal,
+                    amb: ambVal,
+                    clima: objClima ? objClima.temp : null,
+                    sensacion: objClima ? objClima.sensacion : null,
+                    err: errVal,
+                    cads: cads
+                });
+            } else {
+                // Si hubo un segundo registro dentro del mismo minuto, consolidarlo en ese único punto
+                let item = porMinuto.get(tsMinuto);
+                if (hVal > 0) {
+                    if (item.hr > 0) {
+                        item.hrSum += hVal;
+                        item.hrCount += 1;
+                        item.hr = Number((item.hrSum / item.hrCount).toFixed(2));
+                    } else {
+                        item.hrSum = hVal;
+                        item.hrCount = 1;
+                        item.hr = hVal;
+                    }
+                }
+                if (tVal > item.temp) item.temp = tVal;
+                if (tMinVal !== null && (item.tempMin === null || tMinVal < item.tempMin)) item.tempMin = tMinVal;
+                if (ambVal !== null) item.amb = ambVal;
+                item.err += errVal;
+                item.cads = cads;
+            }
         }
 
+        let crudos = Array.from(porMinuto.values());
         crudos.sort((a, b) => a.ts - b.ts);
 
         let ptsH = [], ptsT = [], ptsTMin = [], ptsA = [], ptsClima = [], ptsSens = [], ptsE = [];
@@ -629,12 +663,12 @@
 
         for (let i = 0; i < crudos.length; i++) {
             let actual = crudos[i];
-            let deltaS = 30;
+            let deltaS = 60;
 
             if (i > 0) {
                 let brecha = actual.ts - crudos[i - 1].ts;
                 if (brecha <= 0) continue;
-                deltaS = brecha <= 300 ? brecha : 30;
+                deltaS = brecha <= 300 ? brecha : 60;
 
                 if (brecha > UMBRAL_CORTE_SEG) {
                     let tsCorte = crudos[i - 1].ts + 1;
@@ -694,8 +728,8 @@
         document.getElementById('btnResetZoom').style.display = 'none';
         ocultarTooltipGris();
         
-        const ultimoTsDato = rawFechas.length > 0 ? Math.max(...rawFechas) : Math.floor(Date.now() / 1000);
-        const nowTs = Math.max(Math.floor(Date.now() / 1000), ultimoTsDato);
+        const ultimoTsDato = rawFechas.length > 0 ? Math.floor(Math.max(...rawFechas) / 60) * 60 : Math.floor(Date.now() / 60000) * 60;
+        const nowTs = Math.max(Math.floor(Date.now() / 60000) * 60, ultimoTsDato);
         let segundosRango = 24 * 3600;
         if (rango === '6h') segundosRango = 6 * 3600;
         if (rango === '24h') segundosRango = 24 * 3600;
