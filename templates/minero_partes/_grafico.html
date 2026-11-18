@@ -22,8 +22,13 @@
         color: var(--text-muted); 
         position: relative;
         cursor: help;
-        border-bottom: 1px dotted rgba(255, 255, 255, 0.15);
+        border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
         padding-bottom: 1px;
+        user-select: none;
+    }
+    .stat-item:hover, .stat-item.tt-active {
+        color: #fff;
+        border-bottom-color: var(--accent-blue);
     }
     .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.06em; }
 
@@ -51,57 +56,81 @@
         transition: 0.2s;
         user-select: none;
     }
-    .legend-pill:hover { border-color: var(--accent-blue); background: rgba(51, 102, 255, 0.08); }
-    .legend-pill.off { opacity: 0.35; text-decoration: line-through; }
-    .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+    .legend-pill:hover, .legend-pill.tt-active { 
+        border-color: var(--accent-blue); 
+        background: rgba(51, 102, 255, 0.08); 
+    }
+    .legend-pill.off { opacity: 0.35; }
+    .legend-pill.off .legend-label-txt { text-decoration: line-through; }
+    .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    
+    /* Botón de información (i) estilo Grafana/Datadog para tacto en celular y hover en PC */
+    .legend-info-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.07);
+        color: #a5a7b5;
+        font-size: 9.5px;
+        font-family: serif;
+        font-style: italic;
+        font-weight: bold;
+        margin-left: 2px;
+        transition: 0.15s;
+        flex-shrink: 0;
+    }
+    .legend-pill:hover .legend-info-icon,
+    .legend-info-icon:hover {
+        background: rgba(51, 102, 255, 0.35);
+        color: #fff;
+    }
 
-    /* Tooltip profesional instantáneo para botones y métricas */
-    .pill-info-tooltip {
-        visibility: hidden;
-        opacity: 0;
-        position: absolute;
-        bottom: calc(100% + 8px);
-        left: 50%;
-        transform: translateX(-50%) translateY(4px);
-        width: 255px;
+    /* Portal Global de Tooltip con anti-colisión de bordes (PC y Celular) */
+    .smart-floating-tooltip {
+        position: fixed;
+        display: none;
+        width: 265px;
+        max-width: calc(100vw - 20px);
         background: rgba(10, 11, 16, 0.98);
-        border: 1px solid rgba(51, 102, 255, 0.45);
-        border-radius: 6px;
-        padding: 9px 11px;
+        border: 1px solid rgba(51, 102, 255, 0.55);
+        border-radius: 7px;
+        padding: 10px 12px;
         color: #d1d3e0;
         font-family: sans-serif;
-        font-size: 11px;
+        font-size: 11.5px;
         font-weight: normal;
-        line-height: 1.4;
+        line-height: 1.42;
         white-space: normal;
         text-align: left;
-        text-decoration: none !important;
-        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.75);
-        z-index: 3000;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
+        z-index: 99999;
         pointer-events: none;
-        transition: opacity 0.16s ease, transform 0.16s ease;
     }
-    .pill-info-tooltip::after {
-        content: "";
+    .smart-tt-arrow {
         position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        border-width: 5px;
-        border-style: solid;
-        border-color: rgba(10, 11, 16, 0.98) transparent transparent transparent;
+        width: 10px;
+        height: 10px;
+        background: rgba(10, 11, 16, 0.98);
+        transform: rotate(45deg);
     }
-    .legend-pill:hover .pill-info-tooltip,
-    .stat-item:hover .pill-info-tooltip {
-        visibility: visible;
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
+    .smart-tt-arrow.bottom {
+        bottom: -6px;
+        border-right: 1px solid rgba(51, 102, 255, 0.55);
+        border-bottom: 1px solid rgba(51, 102, 255, 0.55);
+    }
+    .smart-tt-arrow.top {
+        top: -6px;
+        border-left: 1px solid rgba(51, 102, 255, 0.55);
+        border-top: 1px solid rgba(51, 102, 255, 0.55);
     }
     .pill-tt-header {
         color: #fff;
         font-weight: bold;
-        font-size: 11.5px;
-        margin-bottom: 4px;
+        font-size: 12px;
+        margin-bottom: 5px;
         padding-bottom: 4px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.12);
         display: flex;
@@ -110,15 +139,16 @@
     }
     .pill-tt-range {
         margin-top: 6px;
-        padding: 3px 6px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 4px;
+        padding: 4px 7px;
+        background: rgba(56, 189, 248, 0.08);
+        border-left: 2px solid #38bdf8;
+        border-radius: 3px;
         font-family: monospace;
         font-size: 10.5px;
         color: #38bdf8;
     }
     .pill-tt-action {
-        margin-top: 4px;
+        margin-top: 5px;
         font-size: 10px;
         color: #8b8d9c;
         font-style: italic;
@@ -145,7 +175,7 @@
         font-weight: bold;
     }
 
-    /* Tooltip flotante en línea 0 */
+    /* Tooltip flotante en línea 0 del gráfico */
     .custom-chart-tooltip {
         position: absolute;
         display: none;
@@ -197,68 +227,44 @@
     }
 </style>
 
+<!-- Portal flotante único en la ventana para que NUNCA se corte con el menú izquierdo ni en celular -->
+<div id="smartFloatingTooltip" class="smart-floating-tooltip" translate="no"></div>
+
 <div class="card" style="position: relative; overflow: visible; z-index: 20; padding-left: 16px; padding-right: 16px;">
     <div class="panel-title" style="margin-bottom: 10px;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
-            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none;" translate="no"></span>
+            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none; cursor:help;" translate="no"></span>
         </div>
         <div class="chart-filters">
-            <button class="btn-reset-zoom" id="btnResetZoom" onclick="resetearZoomGrafico()" title="Restablecer el zoom al 100% de la vista original">🔍 100%</button>
-            <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')" title="Ver telemetría detallada de las últimas 6 horas">6 h</button>
-            <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')" title="Ver historial de rendimiento de las últimas 24 horas">24 h</button>
-            <button class="btn-filter" id="btn-7d" onclick="updateChart('7d')" title="Ver tendencia semanal de los últimos 7 días">7 d</button>
-            <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')" title="Ver histórico mensual de los últimos 30 días">30 d</button>
-            <button class="btn-filter" onclick="descargarCapturaGrafico()" title="Descargar captura PNG del gráfico actual">📷</button>
+            <button class="btn-reset-zoom" id="btnResetZoom" onclick="resetearZoomGrafico()">🔍 100%</button>
+            <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')">6 h</button>
+            <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')">24 h</button>
+            <button class="btn-filter" id="btn-7d" onclick="updateChart('7d')">7 d</button>
+            <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')">30 d</button>
+            <button class="btn-filter" id="btnCamara" onclick="descargarCapturaGrafico()">📷</button>
         </div>
     </div>
 
-    <!-- Barra de métricas dinámicas con descripciones al pasar el mouse -->
+    <!-- Barra de métricas dinámicas con soporte táctil y mouse anti-recorte -->
     <div class="chart-stats-bar" translate="no">
-        <div class="stat-item">
+        <div class="stat-item" data-stat-key="prom">
             Prom: <b id="statProm" style="color:var(--accent-blue);">0.00</b>
-            <div class="pill-info-tooltip">
-                <div class="pill-tt-header"><span>⚡ Hashrate Promedio</span></div>
-                Media real de potencia de minado durante el periodo seleccionado (excluye caídas por reinicio).
-                <div class="pill-tt-range">Ideal: ≥ 98% del nominal del modelo</div>
-            </div>
         </div>
-        <div class="stat-item">
+        <div class="stat-item" data-stat-key="max">
             Máx: <b id="statMax">0.00</b>
-            <div class="pill-info-tooltip">
-                <div class="pill-tt-header"><span>🚀 Pico Máximo de Hashrate</span></div>
-                Potencia máxima sostenida en 1 minuto registrada dentro de esta ventana de tiempo.
-            </div>
         </div>
-        <div class="stat-item">
+        <div class="stat-item" data-stat-key="min">
             Mín: <b id="statMin">0.00</b>
-            <div class="pill-info-tooltip">
-                <div class="pill-tt-header"><span>📉 Hashrate Mínimo Operativo</span></div>
-                Lectura más baja registrada mientras el equipo estaba minando activo. Útil para detectar throttling térmico.
-            </div>
         </div>
-        <div class="stat-item">
+        <div class="stat-item" data-stat-key="temp_pico">
             Temp Máx/Mín: <b id="statTempPico" style="color:#ffb300;">0°/0°C</b>
-            <div class="pill-info-tooltip">
-                <div class="pill-tt-header"><span>🌡️ Rango Térmico (Chip / PCB)</span></div>
-                Temperatura más alta en chips ASIC y más baja en placa PCB durante el periodo.
-                <div class="pill-tt-range">Óptimo: 60°-75°C | Crítico: ≥ 85°C</div>
-            </div>
         </div>
-        <div class="stat-item">
+        <div class="stat-item" data-stat-key="clima_hoy">
             Clima Granja / Sensación: <b id="statClimaHoy" style="color:#38bdf8;">--° / --°C</b>
-            <div class="pill-info-tooltip">
-                <div class="pill-tt-header"><span>🌤️ Meteorología Exterior</span></div>
-                Temperatura ambiente exterior en la ubicación de la granja y sensación térmica real (Índice NOAA por humedad).
-            </div>
         </div>
-        <div class="stat-item">
+        <div class="stat-item" data-stat-key="uptime">
             Estabilidad: <b id="statUptime" style="color:var(--accent-green);">100%</b>
-            <div class="pill-info-tooltip">
-                <div class="pill-tt-header"><span>🟢 Disponibilidad (Uptime)</span></div>
-                Porcentaje del tiempo en que el minero estuvo entregando hashrate activo sin caídas ni paradas.
-                <div class="pill-tt-range">Estándar industrial: > 99.0%</div>
-            </div>
         </div>
     </div>
 
@@ -283,9 +289,12 @@
     const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
 
-    const GRANJA_LAT = {{ ultimo.farm_lat | default(-17.7833) }};
-    const GRANJA_LON = {{ ultimo.farm_lon | default(-63.1821) }};
-    const GRANJA_CIUDAD = "{{ ultimo.farm_city | default('Santa Cruz de la Sierra') }}";
+    // Ubicación configurable por cliente/granja (si el servidor no define una fija, se autodetecta el país/ciudad real)
+    const TIENE_GRANJA_SERVIDOR = {{ 'true' if ultimo.farm_city is defined and ultimo.farm_city else 'false' }};
+    let GRANJA_LAT = {{ ultimo.farm_lat | default(-17.7833) }};
+    let GRANJA_LON = {{ ultimo.farm_lon | default(-63.1821) }};
+    let GRANJA_CIUDAD = "{{ ultimo.farm_city | default('Santa Cruz de la Sierra') }}";
+    let GRANJA_PAIS = "{{ ultimo.farm_country | default('Bolivia') }}";
 
     let chartInstance = null;
     let rangoActual = '24h';
@@ -293,45 +302,206 @@
     let mapaMetaPuntos = {};
     let cacheClimaExterior = [];
     let visibilidadCurvas = {};
+    let elementoTooltipActivo = null;
 
-    // Diccionario de descripciones técnicas para cada botón de curva del gráfico
-    const INFO_TOOLTIPS_CURVAS = {
-        'hr': {
-            titulo: '⚡ Hashrate (Potencia de Minado)',
-            desc: 'Velocidad de cálculo SHA-256 entregada en tiempo real por todas las placas hash.',
-            rango: 'Estable: línea plana sin caídas bruscas'
-        },
-        'tmax': {
-            titulo: '🌡️ Temperatura Máxima (Chips ASIC)',
-            desc: 'Punto más caliente medido en los sensores internos de los chips. Define la vida útil del silicio y el riesgo de apagado.',
-            rango: '🟢 < 75°C Normal | 🟠 75-84°C Alerta | 🔴 ≥ 85°C Crítico'
-        },
-        'tmin': {
-            titulo: '❄️ Temperatura Mínima (Placa PCB)',
-            desc: 'Temperatura en la zona de entrada de aire de la placa base (PCB). La brecha entre Temp Máx y PCB indica la eficiencia de disipación.',
-            rango: 'Diferencial ideal (Chip - PCB): 10°C a 18°C'
-        },
-        'tamb': {
-            titulo: '🍃 Temperatura Entrada / Ambiente',
-            desc: 'Temperatura del flujo de aire fresco que ingresa por los ventiladores frontales del minero.',
-            rango: 'Recomendado en sala: 15°C a 35°C'
-        },
-        'clima': {
-            titulo: '🌤️ Clima Exterior de la Granja',
-            desc: 'Temperatura meteorológica real en ' + GRANJA_CIUDAD + '. Permite comparar si una subida térmica del minero es por el clima o por suciedad.',
-            rango: 'Fuente: Estación METAR + Satélite Open-Meteo'
-        },
-        'sensacion': {
-            titulo: '🥵 Sensación Térmica (Índice NOAA)',
-            desc: 'Impacto térmico real combinando temperatura y humedad relativa. Alta humedad reduce la capacidad del aire para enfriar los disipadores.',
-            rango: 'Alerta de calor húmedo: ≥ 36°C'
-        },
-        'err': {
-            titulo: '⚠️ Errores de Hardware (HW Errors)',
-            desc: 'Cálculos corruptos descartados por los chips ASIC en cada minuto. Picos altos indican voltaje inestable, sobrecalentamiento o chip dañado.',
-            rango: 'Normal: 0 a 5 /min | Revisar placa: > 30 /min'
+    // Genera dinámicamente las descripciones profesionales con la ciudad/país actualizados del cliente
+    function obtenerInfoTooltipCurva(id, isHidden) {
+        const estadoTxt = isHidden ? 'Toque el botón para mostrar curva' : 'Toque el botón para ocultar curva';
+        const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD} (${GRANJA_PAIS})` : GRANJA_CIUDAD;
+        const dic = {
+            'hr': {
+                titulo: '⚡ Hashrate (Potencia de Minado)',
+                desc: 'Velocidad de cálculo SHA-256 entregada minuto a minuto por las placas hash del equipo.',
+                rango: 'Estable: línea continua sin caídas bruscas',
+                accion: estadoTxt
+            },
+            'tmax': {
+                titulo: '🌡️ Temperatura Máxima (Chips ASIC)',
+                desc: 'Punto más caliente en los sensores internos de los chips. Define la protección térmica y la vida útil del silicio.',
+                rango: '🟢 < 75°C Normal | 🟠 75-84°C Alerta | 🔴 ≥ 85°C Crítico',
+                accion: estadoTxt
+            },
+            'tmin': {
+                titulo: '❄️ Temperatura Mínima (Placa PCB)',
+                desc: 'Temperatura en la zona de entrada de aire de la placa base (PCB). La diferencia entre Chip y PCB refleja la transferencia térmica.',
+                rango: 'Diferencial óptimo (Chip - PCB): 10°C a 18°C',
+                accion: estadoTxt
+            },
+            'tamb': {
+                titulo: '🍃 Temperatura Entrada / Ambiente',
+                desc: 'Temperatura del flujo de aire fresco medida en los sensores frontales de admisión del minero.',
+                rango: 'Recomendado en sala fría: 15°C a 35°C',
+                accion: estadoTxt
+            },
+            'clima': {
+                titulo: '🌤️ Clima Exterior de la Granja',
+                desc: `Temperatura meteorológica real en ${ubicacionCompleta}. Se adapta automáticamente a la ciudad o país donde esté instalada la granja del cliente.`,
+                rango: 'Fuente: Estación METAR local + Satélite Open-Meteo',
+                accion: estadoTxt
+            },
+            'sensacion': {
+                titulo: '🥵 Sensación Térmica (Índice NOAA)',
+                desc: `Impacto térmico real en ${GRANJA_CIUDAD} combinando temperatura y humedad relativa. El aire húmedo reduce la capacidad de enfriamiento.`,
+                rango: 'Alerta de calor húmedo en granja: ≥ 36°C',
+                accion: estadoTxt
+            },
+            'err': {
+                titulo: '⚠️ Errores de Hardware (HW Errors)',
+                desc: 'Cálculos corruptos descartados por los chips ASIC en cada minuto. Picos altos indican ruido eléctrico, temperatura alta o chip degradado.',
+                rango: 'Normal: 0 a 5 /min | Revisar placa: > 30 /min',
+                accion: estadoTxt
+            }
+        };
+        return dic[id];
+    }
+
+    function obtenerInfoTooltipStat(key) {
+        const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD}, ${GRANJA_PAIS}` : GRANJA_CIUDAD;
+        const dicStats = {
+            'prom': {
+                titulo: '⚡ Hashrate Promedio Operativo',
+                desc: 'Media real de potencia de minado durante el periodo seleccionado (excluye desconexiones o reinicios).',
+                rango: 'Ideal: ≥ 98% del hashrate nominal del modelo'
+            },
+            'max': {
+                titulo: '🚀 Pico Máximo de Hashrate',
+                desc: 'Potencia máxima sostenida en 1 minuto registrada dentro de esta ventana de tiempo.',
+                rango: 'Muestra la capacidad tope alcanzada por los chips'
+            },
+            'min': {
+                titulo: '📉 Hashrate Mínimo Operativo',
+                desc: 'Lectura más baja registrada con el equipo minando activo. Útil para detectar bajadas de frecuencia (Thermal Throttling).',
+                rango: 'Alerta si cae > 15% respecto al promedio'
+            },
+            'temp_pico': {
+                titulo: '🌡️ Rango Térmico (Máx Chip / Mín PCB)',
+                desc: 'Temperatura más alta alcanzada por los chips ASIC y más baja en placa PCB en el periodo.',
+                rango: 'Óptimo: 60°C a 75°C | Apagado seguridad: ≥ 85°C'
+            },
+            'clima_hoy': {
+                titulo: '🌤️ Meteorología Exterior de la Granja',
+                desc: `Temperatura actual y sensación térmica real por humedad (NOAA) en la ubicación de la granja: ${ubicacionCompleta}.`,
+                rango: 'Actualización satelital automática según ubicación'
+            },
+            'uptime': {
+                titulo: '🟢 Estabilidad y Disponibilidad (Uptime)',
+                desc: 'Porcentaje del tiempo en que el minero estuvo entregando hashrate continuo sin caídas.',
+                rango: 'Estándar profesional Tier-1: > 99.0%'
+            }
+        };
+        return dicStats[key];
+    }
+
+    // Motor de posicionamiento inteligente (Viewport Collision Detection estilo TradingView/Grafana)
+    function mostrarSmartTooltip(targetEl, infoObj) {
+        const box = document.getElementById('smartFloatingTooltip');
+        if (!box || !targetEl || !infoObj) return;
+
+        elementoTooltipActivo = targetEl;
+        document.querySelectorAll('.tt-active').forEach(el => el.classList.remove('tt-active'));
+        targetEl.classList.add('tt-active');
+
+        let html = `<div class="pill-tt-header"><span>${infoObj.titulo}</span></div>`;
+        html += `<div>${infoObj.desc}</div>`;
+        if (infoObj.rango) {
+            html += `<div class="pill-tt-range">${infoObj.rango}</div>`;
         }
-    };
+        if (infoObj.accion) {
+            html += `<div class="pill-tt-action">💡 ${infoObj.accion}</div>`;
+        }
+        html += `<div id="smartTtArrow" class="smart-tt-arrow bottom"></div>`;
+
+        box.innerHTML = html;
+        box.style.display = 'block';
+
+        const rect = targetEl.getBoundingClientRect();
+        const boxW = box.offsetWidth || 265;
+        const boxH = box.offsetHeight || 110;
+        const margenPantalla = 10;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+
+        // Calcular X centrado sobre el botón, pero frenando en los bordes izquierdo y derecho de la pantalla
+        const centroTargetX = rect.left + (rect.width / 2);
+        let leftPos = centroTargetX - (boxW / 2);
+        if (leftPos < margenPantalla) leftPos = margenPantalla;
+        if (leftPos + boxW > vw - margenPantalla) leftPos = vw - boxW - margenPantalla;
+
+        // Calcular Y arriba del botón; si no cabe arriba, mostrar abajo
+        let topPos = rect.top - boxH - 10;
+        const arrowEl = document.getElementById('smartTtArrow');
+        if (topPos < margenPantalla) {
+            topPos = rect.bottom + 10;
+            if (arrowEl) {
+                arrowEl.className = 'smart-tt-arrow top';
+            }
+        } else {
+            if (arrowEl) {
+                arrowEl.className = 'smart-tt-arrow bottom';
+            }
+        }
+
+        // Apuntar la flecha exactamente al centro del botón aunque la caja se haya desplazado para no cortarse
+        if (arrowEl) {
+            let arrowLeft = centroTargetX - leftPos - 5;
+            arrowLeft = Math.max(12, Math.min(boxW - 22, arrowLeft));
+            arrowEl.style.left = arrowLeft + 'px';
+        }
+
+        box.style.left = leftPos + 'px';
+        box.style.top = topPos + 'px';
+    }
+
+    function ocultarSmartTooltip() {
+        const box = document.getElementById('smartFloatingTooltip');
+        if (box) box.style.display = 'none';
+        document.querySelectorAll('.tt-active').forEach(el => el.classList.remove('tt-active'));
+        elementoTooltipActivo = null;
+    }
+
+    function inicializarEventosTooltips() {
+        // Métricas de la barra superior (PC hover + Celular tap)
+        document.querySelectorAll('.stat-item[data-stat-key]').forEach(item => {
+            const key = item.getAttribute('data-stat-key');
+            item.addEventListener('mouseenter', function() {
+                mostrarSmartTooltip(item, obtenerInfoTooltipStat(key));
+            });
+            item.addEventListener('mouseleave', function() {
+                ocultarSmartTooltip();
+            });
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (elementoTooltipActivo === item) {
+                    ocultarSmartTooltip();
+                } else {
+                    mostrarSmartTooltip(item, obtenerInfoTooltipStat(key));
+                }
+            });
+        });
+
+        // Badge de ubicación de la granja
+        const badgeClima = document.getElementById('climaUbicacionBadge');
+        if (badgeClima) {
+            badgeClima.addEventListener('mouseenter', function() {
+                mostrarSmartTooltip(badgeClima, obtenerInfoTooltipStat('clima_hoy'));
+            });
+            badgeClima.addEventListener('mouseleave', function() {
+                ocultarSmartTooltip();
+            });
+            badgeClima.addEventListener('click', function(e) {
+                e.stopPropagation();
+                mostrarSmartTooltip(badgeClima, obtenerInfoTooltipStat('clima_hoy'));
+            });
+        }
+
+        // Cerrar tooltip al tocar fuera en celular o hacer scroll
+        document.addEventListener('click', function() {
+            ocultarSmartTooltip();
+        });
+        window.addEventListener('scroll', function() {
+            ocultarSmartTooltip();
+        }, { passive: true });
+    }
 
     function formatearFechaTooltip(d) {
         let dia = String(d.getDate()).padStart(2, '0');
@@ -417,8 +587,26 @@
         return Math.round(tempC);
     }
 
+    async function autodetectarUbicacionClienteSiFalta() {
+        if (TIENE_GRANJA_SERVIDOR) return;
+        try {
+            const rGeo = await fetch('https://ipapi.co/json/');
+            if (rGeo.ok) {
+                const jGeo = await rGeo.json();
+                if (jGeo && jGeo.latitude && jGeo.longitude && jGeo.city) {
+                    GRANJA_LAT = Number(jGeo.latitude);
+                    GRANJA_LON = Number(jGeo.longitude);
+                    GRANJA_CIUDAD = jGeo.city;
+                    GRANJA_PAIS = jGeo.country_name || '';
+                }
+            }
+        } catch (e) {}
+    }
+
     async function cargarClimaDeLaGranja() {
         try {
+            await autodetectarUbicacionClienteSiFalta();
+
             const lat = GRANJA_LAT;
             const lon = GRANJA_LON;
             const ciudad = GRANJA_CIUDAD;
@@ -754,28 +942,53 @@
             const isHidden = !chartInstance.isDatasetVisible(index);
             btn.className = 'legend-pill' + (isHidden ? ' off' : '');
 
-            const info = INFO_TOOLTIPS_CURVAS[ds.id];
-            let tooltipHtml = '';
-            if (info) {
-                const estadoTxt = isHidden ? 'Clic para mostrar curva' : 'Clic para ocultar curva';
-                tooltipHtml = `
-                    <div class="pill-info-tooltip">
-                        <div class="pill-tt-header"><span>${info.titulo}</span></div>
-                        <div>${info.desc}</div>
-                        <div class="pill-tt-range">${info.rango}</div>
-                        <div class="pill-tt-action">🖱️ ${estadoTxt}</div>
-                    </div>
-                `;
-            }
+            btn.innerHTML = `
+                <span class="legend-dot" style="background:${ds.borderColor};"></span>
+                <span class="legend-label-txt">${ds.label}</span>
+                <span class="legend-info-icon" data-info-btn="1">i</span>
+            `;
 
-            btn.innerHTML = `<span class="legend-dot" style="background:${ds.borderColor};"></span><span>${ds.label}</span>${tooltipHtml}`;
-            btn.onclick = function() {
+            // En computadora: al pasar el mouse por encima del botón muestra la descripción sin recortarse jamás
+            btn.addEventListener('mouseenter', function() {
+                const info = obtenerInfoTooltipCurva(ds.id, !chartInstance.isDatasetVisible(index));
+                mostrarSmartTooltip(btn, info);
+            });
+            btn.addEventListener('mouseleave', function() {
+                ocultarSmartTooltip();
+            });
+
+            // En celular y PC: tocar el icono "i" abre/cierra la descripción sin apagar la curva; tocar el texto apaga/enciende la curva
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const tocoIconoInfo = e.target && e.target.getAttribute('data-info-btn') === '1';
+                const esPantallaTactil = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+                if (tocoIconoInfo && esPantallaTactil) {
+                    if (elementoTooltipActivo === btn) {
+                        ocultarSmartTooltip();
+                    } else {
+                        const info = obtenerInfoTooltipCurva(ds.id, !chartInstance.isDatasetVisible(index));
+                        mostrarSmartTooltip(btn, info);
+                    }
+                    return;
+                }
+
                 const vis = chartInstance.isDatasetVisible(index);
                 chartInstance.setDatasetVisibility(index, !vis);
                 visibilidadCurvas[ds.id] = !vis;
                 chartInstance.update();
                 construirLeyendasPildora();
-            };
+
+                // En celular, al tocar una píldora mostramos brevemente su tarjeta informativa bien encuadrada
+                if (esPantallaTactil) {
+                    const nuevasPildoras = cont.querySelectorAll('.legend-pill');
+                    if (nuevasPildoras[index]) {
+                        const info = obtenerInfoTooltipCurva(ds.id, vis);
+                        mostrarSmartTooltip(nuevasPildoras[index], info);
+                    }
+                }
+            });
+
             cont.appendChild(btn);
         });
     }
@@ -820,6 +1033,7 @@
 
         let ultimoToqueTs = 0;
         canvas.addEventListener('touchstart', function(e) {
+            ocultarSmartTooltip();
             if (e.touches && e.touches.length === 1) {
                 let ahora = Date.now();
                 if (ahora - ultimoToqueTs < 280) {
@@ -995,6 +1209,7 @@
         if (btnR) btnR.classList.add('active');
         document.getElementById('btnResetZoom').style.display = 'none';
         ocultarTooltipGris();
+        ocultarSmartTooltip();
         
         // Clavar el borde derecho EXACTAMENTE en el último minuto recibido para que NO quede espacio vacío al final
         const nowTs = rawFechas.length > 0 ? Math.floor(Math.max(...rawFechas) / 60) * 60 : Math.floor(Date.now() / 60000) * 60;
@@ -1210,6 +1425,7 @@
     }
 
     window.addEventListener('load', function() {
+        inicializarEventosTooltips();
         updateChart('24h');
         cargarClimaDeLaGranja();
     });
