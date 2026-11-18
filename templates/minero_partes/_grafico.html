@@ -88,6 +88,19 @@
         color: #fff;
     }
 
+    /* Indicador de resolución dinámica LOD (3m -> 2m -> 1m) */
+    .lod-badge {
+        font-size: 0.70em;
+        color: #a5a7b5;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border-color);
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-family: monospace;
+        font-weight: normal;
+        cursor: help;
+    }
+
     /* Portal Global de Tooltip con anti-colisión de bordes (PC y Celular) */
     .smart-floating-tooltip {
         position: fixed;
@@ -154,13 +167,15 @@
         font-style: italic;
     }
 
-    /* Contenedor Full-Bleed */
+    /* Contenedor Full-Bleed optimizado con aceleración GPU */
     .chart-edge-container {
         height: 305px;
         position: relative;
         margin-left: -12px;
         margin-right: -12px;
         touch-action: pan-y;
+        -webkit-user-select: none;
+        user-select: none;
     }
 
     .btn-reset-zoom {
@@ -175,7 +190,7 @@
         font-weight: bold;
     }
 
-    /* Tooltip flotante en línea 0 del gráfico */
+    /* Tooltip flotante en línea 0 del gráfico acelerado por GPU */
     .custom-chart-tooltip {
         position: absolute;
         display: none;
@@ -191,7 +206,8 @@
         z-index: 1500;
         white-space: nowrap;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
-        transform: translateX(-50%);
+        transform: translate3d(-50%, 0, 0);
+        will-change: left, top;
     }
     .custom-chart-tooltip::before {
         content: "";
@@ -235,6 +251,7 @@
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
             <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none; cursor:help;" translate="no"></span>
+            <span id="lodResolutionBadge" class="lod-badge" translate="no">⚡ 3m</span>
         </div>
         <div class="chart-filters">
             <button class="btn-reset-zoom" id="btnResetZoom" onclick="resetearZoomGrafico()">🔍 100%</button>
@@ -304,6 +321,15 @@
     let visibilidadCurvas = {};
     let elementoTooltipActivo = null;
 
+    // Variables de caché y nivel de detalle dinámico (LOD: 3m -> 2m -> 1m) para fluidez 60fps en móvil
+    let crudosPorMinutoCache = [];
+    let pasoAgrupacionActualSeg = 180;
+    let limiteDatosIzqGlobal = 0;
+    let limiteDatosDerGlobal = 0;
+    let ultimoTsTooltipRenderizado = null;
+    let ultimoAnchoTooltipCache = 235;
+    let rectCanvasCache = null;
+
     // Genera dinámicamente las descripciones profesionales con la ciudad/país actualizados del cliente
     function obtenerInfoTooltipCurva(id, isHidden) {
         const estadoTxt = isHidden ? 'Toque el botón para mostrar curva' : 'Toque el botón para ocultar curva';
@@ -311,7 +337,7 @@
         const dic = {
             'hr': {
                 titulo: '⚡ Hashrate (Potencia de Minado)',
-                desc: 'Velocidad de cálculo SHA-256 entregada minuto a minuto por las placas hash del equipo.',
+                desc: 'Velocidad de cálculo SHA-256 entregada por las placas hash del equipo. Agrupada dinámicamente (3m → 2m → 1m) según el zoom.',
                 rango: 'Estable: línea continua sin caídas bruscas',
                 accion: estadoTxt
             },
@@ -347,7 +373,7 @@
             },
             'err': {
                 titulo: '⚠️ Errores de Hardware (HW Errors)',
-                desc: 'Cálculos corruptos descartados por los chips ASIC en cada minuto. Picos altos indican ruido eléctrico, temperatura alta o chip degradado.',
+                desc: 'Cálculos corruptos descartados por los chips ASIC en el intervalo. Picos altos indican ruido eléctrico, temperatura alta o chip degradado.',
                 rango: 'Normal: 0 a 5 /min | Revisar placa: > 30 /min',
                 accion: estadoTxt
             }
@@ -365,7 +391,7 @@
             },
             'max': {
                 titulo: '🚀 Pico Máximo de Hashrate',
-                desc: 'Potencia máxima sostenida en 1 minuto registrada dentro de esta ventana de tiempo.',
+                desc: 'Potencia máxima sostenida registrada dentro de esta ventana de tiempo.',
                 rango: 'Muestra la capacidad tope alcanzada por los chips'
             },
             'min': {
@@ -387,6 +413,11 @@
                 titulo: '🟢 Estabilidad y Disponibilidad (Uptime)',
                 desc: 'Porcentaje del tiempo en que el minero estuvo entregando hashrate continuo sin caídas.',
                 rango: 'Estándar profesional Tier-1: > 99.0%'
+            },
+            'lod_info': {
+                titulo: '⚡ Resolución Dinámica Inteligente (LOD)',
+                desc: 'Para máxima limpieza visual y fluidez táctil, el gráfico agrupa los puntos cada 3 min en vista general, y pasa automáticamente a 2 min y 1 min exacto al hacer zoom.',
+                rango: 'Vista general: 3m | Zoom medio: 2m | Zoom cercano: 1m'
             }
         };
         return dicStats[key];
@@ -419,7 +450,6 @@
         const boxH = box.offsetHeight || 110;
         const margenPantalla = 10;
         const vw = window.innerWidth;
-        const vh = window.innerHeight;
 
         // Calcular X centrado sobre el botón, pero frenando en los bordes izquierdo y derecho de la pantalla
         const centroTargetX = rect.left + (rect.width / 2);
@@ -441,7 +471,6 @@
             }
         }
 
-        // Apuntar la flecha exactamente al centro del botón aunque la caja se haya desplazado para no cortarse
         if (arrowEl) {
             let arrowLeft = centroTargetX - leftPos - 5;
             arrowLeft = Math.max(12, Math.min(boxW - 22, arrowLeft));
@@ -460,7 +489,6 @@
     }
 
     function inicializarEventosTooltips() {
-        // Métricas de la barra superior (PC hover + Celular tap)
         document.querySelectorAll('.stat-item[data-stat-key]').forEach(item => {
             const key = item.getAttribute('data-stat-key');
             item.addEventListener('mouseenter', function() {
@@ -479,7 +507,6 @@
             });
         });
 
-        // Badge de ubicación de la granja
         const badgeClima = document.getElementById('climaUbicacionBadge');
         if (badgeClima) {
             badgeClima.addEventListener('mouseenter', function() {
@@ -494,12 +521,29 @@
             });
         }
 
-        // Cerrar tooltip al tocar fuera en celular o hacer scroll
+        const badgeLod = document.getElementById('lodResolutionBadge');
+        if (badgeLod) {
+            badgeLod.addEventListener('mouseenter', function() {
+                mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info'));
+            });
+            badgeLod.addEventListener('mouseleave', function() {
+                ocultarSmartTooltip();
+            });
+            badgeLod.addEventListener('click', function(e) {
+                e.stopPropagation();
+                mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info'));
+            });
+        }
+
         document.addEventListener('click', function() {
             ocultarSmartTooltip();
         });
         window.addEventListener('scroll', function() {
+            rectCanvasCache = null;
             ocultarSmartTooltip();
+        }, { passive: true });
+        window.addEventListener('resize', function() {
+            rectCanvasCache = null;
         }, { passive: true });
     }
 
@@ -528,6 +572,7 @@
         const pasosPermitidos = [
             60,         // 1 minuto exacto
             120,        // 2 minutos
+            180,        // 3 minutos
             300,        // 5 minutos
             600,        // 10 minutos
             900,        // 15 minutos
@@ -548,15 +593,79 @@
         return 345600;
     }
 
-    // Muestra 1 punto/nodo exacto por cada minuto cuando se acerca el zoom (para que el usuario vea 1 marca = 1 minuto sin rayitas intermedias)
-    function actualizarPuntosSegunZoom(chart) {
+    // Determina el intervalo de agrupación ideal según el nivel de zoom (3 min general -> 2 min medio -> 1 min cerca)
+    function calcularPasoAgrupacionLOD(spanSegundos) {
+        if (spanSegundos <= 5400) return 60;      // Zoom <= 90 min: 1 minuto exacto (60s)
+        if (spanSegundos <= 14400) return 120;    // Zoom <= 4 horas: 2 minutos (120s)
+        if (spanSegundos <= 90000) return 180;    // Vista 6h y 24h: 3 minutos (180s) -> limpio y sin saturación
+        if (spanSegundos <= 604800) return 900;   // Vista 7 días: 15 minutos
+        return 3600;                              // Vista 30 días: 60 minutos
+    }
+
+    function actualizarBadgeLOD(pasoSeg) {
+        const el = document.getElementById('lodResolutionBadge');
+        if (!el) return;
+        const mins = Math.round(pasoSeg / 60);
+        el.innerText = mins >= 60 ? `⚡ ${Math.round(mins / 60)}h` : `⚡ ${mins}m`;
+    }
+
+    // Encajona estrictamente el eje X para que JAMÁS quede espacio negro vacío a la derecha ni a la izquierda
+    function forzarLimitesSinEspacioVacio(chart) {
         if (!chart || !chart.scales || !chart.scales.x) return;
+        const xAxis = chart.scales.x;
+        let curMin = xAxis.min;
+        let curMax = xAxis.max;
+        let span = curMax - curMin;
+        const maxSpanTotal = limiteDatosDerGlobal - limiteDatosIzqGlobal;
+
+        if (maxSpanTotal <= 0) return;
+
+        if (span >= maxSpanTotal) {
+            curMin = limiteDatosIzqGlobal;
+            curMax = limiteDatosDerGlobal;
+        } else {
+            if (curMax > limiteDatosDerGlobal) {
+                curMax = limiteDatosDerGlobal;
+                curMin = Math.max(limiteDatosIzqGlobal, curMax - span);
+            }
+            if (curMin < limiteDatosIzqGlobal) {
+                curMin = limiteDatosIzqGlobal;
+                curMax = Math.min(limiteDatosDerGlobal, curMin + span);
+            }
+        }
+        chart.options.scales.x.min = curMin;
+        chart.options.scales.x.max = curMax;
+    }
+
+    // Actualiza tanto el radio de los nodos como la resolución LOD (3m -> 2m -> 1m) al hacer zoom
+    function actualizarPuntosYResolucionSegunZoom(chart) {
+        if (!chart || !chart.scales || !chart.scales.x) return;
+        forzarLimitesSinEspacioVacio(chart);
+
         const span = chart.scales.x.max - chart.scales.x.min;
-        // Si el rango visible es menor o igual a 1 hora (3600s), mostrar el nodo exacto de cada minuto
+        const nuevoPaso = calcularPasoAgrupacionLOD(span);
+
+        // Si al acercar o alejar el zoom cruzamos el umbral (ej: de 3m a 2m o a 1m), re-agrupamos al instante
+        if (nuevoPaso !== pasoAgrupacionActualSeg && crudosPorMinutoCache.length > 0) {
+            pasoAgrupacionActualSeg = nuevoPaso;
+            actualizarBadgeLOD(nuevoPaso);
+            const g = construirSeriesConPaso(crudosPorMinutoCache, nuevoPaso);
+            chart.data.datasets.forEach(ds => {
+                if (ds.id === 'hr') ds.data = g.ptsH;
+                else if (ds.id === 'tmax') ds.data = g.ptsT;
+                else if (ds.id === 'tmin') ds.data = g.ptsTMin;
+                else if (ds.id === 'tamb') ds.data = g.ptsA;
+                else if (ds.id === 'clima') ds.data = g.ptsClima;
+                else if (ds.id === 'sensacion') ds.data = g.ptsSens;
+                else if (ds.id === 'err') ds.data = g.ptsE;
+            });
+            chart.options.scales.y2.max = Math.max(20, g.maxErrPeriodo * 4);
+        }
+
         let radio = 0;
-        if (span <= 1200) radio = 3.2;       // Zoom muy cercano (<= 20 min): puntos claros
-        else if (span <= 3600) radio = 2.2;  // Zoom medio (<= 60 min): puntos medianos
-        else if (span <= 7200) radio = 1.3;  // Zoom 2 horas: micropuntos por minuto
+        if (span <= 1800) radio = 3.0;       // Zoom muy cercano (<= 30 min): nodos de 1m claros
+        else if (span <= 5400) radio = 2.0;  // Zoom cercano (<= 90 min): nodos de 1m medianos
+        else if (span <= 14400) radio = 1.4; // Zoom intermedio (<= 4 horas): nodos de 2m sutiles
 
         chart.data.datasets.forEach(ds => {
             if (ds.type === 'line') {
@@ -730,19 +839,19 @@
     const pluginNumerosDentroGrafico = {
         id: 'numerosDentroGrafico',
         beforeDatasetsDraw: function(chart) {
-            // Cuando el usuario hace zoom cercano (<= 60 minutos), dibuja una línea guía vertical tenue por CADA MINUTO exacto (60s)
             const xAxis = chart.scales.x;
             const ca = chart.chartArea;
             if (!xAxis || !ca) return;
             const span = xAxis.max - xAxis.min;
-            if (span <= 3600) {
+            if (span <= 5400) {
                 const ctx = chart.ctx;
                 ctx.save();
                 ctx.beginPath();
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
                 ctx.lineWidth = 1;
-                const primerMin = Math.ceil(xAxis.min / 60) * 60;
-                for (let m = primerMin; m <= xAxis.max; m += 60) {
+                const pasoGuia = span <= 3600 ? 60 : 120;
+                const primerMin = Math.ceil(xAxis.min / pasoGuia) * pasoGuia;
+                for (let m = primerMin; m <= xAxis.max; m += pasoGuia) {
                     const xPos = xAxis.getPixelForValue(m);
                     if (xPos >= ca.left && xPos <= ca.right) {
                         ctx.moveTo(xPos, ca.top);
@@ -839,6 +948,7 @@
 
     function ocultarTooltipGris() {
         cursorDentroArea = false;
+        ultimoTsTooltipRenderizado = null;
         const ttEl = document.getElementById('customChartTooltip');
         if (ttEl) ttEl.style.display = 'none';
         if (chartInstance) {
@@ -847,6 +957,7 @@
         }
     }
 
+    // Tooltip ultra-rápido con Memoización de DOM (no reconstruye el HTML si el dedo sigue en el mismo punto)
     function renderizarTooltipExterno(context) {
         const { chart, tooltip } = context;
         const ttEl = document.getElementById('customChartTooltip');
@@ -854,6 +965,7 @@
 
         if (tooltip.opacity === 0 || !cursorDentroArea || !tooltip.dataPoints || tooltip.dataPoints.length === 0) {
             ttEl.style.display = 'none';
+            ultimoTsTooltipRenderizado = null;
             return;
         }
 
@@ -863,65 +975,74 @@
 
         if (!meta || meta.esSeparadorCorte) {
             ttEl.style.display = 'none';
+            ultimoTsTooltipRenderizado = null;
             return;
         }
 
-        const titulo = formatearFechaTooltip(new Date(tsSegundos * 1000));
-        let deltaT = "";
-        if (meta.temp > 0 && (meta.amb || meta.clima !== null)) {
-            let refAmb = meta.amb || meta.clima;
-            let diff = meta.temp - refAmb;
-            let signo = diff >= 0 ? '+' : '';
-            deltaT = `<span style="color:#a5a7b5; font-size:0.88em;">ΔT ${signo}${diff}°C</span>`;
-        }
-        let html = `<div class="tt-title"><span>${titulo}</span>${deltaT}</div>`;
+        // Solo regenerar el DOM si cambió el minuto/intervalo seleccionado (elimina el lag al deslizar en celular)
+        if (ultimoTsTooltipRenderizado !== tsSegundos) {
+            ultimoTsTooltipRenderizado = tsSegundos;
 
-        if (meta.estadoPunto === 'SIN_MINAR') {
-            html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;">0 ${unidadMinero} (Detenido)</b></div>`;
-            if (meta.temp > 0) {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Max: <b>${meta.temp}°C</b> (Equipo encendido)</div>`;
+            const titulo = formatearFechaTooltip(new Date(tsSegundos * 1000));
+            let deltaT = "";
+            if (meta.temp > 0 && (meta.amb || meta.clima !== null)) {
+                let refAmb = meta.amb || meta.clima;
+                let diff = meta.temp - refAmb;
+                let signo = diff >= 0 ? '+' : '';
+                deltaT = `<span style="color:#a5a7b5; font-size:0.88em;">ΔT ${signo}${diff}°C</span>`;
             }
-            if (meta.clima !== null && meta.clima !== undefined) {
-                let txtSens = (meta.sensacion !== null && meta.sensacion !== undefined) ? ` (Sensación: <b style="color:#c084fc;">${meta.sensacion}°C</b>)` : '';
-                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b>${meta.clima}°C</b>${txtSens}</div>`;
-            }
-            html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Alerta: Encendido pero sin minar</div>`;
-        } else {
-            html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${meta.hr} ${unidadMinero}</b></div>`;
-            if (meta.temp > 0) {
-                let estadoT = meta.temp >= 85 ? '🔴 Crítica' : (meta.temp >= 75 ? '🟠 Advertencia' : '🟢 Normal');
-                let txtMin = (meta.tempMin && meta.tempMin > 0) ? ` / Mín PCB: <b>${meta.tempMin}°C</b>` : '';
-                html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b>${meta.temp}°C</b>${txtMin} (${estadoT})</div>`;
-                let cads = meta.cadenas || cadenasActuales;
-                if (cads && cads.length > 0) {
-                    for (let c = 0; c < cads.length; c++) {
-                        if (cads[c].temp_c > 0 || cads[c].temp_p > 0) {
-                            html += `<div class="tt-sub">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
+            let html = `<div class="tt-title"><span>${titulo}</span>${deltaT}</div>`;
+
+            if (meta.estadoPunto === 'SIN_MINAR') {
+                html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;">0 ${unidadMinero} (Detenido)</b></div>`;
+                if (meta.temp > 0) {
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Max: <b>${meta.temp}°C</b> (Equipo encendido)</div>`;
+                }
+                if (meta.clima !== null && meta.clima !== undefined) {
+                    let txtSens = (meta.sensacion !== null && meta.sensacion !== undefined) ? ` (Sensación: <b style="color:#c084fc;">${meta.sensacion}°C</b>)` : '';
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b>${meta.clima}°C</b>${txtSens}</div>`;
+                }
+                html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Alerta: Encendido pero sin minar</div>`;
+            } else {
+                html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${meta.hr} ${unidadMinero}</b></div>`;
+                if (meta.temp > 0) {
+                    let estadoT = meta.temp >= 85 ? '🔴 Crítica' : (meta.temp >= 75 ? '🟠 Advertencia' : '🟢 Normal');
+                    let txtMin = (meta.tempMin && meta.tempMin > 0) ? ` / Mín PCB: <b>${meta.tempMin}°C</b>` : '';
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b>${meta.temp}°C</b>${txtMin} (${estadoT})</div>`;
+                    let cads = meta.cadenas || cadenasActuales;
+                    if (cads && cads.length > 0) {
+                        for (let c = 0; c < cads.length; c++) {
+                            if (cads[c].temp_c > 0 || cads[c].temp_p > 0) {
+                                html += `<div class="tt-sub">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
+                            }
                         }
                     }
                 }
+                if (meta.amb && meta.amb > 0) {
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Temp Entrada/Amb: <b>${meta.amb}°C</b></div>`;
+                }
+                if (meta.clima !== null && meta.clima !== undefined) {
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja (${GRANJA_CIUDAD}): <b>${meta.clima}°C</b></div>`;
+                }
+                if (meta.sensacion !== null && meta.sensacion !== undefined) {
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación Térmica: <b>${meta.sensacion}°C</b></div>`;
+                }
+                let errNuevos = meta.err || 0;
+                let ds = meta.deltaS || pasoAgrupacionActualSeg;
+                let porSeg = (errNuevos / ds).toFixed(2);
+                html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b>${errNuevos} nuevos</b> (${porSeg} /s)</div>`;
             }
-            if (meta.amb && meta.amb > 0) {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Temp Entrada/Amb: <b>${meta.amb}°C</b></div>`;
-            }
-            if (meta.clima !== null && meta.clima !== undefined) {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja (${GRANJA_CIUDAD}): <b>${meta.clima}°C</b></div>`;
-            }
-            if (meta.sensacion !== null && meta.sensacion !== undefined) {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación Térmica: <b>${meta.sensacion}°C</b></div>`;
-            }
-            let errNuevos = meta.err || 0;
-            let ds = meta.deltaS || 60;
-            let porSeg = (errNuevos / ds).toFixed(2);
-            html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b>${errNuevos} nuevos</b> (${porSeg} /s)</div>`;
+
+            ttEl.innerHTML = html;
+            ttEl.style.display = 'block';
+            ultimoAnchoTooltipCache = ttEl.offsetWidth || 235;
+        } else if (ttEl.style.display === 'none') {
+            ttEl.style.display = 'block';
         }
 
-        ttEl.innerHTML = html;
-        ttEl.style.display = 'block';
-
         const chartArea = chart.chartArea;
-        const wrapperW = chart.canvas.clientWidth;
-        const ttW = ttEl.offsetWidth || 235;
+        const wrapperW = chart.width;
+        const ttW = ultimoAnchoTooltipCache;
 
         let posX = tooltip.caretX;
         const minX = (ttW / 2) + 6;
@@ -948,7 +1069,6 @@
                 <span class="legend-info-icon" data-info-btn="1">i</span>
             `;
 
-            // En computadora: al pasar el mouse por encima del botón muestra la descripción sin recortarse jamás
             btn.addEventListener('mouseenter', function() {
                 const info = obtenerInfoTooltipCurva(ds.id, !chartInstance.isDatasetVisible(index));
                 mostrarSmartTooltip(btn, info);
@@ -957,7 +1077,6 @@
                 ocultarSmartTooltip();
             });
 
-            // En celular y PC: tocar el icono "i" abre/cierra la descripción sin apagar la curva; tocar el texto apaga/enciende la curva
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const tocoIconoInfo = e.target && e.target.getAttribute('data-info-btn') === '1';
@@ -976,10 +1095,9 @@
                 const vis = chartInstance.isDatasetVisible(index);
                 chartInstance.setDatasetVisibility(index, !vis);
                 visibilidadCurvas[ds.id] = !vis;
-                chartInstance.update();
+                chartInstance.update('none');
                 construirLeyendasPildora();
 
-                // En celular, al tocar una píldora mostramos brevemente su tarjeta informativa bien encuadrada
                 if (esPantallaTactil) {
                     const nuevasPildoras = cont.querySelectorAll('.legend-pill');
                     if (nuevasPildoras[index]) {
@@ -995,8 +1113,12 @@
 
     function resetearZoomGrafico() {
         if (!chartInstance) return;
-        chartInstance.resetZoom();
-        actualizarPuntosSegunZoom(chartInstance);
+        chartInstance.options.scales.x.min = limiteDatosIzqGlobal;
+        chartInstance.options.scales.x.max = limiteDatosDerGlobal;
+        chartInstance.resetZoom('none');
+        chartInstance.options.scales.x.min = limiteDatosIzqGlobal;
+        chartInstance.options.scales.x.max = limiteDatosDerGlobal;
+        actualizarPuntosYResolucionSegunZoom(chartInstance);
         chartInstance.update('none');
         document.getElementById('btnResetZoom').style.display = 'none';
     }
@@ -1013,27 +1135,35 @@
         const canvas = document.getElementById('hashrateChart');
         if (!canvas) return;
 
+        function actualizarRectCache() {
+            rectCanvasCache = canvas.getBoundingClientRect();
+        }
+
         function validarPosicionCursor(clientX, clientY) {
             if (!chartInstance || !chartInstance.chartArea) return;
-            const rect = canvas.getBoundingClientRect();
-            const x = clientX - rect.left;
-            const y = clientY - rect.top;
+            if (!rectCanvasCache) actualizarRectCache();
+            const x = clientX - rectCanvasCache.left;
+            const y = clientY - rectCanvasCache.top;
             const ca = chartInstance.chartArea;
 
             if (y > ca.bottom || y < ca.top || x < ca.left || x > ca.right) {
-                ocultarTooltipGris();
+                if (cursorDentroArea) ocultarTooltipGris();
             } else {
                 cursorDentroArea = true;
             }
         }
 
-        canvas.addEventListener('mousemove', function(e) { validarPosicionCursor(e.clientX, e.clientY); });
-        canvas.addEventListener('mouseleave', function() { ocultarTooltipGris(); });
+        canvas.addEventListener('mouseenter', actualizarRectCache, {passive: true});
+        canvas.addEventListener('mousemove', function(e) { validarPosicionCursor(e.clientX, e.clientY); }, {passive: true});
+        canvas.addEventListener('mouseleave', function() { ocultarTooltipGris(); }, {passive: true});
         canvas.addEventListener('dblclick', function() { resetearZoomGrafico(); });
 
         let ultimoToqueTs = 0;
+        let rafTouchId = null;
+
         canvas.addEventListener('touchstart', function(e) {
             ocultarSmartTooltip();
+            actualizarRectCache();
             if (e.touches && e.touches.length === 1) {
                 let ahora = Date.now();
                 if (ahora - ultimoToqueTs < 280) {
@@ -1046,9 +1176,17 @@
             }
         }, {passive: true});
 
+        // Throttling por requestAnimationFrame en touchmove para que el deslizamiento en móvil vaya a 60 FPS sin tirones
         canvas.addEventListener('touchmove', function(e) {
             if (e.touches && e.touches.length === 1) {
-                validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
+                const tx = e.touches[0].clientX;
+                const ty = e.touches[0].clientY;
+                if (!rafTouchId) {
+                    rafTouchId = requestAnimationFrame(function() {
+                        rafTouchId = null;
+                        validarPosicionCursor(tx, ty);
+                    });
+                }
             } else {
                 ocultarTooltipGris();
             }
@@ -1069,7 +1207,8 @@
         return mins.length > 0 ? Math.min(...mins) : null;
     }
 
-    function procesarDatosLimpios(minTs) {
+    // Paso 1: Extrae los puntos base limpios de 1 minuto y calcula estadísticas exactas del periodo
+    function recolectarBasePorMinuto(minTs) {
         let porMinuto = new Map();
 
         for (let i = 0; i < rawFechas.length; i++) {
@@ -1132,23 +1271,84 @@
         let crudos = Array.from(porMinuto.values());
         crudos.sort((a, b) => a.ts - b.ts);
 
-        let ptsH = [], ptsT = [], ptsTMin = [], ptsA = [], ptsClima = [], ptsSens = [], ptsE = [];
-        let valoresHr = [], valoresTempMax = [], valoresTempMin = [], maxErrPeriodo = 0;
-        mapaMetaPuntos = {};
-
-        const UMBRAL_CORTE_SEG = 240;
-
+        let valoresHr = [], valoresTempMax = [], valoresTempMin = [];
         for (let i = 0; i < crudos.length; i++) {
-            let actual = crudos[i];
-            let deltaS = 60;
+            let c = crudos[i];
+            if (c.hr > 0) valoresHr.push(c.hr);
+            if (c.temp > 5) valoresTempMax.push(c.temp);
+            if (c.tempMin !== null && c.tempMin > 5) valoresTempMin.push(c.tempMin);
+        }
+
+        return { crudos, valoresHr, valoresTempMax, valoresTempMin, totalRegistros: crudos.length };
+    }
+
+    // Paso 2: Agrupa los puntos según el paso dinámico LOD (180s = 3m, 120s = 2m, 60s = 1m) manteniendo clavados el primer y último punto real
+    function construirSeriesConPaso(crudosBase, pasoSeg) {
+        let agrupados = [];
+
+        if (pasoSeg <= 60 || crudosBase.length <= 2) {
+            agrupados = crudosBase;
+        } else {
+            let mapaBuckets = new Map();
+            const ultimoIdx = crudosBase.length - 1;
+
+            for (let i = 0; i < crudosBase.length; i++) {
+                let c = crudosBase[i];
+                // Anclar el último registro en su timestamp exacto para que el gráfico termine justo al borde derecho sin hueco negro
+                let bTs = (i === ultimoIdx) ? c.ts : (Math.floor(c.ts / pasoSeg) * pasoSeg);
+
+                if (!mapaBuckets.has(bTs)) {
+                    mapaBuckets.set(bTs, {
+                        ts: bTs,
+                        hrSum: c.hr > 0 ? c.hr : 0,
+                        hrCount: c.hr > 0 ? 1 : 0,
+                        hr: c.hr,
+                        temp: c.temp,
+                        tempMin: c.tempMin,
+                        amb: c.amb,
+                        clima: c.clima,
+                        sensacion: c.sensacion,
+                        err: c.err,
+                        cads: c.cads
+                    });
+                } else {
+                    let b = mapaBuckets.get(bTs);
+                    if (c.hr > 0) {
+                        b.hrSum += c.hr;
+                        b.hrCount += 1;
+                        b.hr = Number((b.hrSum / b.hrCount).toFixed(2));
+                    }
+                    if (c.temp > b.temp) b.temp = c.temp;
+                    if (c.tempMin !== null && (b.tempMin === null || c.tempMin < b.tempMin)) b.tempMin = c.tempMin;
+                    if (c.amb !== null) b.amb = c.amb;
+                    if (c.clima !== null) b.clima = c.clima;
+                    if (c.sensacion !== null) b.sensacion = c.sensacion;
+                    b.err += c.err;
+                    b.cads = c.cads;
+                }
+            }
+            agrupados = Array.from(mapaBuckets.values());
+            agrupados.sort((a, b) => a.ts - b.ts);
+        }
+
+        let ptsH = [], ptsT = [], ptsTMin = [], ptsA = [], ptsClima = [], ptsSens = [], ptsE = [];
+        let maxErrPeriodo = 0;
+        mapaMetaPuntos = {};
+        ultimoTsTooltipRenderizado = null;
+
+        const UMBRAL_CORTE_SEG = Math.max(240, pasoSeg * 2.5);
+
+        for (let i = 0; i < agrupados.length; i++) {
+            let actual = agrupados[i];
+            let deltaS = pasoSeg;
 
             if (i > 0) {
-                let brecha = actual.ts - crudos[i - 1].ts;
+                let brecha = actual.ts - agrupados[i - 1].ts;
                 if (brecha <= 0) continue;
-                deltaS = brecha <= 300 ? brecha : 60;
+                deltaS = brecha <= UMBRAL_CORTE_SEG ? brecha : pasoSeg;
 
                 if (brecha > UMBRAL_CORTE_SEG) {
-                    let tsCorte = crudos[i - 1].ts + 1;
+                    let tsCorte = agrupados[i - 1].ts + 1;
                     ptsH.push({ x: tsCorte, y: null });
                     ptsT.push({ x: tsCorte, y: null });
                     ptsTMin.push({ x: tsCorte, y: null });
@@ -1170,7 +1370,6 @@
                 ptsClima.push({ x: actual.ts, y: actual.clima });
                 ptsSens.push({ x: actual.ts, y: actual.sensacion });
                 ptsE.push({ x: actual.ts, y: 0 });
-                valoresTempMax.push(actual.temp);
                 mapaMetaPuntos[actual.ts] = {
                     estadoPunto: 'SIN_MINAR',
                     hr: 0, temp: actual.temp, tempMin: null, amb: null, clima: actual.clima, sensacion: actual.sensacion, err: 0, deltaS: deltaS, cadenas: actual.cads
@@ -1185,10 +1384,6 @@
                 ptsSens.push({ x: actual.ts, y: actual.sensacion });
                 ptsE.push({ x: actual.ts, y: actual.err });
 
-                valoresHr.push(actual.hr);
-                if (tempValida !== null) valoresTempMax.push(tempValida);
-                if (actual.tempMin !== null) valoresTempMin.push(actual.tempMin);
-
                 mapaMetaPuntos[actual.ts] = {
                     estadoPunto: 'NORMAL',
                     hr: actual.hr, temp: tempValida || 0, tempMin: actual.tempMin, amb: actual.amb, clima: actual.clima, sensacion: actual.sensacion, err: actual.err, deltaS: deltaS, cadenas: actual.cads
@@ -1196,10 +1391,10 @@
             }
         }
 
-        const primerTsReal = crudos.length > 0 ? crudos[0].ts : minTs;
-        const ultimoTsReal = crudos.length > 0 ? crudos[crudos.length - 1].ts : Math.floor(Date.now() / 60000) * 60;
+        const primerTsReal = agrupados.length > 0 ? agrupados[0].ts : Math.floor(Date.now() / 60000) * 60 - 3600;
+        const ultimoTsReal = agrupados.length > 0 ? agrupados[agrupados.length - 1].ts : Math.floor(Date.now() / 60000) * 60;
 
-        return { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, valoresHr, valoresTempMax, valoresTempMin, maxErrPeriodo, totalRegistros: crudos.length, primerTsReal, ultimoTsReal };
+        return { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, maxErrPeriodo, primerTsReal, ultimoTsReal };
     }
 
     function updateChart(rango) {
@@ -1211,8 +1406,18 @@
         ocultarTooltipGris();
         ocultarSmartTooltip();
         
-        // Clavar el borde derecho EXACTAMENTE en el último minuto recibido para que NO quede espacio vacío al final
-        const nowTs = rawFechas.length > 0 ? Math.floor(Math.max(...rawFechas) / 60) * 60 : Math.floor(Date.now() / 60000) * 60;
+        // Determinar el último timestamp con datos reales válidos para evitar huecos negros a la derecha
+        let maxTsValido = 0;
+        for (let i = rawFechas.length - 1; i >= 0; i--) {
+            let hV = Number(rawHr[i] || 0);
+            let tV = Number(rawTemp[i] || 0);
+            if (hV > 0 || tV > 5) {
+                if (rawFechas[i] > maxTsValido) maxTsValido = rawFechas[i];
+                break;
+            }
+        }
+        const nowTs = maxTsValido > 0 ? Math.floor(maxTsValido / 60) * 60 : Math.floor(Date.now() / 60000) * 60;
+
         let segundosRango = 24 * 3600;
         if (rango === '6h') segundosRango = 6 * 3600;
         if (rango === '24h') segundosRango = 24 * 3600;
@@ -1220,8 +1425,20 @@
         if (rango === '30d') segundosRango = 30 * 86400;
 
         const minTs = nowTs - segundosRango;
-        const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, valoresHr, valoresTempMax, valoresTempMin, maxErrPeriodo, totalRegistros, primerTsReal, ultimoTsReal } = procesarDatosLimpios(minTs);
+        const base = recolectarBasePorMinuto(minTs);
+        crudosPorMinutoCache = base.crudos;
+
+        // Calcular paso LOD inicial (3m para 6h/24h, y al hacer zoom bajará solo a 2m y 1m)
+        pasoAgrupacionActualSeg = calcularPasoAgrupacionLOD(segundosRango);
+        actualizarBadgeLOD(pasoAgrupacionActualSeg);
+
+        const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, maxErrPeriodo, primerTsReal, ultimoTsReal } = construirSeriesConPaso(crudosPorMinutoCache, pasoAgrupacionActualSeg);
         
+        let valoresHr = base.valoresHr;
+        let valoresTempMax = base.valoresTempMax;
+        let valoresTempMin = base.valoresTempMin;
+        let totalRegistros = base.totalRegistros;
+
         let avgBruto = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length) : 0;
         let valoresHrOperativos = valoresHr.filter(v => v >= avgBruto * 0.25);
         if (valoresHrOperativos.length === 0) valoresHrOperativos = valoresHr;
@@ -1249,19 +1466,18 @@
         let tieneTempAmbiente = ptsA.some(p => p.y !== null && p.y > 0);
         let tieneClimaExt = ptsClima.some(p => p.y !== null && p.y !== undefined);
 
-        // LÍNEAS SÓLIDAS CONTINUAS (Sin borderDash punteado para que NO aparezcan rayitas falsas entre minuto y minuto)
         let datasetsList = [
             {
                 id: 'hr', type: 'line', label: '⚡ Hashrate (' + unidadMinero + ')', data: ptsH,
                 borderColor: '#3366ff', backgroundColor: gradBlue, fill: true,
-                tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointBackgroundColor: '#3366ff', pointHoverBackgroundColor: '#3366ff',
+                tension: 0.15, pointRadius: 0, pointHoverRadius: 5, pointBackgroundColor: '#3366ff', pointHoverBackgroundColor: '#3366ff',
                 borderWidth: 2, spanGaps: false,
                 hidden: visibilidadCurvas['hr'] === false
             },
             {
                 id: 'tmax', type: 'line', label: '🌡️ Temp Máx °C', data: ptsT,
                 borderColor: '#ffb300',
-                tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointBackgroundColor: '#ffb300', pointHoverBackgroundColor: '#ffb300',
+                tension: 0.15, pointRadius: 0, pointHoverRadius: 5, pointBackgroundColor: '#ffb300', pointHoverBackgroundColor: '#ffb300',
                 borderWidth: 1.8, yAxisID: 'y1', spanGaps: false,
                 hidden: visibilidadCurvas['tmax'] === false
             },
@@ -1269,7 +1485,7 @@
                 id: 'tmin', type: 'line', label: '❄️ Temp Mín (PCB) °C', data: ptsTMin,
                 borderColor: 'rgba(251, 146, 60, 0.75)',
                 backgroundColor: 'rgba(255, 179, 0, 0.07)', fill: '-1',
-                tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#fb923c', pointHoverBackgroundColor: '#fb923c',
+                tension: 0.15, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#fb923c', pointHoverBackgroundColor: '#fb923c',
                 borderWidth: 1.2, yAxisID: 'y1', spanGaps: false,
                 hidden: visibilidadCurvas['tmin'] === false
             }
@@ -1279,7 +1495,7 @@
             datasetsList.push({
                 id: 'tamb', type: 'line', label: '🍃 Entrada/Amb °C', data: ptsA,
                 borderColor: '#00e676',
-                tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#00e676', pointHoverBackgroundColor: '#00e676',
+                tension: 0.15, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#00e676', pointHoverBackgroundColor: '#00e676',
                 borderWidth: 1.5, yAxisID: 'y1', spanGaps: false,
                 hidden: visibilidadCurvas['tamb'] === false
             });
@@ -1309,21 +1525,23 @@
             hidden: visibilidadCurvas['err'] === false
         });
 
-        // En 6h y 24h ajustamos el borde izquierdo al primer dato si empieza después de minTs, y en zoom ponemos tope exacto
-        const limiteIzq = (rango === '6h' || rango === '24h') ? Math.max(minTs, primerTsReal) : minTs;
+        // Anclaje exacto al primer y último dato real para que JAMÁS haya espacio vacío a la derecha ni izquierda
+        const limiteIzq = Math.max(minTs, primerTsReal);
         const limiteDer = ultimoTsReal;
-        // Escalar el techo del eje Y2 de errores al 4x del máximo para que las barras rojas solo ocupen el 25% inferior del gráfico
+        limiteDatosIzqGlobal = limiteIzq;
+        limiteDatosDerGlobal = limiteDer;
+
         const topeEjeErrores = Math.max(20, maxErrPeriodo * 4);
 
         if(chartInstance) {
             chartInstance.options.scales.x.min = limiteIzq;
             chartInstance.options.scales.x.max = limiteDer;
             chartInstance.options.scales.y2.max = topeEjeErrores;
-            chartInstance.options.plugins.zoom.limits.x.min = Math.min(minTs, primerTsReal);
+            chartInstance.options.plugins.zoom.limits.x.min = limiteIzq;
             chartInstance.options.plugins.zoom.limits.x.max = limiteDer;
             chartInstance.data.datasets = datasetsList;
-            actualizarPuntosSegunZoom(chartInstance);
-            chartInstance.update();
+            actualizarPuntosYResolucionSegunZoom(chartInstance);
+            chartInstance.update('none');
             construirLeyendasPildora();
         } else {
             chartInstance = new Chart(ctx, { 
@@ -1331,6 +1549,8 @@
                 data: { datasets: datasetsList },
                 plugins: [pluginNumerosDentroGrafico, pluginCrosshairVertical],
                 options: { 
+                    animation: false,
+                    normalized: true,
                     parsed: false,
                     responsive: true, maintainAspectRatio: false,
                     layout: { padding: { left: 14, right: 14, top: 6, bottom: 0 } },
@@ -1342,10 +1562,10 @@
                             external: renderizarTooltipExterno
                         },
                         zoom: {
-                            // Tope estricto a izquierda y derecha para que al arrastrar NUNCA salgas a un espacio vacío
+                            // Tope estricto a izquierda y derecha para que el gráfico nunca muestre zona negra vacía
                             limits: {
                                 x: { 
-                                    min: Math.min(minTs, primerTsReal),
+                                    min: limiteIzq,
                                     max: limiteDer,
                                     minRange: 300 
                                 }
@@ -1353,8 +1573,11 @@
                             pan: {
                                 enabled: true,
                                 mode: 'x',
+                                onPan: function({chart}) {
+                                    forzarLimitesSinEspacioVacio(chart);
+                                },
                                 onPanComplete: function({chart}) {
-                                    actualizarPuntosSegunZoom(chart);
+                                    actualizarPuntosYResolucionSegunZoom(chart);
                                     chart.update('none');
                                     document.getElementById('btnResetZoom').style.display = 'inline-block';
                                 }
@@ -1363,10 +1586,15 @@
                                 wheel: { enabled: true },
                                 pinch: { enabled: true },
                                 mode: 'x',
+                                onZoom: function({chart}) {
+                                    forzarLimitesSinEspacioVacio(chart);
+                                },
                                 onZoomComplete: function({chart}) {
-                                    actualizarPuntosSegunZoom(chart);
+                                    actualizarPuntosYResolucionSegunZoom(chart);
                                     chart.update('none');
-                                    document.getElementById('btnResetZoom').style.display = 'inline-block';
+                                    const spanVis = chart.scales.x.max - chart.scales.x.min;
+                                    const spanTot = limiteDatosDerGlobal - limiteDatosIzqGlobal;
+                                    document.getElementById('btnResetZoom').style.display = (spanVis < spanTot - 60) ? 'inline-block' : 'none';
                                 }
                             }
                         }
@@ -1374,6 +1602,8 @@
                     scales: { 
                         x: { 
                             type: 'linear',
+                            bounds: 'data',
+                            offset: false,
                             min: limiteIzq,
                             max: limiteDer,
                             grid: { color: 'rgba(255,255,255,0.05)' },
