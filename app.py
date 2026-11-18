@@ -10,6 +10,7 @@ app.secret_key = 'super_secreta_antminer_tools'
 DB_URL = os.environ.get("DATABASE_URL", "")
 ultimo_envio_alerta = {}
 ultima_limpieza_bd = 0
+cache_geo_granja = {} # {ip_publica: {'lat': ..., 'lon': ..., 'ciudad': ..., 'ts': ...}}
 db_inicializada = False
 
 @app.errorhandler(Exception)
@@ -46,6 +47,39 @@ def a_float_seguro(val, defecto=0.0):
     except:
         return defecto
 
+# Detecta la ubicación física de la GRANJA a partir de la IP pública desde donde transmite agente.py
+def obtener_ubicacion_ip_agente(ip_publica):
+    global cache_geo_granja
+    ahora = time.time()
+    if ip_publica in cache_geo_granja and (ahora - cache_geo_granja[ip_publica]['ts'] < 86400):
+        return cache_geo_granja[ip_publica]
+
+    # Ignorar IPs locales/privadas si se prueba en local
+    if not ip_publica or ip_publica.startswith(("127.", "192.168.", "10.", "172.")):
+        ip_query = ""
+    else:
+        ip_query = ip_publica.strip()
+
+    urls = [
+        f"http://ip-api.com/json/{ip_query}?fields=status,country,regionName,city,lat,lon",
+        f"https://ipwho.is/{ip_query}"
+    ]
+    for u in urls:
+        try:
+            req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0'})
+            raw = urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8')
+            j = json.loads(raw)
+            if j.get('status') == 'success' or j.get('success') is True:
+                lat = float(j.get('lat') or j.get('latitude'))
+                lon = float(j.get('lon') or j.get('longitude'))
+                ciudad = str(j.get('city') or j.get('regionName') or j.get('region') or 'Granja Local').strip()
+                res = {'lat': lat, 'lon': lon, 'ciudad': ciudad, 'ts': ahora}
+                cache_geo_granja[ip_publica] = res
+                return res
+        except:
+            pass
+    return {'lat': -17.7833, 'lon': -63.1821, 'ciudad': 'Santa Cruz de la Sierra', 'ts': ahora}
+
 def render_seguro(nombre_archivo, **contexto):
     try:
         return render_template(nombre_archivo, **contexto)
@@ -79,7 +113,7 @@ def init_db():
         con = get_db()
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, owner TEXT DEFAULT 'giovanni', modelo TEXT, unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8')''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, owner TEXT DEFAULT 'giovanni', modelo TEXT, unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra')''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 1)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
@@ -111,6 +145,9 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN netmask TEXT DEFAULT '255.255.255.0'",
             "ALTER TABLE mineros_activos ADD COLUMN gateway TEXT DEFAULT '192.168.0.1'",
             "ALTER TABLE mineros_activos ADD COLUMN dns TEXT DEFAULT '8.8.8.8'",
+            "ALTER TABLE mineros_activos ADD COLUMN farm_lat REAL DEFAULT -17.7833",
+            "ALTER TABLE mineros_activos ADD COLUMN farm_lon REAL DEFAULT -63.1821",
+            "ALTER TABLE mineros_activos ADD COLUMN farm_city TEXT DEFAULT 'Santa Cruz de la Sierra'",
             "ALTER TABLE cola_comandos ADD COLUMN owner TEXT DEFAULT 'giovanni'",
             "ALTER TABLE historial_nube ADD COLUMN owner TEXT DEFAULT 'giovanni'",
             "ALTER TABLE historial_nube ADD COLUMN errores INTEGER DEFAULT 0",
@@ -289,7 +326,6 @@ def detalle_minero(ip):
     m = cur.fetchone()
     cur.execute("SELECT nombre FROM nombres_mineros WHERE ip=%s", (ip,))
     n_row = cur.fetchone()
-    # Trae los últimos 15,000 registros más recientes (DESC) y luego los ordena cronológicamente (ASC)
     cur.execute("""
         SELECT fecha, hashrate, temp_max, temp_amb, errores, cadenas 
         FROM (
@@ -338,6 +374,11 @@ def detalle_minero(ip):
     netmask = str(m.get('netmask') or "255.255.255.0")
     gateway = str(m.get('gateway') or default_gw)
     dns = str(m.get('dns') or "8.8.8.8")
+
+    # Coordenadas físicas de la granja donde está el Antminer (detectadas por la IP del agente.py)
+    farm_lat = a_float_seguro(m.get('farm_lat'), -17.7833)
+    farm_lon = a_float_seguro(m.get('farm_lon'), -63.1821)
+    farm_city = str(m.get('farm_city') or 'Santa Cruz de la Sierra')
     
     raw_uptime = str(m.get('uptime') or "")
     uptime_val = raw_uptime if (raw_uptime and raw_uptime != "0h 0m") else "En línea"
@@ -391,7 +432,8 @@ def detalle_minero(ip):
         'temp_max': t_val, 'temp_amb': t_amb_val,
         'errores': a_int_seguro(m.get('errores'), 0), 'consumo': f"{round(c_val/1000, 2)} kW", 
         'fans': fans, 'uptime': uptime_val, 
-        'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0
+        'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0,
+        'farm_lat': farm_lat, 'farm_lon': farm_lon, 'farm_city': farm_city
     }
     extra = {
         'worker1': worker1, 'pool1': pool1, 'pass1': pass1, 'status1': status1, 'acc1': acc1, 'rej1': rej1,
@@ -746,6 +788,14 @@ def recibir_datos():
     datos = request.get_json(silent=True)
     if not datos: return jsonify({"status": "error", "msg": "JSON invalido"}), 400
     
+    # Detectar la IP pública de la granja desde donde se conecta el agente.py
+    xff = request.headers.get('X-Forwarded-For', '')
+    ip_publica_agente = xff.split(',')[0].strip() if xff else (request.remote_addr or '')
+    geo_granja = obtener_ubicacion_ip_agente(ip_publica_agente)
+    f_lat = geo_granja['lat']
+    f_lon = geo_granja['lon']
+    f_city = geo_granja['ciudad']
+
     con = get_db(); con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
@@ -811,10 +861,10 @@ def recibir_datos():
             cadenas_list = m.get('cadenas', [])
             cadenas_json = json.dumps(cadenas_list)
             
-            cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
-                            owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns''', 
-                        (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns))
+            cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
+                            owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, farm_lat=EXCLUDED.farm_lat, farm_lon=EXCLUDED.farm_lon, farm_city=EXCLUDED.farm_city''', 
+                        (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city))
             
             cur.execute("INSERT INTO historial_nube (owner, ip, hashrate, temp_max, temp_amb, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", (owner_user, ip_m, hr_m, temp_m, t_amb, err, cadenas_json, ahora))
             guardados_ok += 1
@@ -830,7 +880,6 @@ def recibir_datos():
         except Exception as err_m:
             print(f"Error guardando minero {m.get('ip')}: {err_m}")
 
-    # Limpieza automática de registros con más de 30 días (se ejecuta 1 vez por hora)
     if ahora_ts - ultima_limpieza_bd > 3600:
         ultima_limpieza_bd = ahora_ts
         try:
