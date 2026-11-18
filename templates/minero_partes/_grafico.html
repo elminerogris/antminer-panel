@@ -1,4 +1,60 @@
-<div class="card">
+<style>
+    .custom-chart-tooltip {
+        position: absolute;
+        display: none;
+        pointer-events: none;
+        background: rgba(10, 11, 16, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 6px;
+        padding: 9px 12px;
+        color: #fff;
+        font-family: sans-serif;
+        font-size: 0.78em;
+        line-height: 1.45;
+        z-index: 1500;
+        white-space: nowrap;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+        transform: translateX(-50%);
+    }
+    .custom-chart-tooltip::before {
+        content: "";
+        position: absolute;
+        top: -6px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 0 6px 6px 6px;
+        border-style: solid;
+        border-color: transparent transparent rgba(10, 11, 16, 0.96) transparent;
+    }
+    .tt-title {
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #fff;
+        font-size: 1.02em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 3px;
+    }
+    .tt-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .tt-sub {
+        padding-left: 18px;
+        color: #d1d3e0;
+        font-family: monospace;
+        font-size: 0.95em;
+    }
+    .tt-box {
+        width: 9px;
+        height: 9px;
+        display: inline-block;
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+</style>
+
+<div class="card" style="position: relative; overflow: visible; z-index: 20;">
     <div class="panel-title">
         <div>☑ Hashrate <span id="hrPromedio" style="color:var(--text-muted); font-size:0.85em; margin-left:10px; font-weight:normal;"></span></div>
         <div class="chart-filters">
@@ -8,7 +64,10 @@
             <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')">30 d</button>
         </div>
     </div>
-    <div style="height: 380px; position: relative;"><canvas id="hashrateChart"></canvas></div>
+    <div id="chartWrapper" style="height: 290px; position: relative;">
+        <canvas id="hashrateChart"></canvas>
+        <div id="customChartTooltip" class="custom-chart-tooltip" translate="no"></div>
+    </div>
 </div>
 
 <script>
@@ -23,6 +82,7 @@
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
     let chartInstance = null;
     let titulosTooltip = [];
+    let cursorDentroArea = false;
 
     function formatearFechaTooltip(d) {
         let dia = String(d.getDate()).padStart(2, '0');
@@ -45,20 +105,120 @@
         return horaStr;
     }
 
-    if (window.Chart && Chart.Tooltip && Chart.Tooltip.positioners) {
-        Chart.Tooltip.positioners.enLineaCero = function(items, eventPosition) {
-            if (!items.length) return false;
-            const chartArea = this.chart.chartArea;
-            if (chartArea) {
-                return { x: eventPosition.x, y: chartArea.bottom - 15 };
+    function ocultarTooltipGris() {
+        cursorDentroArea = false;
+        const ttEl = document.getElementById('customChartTooltip');
+        if (ttEl) ttEl.style.display = 'none';
+        if (chartInstance) {
+            chartInstance.setActiveElements([]);
+            chartInstance.update('none');
+        }
+    }
+
+    function renderizarTooltipExterno(context) {
+        const { chart, tooltip } = context;
+        const ttEl = document.getElementById('customChartTooltip');
+        if (!ttEl) return;
+
+        if (tooltip.opacity === 0 || !cursorDentroArea || !tooltip.dataPoints || tooltip.dataPoints.length === 0) {
+            ttEl.style.display = 'none';
+            return;
+        }
+
+        const idx = tooltip.dataPoints[0].dataIndex;
+        const titulo = titulosTooltip[idx] || tooltip.title[0] || '';
+        let html = `<div class="tt-title">${titulo}</div>`;
+
+        tooltip.dataPoints.forEach(dp => {
+            const dsId = dp.dataset.id;
+            const valY = dp.parsed.y;
+
+            if (dsId === 'hr') {
+                html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${valY} ${unidadMinero}</b></div>`;
+            } else if (dsId === 'tmax') {
+                let estadoT = valY >= 85 ? '🔴 Crítica' : (valY >= 75 ? '🟠 Advertencia' : '🟢 Normal');
+                html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Max: <b>${valY}°C</b> (${estadoT})</div>`;
+                let cads = (dp.dataset.cadsHist && dp.dataset.cadsHist[idx]) ? dp.dataset.cadsHist[idx] : cadenasActuales;
+                if (cads && cads.length > 0) {
+                    for (let c = 0; c < cads.length; c++) {
+                        html += `<div class="tt-sub">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
+                    }
+                }
+            } else if (dsId === 'tamb') {
+                let valA = valY || tempAmbActual;
+                if (valA && valA > 0) {
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Temp Ambiente: <b>${valA}°C</b></div>`;
+                }
+            } else if (dsId === 'err') {
+                let errNuevos = valY || 0;
+                let ds = (dp.dataset.deltaSecs && dp.dataset.deltaSecs[idx]) ? dp.dataset.deltaSecs[idx] : 30;
+                let porSeg = (errNuevos / ds).toFixed(2);
+                html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b>${errNuevos} nuevos</b> (${porSeg} /s)</div>`;
             }
-            return { x: eventPosition.x, y: eventPosition.y };
-        };
+        });
+
+        ttEl.innerHTML = html;
+        ttEl.style.display = 'block';
+
+        const chartArea = chart.chartArea;
+        const wrapperW = chart.canvas.clientWidth;
+        const ttW = ttEl.offsetWidth || 230;
+
+        let posX = tooltip.caretX;
+        const minX = (ttW / 2) + 6;
+        const maxX = wrapperW - (ttW / 2) - 6;
+        if (posX < minX) posX = minX;
+        if (posX > maxX) posX = maxX;
+
+        // Anclado exactamente en la línea roja del 0 (chartArea.bottom)
+        ttEl.style.left = posX + 'px';
+        ttEl.style.top = (chartArea.bottom + 2) + 'px';
+    }
+
+    function configurarEventosLimitesCanvas() {
+        const canvas = document.getElementById('hashrateChart');
+        if (!canvas) return;
+
+        function validarPosicionCursor(clientX, clientY) {
+            if (!chartInstance || !chartInstance.chartArea) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+            const ca = chartInstance.chartArea;
+
+            // Si el mouse/dedo baja de la línea roja del 0 (ca.bottom) o sale de los bordes del gráfico, ocultar de inmediato
+            if (y > ca.bottom || y < ca.top || x < ca.left || x > ca.right) {
+                ocultarTooltipGris();
+            } else {
+                cursorDentroArea = true;
+            }
+        }
+
+        canvas.addEventListener('mousemove', function(e) {
+            validarPosicionCursor(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('mouseleave', function() {
+            ocultarTooltipGris();
+        });
+
+        canvas.addEventListener('touchstart', function(e) {
+            if (e.touches && e.touches.length > 0) {
+                validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, {passive: true});
+
+        canvas.addEventListener('touchmove', function(e) {
+            if (e.touches && e.touches.length > 0) {
+                validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        }, {passive: true});
     }
 
     function updateChart(rango) {
         document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
         document.getElementById('btn-' + rango).classList.add('active');
+        ocultarTooltipGris();
         
         let limitDate = new Date();
         if(rango === '6h') limitDate.setHours(limitDate.getHours() - 6);
@@ -129,49 +289,12 @@
                 data: { labels: fL, datasets: datasetsList },
                 options: { 
                     responsive: true, maintainAspectRatio: false,
-                    layout: { padding: { bottom: 85 } },
+                    layout: { padding: { bottom: 0 } },
                     interaction: { mode: 'index', intersect: false },
                     plugins: { 
                         tooltip: { 
-                            position: 'enLineaCero',
-                            yAlign: 'top',
-                            caretPadding: 4,
-                            backgroundColor: 'rgba(10, 11, 16, 0.94)',
-                            borderColor: 'rgba(255, 255, 255, 0.15)',
-                            borderWidth: 1,
-                            callbacks: { 
-                                title: function(context) { 
-                                    let idx = context[0].dataIndex;
-                                    return titulosTooltip[idx] || context[0].label; 
-                                },
-                                label: function(context) { 
-                                    let dsId = context.dataset.id;
-                                    if(dsId === 'hr') { return '⚡ Hashrate: ' + context.parsed.y + ' ' + unidadMinero; } 
-                                    if(dsId === 'tmax') { 
-                                        let t = context.parsed.y;
-                                        let estadoT = t >= 85 ? '🔴 Crítica' : (t >= 75 ? '🟠 Advertencia' : '🟢 Normal');
-                                        let arr = ['🌡️ Temp Max: ' + t + '°C (' + estadoT + ')'];
-                                        let cads = (context.dataset.cadsHist && context.dataset.cadsHist[context.dataIndex]) ? context.dataset.cadsHist[context.dataIndex] : cadenasActuales;
-                                        if (cads && cads.length > 0) {
-                                            for(let c = 0; c < cads.length; c++) {
-                                                arr.push('   Placa #' + cads[c].id + ' -> Chip: ' + cads[c].temp_c + '°C | PCB: ' + cads[c].temp_p + '°C');
-                                            }
-                                        }
-                                        return arr; 
-                                    }
-                                    if(dsId === 'tamb') {
-                                        let valA = context.parsed.y || tempAmbActual;
-                                        if (!valA || valA <= 0) return null;
-                                        return '🍃 Temp Ambiente: ' + valA + '°C';
-                                    }
-                                    if(dsId === 'err') {
-                                        let errNuevos = context.parsed.y || 0;
-                                        let ds = (context.dataset.deltaSecs && context.dataset.deltaSecs[context.dataIndex]) ? context.dataset.deltaSecs[context.dataIndex] : 30;
-                                        let porSegundo = (errNuevos / ds).toFixed(2);
-                                        return `⚠️ Errores HW: ${errNuevos} nuevos (${porSegundo} /s)`;
-                                    }
-                                } 
-                            } 
+                            enabled: false,
+                            external: renderizarTooltipExterno
                         } 
                     },
                     scales: { 
@@ -200,6 +323,7 @@
                     } 
                 } 
             });
+            configurarEventosLimitesCanvas();
         }
     }
     window.addEventListener('load', function() { updateChart('24h'); });
