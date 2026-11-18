@@ -1,4 +1,46 @@
 <style>
+    /* Estadísticas rápidas del periodo */
+    .chart-stats-bar {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 0.78em;
+    }
+    .stat-item { display: flex; align-items: center; gap: 5px; color: var(--text-muted); }
+    .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.08em; }
+
+    /* Leyendas interactivas tipo píldora */
+    .chart-CustomLegends {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+    .legend-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75em;
+        font-weight: bold;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: 0.2s;
+        user-select: none;
+    }
+    .legend-pill:hover { border-color: var(--accent-blue); }
+    .legend-pill.off { opacity: 0.35; text-decoration: line-through; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    /* Tooltip flotante en línea 0 */
     .custom-chart-tooltip {
         position: absolute;
         display: none;
@@ -34,36 +76,37 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         padding-bottom: 3px;
     }
-    .tt-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .tt-sub {
-        padding-left: 18px;
-        color: #d1d3e0;
-        font-family: monospace;
-        font-size: 0.95em;
-    }
-    .tt-box {
-        width: 9px;
-        height: 9px;
-        display: inline-block;
-        border-radius: 2px;
-        flex-shrink: 0;
-    }
+    .tt-row { display: flex; align-items: center; gap: 6px; }
+    .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.95em; }
+    .tt-box { width: 9px; height: 9px; display: inline-block; border-radius: 2px; flex-shrink: 0; }
 </style>
 
 <div class="card" style="position: relative; overflow: visible; z-index: 20;">
-    <div class="panel-title">
-        <div>☑ Hashrate <span id="hrPromedio" style="color:var(--text-muted); font-size:0.85em; margin-left:10px; font-weight:normal;"></span></div>
+    <div class="panel-title" style="margin-bottom: 10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span>📈 Telemetría e Historial</span>
+        </div>
         <div class="chart-filters">
             <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')">6 h</button>
             <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')">24 h</button>
             <button class="btn-filter" id="btn-7d" onclick="updateChart('7d')">7 d</button>
             <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')">30 d</button>
+            <button class="btn-filter" onclick="descargarCapturaGrafico()" title="Descargar imagen del gráfico">📷</button>
         </div>
     </div>
+
+    <!-- Barra de métricas dinámicas del rango seleccionado -->
+    <div class="chart-stats-bar" translate="no">
+        <div class="stat-item">Promedio: <b id="statProm" style="color:var(--accent-blue);">0.00</b></div>
+        <div class="stat-item">Máx: <b id="statMax">0.00</b></div>
+        <div class="stat-item">Mín: <b id="statMin">0.00</b></div>
+        <div class="stat-item">Temp Pico: <b id="statTempPico" style="color:#ffb300;">0°C</b></div>
+        <div class="stat-item">Estabilidad: <b id="statUptime" style="color:var(--accent-green);">100%</b></div>
+    </div>
+
+    <!-- Píldoras interactivas para encender/apagar curvas -->
+    <div class="chart-CustomLegends" id="customLegendsBar"></div>
+
     <div id="chartWrapper" style="height: 290px; position: relative;">
         <canvas id="hashrateChart"></canvas>
         <div id="customChartTooltip" class="custom-chart-tooltip" translate="no"></div>
@@ -104,6 +147,29 @@
         }
         return horaStr;
     }
+
+    // Plugin profesional: Línea Guía Vertical (Crosshair) estilo TradingView
+    const pluginCrosshairVertical = {
+        id: 'crosshairVertical',
+        afterDraw: function(chart) {
+            if (!cursorDentroArea || !chart.tooltip || !chart.tooltip._active || !chart.tooltip._active.length) return;
+            const activePoint = chart.tooltip._active[0];
+            const ctx = chart.ctx;
+            const x = activePoint.element.x;
+            const topY = chart.chartArea.top;
+            const bottomY = chart.chartArea.bottom;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([4, 4]);
+            ctx.moveTo(x, topY);
+            ctx.lineTo(x, bottomY);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
 
     function ocultarTooltipGris() {
         cursorDentroArea = false;
@@ -182,6 +248,33 @@
         ttEl.style.top = (chartArea.bottom + 2) + 'px';
     }
 
+    function construirLeyendasPildora() {
+        const cont = document.getElementById('customLegendsBar');
+        if (!cont || !chartInstance) return;
+        cont.innerHTML = '';
+        chartInstance.data.datasets.forEach((ds, index) => {
+            const btn = document.createElement('div');
+            const isHidden = !chartInstance.isDatasetVisible(index);
+            btn.className = 'legend-pill' + (isHidden ? ' off' : '');
+            btn.innerHTML = `<span class="legend-dot" style="background:${ds.borderColor};"></span><span>${ds.label}</span>`;
+            btn.onclick = function() {
+                const vis = chartInstance.isDatasetVisible(index);
+                chartInstance.setDatasetVisibility(index, !vis);
+                chartInstance.update();
+                construirLeyendasPildora();
+            };
+            cont.appendChild(btn);
+        });
+    }
+
+    function descargarCapturaGrafico() {
+        if (!chartInstance) return;
+        const link = document.createElement('a');
+        link.download = `Grafico_{{ ip }}_${rangoActual}.png`;
+        link.href = chartInstance.toBase64Image();
+        link.click();
+    }
+
     function configurarEventosLimitesCanvas() {
         const canvas = document.getElementById('hashrateChart');
         if (!canvas) return;
@@ -200,34 +293,23 @@
             }
         }
 
-        canvas.addEventListener('mousemove', function(e) {
-            validarPosicionCursor(e.clientX, e.clientY);
-        });
-
-        canvas.addEventListener('mouseleave', function() {
-            ocultarTooltipGris();
-        });
-
+        canvas.addEventListener('mousemove', function(e) { validarPosicionCursor(e.clientX, e.clientY); });
+        canvas.addEventListener('mouseleave', function() { ocultarTooltipGris(); });
         canvas.addEventListener('touchstart', function(e) {
-            if (e.touches && e.touches.length > 0) {
-                validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
-            }
+            if (e.touches && e.touches.length > 0) validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
         }, {passive: true});
-
         canvas.addEventListener('touchmove', function(e) {
-            if (e.touches && e.touches.length > 0) {
-                validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
-            }
+            if (e.touches && e.touches.length > 0) validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
         }, {passive: true});
     }
 
     function updateChart(rango) {
         rangoActual = rango;
         document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
-        document.getElementById('btn-' + rango).classList.add('active');
+        let btnR = document.getElementById('btn-' + rango);
+        if (btnR) btnR.classList.add('active');
         ocultarTooltipGris();
         
-        // Calcular el tiempo exacto en segundos (Escala de tiempo real proporcional)
         const ultimoTsDato = rawFechas.length > 0 ? rawFechas[rawFechas.length - 1] : Math.floor(Date.now() / 1000);
         const nowTs = Math.max(Math.floor(Date.now() / 1000), ultimoTsDato);
         let segundosRango = 24 * 3600;
@@ -239,28 +321,26 @@
         const minTs = nowTs - segundosRango;
         
         let ptsH = [], ptsT = [], ptsA = [], ptsE = [], fDeltaSec = [], fCads = [];
-        let valoresHrPromedio = [];
+        let valoresHr = [], valoresTemp = [], puntosTotales = 0;
 
         for (let i = 0; i < rawFechas.length; i++) {
             let ts = rawFechas[i];
             if (ts >= minTs) {
                 let hVal = rawHr[i];
                 let tVal = rawTemp[i];
-
-                // Si es un punto artificial de corte (>600s sin conexión), insertar null para cortar la línea
                 let esCorte = (hVal === 0 && tVal === 0 && i > 0 && (ts - rawFechas[i-1]) <= 2);
 
                 ptsH.push({ x: ts, y: esCorte ? null : hVal });
                 ptsT.push({ x: ts, y: esCorte ? null : tVal });
 
-                if (!esCorte && hVal !== null && hVal > 0) {
-                    valoresHrPromedio.push(hVal);
+                if (!esCorte) {
+                    puntosTotales++;
+                    if (hVal !== null && hVal > 0) valoresHr.push(hVal);
+                    if (tVal !== null && tVal > 0) valoresTemp.push(tVal);
                 }
                 
                 let ambVal = (rawAmb.length > i && rawAmb[i] !== null && rawAmb[i] > 0) ? rawAmb[i] : null;
-                if (ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) {
-                    ambVal = tempAmbActual;
-                }
+                if (ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) ambVal = tempAmbActual;
                 ptsA.push({ x: ts, y: esCorte ? null : ambVal });
                 
                 let errIntervalo = (rawErr.length > i && rawErr[i] !== null) ? rawErr[i] : 0;
@@ -271,27 +351,57 @@
             }
         }
         
-        let avgHr = valoresHrPromedio.length > 0 ? (valoresHrPromedio.reduce((a,b)=>a+b,0) / valoresHrPromedio.length).toFixed(2) : "0.00";
-        let promEl = document.getElementById('hrPromedio');
-        if(promEl) promEl.innerText = 'Promedio: ' + avgHr + ' ' + unidadMinero;
-        
+        // Actualizar barra de estadísticas del periodo
+        let avgHr = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length).toFixed(2) : "0.00";
+        let maxHr = valoresHr.length > 0 ? Math.max(...valoresHr).toFixed(2) : "0.00";
+        let minHr = valoresHr.length > 0 ? Math.min(...valoresHr).toFixed(2) : "0.00";
+        let maxT = valoresTemp.length > 0 ? Math.max(...valoresTemp) : 0;
+        let pctEstab = puntosTotales > 0 ? Math.round((valoresHr.length / puntosTotales) * 100) : 100;
+
+        document.getElementById('statProm').innerText = `${avgHr} ${unidadMinero}`;
+        document.getElementById('statMax').innerText = `${maxHr} ${unidadMinero}`;
+        document.getElementById('statMin').innerText = `${minHr} ${unidadMinero}`;
+        let elTp = document.getElementById('statTempPico');
+        elTp.innerText = `${maxT}°C`;
+        elTp.style.color = maxT >= 85 ? '#ff5252' : (maxT >= 75 ? '#ffb300' : '#00e676');
+        document.getElementById('statUptime').innerText = `${pctEstab}%`;
+
+        const ctx = document.getElementById('hashrateChart').getContext('2d');
+        // Degradado suave profesional bajo la curva de Hashrate
+        const gradBlue = ctx.createLinearGradient(0, 0, 0, 260);
+        gradBlue.addColorStop(0, 'rgba(51, 102, 255, 0.32)');
+        gradBlue.addColorStop(1, 'rgba(51, 102, 255, 0.0)');
+
         let tieneTempAmbiente = ptsA.some(p => p.y !== null && p.y > 0) || (tempAmbActual > 0);
 
         let datasetsList = [
-            { id: 'hr', label: 'Hashrate (' + unidadMinero + ')', data: ptsH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
-            { id: 'tmax', label: 'Temperatura Max °C', data: ptsT, cadsHist: fCads, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: false }
+            {
+                id: 'hr', type: 'line', label: '⚡ Hashrate (' + unidadMinero + ')', data: ptsH,
+                borderColor: '#3366ff', backgroundColor: gradBlue, fill: true,
+                tension: 0.15, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#3366ff',
+                borderWidth: 2, spanGaps: false
+            },
+            {
+                id: 'tmax', type: 'line', label: '🌡️ Temp Max °C', data: ptsT, cadsHist: fCads,
+                borderColor: '#ffb300', borderDash: [5, 5],
+                tension: 0.15, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#ffb300',
+                borderWidth: 1.6, yAxisID: 'y1', spanGaps: false
+            }
         ];
 
         if (tieneTempAmbiente) {
             datasetsList.push({
-                id: 'tamb', label: 'Temp Ambiente / Entrada °C', data: ptsA,
-                borderColor: '#00e676', borderDash: [3, 3], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: true
+                id: 'tamb', type: 'line', label: '🍃 Ambiente °C', data: ptsA,
+                borderColor: '#00e676', borderDash: [3, 3],
+                tension: 0.15, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#00e676',
+                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true
             });
         }
 
         datasetsList.push({
-            id: 'err', label: 'Errores HW (Nuevos)', data: ptsE, deltaSecs: fDeltaSec,
-            borderColor: '#ff5252', backgroundColor: 'rgba(255,82,82,0.2)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y2', spanGaps: false
+            id: 'err', type: 'bar', label: '⚠️ Errores HW', data: ptsE, deltaSecs: fDeltaSec,
+            borderColor: '#ff5252', backgroundColor: 'rgba(255, 82, 82, 0.55)',
+            barThickness: 4, yAxisID: 'y2'
         });
 
         if(chartInstance) {
@@ -299,17 +409,19 @@
             chartInstance.options.scales.x.max = nowTs;
             chartInstance.data.datasets = datasetsList;
             chartInstance.update();
+            construirLeyendasPildora();
         } else {
-            const ctx = document.getElementById('hashrateChart').getContext('2d');
             chartInstance = new Chart(ctx, { 
                 type: 'line', 
                 data: { datasets: datasetsList },
+                plugins: [pluginCrosshairVertical],
                 options: { 
                     parsed: false,
                     responsive: true, maintainAspectRatio: false,
                     layout: { padding: { bottom: 0 } },
                     interaction: { mode: 'index', axis: 'x', intersect: false },
                     plugins: { 
+                        legend: { display: false },
                         tooltip: { 
                             enabled: false,
                             external: renderizarTooltipExterno
@@ -341,13 +453,26 @@
                                 }
                             }
                         }, 
-                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }, 
-                        y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 },
-                        y2: { display: false, min: 0, suggestedMax: 10 }
+                        y: { 
+                            grid: { color: 'rgba(255,255,255,0.05)' }, 
+                            min: 0,
+                            ticks: { color: '#8b8d9c', font: { size: 10.5 } }
+                        }, 
+                        y1: { 
+                            position: 'right', 
+                            grid: { drawOnChartArea: false }, 
+                            min: 0, max: 105,
+                            ticks: { 
+                                color: '#8b8d9c', font: { size: 10.5 },
+                                callback: function(v) { return v + '°'; }
+                            }
+                        },
+                        y2: { display: false, min: 0, suggestedMax: 15 }
                     } 
                 } 
             });
             configurarEventosLimitesCanvas();
+            construirLeyendasPildora();
         }
     }
     window.addEventListener('load', function() { updateChart('24h'); });
