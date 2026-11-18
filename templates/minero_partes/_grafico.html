@@ -2,43 +2,51 @@
     /* Estadísticas rápidas del periodo */
     .chart-stats-bar {
         display: flex;
-        gap: 14px;
+        gap: 12px;
         flex-wrap: wrap;
-        margin-bottom: 12px;
-        padding: 8px 12px;
+        margin-bottom: 10px;
+        padding: 8px 10px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid var(--border-color);
         border-radius: 6px;
-        font-size: 0.78em;
+        font-size: 0.76em;
     }
-    .stat-item { display: flex; align-items: center; gap: 5px; color: var(--text-muted); }
-    .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.08em; }
+    .stat-item { display: flex; align-items: center; gap: 4px; color: var(--text-muted); }
+    .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.06em; }
 
-    /* Leyendas interactivas tipo píldora */
+    /* Leyendas interactivas compactas en una sola fila deslizable o adaptable */
     .chart-CustomLegends {
         display: flex;
-        gap: 8px;
+        gap: 6px;
         flex-wrap: wrap;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
     }
     .legend-pill {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border-color);
         color: var(--text-main);
-        padding: 4px 10px;
+        padding: 3px 9px;
         border-radius: 20px;
-        font-size: 0.75em;
+        font-size: 0.72em;
         font-weight: bold;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 5px;
         transition: 0.2s;
         user-select: none;
     }
     .legend-pill:hover { border-color: var(--accent-blue); }
     .legend-pill.off { opacity: 0.35; text-decoration: line-through; }
-    .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+    /* Contenedor Full-Bleed (estira el gráfico hacia los bordes de la tarjeta) */
+    .chart-edge-container {
+        height: 300px;
+        position: relative;
+        margin-left: -12px;
+        margin-right: -12px;
+    }
 
     /* Tooltip flotante en línea 0 */
     .custom-chart-tooltip {
@@ -79,9 +87,17 @@
     .tt-row { display: flex; align-items: center; gap: 6px; }
     .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.95em; }
     .tt-box { width: 9px; height: 9px; display: inline-block; border-radius: 2px; flex-shrink: 0; }
+    .tt-badge-status {
+        margin-top: 4px;
+        padding: 3px 7px;
+        border-radius: 4px;
+        font-weight: bold;
+        font-size: 0.92em;
+        display: inline-block;
+    }
 </style>
 
-<div class="card" style="position: relative; overflow: visible; z-index: 20;">
+<div class="card" style="position: relative; overflow: visible; z-index: 20; padding-left: 16px; padding-right: 16px;">
     <div class="panel-title" style="margin-bottom: 10px;">
         <div style="display:flex; align-items:center; gap:8px;">
             <span>📈 Telemetría e Historial</span>
@@ -107,7 +123,8 @@
     <!-- Píldoras interactivas para encender/apagar curvas -->
     <div class="chart-CustomLegends" id="customLegendsBar"></div>
 
-    <div id="chartWrapper" style="height: 290px; position: relative;">
+    <!-- Gráfico estirado de extremo a extremo con números internos -->
+    <div id="chartWrapper" class="chart-edge-container">
         <canvas id="hashrateChart"></canvas>
         <div id="customChartTooltip" class="custom-chart-tooltip" translate="no"></div>
     </div>
@@ -126,6 +143,7 @@
     let chartInstance = null;
     let rangoActual = '24h';
     let cursorDentroArea = false;
+    let mapaMetaPuntos = {};
 
     function formatearFechaTooltip(d) {
         let dia = String(d.getDate()).padStart(2, '0');
@@ -148,7 +166,55 @@
         return horaStr;
     }
 
-    // Plugin profesional: Línea Guía Vertical (Crosshair) estilo TradingView
+    // Plugin profesional 1: Dibuja los números de Hashrate (izq) y Temperatura (der) DENTRO del gráfico estilo TradingView
+    const pluginNumerosDentroGrafico = {
+        id: 'numerosDentroGrafico',
+        afterDraw: function(chart) {
+            const ctx = chart.ctx;
+            const ca = chart.chartArea;
+            const yAxis = chart.scales.y;
+            const y1Axis = chart.scales.y1;
+            if (!ca) return;
+
+            ctx.save();
+            ctx.font = 'bold 10.5px sans-serif';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
+
+            // Eje Izquierdo (Hashrate) adentro a la izquierda
+            if (yAxis && yAxis.ticks) {
+                ctx.textAlign = 'left';
+                ctx.fillStyle = 'rgba(165, 167, 181, 0.88)';
+                yAxis.ticks.forEach((t, idx) => {
+                    const yPos = yAxis.getPixelForTick(idx);
+                    if (yPos >= ca.top - 2 && yPos <= ca.bottom + 2) {
+                        const offsetY = (idx === 0) ? -5 : (idx === yAxis.ticks.length - 1 ? 10 : -4);
+                        const txt = String(t.value);
+                        ctx.strokeText(txt, ca.left + 5, yPos + offsetY);
+                        ctx.fillText(txt, ca.left + 5, yPos + offsetY);
+                    }
+                });
+            }
+
+            // Eje Derecho (Temperatura °C) adentro a la derecha
+            if (y1Axis && y1Axis.ticks) {
+                ctx.textAlign = 'right';
+                ctx.fillStyle = 'rgba(255, 179, 0, 0.85)';
+                y1Axis.ticks.forEach((t, idx) => {
+                    const yPos = y1Axis.getPixelForTick(idx);
+                    if (yPos >= ca.top - 2 && yPos <= ca.bottom + 2) {
+                        const offsetY = (idx === 0) ? -5 : (idx === y1Axis.ticks.length - 1 ? 10 : -4);
+                        const txt = t.value + '°';
+                        ctx.strokeText(txt, ca.right - 5, yPos + offsetY);
+                        ctx.fillText(txt, ca.right - 5, yPos + offsetY);
+                    }
+                });
+            }
+            ctx.restore();
+        }
+    };
+
+    // Plugin profesional 2: Línea Guía Vertical (Crosshair)
     const pluginCrosshairVertical = {
         id: 'crosshairVertical',
         afterDraw: function(chart) {
@@ -165,7 +231,7 @@
             ctx.moveTo(x, topY);
             ctx.lineTo(x, bottomY);
             ctx.lineWidth = 1;
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.38)';
             ctx.stroke();
             ctx.restore();
         }
@@ -192,44 +258,55 @@
         }
 
         const dp0 = tooltip.dataPoints[0];
-        if (dp0.parsed.y === null || dp0.parsed.y === undefined) {
+        const tsSegundos = dp0.parsed.x;
+        const meta = mapaMetaPuntos[tsSegundos];
+
+        if (!meta || meta.esSeparadorCorte) {
             ttEl.style.display = 'none';
             return;
         }
 
-        const idx = dp0.dataIndex;
-        const tsSegundos = dp0.parsed.x;
         const titulo = formatearFechaTooltip(new Date(tsSegundos * 1000));
         let html = `<div class="tt-title">${titulo}</div>`;
 
-        tooltip.dataPoints.forEach(dp => {
-            const dsId = dp.dataset.id;
-            const valY = dp.parsed.y;
-            if (valY === null || valY === undefined) return;
-
-            if (dsId === 'hr') {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${valY} ${unidadMinero}</b></div>`;
-            } else if (dsId === 'tmax') {
-                let estadoT = valY >= 85 ? '🔴 Crítica' : (valY >= 75 ? '🟠 Advertencia' : '🟢 Normal');
-                html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Max: <b>${valY}°C</b> (${estadoT})</div>`;
-                let cads = (dp.dataset.cadsHist && dp.dataset.cadsHist[idx]) ? dp.dataset.cadsHist[idx] : cadenasActuales;
-                if (cads && cads.length > 0) {
-                    for (let c = 0; c < cads.length; c++) {
-                        html += `<div class="tt-sub">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
-                    }
-                }
-            } else if (dsId === 'tamb') {
-                let valA = valY || tempAmbActual;
-                if (valA && valA > 0) {
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Temp Ambiente: <b>${valA}°C</b></div>`;
-                }
-            } else if (dsId === 'err') {
-                let errNuevos = valY || 0;
-                let ds = (dp.dataset.deltaSecs && dp.dataset.deltaSecs[idx]) ? dp.dataset.deltaSecs[idx] : 30;
-                let porSeg = (errNuevos / ds).toFixed(2);
-                html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b>${errNuevos} nuevos</b> (${porSeg} /s)</div>`;
+        if (meta.estadoPunto === 'SIN_MINAR') {
+            html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;">0 ${unidadMinero} (Detenido)</b></div>`;
+            if (meta.temp > 0) {
+                html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Max: <b>${meta.temp}°C</b> (Equipo encendido)</div>`;
             }
-        });
+            html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Alerta: Encendido pero sin minar</div>`;
+        } else {
+            tooltip.dataPoints.forEach(dp => {
+                const dsId = dp.dataset.id;
+                const valY = dp.parsed.y;
+                if (valY === null || valY === undefined) return;
+
+                if (dsId === 'hr') {
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${valY} ${unidadMinero}</b></div>`;
+                } else if (dsId === 'tmax' && valY > 0) {
+                    let estadoT = valY >= 85 ? '🔴 Crítica' : (valY >= 75 ? '🟠 Advertencia' : '🟢 Normal');
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Max: <b>${valY}°C</b> (${estadoT})</div>`;
+                    let cads = meta.cadenas || cadenasActuales;
+                    if (cads && cads.length > 0) {
+                        for (let c = 0; c < cads.length; c++) {
+                            if (cads[c].temp_c > 0 || cads[c].temp_p > 0) {
+                                html += `<div class="tt-sub">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
+                            }
+                        }
+                    }
+                } else if (dsId === 'tamb') {
+                    let valA = valY || tempAmbActual;
+                    if (valA && valA > 0) {
+                        html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Temp Ambiente: <b>${valA}°C</b></div>`;
+                    }
+                } else if (dsId === 'err') {
+                    let errNuevos = valY || 0;
+                    let ds = meta.deltaS || 30;
+                    let porSeg = (errNuevos / ds).toFixed(2);
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b>${errNuevos} nuevos</b> (${porSeg} /s)</div>`;
+                }
+            });
+        }
 
         ttEl.innerHTML = html;
         ttEl.style.display = 'block';
@@ -303,6 +380,84 @@
         }, {passive: true});
     }
 
+    function procesarDatosLimpios(minTs) {
+        let crudos = [];
+        for (let i = 0; i < rawFechas.length; i++) {
+            let ts = rawFechas[i];
+            if (ts < minTs) continue;
+            let hVal = rawHr[i] !== null && rawHr[i] !== undefined ? Number(rawHr[i]) : 0;
+            let tVal = rawTemp[i] !== null && rawTemp[i] !== undefined ? Number(rawTemp[i]) : 0;
+
+            // Ignorar registros fantasma (0 TH/s y 0°C) para que nunca hagan caer la línea en picada hasta el suelo
+            if (hVal === 0 && tVal <= 5) {
+                continue;
+            }
+
+            let ambVal = (rawAmb.length > i && rawAmb[i] !== null && rawAmb[i] > 0) ? Number(rawAmb[i]) : null;
+            if (ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) ambVal = tempAmbActual;
+            let errVal = (rawErr.length > i && rawErr[i] !== null) ? Number(rawErr[i]) : 0;
+            let cads = (rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales;
+
+            crudos.push({ ts, hr: hVal, temp: tVal, amb: ambVal, err: errVal, cads });
+        }
+
+        crudos.sort((a, b) => a.ts - b.ts);
+
+        let ptsH = [], ptsT = [], ptsA = [], ptsE = [];
+        let valoresHr = [], valoresTemp = [];
+        mapaMetaPuntos = {};
+
+        const UMBRAL_CORTE_SEG = 240; // Si el minero se apagó más de 4 minutos, deja espacio limpio sin línea
+
+        for (let i = 0; i < crudos.length; i++) {
+            let actual = crudos[i];
+            let deltaS = 30;
+
+            if (i > 0) {
+                let brecha = actual.ts - crudos[i - 1].ts;
+                if (brecha <= 0) continue;
+                deltaS = brecha <= 300 ? brecha : 30;
+
+                if (brecha > UMBRAL_CORTE_SEG) {
+                    let tsCorte = crudos[i - 1].ts + 1;
+                    ptsH.push({ x: tsCorte, y: null });
+                    ptsT.push({ x: tsCorte, y: null });
+                    ptsA.push({ x: tsCorte, y: null });
+                    ptsE.push({ x: tsCorte, y: null });
+                    mapaMetaPuntos[tsCorte] = { esSeparadorCorte: true };
+                }
+            }
+
+            if (actual.hr === 0 && actual.temp > 5) {
+                ptsH.push({ x: actual.ts, y: 0 });
+                ptsT.push({ x: actual.ts, y: actual.temp });
+                ptsA.push({ x: actual.ts, y: actual.amb });
+                ptsE.push({ x: actual.ts, y: actual.err });
+                valoresTemp.push(actual.temp);
+                mapaMetaPuntos[actual.ts] = {
+                    estadoPunto: 'SIN_MINAR',
+                    hr: 0, temp: actual.temp, deltaS: deltaS, cadenas: actual.cads
+                };
+            } else {
+                let tempValida = actual.temp > 5 ? actual.temp : null;
+                ptsH.push({ x: actual.ts, y: actual.hr });
+                ptsT.push({ x: actual.ts, y: tempValida });
+                ptsA.push({ x: actual.ts, y: actual.amb });
+                ptsE.push({ x: actual.ts, y: actual.err });
+
+                valoresHr.push(actual.hr);
+                if (tempValida !== null) valoresTemp.push(tempValida);
+
+                mapaMetaPuntos[actual.ts] = {
+                    estadoPunto: 'NORMAL',
+                    hr: actual.hr, temp: tempValida || 0, deltaS: deltaS, cadenas: actual.cads
+                };
+            }
+        }
+
+        return { ptsH, ptsT, ptsA, ptsE, valoresHr, valoresTemp, totalRegistros: crudos.length };
+    }
+
     function updateChart(rango) {
         rangoActual = rango;
         document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
@@ -310,7 +465,7 @@
         if (btnR) btnR.classList.add('active');
         ocultarTooltipGris();
         
-        const ultimoTsDato = rawFechas.length > 0 ? rawFechas[rawFechas.length - 1] : Math.floor(Date.now() / 1000);
+        const ultimoTsDato = rawFechas.length > 0 ? Math.max(...rawFechas) : Math.floor(Date.now() / 1000);
         const nowTs = Math.max(Math.floor(Date.now() / 1000), ultimoTsDato);
         let segundosRango = 24 * 3600;
         if (rango === '6h') segundosRango = 6 * 3600;
@@ -319,44 +474,13 @@
         if (rango === '30d') segundosRango = 30 * 86400;
 
         const minTs = nowTs - segundosRango;
+        const { ptsH, ptsT, ptsA, ptsE, valoresHr, valoresTemp, totalRegistros } = procesarDatosLimpios(minTs);
         
-        let ptsH = [], ptsT = [], ptsA = [], ptsE = [], fDeltaSec = [], fCads = [];
-        let valoresHr = [], valoresTemp = [], puntosTotales = 0;
-
-        for (let i = 0; i < rawFechas.length; i++) {
-            let ts = rawFechas[i];
-            if (ts >= minTs) {
-                let hVal = rawHr[i];
-                let tVal = rawTemp[i];
-                let esCorte = (hVal === 0 && tVal === 0 && i > 0 && (ts - rawFechas[i-1]) <= 2);
-
-                ptsH.push({ x: ts, y: esCorte ? null : hVal });
-                ptsT.push({ x: ts, y: esCorte ? null : tVal });
-
-                if (!esCorte) {
-                    puntosTotales++;
-                    if (hVal !== null && hVal > 0) valoresHr.push(hVal);
-                    if (tVal !== null && tVal > 0) valoresTemp.push(tVal);
-                }
-                
-                let ambVal = (rawAmb.length > i && rawAmb[i] !== null && rawAmb[i] > 0) ? rawAmb[i] : null;
-                if (ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) ambVal = tempAmbActual;
-                ptsA.push({ x: ts, y: esCorte ? null : ambVal });
-                
-                let errIntervalo = (rawErr.length > i && rawErr[i] !== null) ? rawErr[i] : 0;
-                let deltaS = (i > 0 && (ts - rawFechas[i-1]) > 0 && (ts - rawFechas[i-1]) <= 300) ? (ts - rawFechas[i-1]) : 30;
-                ptsE.push({ x: ts, y: esCorte ? null : errIntervalo });
-                fDeltaSec.push(deltaS);
-                fCads.push((rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales);
-            }
-        }
-        
-        // Actualizar barra de estadísticas del periodo
         let avgHr = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length).toFixed(2) : "0.00";
         let maxHr = valoresHr.length > 0 ? Math.max(...valoresHr).toFixed(2) : "0.00";
         let minHr = valoresHr.length > 0 ? Math.min(...valoresHr).toFixed(2) : "0.00";
         let maxT = valoresTemp.length > 0 ? Math.max(...valoresTemp) : 0;
-        let pctEstab = puntosTotales > 0 ? Math.round((valoresHr.length / puntosTotales) * 100) : 100;
+        let pctEstab = totalRegistros > 0 ? Math.round((valoresHr.length / totalRegistros) * 100) : 100;
 
         document.getElementById('statProm').innerText = `${avgHr} ${unidadMinero}`;
         document.getElementById('statMax').innerText = `${maxHr} ${unidadMinero}`;
@@ -367,8 +491,7 @@
         document.getElementById('statUptime').innerText = `${pctEstab}%`;
 
         const ctx = document.getElementById('hashrateChart').getContext('2d');
-        // Degradado suave profesional bajo la curva de Hashrate
-        const gradBlue = ctx.createLinearGradient(0, 0, 0, 260);
+        const gradBlue = ctx.createLinearGradient(0, 0, 0, 270);
         gradBlue.addColorStop(0, 'rgba(51, 102, 255, 0.32)');
         gradBlue.addColorStop(1, 'rgba(51, 102, 255, 0.0)');
 
@@ -378,13 +501,13 @@
             {
                 id: 'hr', type: 'line', label: '⚡ Hashrate (' + unidadMinero + ')', data: ptsH,
                 borderColor: '#3366ff', backgroundColor: gradBlue, fill: true,
-                tension: 0.15, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#3366ff',
+                tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#3366ff',
                 borderWidth: 2, spanGaps: false
             },
             {
-                id: 'tmax', type: 'line', label: '🌡️ Temp Max °C', data: ptsT, cadsHist: fCads,
+                id: 'tmax', type: 'line', label: '🌡️ Temp Max °C', data: ptsT,
                 borderColor: '#ffb300', borderDash: [5, 5],
-                tension: 0.15, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#ffb300',
+                tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#ffb300',
                 borderWidth: 1.6, yAxisID: 'y1', spanGaps: false
             }
         ];
@@ -393,13 +516,13 @@
             datasetsList.push({
                 id: 'tamb', type: 'line', label: '🍃 Ambiente °C', data: ptsA,
                 borderColor: '#00e676', borderDash: [3, 3],
-                tension: 0.15, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#00e676',
+                tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#00e676',
                 borderWidth: 1.5, yAxisID: 'y1', spanGaps: true
             });
         }
 
         datasetsList.push({
-            id: 'err', type: 'bar', label: '⚠️ Errores HW', data: ptsE, deltaSecs: fDeltaSec,
+            id: 'err', type: 'bar', label: '⚠️ Errores HW', data: ptsE,
             borderColor: '#ff5252', backgroundColor: 'rgba(255, 82, 82, 0.55)',
             barThickness: 4, yAxisID: 'y2'
         });
@@ -414,11 +537,11 @@
             chartInstance = new Chart(ctx, { 
                 type: 'line', 
                 data: { datasets: datasetsList },
-                plugins: [pluginCrosshairVertical],
+                plugins: [pluginNumerosDentroGrafico, pluginCrosshairVertical],
                 options: { 
                     parsed: false,
                     responsive: true, maintainAspectRatio: false,
-                    layout: { padding: { bottom: 0 } },
+                    layout: { padding: { left: 2, right: 2, top: 6, bottom: 0 } },
                     interaction: { mode: 'index', axis: 'x', intersect: false },
                     plugins: { 
                         legend: { display: false },
@@ -447,7 +570,8 @@
                             },
                             ticks: { 
                                 minRotation: 0, maxRotation: 0, autoSkip: false,
-                                color: '#8b8d9c', font: { size: 11 },
+                                align: 'inner',
+                                color: '#8b8d9c', font: { size: 10.5 },
                                 callback: function(value) {
                                     return formatearEtiquetaEjeX(new Date(value * 1000), rangoActual);
                                 }
@@ -456,16 +580,14 @@
                         y: { 
                             grid: { color: 'rgba(255,255,255,0.05)' }, 
                             min: 0,
-                            ticks: { color: '#8b8d9c', font: { size: 10.5 } }
+                            // Ocultamos los números externos porque pluginNumerosDentroGrafico los dibuja ADENTRO del gráfico
+                            ticks: { display: false }
                         }, 
                         y1: { 
                             position: 'right', 
                             grid: { drawOnChartArea: false }, 
-                            min: 0, max: 105,
-                            ticks: { 
-                                color: '#8b8d9c', font: { size: 10.5 },
-                                callback: function(v) { return v + '°'; }
-                            }
+                            min: 0, max: 100,
+                            ticks: { display: false, stepSize: 20 }
                         },
                         y2: { display: false, min: 0, suggestedMax: 15 }
                     } 
