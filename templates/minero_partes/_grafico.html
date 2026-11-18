@@ -25,12 +25,81 @@
         border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
         padding-bottom: 1px;
         user-select: none;
+        transition: 0.18s;
     }
     .stat-item:hover, .stat-item.tt-active {
         color: #fff;
         border-bottom-color: var(--accent-blue);
+        text-shadow: 0 0 8px rgba(51, 102, 255, 0.45);
     }
     .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.06em; }
+
+    /* Botonera de Rangos de Tiempo (6h, 24h, 7d, 30d) estética con efecto Glow */
+    .chart-filters {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+        background: rgba(10, 12, 18, 0.65);
+        padding: 4px;
+        border-radius: 9px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+    }
+    .btn-filter {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        padding: 5px 11px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.78em;
+        font-weight: bold;
+        letter-spacing: 0.3px;
+        transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+        user-select: none;
+        position: relative;
+    }
+    /* Efecto de brillo / alumbrado al pasar el mouse */
+    .btn-filter:hover, .btn-filter.tt-active {
+        color: #ffffff;
+        background: rgba(51, 102, 255, 0.16);
+        border-color: rgba(82, 140, 255, 0.65);
+        box-shadow: 0 0 12px rgba(51, 102, 255, 0.45), inset 0 0 6px rgba(51, 102, 255, 0.2);
+        text-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+        transform: translateY(-1px);
+    }
+    /* Botón de hora activo con iluminación intensa profesional */
+    .btn-filter.active {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.32) 0%, rgba(37, 99, 235, 0.18) 100%);
+        color: #60a5fa;
+        border-color: #3b82f6;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        text-shadow: 0 0 8px rgba(96, 165, 250, 0.65);
+    }
+    .btn-filter:active {
+        transform: translateY(0);
+    }
+
+    .btn-reset-zoom {
+        display: none;
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(51, 102, 255, 0.22) 100%);
+        border: 1px solid #38bdf8;
+        color: #38bdf8;
+        padding: 5px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.78em;
+        font-weight: bold;
+        transition: all 0.22s ease;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+    }
+    .btn-reset-zoom:hover {
+        background: rgba(56, 189, 248, 0.35);
+        color: #fff;
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.65);
+        transform: translateY(-1px);
+    }
 
     /* Leyendas interactivas compactas */
     .chart-CustomLegends {
@@ -53,12 +122,13 @@
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        transition: 0.2s;
+        transition: all 0.2s ease;
         user-select: none;
     }
     .legend-pill:hover, .legend-pill.tt-active { 
         border-color: var(--accent-blue); 
-        background: rgba(51, 102, 255, 0.08); 
+        background: rgba(51, 102, 255, 0.12);
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.3);
     }
     .legend-pill.off { opacity: 0.35; }
     .legend-pill.off .legend-label-txt { text-decoration: line-through; }
@@ -94,11 +164,17 @@
         color: #a5a7b5;
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid var(--border-color);
-        padding: 2px 7px;
+        padding: 2px 8px;
         border-radius: 10px;
         font-family: monospace;
         font-weight: normal;
         cursor: help;
+        transition: 0.2s;
+    }
+    .lod-badge:hover {
+        border-color: var(--accent-blue);
+        color: #fff;
+        box-shadow: 0 0 8px rgba(51, 102, 255, 0.35);
     }
 
     /* Portal Global de Tooltip con anti-colisión de bordes (PC y Celular) */
@@ -178,18 +254,6 @@
         user-select: none;
     }
 
-    .btn-reset-zoom {
-        display: none;
-        background: rgba(51, 102, 255, 0.2);
-        border: 1px solid var(--accent-blue);
-        color: var(--accent-blue);
-        padding: 4px 9px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.78em;
-        font-weight: bold;
-    }
-
     /* Tooltip flotante en línea 0 del gráfico acelerado por GPU */
     .custom-chart-tooltip {
         position: absolute;
@@ -254,12 +318,12 @@
             <span id="lodResolutionBadge" class="lod-badge" translate="no">⚡ 3m</span>
         </div>
         <div class="chart-filters">
-            <button class="btn-reset-zoom" id="btnResetZoom" onclick="resetearZoomGrafico()">🔍 100%</button>
-            <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')">6 h</button>
-            <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')">24 h</button>
-            <button class="btn-filter" id="btn-7d" onclick="updateChart('7d')">7 d</button>
-            <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')">30 d</button>
-            <button class="btn-filter" id="btnCamara" onclick="descargarCapturaGrafico()">📷</button>
+            <button class="btn-reset-zoom" id="btnResetZoom" data-filter-key="reset_zoom" onclick="resetearZoomGrafico()">🔍 100%</button>
+            <button class="btn-filter" id="btn-6h" data-filter-key="6h" onclick="updateChart('6h')">6 h</button>
+            <button class="btn-filter active" id="btn-24h" data-filter-key="24h" onclick="updateChart('24h')">24 h</button>
+            <button class="btn-filter" id="btn-7d" data-filter-key="7d" onclick="updateChart('7d')">7 d</button>
+            <button class="btn-filter" id="btn-30d" data-filter-key="30d" onclick="updateChart('30d')">30 d</button>
+            <button class="btn-filter" id="btnCamara" data-filter-key="camara" onclick="descargarCapturaGrafico()">📷</button>
         </div>
     </div>
 
@@ -326,6 +390,7 @@
     let pasoAgrupacionActualSeg = 180;
     let limiteDatosIzqGlobal = 0;
     let limiteDatosDerGlobal = 0;
+    let diasRealesGrabados = 0;
     let ultimoTsTooltipRenderizado = null;
     let ultimoAnchoTooltipCache = 235;
     let rectCanvasCache = null;
@@ -383,6 +448,7 @@
 
     function obtenerInfoTooltipStat(key) {
         const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD}, ${GRANJA_PAIS}` : GRANJA_CIUDAD;
+        const txtDias = diasRealesGrabados > 0 ? ` (${diasRealesGrabados}d grabados en BD)` : '';
         const dicStats = {
             'prom': {
                 titulo: '⚡ Hashrate Promedio Operativo',
@@ -411,16 +477,54 @@
             },
             'uptime': {
                 titulo: '🟢 Estabilidad y Disponibilidad (Uptime)',
-                desc: 'Porcentaje del tiempo en que el minero estuvo entregando hashrate continuo sin caídas.',
+                desc: 'Porcentaje del tiempo activo en que el minero estuvo entregando hashrate continuo sin caídas.',
                 rango: 'Estándar profesional Tier-1: > 99.0%'
             },
             'lod_info': {
                 titulo: '⚡ Resolución Dinámica Inteligente (LOD)',
                 desc: 'Para máxima limpieza visual y fluidez táctil, el gráfico agrupa los puntos cada 3 min en vista general, y pasa automáticamente a 2 min y 1 min exacto al hacer zoom.',
-                rango: 'Vista general: 3m | Zoom medio: 2m | Zoom cercano: 1m'
+                rango: 'Vista general: 3m | Zoom medio: 2m | Zoom cercano: 1m' + txtDias
             }
         };
         return dicStats[key];
+    }
+
+    // Descripciones profesionales para los botones de rango horario (6h, 24h, 7d, 30d, 100%, Cámara)
+    function obtenerInfoTooltipFiltro(key) {
+        const txtHist = diasRealesGrabados > 0 ? `Historial actual acumulado: ${diasRealesGrabados} días.` : 'Acumulando historial en base de datos.';
+        const dicFiltros = {
+            '6h': {
+                titulo: '⏱️ Ventana Corta (Últimas 6 Horas)',
+                desc: 'Ideal para diagnóstico inmediato tras cambios de pool, limpieza de disipadores o ajustes de perfil energético.',
+                rango: 'Resolución base: 3 min (Zoom hasta 1 min exacto)'
+            },
+            '24h': {
+                titulo: '🕒 Ciclo Diario (Últimas 24 Horas)',
+                desc: 'Permite evaluar el comportamiento térmico del minero entre el calor del mediodía y el enfriamiento nocturno.',
+                rango: 'Resolución base: 3 min (Zoom a 2 min y 1 min)'
+            },
+            '7d': {
+                titulo: '📅 Tendencia Semanal (7 Días)',
+                desc: 'Muestra la escala completa de 7 días para detectar degradación gradual o cortes eléctricos. Si llevas menos días minando, los días previos se muestran vacíos a la izquierda.',
+                rango: `Resolución base: 15 min | ${txtHist}`
+            },
+            '30d': {
+                titulo: '🗓️ Auditoría Mensual (30 Días)',
+                desc: 'Escala calendario de 30 días completos para control de uptime mensual. Los días anteriores al inicio del programa quedan en blanco a la izquierda en proporción real.',
+                rango: `Resolución base: 1 hora | ${txtHist}`
+            },
+            'reset_zoom': {
+                titulo: '🔍 Restaurar Vista (Zoom 100%)',
+                desc: 'Devuelve el gráfico a la escala completa del periodo seleccionado y recalibra la resolución automática de puntos.',
+                rango: 'Atajo rápido: Doble clic o doble toque en el gráfico'
+            },
+            'camara': {
+                titulo: '📷 Captura Profesional HD (PNG)',
+                desc: 'Descarga una imagen de alta resolución del gráfico actual con fondo oscuro sólido lista para enviar por WhatsApp o reportes técnicos.',
+                rango: 'Formato: PNG con marcas de escala integradas'
+            }
+        };
+        return dicFiltros[key];
     }
 
     // Motor de posicionamiento inteligente (Viewport Collision Detection estilo TradingView/Grafana)
@@ -489,6 +593,7 @@
     }
 
     function inicializarEventosTooltips() {
+        // Métricas de la barra superior
         document.querySelectorAll('.stat-item[data-stat-key]').forEach(item => {
             const key = item.getAttribute('data-stat-key');
             item.addEventListener('mouseenter', function() {
@@ -504,6 +609,17 @@
                 } else {
                     mostrarSmartTooltip(item, obtenerInfoTooltipStat(key));
                 }
+            });
+        });
+
+        // Botones de rango de horas (6h, 24h, 7d, 30d, 100%, Cámara) con brillo y descripción
+        document.querySelectorAll('[data-filter-key]').forEach(btn => {
+            const key = btn.getAttribute('data-filter-key');
+            btn.addEventListener('mouseenter', function() {
+                mostrarSmartTooltip(btn, obtenerInfoTooltipFiltro(key));
+            });
+            btn.addEventListener('mouseleave', function() {
+                ocultarSmartTooltip();
             });
         });
 
@@ -606,10 +722,17 @@
         const el = document.getElementById('lodResolutionBadge');
         if (!el) return;
         const mins = Math.round(pasoSeg / 60);
-        el.innerText = mins >= 60 ? `⚡ ${Math.round(mins / 60)}h` : `⚡ ${mins}m`;
+        let txtRes = mins >= 60 ? `⚡ ${Math.round(mins / 60)}h` : `⚡ ${mins}m`;
+        if ((rangoActual === '7d' || rangoActual === '30d') && diasRealesGrabados > 0) {
+            const diasMeta = rangoActual === '30d' ? 30 : 7;
+            if (diasRealesGrabados < diasMeta) {
+                txtRes += ` (${diasRealesGrabados}d/${diasMeta}d)`;
+            }
+        }
+        el.innerText = txtRes;
     }
 
-    // Encajona estrictamente el eje X para que JAMÁS quede espacio negro vacío a la derecha ni a la izquierda
+    // Encajona estrictamente el eje X para que JAMÁS quede espacio negro vacío a la derecha (después del último dato)
     function forzarLimitesSinEspacioVacio(chart) {
         if (!chart || !chart.scales || !chart.scales.x) return;
         const xAxis = chart.scales.x;
@@ -835,7 +958,7 @@
         };
     }
 
-    // Plugin profesional 1: Cuadrícula de Minutos Sutil (al hacer zoom) + Números internos + Techo Crítico 85°C
+    // Plugin profesional 1: Cuadrícula de Minutos Sutil (al hacer zoom) + Números internos + Techo Crítico 85°C + Marca de inicio de datos en 7d/30d
     const pluginNumerosDentroGrafico = {
         id: 'numerosDentroGrafico',
         beforeDatasetsDraw: function(chart) {
@@ -867,9 +990,31 @@
             const ca = chart.chartArea;
             const yAxis = chart.scales.y;
             const y1Axis = chart.scales.y1;
+            const xAxis = chart.scales.x;
             if (!ca) return;
 
             ctx.save();
+
+            // Si estamos en 7d o 30d y hay espacio vacío a la izquierda porque el programa lleva pocos días andando, mostrar indicador sutil de inicio de datos
+            if (xAxis && crudosPorMinutoCache.length > 0) {
+                const primerTsGrabado = crudosPorMinutoCache[0].ts;
+                const xInicioDatos = xAxis.getPixelForValue(primerTsGrabado);
+                if (xInicioDatos > ca.left + 45 && xInicioDatos < ca.right - 20) {
+                    ctx.beginPath();
+                    ctx.setLineDash([3, 4]);
+                    ctx.moveTo(xInicioDatos, ca.top);
+                    ctx.lineTo(xInicioDatos, ca.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    ctx.font = 'bold 9.5px sans-serif';
+                    ctx.fillStyle = 'rgba(56, 189, 248, 0.65)';
+                    ctx.textAlign = 'right';
+                    ctx.fillText('◀ Sin registros previos', xInicioDatos - 6, ca.top + 16);
+                }
+            }
 
             // Línea horizontal tenue de límite térmico crítico (85°C)
             if (y1Axis) {
@@ -1123,11 +1268,21 @@
         document.getElementById('btnResetZoom').style.display = 'none';
     }
 
+    // Exportación de imagen PNG con fondo oscuro sólido (evita capturas transparentes ilegibles)
     function descargarCapturaGrafico() {
         if (!chartInstance) return;
+        const srcCanvas = chartInstance.canvas;
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = srcCanvas.width;
+        tempCanvas.height = srcCanvas.height;
+        const tCtx = tempCanvas.getContext('2d');
+        tCtx.fillStyle = '#0d0f17';
+        tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+        tCtx.drawImage(srcCanvas, 0, 0);
+
         const link = document.createElement('a');
-        link.download = `Grafico_{{ ip }}_${rangoActual}.png`;
-        link.href = chartInstance.toBase64Image();
+        link.download = `Telemetria_{{ ip }}_${rangoActual}.png`;
+        link.href = tempCanvas.toDataURL('image/png', 1.0);
         link.click();
     }
 
@@ -1406,17 +1561,21 @@
         ocultarTooltipGris();
         ocultarSmartTooltip();
         
-        // Determinar el último timestamp con datos reales válidos para evitar huecos negros a la derecha
+        // Determinar el primer y último timestamp con datos reales válidos
         let maxTsValido = 0;
-        for (let i = rawFechas.length - 1; i >= 0; i--) {
+        let minTsValidoGlobal = Infinity;
+        for (let i = 0; i < rawFechas.length; i++) {
             let hV = Number(rawHr[i] || 0);
             let tV = Number(rawTemp[i] || 0);
             if (hV > 0 || tV > 5) {
                 if (rawFechas[i] > maxTsValido) maxTsValido = rawFechas[i];
-                break;
+                if (rawFechas[i] < minTsValidoGlobal) minTsValidoGlobal = rawFechas[i];
             }
         }
         const nowTs = maxTsValido > 0 ? Math.floor(maxTsValido / 60) * 60 : Math.floor(Date.now() / 60000) * 60;
+        if (maxTsValido > 0 && minTsValidoGlobal < Infinity) {
+            diasRealesGrabados = Math.max(0.1, Number(((maxTsValido - minTsValidoGlobal) / 86400).toFixed(1)));
+        }
 
         let segundosRango = 24 * 3600;
         if (rango === '6h') segundosRango = 6 * 3600;
@@ -1521,12 +1680,13 @@
         datasetsList.push({
             id: 'err', type: 'bar', label: '⚠️ Errores HW', data: ptsE,
             borderColor: '#ff5252', backgroundColor: 'rgba(255, 82, 82, 0.5)',
-            barThickness: 4, yAxisID: 'y2',
+            maxBarThickness: 5, categoryPercentage: 0.85, barPercentage: 0.9, yAxisID: 'y2',
             hidden: visibilidadCurvas['err'] === false
         });
 
-        // Anclaje exacto al primer y último dato real para que JAMÁS haya espacio vacío a la derecha ni izquierda
-        const limiteIzq = Math.max(minTs, primerTsReal);
+        // En 6h y 24h evitamos huecos a la izquierda si recién arrancó, pero en 7d y 30d respetamos la ventana completa (mostrando en blanco los días previos si lleva solo 4 días)
+        const limiteIzq = (rango === '6h' || rango === '24h') ? Math.max(minTs, primerTsReal) : minTs;
+        // El borde derecho SIEMPRE se ancla exactamente al último dato recibido para que no exista hueco negro a la derecha
         const limiteDer = ultimoTsReal;
         limiteDatosIzqGlobal = limiteIzq;
         limiteDatosDerGlobal = limiteDer;
@@ -1562,7 +1722,6 @@
                             external: renderizarTooltipExterno
                         },
                         zoom: {
-                            // Tope estricto a izquierda y derecha para que el gráfico nunca muestre zona negra vacía
                             limits: {
                                 x: { 
                                     min: limiteIzq,
@@ -1602,7 +1761,7 @@
                     scales: { 
                         x: { 
                             type: 'linear',
-                            bounds: 'data',
+                            bounds: 'ticks',
                             offset: false,
                             min: limiteIzq,
                             max: limiteDer,
