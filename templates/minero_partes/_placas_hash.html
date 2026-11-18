@@ -1,0 +1,32 @@
+<div class="card" style="padding:0; overflow:hidden;">
+    <div class="panel-title" style="padding: 16px 20px 0 20px; justify-content: flex-start;">🎛️ Placas de Hash</div>
+    <div class="table-responsive">
+        <table class="info-table">
+            <tr>
+                <th>Placa</th>
+                <th>Hashrate</th>
+                <th>Frecuencia</th>
+                <th translate="no">chipNum</th>
+                <th translate="no">hwNum</th>
+                <th>Temperaturas</th>
+            </tr>
+            {% for c in extra.cadenas %}
+            {% set tc = c.temp_c | int %}
+            {% set tp = c.temp_p | int %}
+            {% set chip_cls = 'badge-t-crit' if tc >= 85 else ('badge-t-warn' if tc >= 75 else 'badge-t-ok') %}
+            {% set pcb_cls = 'badge-t-crit' if tp >= 75 else ('badge-t-warn' if tp >= 65 else 'badge-t-ok') %}
+            <tr>
+                <td>#{{ c.id }}</td>
+                <td translate="no">{{ c.hr if c.hr is defined and c.hr > 0 else ultimo.hashrate_c0 }} {{ ultimo.unidad }}</td>
+                <td style="color:var(--text-muted);" translate="no">{{ (c.freq ~ ' MHz') if (c.freq is defined and c.freq > 0) else '-' }}</td>
+                <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ c.chips if c.chips is defined else '-' }}</td>
+                <td style="color:{{ 'var(--accent-red)' if (c.hw is defined and c.hw > 0) else 'var(--text-muted)' }}; font-weight:bold;" translate="no">{{ c.hw if c.hw is defined else 0 }}</td>
+                <td translate="no">
+                    Chip <span class="{{ chip_cls }}">{{ tc }}°C</span> &nbsp;|&nbsp;
+                    PCB <span class="{{ pcb_cls }}">{{ tp }}°C</span>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
