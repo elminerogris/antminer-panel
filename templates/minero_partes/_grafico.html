@@ -134,7 +134,7 @@
         </div>
     </div>
 
-    <!-- Barra de métricas dinámicas (Incluye Clima Real de la Granja y Sensación Térmica) -->
+    <!-- Barra de métricas dinámicas -->
     <div class="chart-stats-bar" translate="no">
         <div class="stat-item">Prom: <b id="statProm" style="color:var(--accent-blue);">0.00</b></div>
         <div class="stat-item">Máx: <b id="statMax">0.00</b></div>
@@ -147,7 +147,7 @@
     <!-- Píldoras interactivas para encender/apagar curvas -->
     <div class="chart-CustomLegends" id="customLegendsBar"></div>
 
-    <!-- Gráfico estirado con soporte de Zoom con 2 dedos -->
+    <!-- Gráfico estirado con soporte de Zoom con 2 dedos y Doble Toque para resetear -->
     <div id="chartWrapper" class="chart-edge-container">
         <canvas id="hashrateChart"></canvas>
         <div id="customChartTooltip" class="custom-chart-tooltip" translate="no"></div>
@@ -165,7 +165,6 @@
     const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
 
-    // Ubicación física del Antminer enviada por el Servidor (detectada desde la IP del Agente, sin pedir GPS al celular)
     const GRANJA_LAT = {{ ultimo.farm_lat | default(-17.7833) }};
     const GRANJA_LON = {{ ultimo.farm_lon | default(-63.1821) }};
     const GRANJA_CIUDAD = "{{ ultimo.farm_city | default('Santa Cruz de la Sierra') }}";
@@ -186,11 +185,12 @@
         return `${dia}/${mes}/${anio} ${horas}:${mins}`;
     }
 
-    function formatearEtiquetaEjeX(d, rango) {
+    function formatearEtiquetaEjeX(d, rango, spanVisibleSeg) {
         let horas = String(d.getHours()).padStart(2, '0');
         let mins = String(d.getMinutes()).padStart(2, '0');
         let horaStr = `${horas}:${mins}`;
-        if (rango === '7d' || rango === '30d') {
+        // Si el usuario hizo zoom a menos de 24 horas aunque esté en la pestaña 7d/30d, mostrar solo la hora limpia
+        if ((rango === '7d' || rango === '30d') && (!spanVisibleSeg || spanVisibleSeg > 86400)) {
             let dia = String(d.getDate()).padStart(2, '0');
             let mes = String(d.getMonth() + 1).padStart(2, '0');
             return [horaStr, `${dia}/${mes}`];
@@ -198,7 +198,44 @@
         return horaStr;
     }
 
-    // Fórmula oficial NOAA Rothfusz Heat Index (coincide con Google Weather)
+    // Selecciona el escalón exacto en múltiplos de 1 minuto (60s) para que cada raya coincida con un punto real
+    function obtenerPasoExactoMinutos(spanSegundos, maxTicksDeseados) {
+        const pasosPermitidos = [
+            60,         // 1 minuto exacto (1 raya = 1 minuto)
+            120,        // 2 minutos
+            300,        // 5 minutos
+            600,        // 10 minutos
+            900,        // 15 minutos
+            1800,       // 30 minutos
+            3600,       // 1 hora
+            7200,       // 2 horas
+            14400,      // 4 horas
+            21600,      // 6 horas
+            43200,      // 12 horas
+            86400,      // 1 día
+            172800,     // 2 días
+            345600      // 4 días
+        ];
+        const pasoIdeal = spanSegundos / Math.max(2, maxTicksDeseados);
+        for (let i = 0; i < pasosPermitidos.length; i++) {
+            if (pasosPermitidos[i] >= pasoIdeal) return pasosPermitidos[i];
+        }
+        return 345600;
+    }
+
+    // Activa los puntos visibles en cada minuto automáticamente cuando el usuario hace zoom cercano (<= 45 min)
+    function actualizarPuntosSegunZoom(chart) {
+        if (!chart || !chart.scales || !chart.scales.x) return;
+        const span = chart.scales.x.max - chart.scales.x.min;
+        const mostrarPuntos = span <= 2700; // 45 minutos o menos en pantalla
+        const radio = mostrarPuntos ? 2.8 : 0;
+        chart.data.datasets.forEach(ds => {
+            if (ds.type === 'line') {
+                ds.pointRadius = radio;
+            }
+        });
+    }
+
     function calcularSensacionTermicaNOAA(tempC, humedadPct, apparentFallback) {
         if (tempC >= 26.5 && humedadPct >= 40) {
             let T = (tempC * 9 / 5) + 32;
@@ -342,6 +379,7 @@
         };
     }
 
+    // Plugin profesional 1: Números dentro del gráfico + Línea de Techo Crítico 85°C + Etiquetas de Valor Actual estilo TradingView
     const pluginNumerosDentroGrafico = {
         id: 'numerosDentroGrafico',
         afterDraw: function(chart) {
@@ -352,10 +390,27 @@
             if (!ca) return;
 
             ctx.save();
+
+            // 1. Línea horizontal tenue de límite térmico crítico (85°C)
+            if (y1Axis) {
+                const y85 = y1Axis.getPixelForValue(85);
+                if (y85 >= ca.top && y85 <= ca.bottom) {
+                    ctx.beginPath();
+                    ctx.setLineDash([3, 5]);
+                    ctx.moveTo(ca.left, y85);
+                    ctx.lineTo(ca.right, y85);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(255, 82, 82, 0.28)';
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
             ctx.font = 'bold 10.5px sans-serif';
             ctx.lineWidth = 3;
             ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
 
+            // 2. Eje Izquierdo (Hashrate) adentro
             if (yAxis && yAxis.ticks) {
                 ctx.textAlign = 'left';
                 ctx.fillStyle = 'rgba(165, 167, 181, 0.88)';
@@ -370,6 +425,7 @@
                 });
             }
 
+            // 3. Eje Derecho (Temperatura) adentro
             if (y1Axis && y1Axis.ticks) {
                 ctx.textAlign = 'right';
                 ctx.fillStyle = 'rgba(255, 179, 0, 0.85)';
@@ -383,6 +439,7 @@
                     }
                 });
             }
+
             ctx.restore();
         }
     };
@@ -528,6 +585,8 @@
     function resetearZoomGrafico() {
         if (!chartInstance) return;
         chartInstance.resetZoom();
+        actualizarPuntosSegunZoom(chartInstance);
+        chartInstance.update('none');
         document.getElementById('btnResetZoom').style.display = 'none';
     }
 
@@ -559,13 +618,24 @@
 
         canvas.addEventListener('mousemove', function(e) { validarPosicionCursor(e.clientX, e.clientY); });
         canvas.addEventListener('mouseleave', function() { ocultarTooltipGris(); });
+
+        // Doble clic en PC o Doble toque en celular resetea el zoom inmediatamente
+        canvas.addEventListener('dblclick', function() { resetearZoomGrafico(); });
+
+        let ultimoToqueTs = 0;
         canvas.addEventListener('touchstart', function(e) {
             if (e.touches && e.touches.length === 1) {
+                let ahora = Date.now();
+                if (ahora - ultimoToqueTs < 280) {
+                    resetearZoomGrafico();
+                }
+                ultimoToqueTs = ahora;
                 validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
             } else {
                 ocultarTooltipGris();
             }
         }, {passive: true});
+
         canvas.addEventListener('touchmove', function(e) {
             if (e.touches && e.touches.length === 1) {
                 validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
@@ -589,7 +659,7 @@
         return mins.length > 0 ? Math.min(...mins) : null;
     }
 
-    // Procesa y consolida los registros para que exista EXACTAMENTE 1 PUNTO POR MINUTO
+    // Consolida los registros para que exista EXACTAMENTE 1 PUNTO POR MINUTO (en segundos :00)
     function procesarDatosLimpios(minTs) {
         let porMinuto = new Map();
 
@@ -612,7 +682,6 @@
             let cads = (rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales;
             let tMinVal = hVal > 0 ? extraerTempMinimaPlaca(cads, tVal) : null;
 
-            // Redondear el timestamp al inicio del minuto exacto (60s) para garantizar 1 solo punto por minuto
             let tsMinuto = Math.floor(tsOriginal / 60) * 60;
 
             if (!porMinuto.has(tsMinuto)) {
@@ -631,7 +700,6 @@
                     cads: cads
                 });
             } else {
-                // Si hubo un segundo registro dentro del mismo minuto, consolidarlo en ese único punto
                 let item = porMinuto.get(tsMinuto);
                 if (hVal > 0) {
                     if (item.hr > 0) {
@@ -770,14 +838,14 @@
             {
                 id: 'hr', type: 'line', label: '⚡ Hashrate (' + unidadMinero + ')', data: ptsH,
                 borderColor: '#3366ff', backgroundColor: gradBlue, fill: true,
-                tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#3366ff',
+                tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointBackgroundColor: '#3366ff', pointHoverBackgroundColor: '#3366ff',
                 borderWidth: 2, spanGaps: false,
                 hidden: visibilidadCurvas['hr'] === false
             },
             {
                 id: 'tmax', type: 'line', label: '🌡️ Temp Máx °C', data: ptsT,
                 borderColor: '#ffb300', borderDash: [5, 4],
-                tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#ffb300',
+                tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointBackgroundColor: '#ffb300', pointHoverBackgroundColor: '#ffb300',
                 borderWidth: 1.7, yAxisID: 'y1', spanGaps: false,
                 hidden: visibilidadCurvas['tmax'] === false
             },
@@ -785,7 +853,7 @@
                 id: 'tmin', type: 'line', label: '❄️ Temp Mín (PCB) °C', data: ptsTMin,
                 borderColor: '#fb923c', borderDash: [2, 4],
                 backgroundColor: 'rgba(255, 179, 0, 0.07)', fill: '-1',
-                tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#fb923c',
+                tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#fb923c', pointHoverBackgroundColor: '#fb923c',
                 borderWidth: 1.2, yAxisID: 'y1', spanGaps: false,
                 hidden: visibilidadCurvas['tmin'] === false
             }
@@ -795,7 +863,7 @@
             datasetsList.push({
                 id: 'tamb', type: 'line', label: '🍃 Entrada/Amb °C', data: ptsA,
                 borderColor: '#00e676', borderDash: [3, 3],
-                tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#00e676',
+                tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#00e676', pointHoverBackgroundColor: '#00e676',
                 borderWidth: 1.5, yAxisID: 'y1', spanGaps: false,
                 hidden: visibilidadCurvas['tamb'] === false
             });
@@ -805,14 +873,14 @@
             datasetsList.push({
                 id: 'clima', type: 'line', label: '🌤️ Clima Granja °C', data: ptsClima,
                 borderColor: '#38bdf8', borderDash: [2, 2],
-                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#38bdf8',
+                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#38bdf8', pointHoverBackgroundColor: '#38bdf8',
                 borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
                 hidden: visibilidadCurvas['clima'] === false
             });
             datasetsList.push({
                 id: 'sensacion', type: 'line', label: '🥵 Sensación Térmica °C', data: ptsSens,
                 borderColor: '#c084fc', borderDash: [4, 2],
-                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#c084fc',
+                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#c084fc', pointHoverBackgroundColor: '#c084fc',
                 borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
                 hidden: visibilidadCurvas['sensacion'] === false
             });
@@ -829,6 +897,7 @@
             chartInstance.options.scales.x.min = minTs;
             chartInstance.options.scales.x.max = nowTs;
             chartInstance.data.datasets = datasetsList;
+            actualizarPuntosSegunZoom(chartInstance);
             chartInstance.update();
             construirLeyendasPildora();
         } else {
@@ -848,10 +917,16 @@
                             external: renderizarTooltipExterno
                         },
                         zoom: {
+                            limits: {
+                                // Mínimo zoom: 5 minutos en pantalla (para que siempre haya al menos 5 rayas de 1 minuto exacto)
+                                x: { minRange: 300 }
+                            },
                             pan: {
                                 enabled: true,
                                 mode: 'x',
-                                onPanComplete: function() {
+                                onPanComplete: function({chart}) {
+                                    actualizarPuntosSegunZoom(chart);
+                                    chart.update('none');
                                     document.getElementById('btnResetZoom').style.display = 'inline-block';
                                 }
                             },
@@ -859,7 +934,9 @@
                                 wheel: { enabled: true },
                                 pinch: { enabled: true },
                                 mode: 'x',
-                                onZoomComplete: function() {
+                                onZoomComplete: function({chart}) {
+                                    actualizarPuntosSegunZoom(chart);
+                                    chart.update('none');
                                     document.getElementById('btnResetZoom').style.display = 'inline-block';
                                 }
                             }
@@ -873,13 +950,19 @@
                             grid: { color: 'rgba(255,255,255,0.05)' },
                             afterBuildTicks: function(axis) {
                                 const esMovil = window.innerWidth <= 768;
-                                const numTicks = esMovil ? 6 : 10;
-                                const nuevosTicks = [];
+                                const maxTicks = esMovil ? 6 : 10;
                                 const start = axis.min;
                                 const end = axis.max;
-                                for (let i = 0; i < numTicks; i++) {
-                                    const valTs = Math.round(start + (i * (end - start) / (numTicks - 1)));
-                                    nuevosTicks.push({ value: valTs });
+                                const span = end - start;
+                                if (span <= 0) return;
+
+                                // Calcular paso redondo en múltiplos exactos de 60 segundos (1 minuto)
+                                const pasoSeg = obtenerPasoExactoMinutos(span, maxTicks);
+                                const primerTick = Math.ceil(start / pasoSeg) * pasoSeg;
+                                const nuevosTicks = [];
+
+                                for (let t = primerTick; t <= end; t += pasoSeg) {
+                                    nuevosTicks.push({ value: t });
                                 }
                                 axis.ticks = nuevosTicks;
                             },
@@ -887,8 +970,9 @@
                                 minRotation: 0, maxRotation: 0, autoSkip: false,
                                 align: 'center',
                                 color: '#8b8d9c', font: { size: 10.5 },
-                                callback: function(value) {
-                                    return formatearEtiquetaEjeX(new Date(value * 1000), rangoActual);
+                                callback: function(value, index, ticksArr) {
+                                    const spanVis = (ticksArr && ticksArr.length > 1) ? (ticksArr[ticksArr.length - 1].value - ticksArr[0].value) : 86400;
+                                    return formatearEtiquetaEjeX(new Date(value * 1000), rangoActual, spanVis);
                                 }
                             }
                         }, 
