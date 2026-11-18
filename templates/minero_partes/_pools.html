@@ -1,93 +1,849 @@
-<div class="card" style="padding:0; overflow:hidden;">
-    <div class="pools-header">
-        <span>⛏ Pools</span>
-        <button class="btn-guardar" onclick="guardarTodasPools()">💾 Guardar Todos los Pools</button>
+<style>
+    /* Contenedor y Cabecera de Pools */
+    .pools-card-pro {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-bottom: 20px;
+        overflow: hidden;
+        position: relative;
+    }
+    .pools-header-pro {
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.01);
+    }
+    .pools-title-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .pools-title-txt {
+        font-weight: bold;
+        font-size: 1.08em;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .pools-active-badge {
+        font-size: 0.72em;
+        color: #00e676;
+        background: rgba(0, 230, 118, 0.1);
+        border: 1px solid rgba(0, 230, 118, 0.3);
+        padding: 2px 9px;
+        border-radius: 12px;
+        font-family: monospace;
+        cursor: help;
+    }
+
+    /* Botón Guardar con efecto Neon Glow idéntico al gráfico */
+    .btn-guardar-pools {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%);
+        border: 1px solid rgba(82, 140, 255, 0.65);
+        color: #60a5fa;
+        padding: 7px 14px;
+        border-radius: 7px;
+        cursor: pointer;
+        font-size: 0.82em;
+        font-weight: bold;
+        letter-spacing: 0.2px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.25);
+        user-select: none;
+    }
+    .btn-guardar-pools:hover {
+        color: #ffffff;
+        background: rgba(51, 102, 255, 0.35);
+        border-color: #60a5fa;
+        box-shadow: 0 0 16px rgba(59, 130, 246, 0.65), inset 0 0 8px rgba(51, 102, 255, 0.3);
+        text-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+        transform: translateY(-1px);
+    }
+    .btn-guardar-pools.unsaved-pulse {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.48) 0%, rgba(37, 99, 235, 0.32) 100%);
+        color: #fff;
+        border-color: #38bdf8;
+        box-shadow: 0 0 18px rgba(56, 189, 248, 0.75);
+    }
+
+    /* Barra de estadísticas rápidas y plantillas de Pools */
+    .pools-subbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px 16px;
+        flex-wrap: wrap;
+        padding: 8px 16px;
+        background: rgba(10, 12, 18, 0.45);
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.75em;
+    }
+    .pools-stats-list {
+        display: flex;
+        align-items: center;
+        gap: 10px 14px;
+        flex-wrap: wrap;
+    }
+    .pool-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--text-muted);
+        cursor: help;
+        border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
+        padding-bottom: 1px;
+        user-select: none;
+        transition: 0.18s;
+    }
+    .pool-stat-item:hover {
+        color: #fff;
+        border-bottom-color: var(--accent-blue);
+        text-shadow: 0 0 8px rgba(51, 102, 255, 0.45);
+    }
+    .pool-stat-item b {
+        color: var(--text-main);
+        font-family: monospace;
+        font-size: 1.05em;
+    }
+
+    /* Píldoras de plantillas rápidas (Presets) y Auto-Sync */
+    .pools-presets-bar {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+    .preset-label {
+        color: var(--text-muted);
+        font-size: 0.92em;
+        margin-right: 2px;
+    }
+    .preset-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 2px 8px;
+        border-radius: 14px;
+        font-size: 0.92em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        user-select: none;
+    }
+    .preset-pill:hover {
+        color: #fff;
+        border-color: var(--accent-blue);
+        background: rgba(51, 102, 255, 0.15);
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.35);
+    }
+    .sync-toggle-pill {
+        background: rgba(51, 102, 255, 0.12);
+        border: 1px solid rgba(51, 102, 255, 0.45);
+        color: #60a5fa;
+        padding: 2px 9px;
+        border-radius: 14px;
+        font-size: 0.92em;
+        font-weight: bold;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: 0.18s;
+        user-select: none;
+    }
+    .sync-toggle-pill.off {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: var(--border-color);
+        color: var(--text-muted);
+        opacity: 0.65;
+    }
+
+    /* Tabla Profesional de Pools */
+    .pools-table-pro {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+    .pools-table-pro th {
+        padding: 10px 12px;
+        font-size: 0.73em;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.015);
+        border-bottom: 1px solid var(--border-color);
+        cursor: help;
+        user-select: none;
+    }
+    .pools-table-pro th:hover {
+        color: #fff;
+    }
+    .pools-table-pro td {
+        padding: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.85em;
+        vertical-align: middle;
+    }
+    .pools-table-pro tr:last-child td {
+        border-bottom: none;
+    }
+    .pools-table-pro tbody tr {
+        transition: background 0.15s ease;
+    }
+    .pools-table-pro tbody tr:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Prioridad (#1 Primario, #2 Backup, #3 Failover) */
+    .pool-rank-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-family: monospace;
+        font-size: 0.9em;
+        background: rgba(51, 102, 255, 0.14);
+        color: #60a5fa;
+        border: 1px solid rgba(51, 102, 255, 0.35);
+    }
+    .pool-rank-sub {
+        display: block;
+        font-size: 0.72em;
+        color: var(--text-muted);
+        margin-top: 2px;
+        font-weight: normal;
+    }
+
+    /* Inputs con botón de copiar integrado y resaltado de edición */
+    .input-pool-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+    .input-pool-pro {
+        background: rgba(10, 12, 18, 0.55);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 8px 30px 8px 10px;
+        width: 100%;
+        font-family: monospace;
+        font-size: 0.96em;
+        outline: none;
+        border-radius: 6px;
+        box-sizing: border-box;
+        transition: all 0.18s ease;
+    }
+    .input-pool-pro.pass-field {
+        padding-right: 10px;
+        width: 78px;
+        text-align: center;
+    }
+    .input-pool-pro:focus {
+        border-color: #3b82f6;
+        background: rgba(10, 12, 18, 0.85);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+    }
+    .input-pool-pro.edited {
+        border-color: #38bdf8;
+        background: rgba(56, 189, 248, 0.06);
+    }
+    .input-pool-pro.invalid-url {
+        border-color: #ff5252;
+        box-shadow: 0 0 8px rgba(255, 82, 82, 0.4);
+    }
+    .btn-copy-inline {
+        position: absolute;
+        right: 6px;
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 0.9em;
+        padding: 2px 4px;
+        border-radius: 4px;
+        opacity: 0.65;
+        transition: 0.15s;
+    }
+    .btn-copy-inline:hover {
+        opacity: 1;
+        color: #fff;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    /* Píldora de estado Alive / Dead con pulso luminoso */
+    .pool-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.82em;
+        font-weight: bold;
+        font-family: monospace;
+    }
+    .pool-status-pill.alive {
+        background: rgba(0, 230, 118, 0.12);
+        color: #00e676;
+        border: 1px solid rgba(0, 230, 118, 0.35);
+        box-shadow: 0 0 10px rgba(0, 230, 118, 0.15);
+    }
+    .pool-status-pill.dead {
+        background: rgba(255, 82, 82, 0.12);
+        color: #ff5252;
+        border: 1px solid rgba(255, 82, 82, 0.35);
+    }
+    .status-dot-pulse {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .pool-status-pill.alive .status-dot-pulse {
+        background: #00e676;
+        box-shadow: 0 0 6px #00e676;
+    }
+    .pool-status-pill.dead .status-dot-pulse {
+        background: #ff5252;
+    }
+
+    /* Barra de calidad de Shares Aceptados vs Rechazados */
+    .shares-cell-wrap {
+        min-width: 115px;
+    }
+    .shares-bar-bg {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 5px;
+        display: flex;
+    }
+    .shares-bar-acc {
+        height: 100%;
+        background: #00e676;
+    }
+    .shares-bar-rej {
+        height: 100%;
+        background: #ff5252;
+    }
+
+    /* Diseño Responsivo: Tarjetas apiladas en Celular (Zero-Scroll Horizontal) */
+    @media (max-width: 768px) {
+        .pools-table-pro thead {
+            display: none;
+        }
+        .pools-table-pro,
+        .pools-table-pro tbody,
+        .pools-table-pro tr,
+        .pools-table-pro td {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .pools-table-pro tr {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.01);
+        }
+        .pools-table-pro td {
+            padding: 5px 0;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .pools-table-pro td::before {
+            content: attr(data-label);
+            font-size: 0.76em;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            min-width: 92px;
+            flex-shrink: 0;
+        }
+        .input-pool-pro.pass-field {
+            width: 100%;
+            text-align: left;
+        }
+        .pool-rank-sub {
+            display: inline;
+            margin-left: 6px;
+        }
+        .btn-guardar-pools {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+{% set tot1 = extra.acc1 + extra.rej1 %}
+{% set pct1 = (extra.rej1 / tot1 * 100) if tot1 > 0 else 0.0 %}
+{% set tot2 = extra.acc2 + extra.rej2 %}
+{% set pct2 = (extra.rej2 / tot2 * 100) if tot2 > 0 else 0.0 %}
+{% set tot3 = extra.acc3 + extra.rej3 %}
+{% set pct3 = (extra.rej3 / tot3 * 100) if tot3 > 0 else 0.0 %}
+
+{% set total_acc_global = extra.acc1 + extra.acc2 + extra.acc3 %}
+{% set total_rej_global = extra.rej1 + extra.rej2 + extra.rej3 %}
+{% set total_shares_global = total_acc_global + total_rej_global %}
+{% set pct_rej_global = (total_rej_global / total_shares_global * 100) if total_shares_global > 0 else 0.0 %}
+{% set pct_acc_global = (100.0 - pct_rej_global) if total_shares_global > 0 else 100.0 %}
+
+<div class="pools-card-pro">
+    <!-- Cabecera principal -->
+    <div class="pools-header-pro">
+        <div class="pools-title-group">
+            <span class="pools-title-txt">⛏ Pools de Minería (Stratum)</span>
+            <span class="pools-active-badge" data-pool-tt="pool_activo" translate="no">
+                ● Activo: {{ extra.pool1.split('//')[-1].split(':')[0] if extra.pool1 else 'Sin configurar' }}
+            </span>
+        </div>
+        <button class="btn-guardar-pools" id="btnGuardarPoolsPro" data-pool-tt="btn_guardar" onclick="guardarTodasPools()">
+            <span id="iconoGuardarPools">💾</span>
+            <span id="textoGuardarPools">Guardar Todos los Pools</span>
+        </button>
     </div>
-    <div class="table-responsive">
-        <table class="info-table" style="min-width:580px;">
-            <tr>
-                <th>#</th>
-                <th>Pool URL</th>
-                <th>Worker</th>
-                <th>Pass</th>
-                <th>Estado</th>
-                <th>Aceptados</th>
-                <th>Rechazados (%)</th>
-            </tr>
-            {% set tot1 = extra.acc1 + extra.rej1 %}
-            {% set pct1 = (extra.rej1 / tot1 * 100) if tot1 > 0 else 0.0 %}
-            <tr>
-                <td>1</td>
-                <td><input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool" translate="no"></td>
-                <td><input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool" oninput="sincronizarWorker(this.value)" translate="no"></td>
-                <td><input type="text" id="pass_1" value="{{ extra.pass1 }}" class="input-pool" style="width:70px;" oninput="sincronizarPass(this.value)" translate="no"></td>
-                <td style="color:{{ 'var(--accent-green)' if extra.status1 == 'Alive' else 'var(--accent-red)' }}; font-weight:bold;" translate="no">{{ extra.status1 }}</td>
-                <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ "{:,}".format(extra.acc1) }}</td>
-                <td translate="no">
-                    <span style="color:{{ 'var(--accent-red)' if extra.rej1 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej1) }}</span>
-                    <span style="font-size:0.85em; color:{{ 'var(--accent-red)' if pct1 > 1.5 else 'var(--text-muted)' }}; margin-left:4px;">({{ "%.2f"|format(pct1) }}%)</span>
-                </td>
-            </tr>
-            {% set tot2 = extra.acc2 + extra.rej2 %}
-            {% set pct2 = (extra.rej2 / tot2 * 100) if tot2 > 0 else 0.0 %}
-            <tr>
-                <td>2</td>
-                <td><input type="text" id="url_2" value="{{ extra.pool2 }}" class="input-pool" translate="no"></td>
-                <td><input type="text" id="user_2" value="{{ extra.worker2 }}" class="input-pool" translate="no"></td>
-                <td><input type="text" id="pass_2" value="{{ extra.pass2 }}" class="input-pool" style="width:70px;" translate="no"></td>
-                <td style="color:{{ 'var(--accent-green)' if extra.status2 == 'Alive' else 'var(--accent-red)' }}; font-weight:bold;" translate="no">{{ extra.status2 }}</td>
-                <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ "{:,}".format(extra.acc2) }}</td>
-                <td translate="no">
-                    <span style="color:{{ 'var(--accent-red)' if extra.rej2 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej2) }}</span>
-                    <span style="font-size:0.85em; color:{{ 'var(--accent-red)' if pct2 > 1.5 else 'var(--text-muted)' }}; margin-left:4px;">({{ "%.2f"|format(pct2) }}%)</span>
-                </td>
-            </tr>
-            {% set tot3 = extra.acc3 + extra.rej3 %}
-            {% set pct3 = (extra.rej3 / tot3 * 100) if tot3 > 0 else 0.0 %}
-            <tr>
-                <td>3</td>
-                <td><input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool" translate="no"></td>
-                <td><input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool" translate="no"></td>
-                <td><input type="text" id="pass_3" value="{{ extra.pass3 }}" class="input-pool" style="width:70px;" translate="no"></td>
-                <td style="color:{{ 'var(--accent-green)' if extra.status3 == 'Alive' else 'var(--accent-red)' }}; font-weight:bold;" translate="no">{{ extra.status3 }}</td>
-                <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ "{:,}".format(extra.acc3) }}</td>
-                <td translate="no">
-                    <span style="color:{{ 'var(--accent-red)' if extra.rej3 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej3) }}</span>
-                    <span style="font-size:0.85em; color:{{ 'var(--accent-red)' if pct3 > 1.5 else 'var(--text-muted)' }}; margin-left:4px;">({{ "%.2f"|format(pct3) }}%)</span>
-                </td>
-            </tr>
+
+    <!-- Barra de métricas globales de Shares + Plantillas Rápidas 1-Clic -->
+    <div class="pools-subbar" translate="no">
+        <div class="pools-stats-list">
+            <div class="pool-stat-item" data-pool-tt="stat_acc">
+                Aceptados: <b style="color:var(--accent-green);">{{ "{:,}".format(total_acc_global) }}</b>
+            </div>
+            <div class="pool-stat-item" data-pool-tt="stat_rej">
+                Rechazados: <b style="color:{{ '#ff5252' if pct_rej_global > 1.5 else ('#ffb300' if pct_rej_global > 0.8 else 'var(--text-main)') }};">{{ "{:,}".format(total_rej_global) }} ({{ "%.2f"|format(pct_rej_global) }}%)</b>
+            </div>
+            <div class="pool-stat-item" data-pool-tt="stat_eficiencia">
+                Calidad Stratum: <b style="color:{{ '#00e676' if pct_acc_global >= 98.5 else '#ffb300' }};">{{ "%.2f"|format(pct_acc_global) }}%</b>
+            </div>
+            <div class="sync-toggle-pill" id="btnSyncWorkerToggle" data-pool-tt="sync_toggle" onclick="alternarAutoSyncWorker()">
+                🔗 Auto-copiar Worker: <span id="txtSyncEstado">ON</span>
+            </div>
+        </div>
+
+        <div class="pools-presets-bar">
+            <span class="preset-label" data-pool-tt="presets_info">⚡ Plantillas BTC:</span>
+            <span class="preset-pill" onclick="aplicarPlantillaPool('viabtc')" title="Cargar puertos oficiales de ViaBTC (3333 / 443 / 25)">ViaBTC</span>
+            <span class="preset-pill" onclick="aplicarPlantillaPool('f2pool')" title="Cargar puertos oficiales de F2Pool">F2Pool</span>
+            <span class="preset-pill" onclick="aplicarPlantillaPool('braiins')" title="Cargar puertos oficiales de Braiins Pool">Braiins</span>
+            <span class="preset-pill" onclick="aplicarPlantillaPool('antpool')" title="Cargar puertos oficiales de AntPool">AntPool</span>
+            <span class="preset-pill" onclick="aplicarPlantillaPool('luxor')" title="Cargar puertos oficiales de Luxor Tech">Luxor</span>
+        </div>
+    </div>
+
+    <!-- Tabla responsiva (Tabla en PC / Tarjetas en Celular) -->
+    <div>
+        <table class="pools-table-pro">
+            <thead>
+                <tr>
+                    <th style="width:75px;" data-pool-tt="col_prio">Prioridad</th>
+                    <th data-pool-tt="col_url"> dirección Stratum (Pool URL)</th>
+                    <th data-pool-tt="col_worker">Worker (Subcuenta.Minero)</th>
+                    <th style="width:90px;" data-pool-tt="col_pass">Pass</th>
+                    <th style="width:105px;" data-pool-tt="col_estado">Estado</th>
+                    <th style="width:130px;" data-pool-tt="col_acc">Aceptados</th>
+                    <th style="width:145px;" data-pool-tt="col_rej">Rechazados (%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- POOL 1 (PRIMARIO) -->
+                <tr>
+                    <td data-label="Prioridad">
+                        <div>
+                            <span class="pool-rank-badge">1</span>
+                            <span class="pool-rank-sub">Primario</span>
+                        </div>
+                    </td>
+                    <td data-label="Pool URL">
+                        <div class="input-pool-wrap">
+                            <input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:3333" oninput="marcarPoolEditado(this)" translate="no">
+                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_1', this)" title="Copiar URL del Pool 1">📋</button>
+                        </div>
+                    </td>
+                    <td data-label="Worker">
+                        <div class="input-pool-wrap">
+                            <input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="sincronizarWorker(this.value); marcarPoolEditado(this)" translate="no">
+                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_1', this)" title="Copiar nombre de Worker">📋</button>
+                        </div>
+                    </td>
+                    <td data-label="Contraseña">
+                        <input type="text" id="pass_1" value="{{ extra.pass1 }}" class="input-pool-pro pass-field" placeholder="123" oninput="sincronizarPass(this.value); marcarPoolEditado(this)" translate="no">
+                    </td>
+                    <td data-label="Estado" translate="no">
+                        <span class="pool-status-pill {{ 'alive' if extra.status1 == 'Alive' else 'dead' }}">
+                            <span class="status-dot-pulse"></span>
+                            {{ extra.status1 }}
+                        </span>
+                    </td>
+                    <td data-label="Aceptados" translate="no">
+                        <div class="shares-cell-wrap">
+                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace; font-size:1.05em;">{{ "{:,}".format(extra.acc1) }}</span>
+                            <div class="shares-bar-bg">
+                                <div class="shares-bar-acc" style="width:{{ (100 - pct1) if tot1 > 0 else 0 }}%;"></div>
+                                <div class="shares-bar-rej" style="width:{{ pct1 if tot1 > 0 else 0 }}%;"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td data-label="Rechazados" translate="no">
+                        <span style="color:{{ '#ff5252' if extra.rej1 > 0 else 'var(--text-muted)' }}; font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.rej1) }}</span>
+                        <span style="font-size:0.86em; color:{{ '#ff5252' if pct1 > 1.5 else ('#ffb300' if pct1 > 0.8 else 'var(--text-muted)') }}; margin-left:4px; font-family:monospace;">({{ "%.2f"|format(pct1) }}%)</span>
+                    </td>
+                </tr>
+
+                <!-- POOL 2 (RESPALDO / FAILOVER 1) -->
+                <tr>
+                    <td data-label="Prioridad">
+                        <div>
+                            <span class="pool-rank-badge" style="opacity:0.85;">2</span>
+                            <span class="pool-rank-sub">Respaldo 1</span>
+                        </div>
+                    </td>
+                    <td data-label="Pool URL">
+                        <div class="input-pool-wrap">
+                            <input type="text" id="url_2" value="{{ extra.pool2 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:443" oninput="marcarPoolEditado(this)" translate="no">
+                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_2', this)" title="Copiar URL del Pool 2">📋</button>
+                        </div>
+                    </td>
+                    <td data-label="Worker">
+                        <div class="input-pool-wrap">
+                            <input type="text" id="user_2" value="{{ extra.worker2 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="marcarPoolEditado(this)" translate="no">
+                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_2', this)" title="Copiar nombre de Worker">📋</button>
+                        </div>
+                    </td>
+                    <td data-label="Contraseña">
+                        <input type="text" id="pass_2" value="{{ extra.pass2 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
+                    </td>
+                    <td data-label="Estado" translate="no">
+                        <span class="pool-status-pill {{ 'alive' if extra.status2 == 'Alive' else 'dead' }}">
+                            <span class="status-dot-pulse"></span>
+                            {{ extra.status2 }}
+                        </span>
+                    </td>
+                    <td data-label="Aceptados" translate="no">
+                        <div class="shares-cell-wrap">
+                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace; font-size:1.05em;">{{ "{:,}".format(extra.acc2) }}</span>
+                            <div class="shares-bar-bg">
+                                <div class="shares-bar-acc" style="width:{{ (100 - pct2) if tot2 > 0 else 0 }}%;"></div>
+                                <div class="shares-bar-rej" style="width:{{ pct2 if tot2 > 0 else 0 }}%;"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td data-label="Rechazados" translate="no">
+                        <span style="color:{{ '#ff5252' if extra.rej2 > 0 else 'var(--text-muted)' }}; font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.rej2) }}</span>
+                        <span style="font-size:0.86em; color:{{ '#ff5252' if pct2 > 1.5 else ('#ffb300' if pct2 > 0.8 else 'var(--text-muted)') }}; margin-left:4px; font-family:monospace;">({{ "%.2f"|format(pct2) }}%)</span>
+                    </td>
+                </tr>
+
+                <!-- POOL 3 (EMERGENCIA / FAILOVER 2) -->
+                <tr>
+                    <td data-label="Prioridad">
+                        <div>
+                            <span class="pool-rank-badge" style="opacity:0.7;">3</span>
+                            <span class="pool-rank-sub">Respaldo 2</span>
+                        </div>
+                    </td>
+                    <td data-label="Pool URL">
+                        <div class="input-pool-wrap">
+                            <input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:25" oninput="marcarPoolEditado(this)" translate="no">
+                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_3', this)" title="Copiar URL del Pool 3">📋</button>
+                        </div>
+                    </td>
+                    <td data-label="Worker">
+                        <div class="input-pool-wrap">
+                            <input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="marcarPoolEditado(this)" translate="no">
+                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_3', this)" title="Copiar nombre de Worker">📋</button>
+                        </div>
+                    </td>
+                    <td data-label="Contraseña">
+                        <input type="text" id="pass_3" value="{{ extra.pass3 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
+                    </td>
+                    <td data-label="Estado" translate="no">
+                        <span class="pool-status-pill {{ 'alive' if extra.status3 == 'Alive' else 'dead' }}">
+                            <span class="status-dot-pulse"></span>
+                            {{ extra.status3 }}
+                        </span>
+                    </td>
+                    <td data-label="Aceptados" translate="no">
+                        <div class="shares-cell-wrap">
+                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace; font-size:1.05em;">{{ "{:,}".format(extra.acc3) }}</span>
+                            <div class="shares-bar-bg">
+                                <div class="shares-bar-acc" style="width:{{ (100 - pct3) if tot3 > 0 else 0 }}%;"></div>
+                                <div class="shares-bar-rej" style="width:{{ pct3 if tot3 > 0 else 0 }}%;"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td data-label="Rechazados" translate="no">
+                        <span style="color:{{ '#ff5252' if extra.rej3 > 0 else 'var(--text-muted)' }}; font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.rej3) }}</span>
+                        <span style="font-size:0.86em; color:{{ '#ff5252' if pct3 > 1.5 else ('#ffb300' if pct3 > 0.8 else 'var(--text-muted)') }}; margin-left:4px; font-family:monospace;">({{ "%.2f"|format(pct3) }}%)</span>
+                    </td>
+                </tr>
+            </tbody>
         </table>
     </div>
 </div>
 
 <script>
+    let autoSyncWorkersActivo = true;
+
+    const INFO_TOOLTIPS_POOLS = {
+        'pool_activo': {
+            titulo: '⛏ Servidor Stratum Primario',
+            desc: 'Dominio del pool principal al que el Antminer está enviando su potencia de minado actualmente.',
+            rango: 'Failover automático si el Pool 1 cae'
+        },
+        'btn_guardar': {
+            titulo: '💾 Aplicar Pools en Caliente',
+            desc: 'Envía las 3 direcciones Stratum, Workers y contraseñas al agente local para escribirlas en cgminer.conf del minero.',
+            rango: 'Tiempo de aplicación: 15 a 30 segundos'
+        },
+        'stat_acc': {
+            titulo: '✅ Shares Aceptados Totales',
+            desc: 'Paquetes de trabajo válidos enviados por el minero y acreditados para pago en el pool desde el último reinicio.',
+            rango: 'A mayor cantidad y continuidad, mayor pago'
+        },
+        'stat_rej': {
+            titulo: '⚠️ Shares Rechazados (Stale / Duplicados)',
+            desc: 'Trabajos enviados tarde por latencia de internet (Stale) o descartados por el pool. Si supera el 2%, revisa tu conexión o cambia al puerto 443.',
+            rango: '🟢 < 1.0% Óptimo | 🟠 1-2% Latencia | 🔴 > 2% Revisar Red'
+        },
+        'stat_eficiencia': {
+            titulo: '📡 Calidad de Enlace Stratum',
+            desc: 'Porcentaje de efectividad de red entre tu granja y el servidor del pool de minería.',
+            rango: 'Estándar profesional: ≥ 99.0%'
+        },
+        'sync_toggle': {
+            titulo: '🔗 Auto-Sincronización de Worker',
+            desc: 'Cuando está en ON, al escribir tu usuario en el Pool 1 se copia automáticamente en los Pools 2 y 3 para evitar errores de tipeo.',
+            rango: 'Toque para activar o desactivar si usas cuentas distintas'
+        },
+        'presets_info': {
+            titulo: '⚡ Plantillas Oficiales Anti-Caídas',
+            desc: 'Autocompleta los 3 puertos recomendados del pool elegido (3333 principal, 443 anti-firewall y 25 respaldo) manteniendo el nombre de tu Worker.',
+            rango: '1 clic para rellenar y luego presiona Guardar'
+        },
+        'col_prio': {
+            titulo: '🔢 Orden de Prioridad (Failover)',
+            desc: 'El minero trabaja siempre en el Pool #1. Solo salta al #2 o #3 si el servidor principal se desconecta.',
+            rango: '#1 Principal -> #2 Respaldo -> #3 Emergencia'
+        },
+        'col_url': {
+            titulo: '🌐 Dirección del Servidor Stratum',
+            desc: 'URL y puerto TCP/SSL del pool de minería. Ejemplo: stratum+tcp://btc.viabtc.io:3333',
+            rango: 'Usa distintos puertos (3333, 443, 25) en cada fila'
+        },
+        'col_worker': {
+            titulo: '👷 Nombre del Worker (Subcuenta.ID)',
+            desc: 'Identificador de tu cuenta en el pool seguido de un punto y el número de máquina (ej: ElMineroGris.002).',
+            rango: 'Formato estándar: UsuarioPool.NombreMaquina'
+        },
+        'col_pass': {
+            titulo: '🔑 Contraseña del Pool',
+            desc: 'Contraseña del worker en el pool (por estándar todos los pools usan "123" o "x", no es la clave de tu cuenta web).',
+            rango: 'Estándar: 123 o x'
+        },
+        'col_estado': {
+            titulo: '📶 Estado de Conexión con el Pool',
+            desc: 'Alive indica que el servidor del pool responde al ping Stratum del minero; Dead indica URL vacía o servidor inalcanzable.',
+            rango: '🟢 Alive = Conectado | 🔴 Dead = Sin enlace'
+        },
+        'col_acc': {
+            titulo: '📈 Trabajos Aceptados por Pool',
+            desc: 'Cantidad de shares acreditados específicamente en esa fila y barra visual de proporción válida.',
+            rango: 'El Pool #1 concentra casi el 100% en operación normal'
+        },
+        'col_rej': {
+            titulo: '📉 Trabajos Rechazados por Pool',
+            desc: 'Cantidad y porcentaje de shares rechazados en ese pool específico.',
+            rango: 'Ideal: 0.00% a 0.80%'
+        }
+    };
+
+    const PLANTILLAS_STRATUM_BTC = {
+        'viabtc': [
+            'stratum+tcp://btc.viabtc.io:3333',
+            'stratum+tcp://btc.viabtc.io:443',
+            'stratum+tcp://btc.viabtc.io:25'
+        ],
+        'f2pool': [
+            'stratum+tcp://btc.f2pool.com:1314',
+            'stratum+tcp://btc.f2pool.com:3333',
+            'stratum+tcp://btc.f2pool.com:25'
+        ],
+        'braiins': [
+            'stratum+tcp://stratum.braiins.com:3333',
+            'stratum+tcp://us-east.stratum.braiins.com:3333',
+            'stratum+tcp://stratum.braiins.com:443'
+        ],
+        'antpool': [
+            'stratum+tcp://ss.antpool.com:3333',
+            'stratum+tcp://ss.antpool.com:443',
+            'stratum+tcp://ss.antpool.com:25'
+        ],
+        'luxor': [
+            'stratum+tcp://btc.global.luxor.tech:700',
+            'stratum+tcp://btc.global.luxor.tech:443',
+            'stratum+tcp://btc.global.luxor.tech:3333'
+        ]
+    };
+
+    function alternarAutoSyncWorker() {
+        autoSyncWorkersActivo = !autoSyncWorkersActivo;
+        const btn = document.getElementById('btnSyncWorkerToggle');
+        const txt = document.getElementById('txtSyncEstado');
+        if (btn && txt) {
+            btn.className = 'sync-toggle-pill' + (autoSyncWorkersActivo ? '' : ' off');
+            txt.innerText = autoSyncWorkersActivo ? 'ON' : 'OFF';
+        }
+    }
+
     function sincronizarWorker(valor) {
+        if (!autoSyncWorkersActivo) return;
         let u2 = document.getElementById('user_2');
         let u3 = document.getElementById('user_3');
-        if (u2) u2.value = valor;
-        if (u3) u3.value = valor;
+        if (u2) { u2.value = valor; u2.classList.add('edited'); }
+        if (u3) { u3.value = valor; u3.classList.add('edited'); }
     }
 
     function sincronizarPass(valor) {
+        if (!autoSyncWorkersActivo) return;
         let p2 = document.getElementById('pass_2');
         let p3 = document.getElementById('pass_3');
-        if (p2) p2.value = valor;
-        if (p3) p3.value = valor;
+        if (p2) { p2.value = valor; p2.classList.add('edited'); }
+        if (p3) { p3.value = valor; p3.classList.add('edited'); }
+    }
+
+    function marcarPoolEditado(inputEl) {
+        if (inputEl) {
+            inputEl.classList.add('edited');
+            inputEl.classList.remove('invalid-url');
+        }
+        const btn = document.getElementById('btnGuardarPoolsPro');
+        const txt = document.getElementById('textoGuardarPools');
+        if (btn) btn.classList.add('unsaved-pulse');
+        if (txt) txt.innerText = 'Guardar Cambios Pendientes';
+    }
+
+    function aplicarPlantillaPool(nombrePreset) {
+        const urls = PLANTILLAS_STRATUM_BTC[nombrePreset];
+        if (!urls) return;
+        for (let i = 1; i <= 3; i++) {
+            const el = document.getElementById('url_' + i);
+            if (el) {
+                el.value = urls[i - 1];
+                marcarPoolEditado(el);
+            }
+        }
+        const w1 = document.getElementById('user_1');
+        if (w1 && w1.value) {
+            sincronizarWorker(w1.value);
+        }
+    }
+
+    function copiarValorInput(idInput, btnEl) {
+        const el = document.getElementById(idInput);
+        if (!el || !el.value) return;
+        navigator.clipboard.writeText(el.value).then(() => {
+            const original = btnEl.innerText;
+            btnEl.innerText = '✅';
+            setTimeout(() => { btnEl.innerText = original; }, 1200);
+        });
+    }
+
+    function normalizarUrlStratum(urlRaw) {
+        let u = (urlRaw || '').trim();
+        if (!u) return '';
+        if (!u.includes('://')) {
+            u = 'stratum+tcp://' + u;
+        }
+        return u;
     }
 
     function guardarTodasPools() {
-        let u1 = encodeURIComponent(document.getElementById('url_1').value);
-        let w1 = encodeURIComponent(document.getElementById('user_1').value);
-        let p1 = encodeURIComponent(document.getElementById('pass_1').value || '123');
-        let u2 = encodeURIComponent(document.getElementById('url_2').value);
-        let w2 = encodeURIComponent(document.getElementById('user_2').value);
-        let p2 = encodeURIComponent(document.getElementById('pass_2').value || '123');
-        let u3 = encodeURIComponent(document.getElementById('url_3').value);
-        let w3 = encodeURIComponent(document.getElementById('user_3').value);
-        let p3 = encodeURIComponent(document.getElementById('pass_3').value || '123');
-        if(confirm('¿Guardar configuración de Pools en el minero?')) {
+        const elU1 = document.getElementById('url_1');
+        const elU2 = document.getElementById('url_2');
+        const elU3 = document.getElementById('url_3');
+
+        elU1.value = normalizarUrlStratum(elU1.value);
+        elU2.value = normalizarUrlStratum(elU2.value);
+        elU3.value = normalizarUrlStratum(elU3.value);
+
+        if (!elU1.value) {
+            elU1.classList.add('invalid-url');
+            elU1.focus();
+            alert('⚠️ El Pool #1 (Primario) no puede estar vacío.');
+            return;
+        }
+
+        let u1 = encodeURIComponent(elU1.value);
+        let w1 = encodeURIComponent(document.getElementById('user_1').value.trim());
+        let p1 = encodeURIComponent(document.getElementById('pass_1').value.trim() || '123');
+        let u2 = encodeURIComponent(elU2.value);
+        let w2 = encodeURIComponent(document.getElementById('user_2').value.trim());
+        let p2 = encodeURIComponent(document.getElementById('pass_2').value.trim() || '123');
+        let u3 = encodeURIComponent(elU3.value);
+        let w3 = encodeURIComponent(document.getElementById('user_3').value.trim());
+        let p3 = encodeURIComponent(document.getElementById('pass_3').value.trim() || '123');
+
+        if (confirm('¿Guardar y aplicar la configuración de Pools en el minero?')) {
+            const btn = document.getElementById('btnGuardarPoolsPro');
+            const txt = document.getElementById('textoGuardarPools');
+            const ico = document.getElementById('iconoGuardarPools');
+            if (txt) txt.innerText = 'Enviando al Agente...';
+            if (ico) ico.innerText = '⏳';
+
             fetch(`/cmd/{{ ip }}/guardar_pools?u1=${u1}&w1=${w1}&p1=${p1}&u2=${u2}&w2=${w2}&p2=${p2}&u3=${u3}&w3=${w3}&p3=${p3}`)
-            .then(()=>alert('Configuración de pools enviada a la cola del Agente.'));
+            .then(() => {
+                document.querySelectorAll('.input-pool-pro.edited').forEach(inp => inp.classList.remove('edited'));
+                if (btn) btn.classList.remove('unsaved-pulse');
+                if (ico) ico.innerText = '✅';
+                if (txt) txt.innerText = '¡Pools en Cola (15-30s)!';
+                setTimeout(() => {
+                    if (ico) ico.innerText = '💾';
+                    if (txt) txt.innerText = 'Guardar Todos los Pools';
+                }, 4000);
+            });
         }
     }
+
+    // Conectar tooltips flotantes inteligentes con el mismo portal anti-colisión de _grafico.html
+    window.addEventListener('load', function() {
+        document.querySelectorAll('[data-pool-tt]').forEach(el => {
+            const key = el.getAttribute('data-pool-tt');
+            const info = INFO_TOOLTIPS_POOLS[key];
+            if (!info) return;
+
+            el.addEventListener('mouseenter', function() {
+                if (typeof mostrarSmartTooltip === 'function') {
+                    mostrarSmartTooltip(el, info);
+                }
+            });
+            el.addEventListener('mouseleave', function() {
+                if (typeof ocultarSmartTooltip === 'function') {
+                    ocultarSmartTooltip();
+                }
+            });
+            el.addEventListener('click', function(e) {
+                if (el.tagName !== 'BUTTON' && el.id !== 'btnSyncWorkerToggle' && typeof mostrarSmartTooltip === 'function') {
+                    e.stopPropagation();
+                    mostrarSmartTooltip(el, info);
+                }
+            });
+        });
+    });
 </script>
