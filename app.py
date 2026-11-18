@@ -251,6 +251,13 @@ def calcular_segundos_desconectado(ult_str):
     except:
         return 0
 
+def ordenar_ip_key(item):
+    ip_str = str(item.get('ip') or '')
+    partes = ip_str.split('.')
+    if len(partes) == 4 and all(p.isdigit() for p in partes):
+        return tuple(int(p) for p in partes)
+    return (999, 999, 999, 999)
+
 # --- VISTA: / y /resumen -> templates/resumen.html ---
 @app.route('/')
 @app.route('/resumen')
@@ -260,16 +267,12 @@ def index():
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     if usr_actual == 'giovanni':
-        cur.execute("SELECT * FROM mineros_activos ORDER BY ip ASC")
-        cur.execute("SELECT * FROM nombres_mineros")
+        cur.execute("SELECT * FROM mineros_activos")
     else:
-        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
-    mineros = cur.fetchall()
+        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    mineros = sorted(cur.fetchall(), key=ordenar_ip_key)
 
-    if usr_actual == 'giovanni':
-        cur.execute("SELECT ip, nombre FROM nombres_mineros")
-    else:
-        cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT ip, nombre FROM nombres_mineros")
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
     
     datos_red = obtener_datos_red()
@@ -430,7 +433,6 @@ def detalle_minero(ip):
             f_raw.append(ts) 
             val_h = a_float_seguro(h.get('hashrate'), 0.0)
             
-            # Evitar pico artificial en el primer punto del historial inicializando prev_err con la primera lectura
             total_err_actual = a_int_seguro(h.get('errores'), 0)
             if prev_err is None:
                 diff_err = 0
@@ -487,15 +489,12 @@ def mineros():
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     if usr_actual == 'giovanni':
-        cur.execute("SELECT * FROM mineros_activos ORDER BY ip ASC")
+        cur.execute("SELECT * FROM mineros_activos")
     else:
-        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
-    filas = cur.fetchall()
+        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    filas = sorted(cur.fetchall(), key=ordenar_ip_key)
 
-    if usr_actual == 'giovanni':
-        cur.execute("SELECT ip, nombre FROM nombres_mineros")
-    else:
-        cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT ip, nombre FROM nombres_mineros")
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
 
     lista_mineros = []
@@ -786,10 +785,10 @@ def exportar_csv():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     if usr_actual == 'giovanni':
-        cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos ORDER BY ip ASC")
+        cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos")
     else:
-        cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
-    filas = cur.fetchall()
+        cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    filas = sorted(cur.fetchall(), key=ordenar_ip_key)
     output = io.StringIO(); writer = csv.writer(output)
     writer.writerow(['IP', 'Modelo', 'Hashrate', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
     for f in filas: writer.writerow([f['ip'], f['modelo'], f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
@@ -839,7 +838,7 @@ def recibir_datos():
         cur.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         u_cfg = cur.fetchone()
 
-    # Entregar únicamente los comandos pendientes que pertenecen a esta cuenta/granja
+    # Entregar comandos pendientes correspondientes a este propietario
     if owner_user == 'giovanni':
         cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND (owner='giovanni' OR owner IS NULL)")
     else:
