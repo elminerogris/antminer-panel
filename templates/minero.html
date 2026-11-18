@@ -210,7 +210,7 @@
     </div>
 </div>
 
-<!-- FILA 2: Gráfico de Hashrate -->
+<!-- FILA 2: Gráfico de Hashrate (Con espacio inferior para fechas paradas y tooltip en línea 0) -->
 <div class="card">
     <div class="panel-title">
         <div>☑ Hashrate <span id="hrPromedio" style="color:var(--text-muted); font-size:0.85em; margin-left:10px; font-weight:normal;"></span></div>
@@ -221,7 +221,7 @@
             <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')">30 d</button>
         </div>
     </div>
-    <div style="height: 300px; position: relative;"><canvas id="hashrateChart"></canvas></div>
+    <div style="height: 390px; position: relative;"><canvas id="hashrateChart"></canvas></div>
 </div>
 
 <!-- FILA 3: Pools (Justo debajo de Hashrate) -->
@@ -357,7 +357,6 @@
     let comandoPendiente = null;
     let recargarPendiente = false;
     let logInterval = null;
-    let ultimoCursorY = null;
     const unidadMinero = "{{ ultimo.unidad }}";
 
     // Formateador de fecha exacto: 17/11/26 22:58
@@ -370,39 +369,19 @@
         return `${dia}/${mes}/${anio} ${horas}:${mins}`;
     }
 
-    // Posicionador personalizado de Chart.js para mostrar resultados debajo del dedo en celular
+    // Posicionador personalizado: ancla el cuadro de información en la línea roja que indica 0
     if (window.Chart && Chart.Tooltip && Chart.Tooltip.positioners) {
-        Chart.Tooltip.positioners.debajoEnMovil = function(items, eventPosition) {
+        Chart.Tooltip.positioners.enLineaCero = function(items, eventPosition) {
             if (!items.length) return false;
-            const esMovil = window.innerWidth <= 768 || ('ontouchstart' in window);
-            let posX = eventPosition.x;
-            let posY = eventPosition.y;
-            if (esMovil) {
-                const chartArea = this.chart.chartArea;
-                let targetY = (ultimoCursorY !== null ? ultimoCursorY : posY) + 48;
-                if (chartArea && targetY > chartArea.bottom - 20) {
-                    targetY = chartArea.bottom - 10;
-                }
-                return { x: posX, y: targetY };
+            const chartArea = this.chart.chartArea;
+            if (chartArea) {
+                return {
+                    x: eventPosition.x,
+                    y: chartArea.bottom - 15
+                };
             }
-            return { x: posX, y: posY };
+            return { x: eventPosition.x, y: eventPosition.y };
         };
-    }
-
-    const canvasEl = document.getElementById('hashrateChart');
-    if (canvasEl) {
-        canvasEl.addEventListener('touchmove', function(e) {
-            if (e.touches && e.touches.length > 0) {
-                const rect = canvasEl.getBoundingClientRect();
-                ultimoCursorY = e.touches[0].clientY - rect.top;
-            }
-        }, {passive: true});
-        canvasEl.addEventListener('touchstart', function(e) {
-            if (e.touches && e.touches.length > 0) {
-                const rect = canvasEl.getBoundingClientRect();
-                ultimoCursorY = e.touches[0].clientY - rect.top;
-            }
-        }, {passive: true});
     }
 
     function toggleCamposIP() {
@@ -647,12 +626,18 @@
                 }, 
                 options: { 
                     responsive: true, maintainAspectRatio: false,
+                    layout: {
+                        padding: { bottom: 95 }
+                    },
                     interaction: { mode: 'index', intersect: false },
                     plugins: { 
                         tooltip: { 
-                            position: 'debajoEnMovil',
-                            yAlign: (window.innerWidth <= 768) ? 'top' : undefined,
-                            caretPadding: (window.innerWidth <= 768) ? 12 : 6,
+                            position: 'enLineaCero',
+                            yAlign: 'top',
+                            caretPadding: 4,
+                            backgroundColor: 'rgba(10, 11, 16, 0.94)',
+                            borderColor: 'rgba(255, 255, 255, 0.15)',
+                            borderWidth: 1,
                             callbacks: { 
                                 title: function(context) { return context[0].label; },
                                 label: function(context) { 
@@ -688,7 +673,13 @@
                     scales: { 
                         x: { 
                             grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 7, font: { size: 11 } }
+                            ticks: { 
+                                minRotation: 90, 
+                                maxRotation: 90, 
+                                autoSkip: true, 
+                                maxTicksLimit: 10, 
+                                font: { size: 10 } 
+                            }
                         }, 
                         y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }, 
                         y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 },
