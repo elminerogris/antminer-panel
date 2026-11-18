@@ -1,17 +1,21 @@
 from flask import Flask, render_template, redirect, request, session, url_for, jsonify, Response
 from jinja2 import TemplateNotFound
 from functools import wraps
-import psycopg2, psycopg2.extras, json, urllib.request, time, calendar, csv, io, os
+import psycopg2, psycopg2.extras, json, urllib.request, urllib.parse, time, calendar, csv, io, os, secrets
 from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'super_secreta_antminer_tools'
 
 DB_URL = os.environ.get("DATABASE_URL", "")
+ultimo_envio_alerta = {}
 
 def get_db():
     if not DB_URL: raise Exception("Falta DATABASE_URL en Render")
     return psycopg2.connect(DB_URL)
+
+def generar_api_key():
+    return "EMG-" + secrets.token_hex(8).upper()
 
 def init_db():
     if not DB_URL: return
@@ -19,14 +23,16 @@ def init_db():
         con = get_db()
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, modelo TEXT, unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8')''')
-        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, nombre TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, owner TEXT DEFAULT 'giovanni', modelo TEXT, unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8')''')
+        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 1)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, owner TEXT DEFAULT 'giovanni', nombre TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS registro_alertas (id SERIAL PRIMARY KEY, owner TEXT, ip TEXT, tipo TEXT, mensaje TEXT, fecha TEXT)''')
         
         columnas_nuevas = [
+            "ALTER TABLE mineros_activos ADD COLUMN owner TEXT DEFAULT 'giovanni'",
             "ALTER TABLE mineros_activos ADD COLUMN unidad TEXT DEFAULT 'TH/s'",
             "ALTER TABLE mineros_activos ADD COLUMN hashrate_30m REAL DEFAULT 0.0",
             "ALTER TABLE mineros_activos ADD COLUMN temp_amb INTEGER DEFAULT 0",
@@ -49,16 +55,33 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN netmask TEXT DEFAULT '255.255.255.0'",
             "ALTER TABLE mineros_activos ADD COLUMN gateway TEXT DEFAULT '192.168.0.1'",
             "ALTER TABLE mineros_activos ADD COLUMN dns TEXT DEFAULT '8.8.8.8'",
+            "ALTER TABLE cola_comandos ADD COLUMN owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE historial_nube ADD COLUMN owner TEXT DEFAULT 'giovanni'",
             "ALTER TABLE historial_nube ADD COLUMN errores INTEGER DEFAULT 0",
             "ALTER TABLE historial_nube ADD COLUMN temp_amb INTEGER DEFAULT 0",
-            "ALTER TABLE historial_nube ADD COLUMN cadenas TEXT"
+            "ALTER TABLE historial_nube ADD COLUMN cadenas TEXT",
+            "ALTER TABLE nombres_mineros ADD COLUMN owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE usuarios ADD COLUMN api_key TEXT",
+            "ALTER TABLE usuarios ADD COLUMN subnet TEXT DEFAULT '192.168.0'",
+            "ALTER TABLE usuarios ADD COLUMN tarifa_kwh REAL DEFAULT 0.0",
+            "ALTER TABLE usuarios ADD COLUMN tg_token TEXT DEFAULT ''",
+            "ALTER TABLE usuarios ADD COLUMN tg_chat_id TEXT DEFAULT ''",
+            "ALTER TABLE usuarios ADD COLUMN umbral_temp INTEGER DEFAULT 80",
+            "ALTER TABLE usuarios ADD COLUMN umbral_hr REAL DEFAULT 50.0",
+            "ALTER TABLE usuarios ADD COLUMN alertas_activas INTEGER DEFAULT 1"
         ]
         for col_sql in columnas_nuevas:
             try: c.execute(col_sql)
             except: pass
 
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
-        if not c.fetchone(): c.execute("INSERT INTO usuarios (username, password) VALUES ('giovanni', 'admin123')")
+        if not c.fetchone():
+            c.execute("INSERT INTO usuarios (username, password, api_key) VALUES ('giovanni', 'admin123', %s)", (generar_api_key(),))
+        
+        c.execute("SELECT id, username FROM usuarios WHERE api_key IS NULL OR api_key = ''")
+        for u_row in c.fetchall():
+            c.execute("UPDATE usuarios SET api_key=%s WHERE id=%s", (generar_api_key(), u_row[0]))
+
         con.close()
     except Exception as e:
         print(f"Error BD Init: {e}")
@@ -72,6 +95,18 @@ def login_required(f):
         if 'usuario' not in session: return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
+
+def enviar_telegram(token, chat_id, texto):
+    if not token or not chat_id: return False
+    try:
+        url = f"https://api.telegram.org/bot{token.strip()}/sendMessage"
+        datos = urllib.parse.urlencode({'chat_id': chat_id.strip(), 'text': texto, 'parse_mode': 'HTML'}).encode('utf-8')
+        req = urllib.request.Request(url, data=datos, headers={'User-Agent': 'Mozilla/5.0'})
+        urllib.request.urlopen(req, timeout=4)
+        return True
+    except Exception as e:
+        print(f"Error Telegram: {e}")
+        return False
 
 cache_red = {'datos': {'precio': 64809.0, 'dificultad_t': 134.82, 'recompensa': 3.125, 'red_ehs': 965.11}, 'ultima_act': 0}
 def obtener_datos_red():
@@ -94,9 +129,10 @@ def obtener_datos_red():
 @app.route('/resumen')
 @login_required
 def resumen():
+    usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos ORDER BY ip ASC")
+    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
     mineros = cur.fetchall()
     cur.execute("SELECT * FROM nombres_mineros")
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
@@ -171,9 +207,10 @@ def resumen():
 @app.route('/minero/<ip>')
 @login_required
 def minero(ip):
+    usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos WHERE ip=%s", (ip,))
+    cur.execute("SELECT * FROM mineros_activos WHERE ip=%s AND owner=%s", (ip, usr_actual))
     m = cur.fetchone()
     cur.execute("SELECT nombre FROM nombres_mineros WHERE ip=%s", (ip,))
     n_row = cur.fetchone()
@@ -296,9 +333,10 @@ def minero(ip):
 @app.route('/mineros')
 @login_required
 def mineros():
+    usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos ORDER BY ip ASC")
+    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
     filas = cur.fetchall()
     cur.execute("SELECT * FROM nombres_mineros")
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
@@ -381,7 +419,125 @@ def mineros():
 
     return render_template('mineros.html', active_page='mineros', mineros=lista_mineros, stats=contadores)
 
-# --- VISTAS DE MENÚ CON MISMO NOMBRE DE ARCHIVO ---
+# --- VISTA: /alertas -> templates/alertas.html ---
+@app.route('/alertas', methods=['GET', 'POST'])
+@login_required
+def alertas():
+    usr_actual = session.get('usuario', 'giovanni')
+    msg = None
+    con = get_db()
+    con.autocommit = True
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+        if accion == 'guardar_config':
+            tg_token = request.form.get('tg_token', '').strip()
+            tg_chat_id = request.form.get('tg_chat_id', '').strip()
+            u_temp = int(request.form.get('umbral_temp') or 80)
+            u_hr = float(request.form.get('umbral_hr') or 50.0)
+            activas = 1 if request.form.get('alertas_activas') == '1' else 0
+            cur.execute("UPDATE usuarios SET tg_token=%s, tg_chat_id=%s, umbral_temp=%s, umbral_hr=%s, alertas_activas=%s WHERE username=%s",
+                        (tg_token, tg_chat_id, u_temp, u_hr, activas, usr_actual))
+            msg = "Configuración de alertas guardada correctamente."
+        elif accion == 'probar_telegram':
+            cur.execute("SELECT tg_token, tg_chat_id FROM usuarios WHERE username=%s", (usr_actual,))
+            u_cfg = cur.fetchone()
+            if u_cfg and u_cfg.get('tg_token') and u_cfg.get('tg_chat_id'):
+                ok = enviar_telegram(u_cfg['tg_token'], u_cfg['tg_chat_id'], f"🟢 <b>El Minero Gris — Conexión Exitosa</b>\nLas alertas en tiempo real para la cuenta <b>{usr_actual}</b> están activas.")
+                msg = "Mensaje de prueba enviado a tu Telegram." if ok else "Error al conectar con Telegram. Verifica tu Token y Chat ID."
+            else:
+                msg = "Primero guarda tu Bot Token y Chat ID arriba."
+        elif accion == 'limpiar_historial':
+            cur.execute("DELETE FROM registro_alertas WHERE owner=%s", (usr_actual,))
+            msg = "Historial de incidentes limpiado."
+
+    cur.execute("SELECT tg_token, tg_chat_id, umbral_temp, umbral_hr, alertas_activas FROM usuarios WHERE username=%s", (usr_actual,))
+    row_u = cur.fetchone() or {}
+    cfg = {
+        'tg_token': row_u.get('tg_token') or '',
+        'tg_chat_id': row_u.get('tg_chat_id') or '',
+        'umbral_temp': row_u.get('umbral_temp') or 80,
+        'umbral_hr': row_u.get('umbral_hr') or 50.0,
+        'activas': bool(row_u.get('alertas_activas', 1))
+    }
+
+    cur.execute("SELECT * FROM registro_alertas WHERE owner=%s ORDER BY id DESC LIMIT 100", (usr_actual,))
+    historial = cur.fetchall()
+    con.close()
+    return render_template('alertas.html', active_page='alertas', cfg=cfg, historial=historial, msg=msg)
+
+# --- VISTA: /ajustes -> templates/ajustes.html ---
+@app.route('/ajustes', methods=['GET', 'POST'])
+@login_required
+def ajustes():
+    usr_actual = session.get('usuario', 'giovanni')
+    msg = None
+    con = get_db()
+    con.autocommit = True
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+        if accion == 'regenerar_key':
+            nueva_k = generar_api_key()
+            cur.execute("UPDATE usuarios SET api_key=%s WHERE username=%s", (nueva_k, usr_actual))
+            msg = "Tu API Key ha sido regenerada con éxito."
+        elif accion == 'guardar_red_agente':
+            subnet = request.form.get('subnet', '192.168.0').strip()
+            tarifa = float(request.form.get('tarifa_kwh') or 0.0)
+            cur.execute("UPDATE usuarios SET subnet=%s, tarifa_kwh=%s WHERE username=%s", (subnet, tarifa, usr_actual))
+            msg = "Preferencias de red y tarifa guardadas."
+        elif accion == 'cambiar_password':
+            p1 = request.form.get('nueva_pass', '')
+            p2 = request.form.get('confirm_pass', '')
+            if p1 and p1 == p2:
+                cur.execute("UPDATE usuarios SET password=%s WHERE username=%s", (p1, usr_actual))
+                msg = "Contraseña actualizada correctamente."
+            else:
+                msg = "Las contraseñas no coinciden."
+
+    cur.execute("SELECT * FROM usuarios WHERE username=%s", (usr_actual,))
+    u_data = cur.fetchone() or {}
+    if not u_data.get('api_key'):
+        nueva_k = generar_api_key()
+        cur.execute("UPDATE usuarios SET api_key=%s WHERE username=%s", (nueva_k, usr_actual))
+        u_data['api_key'] = nueva_k
+    con.close()
+
+    user_info = {
+        'username': usr_actual,
+        'plan': u_data.get('plan', 'Gratis'),
+        'api_key': u_data.get('api_key', ''),
+        'subnet': u_data.get('subnet') or '192.168.0',
+        'tarifa_kwh': u_data.get('tarifa_kwh') or 0.0
+    }
+    return render_template('ajustes.html', active_page='ajustes', user=user_info, msg=msg)
+
+@app.route('/descargar_agente')
+@login_required
+def descargar_agente():
+    usr_actual = session.get('usuario', 'giovanni')
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT api_key, subnet FROM usuarios WHERE username=%s", (usr_actual,))
+    u = cur.fetchone() or {}
+    con.close()
+    api_k = u.get('api_key') or generar_api_key()
+    sub = u.get('subnet') or '192.168.0'
+    host_url = request.host_url.rstrip('/')
+    if host_url.startswith('http://') and 'onrender.com' in host_url:
+        host_url = host_url.replace('http://', 'https://')
+
+    try:
+        with open('agente.py', 'r', encoding='utf-8') as f:
+            codigo = f.read()
+        codigo = codigo.replace('API_KEY = "TU_API_KEY_AQUI"', f'API_KEY = "{api_k}"')
+        codigo = codigo.replace('SUBNET = "192.168.0"', f'SUBNET = "{sub}"')
+        return Response(codigo, mimetype="text/x-python", headers={"Content-Disposition": f"attachment;filename=agente_{usr_actual}.py"})
+    except:
+        return redirect('/ajustes')
+
 @app.route('/plan')
 @login_required
 def plan():
@@ -392,18 +548,6 @@ def plan():
 def granjas():
     try: return render_template('granjas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
     except TemplateNotFound: return render_template('subpaginas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
-
-@app.route('/alertas')
-@login_required
-def alertas():
-    try: return render_template('alertas.html', active_page='alertas', titulo="🔔 Centro de Alertas")
-    except TemplateNotFound: return render_template('subpaginas.html', active_page='alertas', titulo="🔔 Centro de Alertas")
-
-@app.route('/ajustes')
-@login_required
-def ajustes():
-    try: return render_template('ajustes.html', active_page='ajustes', titulo="⚙️ Ajustes del Sistema")
-    except TemplateNotFound: return render_template('subpaginas.html', active_page='ajustes', titulo="⚙️ Ajustes del Sistema")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -424,9 +568,9 @@ def register():
         u = request.form.get('username'); p = request.form.get('password')
         try:
             con = get_db(); con.autocommit = True; cur = con.cursor()
-            cur.execute("INSERT INTO usuarios (username, password, plan, saldo) VALUES (%s, %s, 'Gratis', 0.0)", (u, p))
+            cur.execute("INSERT INTO usuarios (username, password, plan, saldo, api_key) VALUES (%s, %s, 'Gratis', 0.0, %s)", (u, p, generar_api_key()))
             con.close()
-            return render_template('login.html', success='Cuenta creada. Ahora inicia sesión.', mode='login')
+            return render_template('login.html', success='Cuenta creada con API Key propia. Ahora inicia sesión.', mode='login')
         except: return render_template('login.html', error='El nombre de usuario ya está en uso', mode='register')
     return render_template('login.html', mode='register')
 
@@ -436,17 +580,19 @@ def logout(): session.clear(); return redirect('/login')
 @app.route('/guardar_nombre', methods=['POST'])
 @login_required
 def guardar_nombre():
+    usr_actual = session.get('usuario', 'giovanni')
     ip = request.form.get('ip')
     nombre = request.form.get('nombre')
     if ip and nombre:
         con = get_db(); con.autocommit = True; cur = con.cursor()
-        cur.execute("INSERT INTO nombres_mineros (ip, nombre) VALUES (%s, %s) ON CONFLICT (ip) DO UPDATE SET nombre=EXCLUDED.nombre", (ip, nombre))
+        cur.execute("INSERT INTO nombres_mineros (ip, owner, nombre) VALUES (%s, %s, %s) ON CONFLICT (ip) DO UPDATE SET nombre=EXCLUDED.nombre, owner=EXCLUDED.owner", (ip, usr_actual, nombre))
         con.close()
     return redirect(f'/minero/{ip}')
 
 @app.route('/cmd_bulk', methods=['POST'])
 @login_required
 def cmd_bulk():
+    usr_actual = session.get('usuario', 'giovanni')
     data = request.json
     accion = data.get('accion')
     ips = data.get('ips', [])
@@ -456,16 +602,17 @@ def cmd_bulk():
     con = get_db(); con.autocommit = True; cur = con.cursor()
     if ordenes_custom:
         for item in ordenes_custom:
-            cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (item['ip'], item['comando'], ahora))
+            cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, %s, 'pendiente', %s)", (usr_actual, item['ip'], item['comando'], ahora))
     elif accion and ips:
         for ip in ips:
-            cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, accion, ahora))
+            cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, %s, 'pendiente', %s)", (usr_actual, ip, accion, ahora))
     con.close()
     return jsonify({"status": "ok"})
 
 @app.route('/cmd/<ip>/<accion>')
 @login_required
 def comando_minero(ip, accion):
+    usr_actual = session.get('usuario', 'giovanni')
     cmd_str = ""
     if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
         cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
@@ -485,15 +632,16 @@ def comando_minero(ip, accion):
         
     if cmd_str:
         con = get_db(); con.autocommit = True; cur = con.cursor()
-        cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, %s, 'pendiente', %s)", (usr_actual, ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
         con.close()
     return "OK"
 
 @app.route('/exportar_csv')
 @login_required
 def exportar_csv():
+    usr_actual = session.get('usuario', 'giovanni')
     con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos")
+    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s", (usr_actual,))
     filas = cur.fetchall(); con.close()
     output = io.StringIO(); writer = csv.writer(output)
     writer.writerow(['IP', 'Modelo', 'Hashrate', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
@@ -518,17 +666,43 @@ def recibir_logs():
 
 @app.route('/api/recibir_datos', methods=['POST'])
 def recibir_datos():
+    global ultimo_envio_alerta
     datos = request.json
     if not datos: return "Error", 400
-    con = get_db(); con.autocommit = True; cur = con.cursor()
+    con = get_db(); con.autocommit = True
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
-    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'")
+    # Identificar al dueño de los mineros mediante API Key (si viene vacío, asigna a 'giovanni' por compatibilidad)
+    api_key_recibida = str(datos.get('api_key') or '').strip()
+    owner_user = 'giovanni'
+    u_cfg = None
+    if api_key_recibida and api_key_recibida != "TU_API_KEY_AQUI":
+        cur.execute("SELECT * FROM usuarios WHERE api_key=%s", (api_key_recibida,))
+        u_cfg = cur.fetchone()
+        if u_cfg: owner_user = u_cfg['username']
+    if not u_cfg:
+        cur.execute("SELECT * FROM usuarios WHERE username='giovanni'")
+        u_cfg = cur.fetchone()
+
+    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND owner=%s", (owner_user,))
     pend = cur.fetchall()
-    ordenes = [{"ip": c[1], "comando": c[2]} for c in pend]
-    for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c[0],))
+    ordenes = [{"ip": c['ip'], "comando": c['comando']} for c in pend]
+    for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c['id'],))
 
     ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    ahora_ts = time.time()
+
+    umbral_t = int(u_cfg.get('umbral_temp') or 80) if u_cfg else 80
+    umbral_h = float(u_cfg.get('umbral_hr') or 50.0) if u_cfg else 50.0
+    alertas_on = bool(u_cfg.get('alertas_activas', 1)) if u_cfg else True
+    tg_tok = (u_cfg.get('tg_token') or '') if u_cfg else ''
+    tg_cid = (u_cfg.get('tg_chat_id') or '') if u_cfg else ''
+
     for m in datos.get('mineros', []):
+        ip_m = m['ip']
+        mod_m = m['modelo']
+        hr_m = float(m['hashrate'])
+        temp_m = int(m['temp'])
         unid = m.get('unidad', 'TH/s')
         err = m.get('errores', 0)
         t_amb = int(m.get('temp_amb') or 0)
@@ -537,7 +711,7 @@ def recibir_datos():
         fw = m.get('firmware', '')
         fs = m.get('fans', '')
         up = m.get('uptime', '0h 0m')
-        hr_30 = m.get('hashrate_30m', m['hashrate'])
+        hr_30 = m.get('hashrate_30m', hr_m)
         p1 = m.get('pool1', ''); w1 = m.get('worker1', ''); pa1 = m.get('pass1', '123')
         st1 = m.get('status1', 'Alive'); ac1 = m.get('acc1', 0); rj1 = m.get('rej1', 0)
         p2 = m.get('pool2', ''); w2 = m.get('worker2', ''); pa2 = m.get('pass2', '123')
@@ -545,7 +719,7 @@ def recibir_datos():
         p3 = m.get('pool3', ''); w3 = m.get('worker3', ''); pa3 = m.get('pass3', '123')
         st3 = m.get('status3', 'Dead'); ac3 = m.get('acc3', 0); rj3 = m.get('rej3', 0)
         
-        host = m.get('hostname', f"Antminer{m['ip'].split('.')[-1]}")
+        host = m.get('hostname', f"Antminer{ip_m.split('.')[-1]}")
         nproto = m.get('net_proto', 'Static')
         nmask = m.get('netmask', '255.255.255.0')
         ngw = m.get('gateway', '192.168.0.1')
@@ -554,12 +728,30 @@ def recibir_datos():
         cadenas_list = m.get('cadenas', [])
         cadenas_json = json.dumps(cadenas_list)
         
-        cur.execute('''INSERT INTO mineros_activos (ip, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
-                        modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns''', 
-                    (m['ip'], m['modelo'], unid, m['hashrate'], hr_30, m['temp'], t_amb, m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns))
+        cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
+                        owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns''', 
+                    (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, m['consumo'], ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns))
         
-        cur.execute("INSERT INTO historial_nube (ip, hashrate, temp_max, temp_amb, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s)", (m['ip'], m['hashrate'], m['temp'], t_amb, err, cadenas_json, ahora))
+        cur.execute("INSERT INTO historial_nube (owner, ip, hashrate, temp_max, temp_amb, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", (owner_user, ip_m, hr_m, temp_m, t_amb, err, cadenas_json, ahora))
+
+        # Verificación automática de Alertas (enfriamiento de 30 min por IP/tipo)
+        if alertas_on:
+            if temp_m >= umbral_t:
+                k_al = f"{owner_user}_{ip_m}_TEMP"
+                if ahora_ts - ultimo_envio_alerta.get(k_al, 0) > 1800:
+                    ultimo_envio_alerta[k_al] = ahora_ts
+                    msg_al = f"El equipo {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
+                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_al, ahora))
+                    enviar_telegram(tg_tok, tg_cid, f"🔥 <b>ALERTA DE TEMPERATURA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b>\nHashrate: {hr_m} {unid}")
+            
+            if unid == 'TH/s' and 0 < hr_m < umbral_h:
+                k_al = f"{owner_user}_{ip_m}_HR"
+                if ahora_ts - ultimo_envio_alerta.get(k_al, 0) > 1800:
+                    ultimo_envio_alerta[k_al] = ahora_ts
+                    msg_al = f"Hashrate bajo en {mod_m} ({ip_m}): {hr_m} {unid} (Mínimo: {umbral_h} {unid})."
+                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE', %s, %s)", (owner_user, ip_m, msg_al, ahora))
+                    enviar_telegram(tg_tok, tg_cid, f"⚠️ <b>CAÍDA DE HASHRATE</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nActual: <b>{hr_m} {unid}</b>")
     
     con.close()
     return jsonify({"status": "ok", "ordenes": ordenes}), 200
