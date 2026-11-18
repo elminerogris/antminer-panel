@@ -11,14 +11,13 @@ DB_URL = os.environ.get("DATABASE_URL", "")
 ultimo_envio_alerta = {}
 db_inicializada = False
 
-# --- CAPTURADOR DE ERRORES 500 (Muestra el error exacto si algo falla) ---
 @app.errorhandler(Exception)
 def manejar_error_global(e):
     tb = traceback.format_exc()
     html_error = f"""
     <div style="background:#0f111a;color:#fff;font-family:monospace;padding:30px;min-height:100vh;">
         <h2 style="color:#ff5252;">⚠️ Diagnóstico Técnico de El Minero Gris</h2>
-        <p style="color:#a5a7b5;">Se detectó el siguiente detalle técnico en el servidor:</p>
+        <p style="color:#a5a7b5;">Detalle técnico detectado en el servidor:</p>
         <pre style="background:#000;color:#00e676;padding:20px;border-radius:8px;border:1px solid #333;overflow-x:auto;">{tb}</pre>
         <a href="/" style="display:inline-block;margin-top:15px;background:#3366ff;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-family:sans-serif;font-weight:bold;">🔄 Reintentar / Ir al Inicio</a>
     </div>
@@ -32,19 +31,30 @@ def get_db():
 def generar_api_key():
     return "EMG-" + secrets.token_hex(8).upper()
 
+def a_int_seguro(val, defecto=0):
+    try:
+        if val is None or val == "": return defecto
+        return int(float(val))
+    except:
+        return defecto
+
+def a_float_seguro(val, defecto=0.0):
+    try:
+        if val is None or val == "": return defecto
+        return float(val)
+    except:
+        return defecto
+
 def render_seguro(nombre_archivo, **contexto):
     try:
         return render_template(nombre_archivo, **contexto)
     except TemplateNotFound:
-        # Si el archivo quedó fuera de la carpeta templates/ (en la raíz de GitHub)
         if os.path.exists(nombre_archivo):
             with open(nombre_archivo, 'r', encoding='utf-8') as f:
                 return render_template_string(f.read(), **contexto)
-        # Si es minero.html pero aún se llama detalle.html
         if nombre_archivo == 'minero.html':
             try: return render_template('detalle.html', **contexto)
             except TemplateNotFound: pass
-        # Fallback amigable si una subpágina aún está vacía o no existe
         html_fallback = """
         {% extends "layout.html" %}
         {% block content %}
@@ -171,6 +181,14 @@ def obtener_datos_red():
     cache_red['ultima_act'] = ahora
     return datos
 
+def calcular_segundos_desconectado(ult_str):
+    if not ult_str: return 999999
+    try:
+        segs = (datetime.utcnow() - datetime.strptime(str(ult_str).strip(), "%Y-%m-%d %H:%M:%S")).total_seconds()
+        return max(0, segs)
+    except:
+        return 0
+
 # --- VISTA: / y /resumen -> templates/resumen.html ---
 @app.route('/')
 @app.route('/resumen')
@@ -179,7 +197,10 @@ def index():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s OR owner IS NULL ORDER BY ip ASC", (usr_actual,))
+    if usr_actual == 'giovanni':
+        cur.execute("SELECT * FROM mineros_activos ORDER BY ip ASC")
+    else:
+        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
     mineros = cur.fetchall()
     cur.execute("SELECT * FROM nombres_mineros")
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
@@ -195,17 +216,16 @@ def index():
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
         nombre_custom = nombres_dict.get(ip, ip.split('.')[-1])
-        ult = m.get('ultima_act') or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        hr = float(m['hashrate']) if m.get('hashrate') else 0.0
-        t = int(m['temp_max']) if m.get('temp_max') else 0
-        c = float(m['consumo_w']) if m.get('consumo_w') else 0.0
+        hr = a_float_seguro(m.get('hashrate'), 0.0)
+        t = a_int_seguro(m.get('temp_max'), 0)
+        c = a_float_seguro(m.get('consumo_w'), 0.0)
         
-        try: segs_desconectado = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
-        except: segs_desconectado = 0
+        segs_desconectado = calcular_segundos_desconectado(m.get('ultima_act'))
         eficiencia_val = round(c / hr, 2) if hr > 0 else 0
         if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
 
-        if segs_desconectado < 180:
+        # Margen de 300 segundos (5 min) para evitar falsos desconectados
+        if segs_desconectado < 300:
             en_linea += 1
             if unidad == 'TH/s': ht += hr
             elif unidad == 'kSol/s': kt += hr
@@ -223,7 +243,7 @@ def index():
                 'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad, 'unidad_efi': unidad_efi,
                 'estado': '<span style="color:var(--accent-green);">● En línea</span>', 
                 'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr, 
-                'hashrate_30m': float(m.get('hashrate_30m') or hr), 
+                'hashrate_30m': a_float_seguro(m.get('hashrate_30m'), hr), 
                 'temp_num': t, 'consumo_kw': f"{round(c/1000, 2)} kW", 
                 'eficiencia': eficiencia_val, 'ganancia_neta': str_gan
             })
@@ -232,7 +252,7 @@ def index():
             registros.append({
                 'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad, 'unidad_efi': unidad_efi,
                 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 
-                'tiempo_act': 'Offline', 'hashrate': 0, 'hashrate_30m': 0, 'temp_num': 0, 
+                'tiempo_act': f'hace {int(segs_desconectado // 60)}m', 'hashrate': 0, 'hashrate_30m': 0, 'temp_num': 0, 
                 'consumo_kw': '0.0 kW', 'eficiencia': 0, 'ganancia_neta': "USD 0.00"
             })
             
@@ -272,25 +292,23 @@ def detalle_minero(ip):
     unidad_efi = "J/kSol" if unidad_hr == "kSol/s" else ("J/GH" if unidad_hr == "GH/s" else "J/TH")
     
     nombre_minero = n_row['nombre'] if n_row and n_row.get('nombre') else ip.split('.')[-1]
-    hr_val = float(m['hashrate']) if m.get('hashrate') else 0.0
-    hr_30m_val = float(m.get('hashrate_30m') or hr_val)
-    t_val = int(m['temp_max']) if m.get('temp_max') else 0
-    t_amb_val = int(m.get('temp_amb') or 0)
-    c_val = float(m['consumo_w']) if m.get('consumo_w') else 0.0
-    ult = m.get('ultima_act') or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    try: offline = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds() > 180
-    except: offline = False
+    hr_val = a_float_seguro(m.get('hashrate'), 0.0)
+    hr_30m_val = a_float_seguro(m.get('hashrate_30m'), hr_val)
+    t_val = a_int_seguro(m.get('temp_max'), 0)
+    t_amb_val = a_int_seguro(m.get('temp_amb'), 0)
+    c_val = a_float_seguro(m.get('consumo_w'), 0.0)
+    offline = calcular_segundos_desconectado(m.get('ultima_act')) > 300
     
     pool1 = str(m.get('pool1') or ""); worker1 = str(m.get('worker1') or ""); pass1 = str(m.get('pass1') or "123")
     pool2 = str(m.get('pool2') or ""); worker2 = str(m.get('worker2') or ""); pass2 = str(m.get('pass2') or "123")
     pool3 = str(m.get('pool3') or ""); worker3 = str(m.get('worker3') or ""); pass3 = str(m.get('pass3') or "123")
     
     status1 = str(m.get('status1') or ("Alive" if pool1 else "Dead"))
-    acc1 = int(m.get('acc1') or 0); rej1 = int(m.get('rej1') or 0)
+    acc1 = a_int_seguro(m.get('acc1'), 0); rej1 = a_int_seguro(m.get('rej1'), 0)
     status2 = str(m.get('status2') or ("Alive" if pool2 else "Dead"))
-    acc2 = int(m.get('acc2') or 0); rej2 = int(m.get('rej2') or 0)
+    acc2 = a_int_seguro(m.get('acc2'), 0); rej2 = a_int_seguro(m.get('rej2'), 0)
     status3 = str(m.get('status3') or ("Alive" if pool3 else "Dead"))
-    acc3 = int(m.get('acc3') or 0); rej3 = int(m.get('rej3') or 0)
+    acc3 = a_int_seguro(m.get('acc3'), 0); rej3 = a_int_seguro(m.get('rej3'), 0)
 
     mac = str(m.get('mac') or "-"); serial = str(m.get('serial') or "-")
     fw = str(m.get('firmware') or "Desconocido"); fans = str(m.get('fans') or "0 / 0 RPM")
@@ -324,7 +342,7 @@ def detalle_minero(ip):
             except: continue
             ts = calendar.timegm(dt_actual.timetuple())
             f_raw.append(ts) 
-            val_h = float(h['hashrate']) if h.get('hashrate') else 0
+            val_h = a_float_seguro(h.get('hashrate'), 0.0)
             if idx > 0:
                 try:
                     dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
@@ -333,16 +351,16 @@ def detalle_minero(ip):
                         hr_g.append(0); tp_g.append(0); tamb_g.append(None); err_g.append(0); cad_g.append([])
                 except: pass
             
-            total_err_actual = int(h.get('errores') or 0)
+            total_err_actual = a_int_seguro(h.get('errores'), 0)
             diff_err = total_err_actual - prev_err
             if diff_err < 0: diff_err = total_err_actual
             err_g.append(max(0, diff_err))
             prev_err = total_err_actual
 
             hr_g.append(val_h)
-            tp_g.append(int(h['temp_max']) if h.get('temp_max') else 0)
+            tp_g.append(a_int_seguro(h.get('temp_max'), 0))
             
-            val_amb = int(h.get('temp_amb') or 0)
+            val_amb = a_int_seguro(h.get('temp_amb'), 0)
             tamb_g.append(val_amb if val_amb > 0 else None)
             
             c_hist_item = []
@@ -359,7 +377,7 @@ def detalle_minero(ip):
     dt = {
         'hashrate': hr_val, 'hashrate_30m': hr_30m_val, 'unidad': unidad_hr, 'unidad_efi': unidad_efi,
         'temp_max': t_val, 'temp_amb': t_amb_val,
-        'errores': m.get('errores') or 0, 'consumo': f"{round(c_val/1000, 2)} kW", 
+        'errores': a_int_seguro(m.get('errores'), 0), 'consumo': f"{round(c_val/1000, 2)} kW", 
         'fans': fans, 'uptime': uptime_val, 
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0
     }
@@ -384,7 +402,10 @@ def mineros():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s OR owner IS NULL ORDER BY ip ASC", (usr_actual,))
+    if usr_actual == 'giovanni':
+        cur.execute("SELECT * FROM mineros_activos ORDER BY ip ASC")
+    else:
+        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
     filas = cur.fetchall()
     cur.execute("SELECT * FROM nombres_mineros")
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
@@ -399,17 +420,15 @@ def mineros():
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
         nombre = nombres_dict.get(ip, ip.split('.')[-1])
-        ult = m.get('ultima_act') or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        try: segs = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
-        except: segs = 0
-        es_online = segs < 180
+        segs = calcular_segundos_desconectado(m.get('ultima_act'))
+        es_online = segs < 300
 
-        hr = float(m['hashrate']) if (es_online and m.get('hashrate')) else 0.0
-        hr_30m = float(m.get('hashrate_30m') or hr) if es_online else 0.0
-        t_max = int(m['temp_max']) if (es_online and m.get('temp_max')) else 0
-        t_amb = int(m.get('temp_amb') or 0) if es_online else 0
-        cons_w = float(m['consumo_w']) if (es_online and m.get('consumo_w')) else 0.0
-        err_hw = int(m.get('errores') or 0) if es_online else 0
+        hr = a_float_seguro(m.get('hashrate'), 0.0) if es_online else 0.0
+        hr_30m = a_float_seguro(m.get('hashrate_30m'), hr) if es_online else 0.0
+        t_max = a_int_seguro(m.get('temp_max'), 0) if es_online else 0
+        t_amb = a_int_seguro(m.get('temp_amb'), 0) if es_online else 0
+        cons_w = a_float_seguro(m.get('consumo_w'), 0.0) if es_online else 0.0
+        err_hw = a_int_seguro(m.get('errores'), 0) if es_online else 0
 
         efi = round(cons_w / hr, 2) if hr > 0 else 0.0
         if efi > 1000: efi = round(efi / 1000, 2)
@@ -417,10 +436,10 @@ def mineros():
         try: cads = json.loads(m['cadenas']) if m.get('cadenas') else []
         except: cads = []
         placas_activas = len(cads) if es_online else 0
-        chips_totales = sum(int(c.get('chips', 0)) for c in cads) if es_online else 0
+        chips_totales = sum(a_int_seguro(c.get('chips'), 0) for c in cads) if es_online else 0
 
-        acc1 = int(m.get('acc1') or 0)
-        rej1 = int(m.get('rej1') or 0)
+        acc1 = a_int_seguro(m.get('acc1'), 0)
+        rej1 = a_int_seguro(m.get('rej1'), 0)
         tot_shares = acc1 + rej1
         pct_rej = round((rej1 / tot_shares) * 100, 2) if tot_shares > 0 else 0.0
 
@@ -439,7 +458,7 @@ def mineros():
             'mac': m.get('mac') or '-',
             'firmware': m.get('firmware') or '-',
             'online': es_online,
-            'uptime': (m.get('uptime') or 'En línea') if es_online else 'Offline',
+            'uptime': (m.get('uptime') or 'En línea') if es_online else f'Offline ({int(segs // 60)}m)',
             'hashrate': hr,
             'hashrate_30m': hr_30m,
             'unidad': unidad,
@@ -483,8 +502,8 @@ def alertas():
         if accion == 'guardar_config':
             tg_token = request.form.get('tg_token', '').strip()
             tg_chat_id = request.form.get('tg_chat_id', '').strip()
-            u_temp = int(request.form.get('umbral_temp') or 80)
-            u_hr = float(request.form.get('umbral_hr') or 50.0)
+            u_temp = a_int_seguro(request.form.get('umbral_temp'), 80)
+            u_hr = a_float_seguro(request.form.get('umbral_hr'), 50.0)
             activas = 1 if request.form.get('alertas_activas') == '1' else 0
             cur.execute("UPDATE usuarios SET tg_token=%s, tg_chat_id=%s, umbral_temp=%s, umbral_hr=%s, alertas_activas=%s WHERE username=%s",
                         (tg_token, tg_chat_id, u_temp, u_hr, activas, usr_actual))
@@ -534,7 +553,7 @@ def ajustes():
             msg = "Tu API Key ha sido regenerada con éxito."
         elif accion == 'guardar_red_agente':
             subnet = request.form.get('subnet', '192.168.0').strip()
-            tarifa = float(request.form.get('tarifa_kwh') or 0.0)
+            tarifa = a_float_seguro(request.form.get('tarifa_kwh'), 0.0)
             cur.execute("UPDATE usuarios SET subnet=%s, tarifa_kwh=%s WHERE username=%s", (subnet, tarifa, usr_actual))
             msg = "Preferencias de red y tarifa guardadas."
         elif accion == 'cambiar_password':
@@ -686,7 +705,7 @@ def comando_minero(ip, accion):
 def exportar_csv():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s OR owner IS NULL", (usr_actual,))
+    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos")
     filas = cur.fetchall(); con.close()
     output = io.StringIO(); writer = csv.writer(output)
     writer.writerow(['IP', 'Modelo', 'Hashrate', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
@@ -712,8 +731,9 @@ def recibir_logs():
 @app.route('/api/recibir_datos', methods=['POST'])
 def recibir_datos():
     global ultimo_envio_alerta
-    datos = request.json
-    if not datos: return "Error", 400
+    datos = request.get_json(silent=True)
+    if not datos: return jsonify({"status": "error", "msg": "JSON invalido"}), 400
+    
     con = get_db(); con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
@@ -728,7 +748,7 @@ def recibir_datos():
         cur.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         u_cfg = cur.fetchone()
 
-    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND (owner=%s OR owner IS NULL)", (owner_user,))
+    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'")
     pend = cur.fetchall()
     ordenes = [{"ip": c['ip'], "comando": c['comando']} for c in pend]
     for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c['id'],))
@@ -736,68 +756,69 @@ def recibir_datos():
     ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     ahora_ts = time.time()
 
-    umbral_t = int(u_cfg.get('umbral_temp') or 80) if u_cfg else 80
-    umbral_h = float(u_cfg.get('umbral_hr') or 50.0) if u_cfg else 50.0
+    umbral_t = a_int_seguro(u_cfg.get('umbral_temp'), 80) if u_cfg else 80
+    umbral_h = a_float_seguro(u_cfg.get('umbral_hr'), 50.0) if u_cfg else 50.0
     alertas_on = bool(u_cfg.get('alertas_activas', 1)) if u_cfg else True
     tg_tok = (u_cfg.get('tg_token') or '') if u_cfg else ''
     tg_cid = (u_cfg.get('tg_chat_id') or '') if u_cfg else ''
 
+    guardados_ok = 0
     for m in datos.get('mineros', []):
-        ip_m = m['ip']
-        mod_m = m.get('modelo') or 'Antminer'
-        hr_m = float(m.get('hashrate') or 0.0)
-        temp_m = int(m.get('temp') or 0)
-        unid = m.get('unidad', 'TH/s')
-        err = m.get('errores', 0)
-        t_amb = int(m.get('temp_amb') or 0)
-        mc = m.get('mac', '')
-        sr = m.get('serial', '')
-        fw = m.get('firmware', '')
-        fs = m.get('fans', '')
-        up = m.get('uptime', '0h 0m')
-        hr_30 = m.get('hashrate_30m', hr_m)
-        p1 = m.get('pool1', ''); w1 = m.get('worker1', ''); pa1 = m.get('pass1', '123')
-        st1 = m.get('status1', 'Alive'); ac1 = m.get('acc1', 0); rj1 = m.get('rej1', 0)
-        p2 = m.get('pool2', ''); w2 = m.get('worker2', ''); pa2 = m.get('pass2', '123')
-        st2 = m.get('status2', 'Alive'); ac2 = m.get('acc2', 0); rj2 = m.get('rej2', 0)
-        p3 = m.get('pool3', ''); w3 = m.get('worker3', ''); pa3 = m.get('pass3', '123')
-        st3 = m.get('status3', 'Dead'); ac3 = m.get('acc3', 0); rj3 = m.get('rej3', 0)
-        
-        host = m.get('hostname', f"Antminer{ip_m.split('.')[-1]}")
-        nproto = m.get('net_proto', 'Static')
-        nmask = m.get('netmask', '255.255.255.0')
-        ngw = m.get('gateway', '192.168.0.1')
-        ndns = m.get('dns', '8.8.8.8')
-        
-        cadenas_list = m.get('cadenas', [])
-        cadenas_json = json.dumps(cadenas_list)
-        
-        cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
-                        owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns''', 
-                    (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, m.get('consumo', 0), ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns))
-        
-        cur.execute("INSERT INTO historial_nube (owner, ip, hashrate, temp_max, temp_amb, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", (owner_user, ip_m, hr_m, temp_m, t_amb, err, cadenas_json, ahora))
-
-        if alertas_on:
-            if temp_m >= umbral_t:
-                k_al = f"{owner_user}_{ip_m}_TEMP"
-                if ahora_ts - ultimo_envio_alerta.get(k_al, 0) > 1800:
-                    ultimo_envio_alerta[k_al] = ahora_ts
-                    msg_al = f"El equipo {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
-                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_al, ahora))
-                    enviar_telegram(tg_tok, tg_cid, f"🔥 <b>ALERTA DE TEMPERATURA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b>\nHashrate: {hr_m} {unid}")
+        try:
+            ip_m = str(m.get('ip') or '').strip()
+            if not ip_m: continue
+            mod_m = str(m.get('modelo') or 'Antminer')
+            hr_m = a_float_seguro(m.get('hashrate'), 0.0)
+            hr_30 = a_float_seguro(m.get('hashrate_30m'), hr_m)
+            temp_m = a_int_seguro(m.get('temp'), 0)
+            t_amb = a_int_seguro(m.get('temp_amb'), 0)
+            cons_m = a_float_seguro(m.get('consumo'), 0.0)
+            err = a_int_seguro(m.get('errores'), 0)
+            unid = str(m.get('unidad') or 'TH/s')
             
-            if unid == 'TH/s' and 0 < hr_m < umbral_h:
-                k_al = f"{owner_user}_{ip_m}_HR"
-                if ahora_ts - ultimo_envio_alerta.get(k_al, 0) > 1800:
-                    ultimo_envio_alerta[k_al] = ahora_ts
-                    msg_al = f"Hashrate bajo en {mod_m} ({ip_m}): {hr_m} {unid} (Mínimo: {umbral_h} {unid})."
-                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE', %s, %s)", (owner_user, ip_m, msg_al, ahora))
-                    enviar_telegram(tg_tok, tg_cid, f"⚠️ <b>CAÍDA DE HASHRATE</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nActual: <b>{hr_m} {unid}</b>")
+            mc = str(m.get('mac') or '-')
+            sr = str(m.get('serial') or '-')
+            fw = str(m.get('firmware') or 'Desconocido')
+            fs = str(m.get('fans') or '0 / 0 RPM')
+            up = str(m.get('uptime') or 'En línea')
+            
+            p1 = str(m.get('pool1') or ''); w1 = str(m.get('worker1') or ''); pa1 = str(m.get('pass1') or '123')
+            st1 = str(m.get('status1') or 'Alive'); ac1 = a_int_seguro(m.get('acc1'), 0); rj1 = a_int_seguro(m.get('rej1'), 0)
+            p2 = str(m.get('pool2') or ''); w2 = str(m.get('worker2') or ''); pa2 = str(m.get('pass2') or '123')
+            st2 = str(m.get('status2') or 'Alive'); ac2 = a_int_seguro(m.get('acc2'), 0); rj2 = a_int_seguro(m.get('rej2'), 0)
+            p3 = str(m.get('pool3') or ''); w3 = str(m.get('worker3') or ''); pa3 = str(m.get('pass3') or '123')
+            st3 = str(m.get('status3') or 'Dead'); ac3 = a_int_seguro(m.get('acc3'), 0); rj3 = a_int_seguro(m.get('rej3'), 0)
+            
+            host = str(m.get('hostname') or f"Antminer{ip_m.split('.')[-1]}")
+            nproto = str(m.get('net_proto') or 'Static')
+            nmask = str(m.get('netmask') or '255.255.255.0')
+            ngw = str(m.get('gateway') or '192.168.0.1')
+            ndns = str(m.get('dns') or '8.8.8.8')
+            
+            cadenas_list = m.get('cadenas', [])
+            cadenas_json = json.dumps(cadenas_list)
+            
+            cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
+                            owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns''', 
+                        (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns))
+            
+            cur.execute("INSERT INTO historial_nube (owner, ip, hashrate, temp_max, temp_amb, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", (owner_user, ip_m, hr_m, temp_m, t_amb, err, cadenas_json, ahora))
+            guardados_ok += 1
+
+            if alertas_on:
+                if temp_m >= umbral_t:
+                    k_al = f"{owner_user}_{ip_m}_TEMP"
+                    if ahora_ts - ultimo_envio_alerta.get(k_al, 0) > 1800:
+                        ultimo_envio_alerta[k_al] = ahora_ts
+                        msg_al = f"El equipo {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
+                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_al, ahora))
+                        enviar_telegram(tg_tok, tg_cid, f"🔥 <b>ALERTA DE TEMPERATURA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b>\nHashrate: {hr_m} {unid}")
+        except Exception as err_m:
+            print(f"Error guardando minero {m.get('ip')}: {err_m}")
     
     con.close()
-    return jsonify({"status": "ok", "ordenes": ordenes}), 200
+    return jsonify({"status": "ok", "guardados": guardados_ok, "ordenes": ordenes}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
