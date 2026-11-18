@@ -2,13 +2,14 @@ from flask import Flask, render_template, render_template_string, redirect, requ
 from jinja2 import TemplateNotFound
 from functools import wraps
 import psycopg2, psycopg2.extras, json, urllib.request, urllib.parse, time, calendar, csv, io, os, secrets, traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'super_secreta_antminer_tools'
 
 DB_URL = os.environ.get("DATABASE_URL", "")
 ultimo_envio_alerta = {}
+ultima_limpieza_bd = 0
 db_inicializada = False
 
 @app.errorhandler(Exception)
@@ -49,12 +50,17 @@ def render_seguro(nombre_archivo, **contexto):
     try:
         return render_template(nombre_archivo, **contexto)
     except TemplateNotFound:
-        if os.path.exists(nombre_archivo):
-            with open(nombre_archivo, 'r', encoding='utf-8') as f:
-                return render_template_string(f.read(), **contexto)
-        if nombre_archivo == 'minero.html':
-            try: return render_template('detalle.html', **contexto)
-            except TemplateNotFound: pass
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        rutas_posibles = [
+            os.path.join(base_dir, 'templates', nombre_archivo),
+            os.path.join(base_dir, nombre_archivo),
+            os.path.join(base_dir, 'templates', 'detalle.html'),
+            os.path.join(base_dir, 'detalle.html')
+        ]
+        for ruta in rutas_posibles:
+            if os.path.exists(ruta):
+                with open(ruta, 'r', encoding='utf-8') as f:
+                    return render_template_string(f.read(), **contexto)
         html_fallback = """
         {% extends "layout.html" %}
         {% block content %}
@@ -123,6 +129,9 @@ def init_db():
         for col_sql in columnas_nuevas:
             try: c.execute(col_sql)
             except: pass
+
+        c.execute("CREATE INDEX IF NOT EXISTS idx_historial_ip_id ON historial_nube (ip, id DESC)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_historial_fecha ON historial_nube (fecha)")
 
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         if not c.fetchone():
@@ -224,7 +233,6 @@ def index():
         eficiencia_val = round(c / hr, 2) if hr > 0 else 0
         if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
 
-        # Margen de 300 segundos (5 min) para evitar falsos desconectados
         if segs_desconectado < 300:
             en_linea += 1
             if unidad == 'TH/s': ht += hr
@@ -281,7 +289,18 @@ def detalle_minero(ip):
     m = cur.fetchone()
     cur.execute("SELECT nombre FROM nombres_mineros WHERE ip=%s", (ip,))
     n_row = cur.fetchone()
-    cur.execute("SELECT fecha, hashrate, temp_max, temp_amb, errores, cadenas FROM historial_nube WHERE ip=%s ORDER BY id ASC LIMIT 5000", (ip,))
+    # Trae los últimos 15,000 registros más recientes (DESC) y luego los ordena cronológicamente (ASC)
+    cur.execute("""
+        SELECT fecha, hashrate, temp_max, temp_amb, errores, cadenas 
+        FROM (
+            SELECT id, fecha, hashrate, temp_max, temp_amb, errores, cadenas 
+            FROM historial_nube 
+            WHERE ip=%s 
+            ORDER BY id DESC 
+            LIMIT 15000
+        ) sub 
+        ORDER BY id ASC
+    """, (ip,))
     hist = cur.fetchall()
     con.close()
     
@@ -343,13 +362,6 @@ def detalle_minero(ip):
             ts = calendar.timegm(dt_actual.timetuple())
             f_raw.append(ts) 
             val_h = a_float_seguro(h.get('hashrate'), 0.0)
-            if idx > 0:
-                try:
-                    dt_prev = datetime.strptime(hist[idx-1]['fecha'], "%Y-%m-%d %H:%M:%S")
-                    if (dt_actual - dt_prev).total_seconds() > 600: 
-                        f_raw.append(calendar.timegm(dt_prev.timetuple()) + 1)
-                        hr_g.append(0); tp_g.append(0); tamb_g.append(None); err_g.append(0); cad_g.append([])
-                except: pass
             
             total_err_actual = a_int_seguro(h.get('errores'), 0)
             diff_err = total_err_actual - prev_err
@@ -445,7 +457,7 @@ def mineros():
 
         if es_online:
             contadores['online'] += 1
-            if t_max >= 78: contadores['alerta_temp'] += 1
+            if t_max >= 75: contadores['alerta_temp'] += 1
             if err_hw > 50 or pct_rej > 1.5: contadores['alerta_hw'] += 1
         else:
             contadores['offline'] += 1
@@ -730,7 +742,7 @@ def recibir_logs():
 
 @app.route('/api/recibir_datos', methods=['POST'])
 def recibir_datos():
-    global ultimo_envio_alerta
+    global ultimo_envio_alerta, ultima_limpieza_bd
     datos = request.get_json(silent=True)
     if not datos: return jsonify({"status": "error", "msg": "JSON invalido"}), 400
     
@@ -753,7 +765,8 @@ def recibir_datos():
     ordenes = [{"ip": c['ip'], "comando": c['comando']} for c in pend]
     for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c['id'],))
 
-    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    ahora_dt = datetime.utcnow()
+    ahora = ahora_dt.strftime("%Y-%m-%d %H:%M:%S")
     ahora_ts = time.time()
 
     umbral_t = a_int_seguro(u_cfg.get('umbral_temp'), 80) if u_cfg else 80
@@ -816,6 +829,16 @@ def recibir_datos():
                         enviar_telegram(tg_tok, tg_cid, f"🔥 <b>ALERTA DE TEMPERATURA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b>\nHashrate: {hr_m} {unid}")
         except Exception as err_m:
             print(f"Error guardando minero {m.get('ip')}: {err_m}")
+
+    # Limpieza automática de registros con más de 30 días (se ejecuta 1 vez por hora)
+    if ahora_ts - ultima_limpieza_bd > 3600:
+        ultima_limpieza_bd = ahora_ts
+        try:
+            fecha_limite_30d = (ahora_dt - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+            cur.execute("DELETE FROM historial_nube WHERE fecha < %s", (fecha_limite_30d,))
+            cur.execute("DELETE FROM registro_alertas WHERE fecha < %s", (fecha_limite_30d,))
+        except Exception as err_clean:
+            print(f"Error en limpieza automática 30d: {err_clean}")
     
     con.close()
     return jsonify({"status": "ok", "guardados": guardados_ok, "ordenes": ordenes}), 200
