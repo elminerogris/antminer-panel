@@ -254,34 +254,24 @@
         user-select: none;
     }
 
-    /* Tooltip flotante en línea 0 del gráfico acelerado por GPU */
+    /* Tooltip flotante lateral estilo TradingView (no tapa las tablas de abajo) */
     .custom-chart-tooltip {
         position: absolute;
         display: none;
         pointer-events: none;
-        background: rgba(10, 11, 16, 0.96);
+        background: rgba(10, 11, 16, 0.94);
+        backdrop-filter: blur(4px);
         border: 1px solid rgba(255, 255, 255, 0.18);
         border-radius: 6px;
-        padding: 9px 12px;
+        padding: 8px 11px;
         color: #fff;
         font-family: sans-serif;
-        font-size: 0.78em;
-        line-height: 1.45;
+        font-size: 0.76em;
+        line-height: 1.42;
         z-index: 1500;
         white-space: nowrap;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
-        transform: translate3d(-50%, 0, 0);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
         will-change: left, top;
-    }
-    .custom-chart-tooltip::before {
-        content: "";
-        position: absolute;
-        top: -6px;
-        left: 50%;
-        transform: translateX(-50%);
-        border-width: 0 6px 6px 6px;
-        border-style: solid;
-        border-color: transparent transparent rgba(10, 11, 16, 0.96) transparent;
     }
     .tt-title {
         font-weight: bold;
@@ -295,7 +285,7 @@
         gap: 10px;
     }
     .tt-row { display: flex; align-items: center; gap: 6px; }
-    .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.95em; }
+    .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.94em; }
     .tt-box { width: 9px; height: 9px; display: inline-block; border-radius: 2px; flex-shrink: 0; }
     .tt-badge-status {
         margin-top: 4px;
@@ -390,9 +380,12 @@
     let pasoAgrupacionActualSeg = 180;
     let limiteDatosIzqGlobal = 0;
     let limiteDatosDerGlobal = 0;
+    let primerTsGrabadoGlobal = 0;
+    let promedioHrOperativoGlobal = 0;
     let diasRealesGrabados = 0;
     let ultimoTsTooltipRenderizado = null;
     let ultimoAnchoTooltipCache = 235;
+    let ultimoAltoTooltipCache = 140;
     let rectCanvasCache = null;
 
     // Genera dinámicamente las descripciones profesionales con la ciudad/país actualizados del cliente
@@ -402,8 +395,8 @@
         const dic = {
             'hr': {
                 titulo: '⚡ Hashrate (Potencia de Minado)',
-                desc: 'Velocidad de cálculo SHA-256 entregada por las placas hash del equipo. Agrupada dinámicamente (3m → 2m → 1m) según el zoom.',
-                rango: 'Estable: línea continua sin caídas bruscas',
+                desc: 'Velocidad de cálculo SHA-256 entregada por las placas hash del equipo. Incluye línea guía punteada del promedio operativo.',
+                rango: 'Estable: línea continua cerca del promedio',
                 accion: estadoTxt
             },
             'tmax': {
@@ -452,7 +445,7 @@
         const dicStats = {
             'prom': {
                 titulo: '⚡ Hashrate Promedio Operativo',
-                desc: 'Media real de potencia de minado durante el periodo seleccionado (excluye desconexiones o reinicios).',
+                desc: 'Media real de potencia de minado durante el periodo seleccionado (excluye desconexiones o reinicios). Se dibuja como línea guía tenue en el gráfico.',
                 rango: 'Ideal: ≥ 98% del hashrate nominal del modelo'
             },
             'max': {
@@ -461,8 +454,8 @@
                 rango: 'Muestra la capacidad tope alcanzada por los chips'
             },
             'min': {
-                titulo: '📉 Hashrate Mínimo Operativo',
-                desc: 'Lectura más baja registrada con el equipo minando activo. Útil para detectar bajadas de frecuencia (Thermal Throttling).',
+                titulo: '📉 Hashrate Mínimo Operativo (Estable)',
+                desc: 'Lectura operativa más baja con el equipo en régimen normal (filtra los primeros segundos de arranque tras reinicio).',
                 rango: 'Alerta si cae > 15% respecto al promedio'
             },
             'temp_pico': {
@@ -477,13 +470,13 @@
             },
             'uptime': {
                 titulo: '🟢 Estabilidad y Disponibilidad (Uptime)',
-                desc: 'Porcentaje del tiempo activo en que el minero estuvo entregando hashrate continuo sin caídas.',
+                desc: 'Porcentaje del tiempo registrado en que el minero estuvo entregando hashrate continuo sin cortes ni caídas.',
                 rango: 'Estándar profesional Tier-1: > 99.0%'
             },
             'lod_info': {
                 titulo: '⚡ Resolución Dinámica Inteligente (LOD)',
-                desc: 'Para máxima limpieza visual y fluidez táctil, el gráfico agrupa los puntos cada 3 min en vista general, y pasa automáticamente a 2 min y 1 min exacto al hacer zoom.',
-                rango: 'Vista general: 3m | Zoom medio: 2m | Zoom cercano: 1m' + txtDias
+                desc: 'Para máxima limpieza visual y fluidez táctil, el gráfico adapta el intervalo según el rango o zoom: 30m/15m en vistas largas, 3m en vista diaria, y 2m → 1m al acercar.',
+                rango: 'Acercar zoom (rueda o 2 dedos) para ver 1m exacto' + txtDias
             }
         };
         return dicStats[key];
@@ -491,7 +484,7 @@
 
     // Descripciones profesionales para los botones de rango horario (6h, 24h, 7d, 30d, 100%, Cámara)
     function obtenerInfoTooltipFiltro(key) {
-        const txtHist = diasRealesGrabados > 0 ? `Historial actual acumulado: ${diasRealesGrabados} días.` : 'Acumulando historial en base de datos.';
+        const txtHist = diasRealesGrabados > 0 ? `Historial actual en BD: ${diasRealesGrabados} días.` : 'Acumulando historial en base de datos.';
         const dicFiltros = {
             '6h': {
                 titulo: '⏱️ Ventana Corta (Últimas 6 Horas)',
@@ -504,14 +497,14 @@
                 rango: 'Resolución base: 3 min (Zoom a 2 min y 1 min)'
             },
             '7d': {
-                titulo: '📅 Tendencia Semanal (7 Días)',
-                desc: 'Muestra la escala completa de 7 días para detectar degradación gradual o cortes eléctricos. Si llevas menos días minando, los días previos se muestran vacíos a la izquierda.',
+                titulo: '📅 Escala Semanal Completa (7 Días)',
+                desc: 'Muestra los 7 días calendario completos. Si el programa lleva menos días activo, los días previos quedan en blanco a la izquierda y tus datos ocupan su proporción real a la derecha.',
                 rango: `Resolución base: 15 min | ${txtHist}`
             },
             '30d': {
-                titulo: '🗓️ Auditoría Mensual (30 Días)',
-                desc: 'Escala calendario de 30 días completos para control de uptime mensual. Los días anteriores al inicio del programa quedan en blanco a la izquierda en proporción real.',
-                rango: `Resolución base: 1 hora | ${txtHist}`
+                titulo: '🗓️ Escala Mensual Completa (30 Días)',
+                desc: 'Escala calendario de 30 días reales. Los días previos al encendido del sistema se muestran como zona sin registro a la izquierda sin estirar falsamente los días actuales.',
+                rango: `Resolución base: 30 min | ${txtHist}`
             },
             'reset_zoom': {
                 titulo: '🔍 Restaurar Vista (Zoom 100%)',
@@ -555,13 +548,11 @@
         const margenPantalla = 10;
         const vw = window.innerWidth;
 
-        // Calcular X centrado sobre el botón, pero frenando en los bordes izquierdo y derecho de la pantalla
         const centroTargetX = rect.left + (rect.width / 2);
         let leftPos = centroTargetX - (boxW / 2);
         if (leftPos < margenPantalla) leftPos = margenPantalla;
         if (leftPos + boxW > vw - margenPantalla) leftPos = vw - boxW - margenPantalla;
 
-        // Calcular Y arriba del botón; si no cabe arriba, mostrar abajo
         let topPos = rect.top - boxH - 10;
         const arrowEl = document.getElementById('smartTtArrow');
         if (topPos < margenPantalla) {
@@ -593,7 +584,6 @@
     }
 
     function inicializarEventosTooltips() {
-        // Métricas de la barra superior
         document.querySelectorAll('.stat-item[data-stat-key]').forEach(item => {
             const key = item.getAttribute('data-stat-key');
             item.addEventListener('mouseenter', function() {
@@ -612,7 +602,6 @@
             });
         });
 
-        // Botones de rango de horas (6h, 24h, 7d, 30d, 100%, Cámara) con brillo y descripción
         document.querySelectorAll('[data-filter-key]').forEach(btn => {
             const key = btn.getAttribute('data-filter-key');
             btn.addEventListener('mouseenter', function() {
@@ -679,6 +668,9 @@
         if ((rango === '7d' || rango === '30d') && (!spanVisibleSeg || spanVisibleSeg > 86400)) {
             let dia = String(d.getDate()).padStart(2, '0');
             let mes = String(d.getMonth() + 1).padStart(2, '0');
+            if (spanVisibleSeg > 12 * 86400) {
+                return `${dia}/${mes}`;
+            }
             return [horaStr, `${dia}/${mes}`];
         }
         return horaStr;
@@ -700,6 +692,7 @@
             43200,      // 12 horas
             86400,      // 1 día
             172800,     // 2 días
+            259200,     // 3 días
             345600      // 4 días
         ];
         const pasoIdeal = spanSegundos / Math.max(2, maxTicksDeseados);
@@ -709,13 +702,13 @@
         return 345600;
     }
 
-    // Determina el intervalo de agrupación ideal según el nivel de zoom (3 min general -> 2 min medio -> 1 min cerca)
+    // Determina el intervalo de agrupación ideal según el nivel de zoom (3m en 24h -> 2m medio -> 1m cerca; 15m en 7d; 30m en 30d)
     function calcularPasoAgrupacionLOD(spanSegundos) {
         if (spanSegundos <= 5400) return 60;      // Zoom <= 90 min: 1 minuto exacto (60s)
-        if (spanSegundos <= 14400) return 120;    // Zoom <= 4 horas: 2 minutos (120s)
-        if (spanSegundos <= 90000) return 180;    // Vista 6h y 24h: 3 minutos (180s) -> limpio y sin saturación
-        if (spanSegundos <= 604800) return 900;   // Vista 7 días: 15 minutos
-        return 3600;                              // Vista 30 días: 60 minutos
+        if (spanSegundos <= 18000) return 120;    // Zoom <= 5 horas: 2 minutos (120s)
+        if (spanSegundos <= 90000) return 180;    // Vista 6h y 24h: 3 minutos (180s)
+        if (spanSegundos <= 650000) return 900;   // Vista 7 días: 15 minutos (900s)
+        return 1800;                              // Vista 30 días: 30 minutos (1800s)
     }
 
     function actualizarBadgeLOD(pasoSeg) {
@@ -732,7 +725,7 @@
         el.innerText = txtRes;
     }
 
-    // Encajona estrictamente el eje X para que JAMÁS quede espacio negro vacío a la derecha (después del último dato)
+    // Encajona estrictamente el eje X dentro de [limiteDatosIzqGlobal, limiteDatosDerGlobal]
     function forzarLimitesSinEspacioVacio(chart) {
         if (!chart || !chart.scales || !chart.scales.x) return;
         const xAxis = chart.scales.x;
@@ -760,7 +753,7 @@
         chart.options.scales.x.max = curMax;
     }
 
-    // Actualiza tanto el radio de los nodos como la resolución LOD (3m -> 2m -> 1m) al hacer zoom
+    // Actualiza tanto el radio de los nodos como la resolución LOD (30m/15m -> 3m -> 2m -> 1m) al hacer zoom
     function actualizarPuntosYResolucionSegunZoom(chart) {
         if (!chart || !chart.scales || !chart.scales.x) return;
         forzarLimitesSinEspacioVacio(chart);
@@ -768,11 +761,10 @@
         const span = chart.scales.x.max - chart.scales.x.min;
         const nuevoPaso = calcularPasoAgrupacionLOD(span);
 
-        // Si al acercar o alejar el zoom cruzamos el umbral (ej: de 3m a 2m o a 1m), re-agrupamos al instante
         if (nuevoPaso !== pasoAgrupacionActualSeg && crudosPorMinutoCache.length > 0) {
             pasoAgrupacionActualSeg = nuevoPaso;
             actualizarBadgeLOD(nuevoPaso);
-            const g = construirSeriesConPaso(crudosPorMinutoCache, nuevoPaso);
+            const g = construirSeriesConPaso(crudosPorMinutoCache, nuevoPaso, limiteDatosIzqGlobal);
             chart.data.datasets.forEach(ds => {
                 if (ds.id === 'hr') ds.data = g.ptsH;
                 else if (ds.id === 'tmax') ds.data = g.ptsT;
@@ -788,7 +780,7 @@
         let radio = 0;
         if (span <= 1800) radio = 3.0;       // Zoom muy cercano (<= 30 min): nodos de 1m claros
         else if (span <= 5400) radio = 2.0;  // Zoom cercano (<= 90 min): nodos de 1m medianos
-        else if (span <= 14400) radio = 1.4; // Zoom intermedio (<= 4 horas): nodos de 2m sutiles
+        else if (span <= 18000) radio = 1.4; // Zoom intermedio (<= 5 horas): nodos de 2m sutiles
 
         chart.data.datasets.forEach(ds => {
             if (ds.type === 'line') {
@@ -958,16 +950,29 @@
         };
     }
 
-    // Plugin profesional 1: Cuadrícula de Minutos Sutil (al hacer zoom) + Números internos + Techo Crítico 85°C + Marca de inicio de datos en 7d/30d
+    // Plugin profesional 1: Sombreado de zona sin historial previo (7d/30d) + Línea Promedio + Cuadrícula 1m + Números internos
     const pluginNumerosDentroGrafico = {
         id: 'numerosDentroGrafico',
         beforeDatasetsDraw: function(chart) {
             const xAxis = chart.scales.x;
             const ca = chart.chartArea;
             if (!xAxis || !ca) return;
+            const ctx = chart.ctx;
+
+            // 1. Sombreado sutil de "Zona sin historial previo" cuando en 7d/30d hay pocos días grabados
+            if (primerTsGrabadoGlobal > xAxis.min + 300) {
+                const xInicioDatos = Math.min(ca.right, Math.max(ca.left, xAxis.getPixelForValue(primerTsGrabadoGlobal)));
+                if (xInicioDatos > ca.left + 15) {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.26)';
+                    ctx.fillRect(ca.left, ca.top, xInicioDatos - ca.left, ca.bottom - ca.top);
+                    ctx.restore();
+                }
+            }
+
+            // 2. Cuadrícula vertical tenue por minuto al hacer zoom cercano
             const span = xAxis.max - xAxis.min;
             if (span <= 5400) {
-                const ctx = chart.ctx;
                 ctx.save();
                 ctx.beginPath();
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
@@ -995,24 +1000,42 @@
 
             ctx.save();
 
-            // Si estamos en 7d o 30d y hay espacio vacío a la izquierda porque el programa lleva pocos días andando, mostrar indicador sutil de inicio de datos
-            if (xAxis && crudosPorMinutoCache.length > 0) {
-                const primerTsGrabado = crudosPorMinutoCache[0].ts;
-                const xInicioDatos = xAxis.getPixelForValue(primerTsGrabado);
-                if (xInicioDatos > ca.left + 45 && xInicioDatos < ca.right - 20) {
+            // Indicador divisorio de inicio real de registros cuando la ventana (7d/30d) es mayor a los días grabados
+            if (xAxis && primerTsGrabadoGlobal > xAxis.min + 300) {
+                const xInicioDatos = xAxis.getPixelForValue(primerTsGrabadoGlobal);
+                if (xInicioDatos > ca.left + 55 && xInicioDatos < ca.right - 20) {
                     ctx.beginPath();
-                    ctx.setLineDash([3, 4]);
+                    ctx.setLineDash([4, 4]);
                     ctx.moveTo(xInicioDatos, ca.top);
                     ctx.lineTo(xInicioDatos, ca.bottom);
-                    ctx.lineWidth = 1;
-                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
+                    ctx.lineWidth = 1.2;
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
                     ctx.stroke();
                     ctx.setLineDash([]);
 
-                    ctx.font = 'bold 9.5px sans-serif';
-                    ctx.fillStyle = 'rgba(56, 189, 248, 0.65)';
+                    const fechaIniStr = formatearFechaTooltip(new Date(primerTsGrabadoGlobal * 1000));
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.fillStyle = 'rgba(56, 189, 248, 0.80)';
                     ctx.textAlign = 'right';
-                    ctx.fillText('◀ Sin registros previos', xInicioDatos - 6, ca.top + 16);
+                    ctx.fillText(`◀ Sin registro previo en BD`, xInicioDatos - 8, ca.top + 18);
+                    ctx.font = '9.5px monospace';
+                    ctx.fillStyle = 'rgba(165, 167, 181, 0.75)';
+                    ctx.fillText(`Inicio: ${fechaIniStr} (${diasRealesGrabados}d)`, xInicioDatos - 8, ca.top + 32);
+                }
+            }
+
+            // Línea guía horizontal tenue del Hashrate Promedio Operativo (estilo Foreman/Grafana)
+            if (yAxis && promedioHrOperativoGlobal > 0 && visibilidadCurvas['hr'] !== false) {
+                const yProm = yAxis.getPixelForValue(promedioHrOperativoGlobal);
+                if (yProm >= ca.top + 8 && yProm <= ca.bottom - 8) {
+                    ctx.beginPath();
+                    ctx.setLineDash([2, 5]);
+                    ctx.moveTo(ca.left, yProm);
+                    ctx.lineTo(ca.right, yProm);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(96, 165, 250, 0.35)';
+                    ctx.stroke();
+                    ctx.setLineDash([]);
                 }
             }
 
@@ -1102,7 +1125,7 @@
         }
     }
 
-    // Tooltip ultra-rápido con Memoización de DOM (no reconstruye el HTML si el dedo sigue en el mismo punto)
+    // Tooltip lateral inteligente estilo TradingView (flota dentro del gráfico a izquierda/derecha del cursor sin tapar la tabla de Pools inferior)
     function renderizarTooltipExterno(context) {
         const { chart, tooltip } = context;
         const ttEl = document.getElementById('customChartTooltip');
@@ -1124,7 +1147,6 @@
             return;
         }
 
-        // Solo regenerar el DOM si cambió el minuto/intervalo seleccionado (elimina el lag al deslizar en celular)
         if (ultimoTsTooltipRenderizado !== tsSegundos) {
             ultimoTsTooltipRenderizado = tsSegundos;
 
@@ -1149,7 +1171,14 @@
                 }
                 html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Alerta: Encendido pero sin minar</div>`;
             } else {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${meta.hr} ${unidadMinero}</b></div>`;
+                let diffPromTxt = "";
+                if (promedioHrOperativoGlobal > 0) {
+                    let pctVsProm = (((meta.hr - promedioHrOperativoGlobal) / promedioHrOperativoGlobal) * 100).toFixed(1);
+                    let signoP = pctVsProm >= 0 ? '+' : '';
+                    let colP = pctVsProm >= -3 ? '#00e676' : '#ffb300';
+                    diffPromTxt = ` <span style="color:${colP}; font-size:0.88em;">(${signoP}${pctVsProm}%)</span>`;
+                }
+                html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${meta.hr} ${unidadMinero}</b>${diffPromTxt}</div>`;
                 if (meta.temp > 0) {
                     let estadoT = meta.temp >= 85 ? '🔴 Crítica' : (meta.temp >= 75 ? '🟠 Advertencia' : '🟢 Normal');
                     let txtMin = (meta.tempMin && meta.tempMin > 0) ? ` / Mín PCB: <b>${meta.tempMin}°C</b>` : '';
@@ -1181,22 +1210,32 @@
             ttEl.innerHTML = html;
             ttEl.style.display = 'block';
             ultimoAnchoTooltipCache = ttEl.offsetWidth || 235;
+            ultimoAltoTooltipCache = ttEl.offsetHeight || 140;
         } else if (ttEl.style.display === 'none') {
             ttEl.style.display = 'block';
         }
 
         const chartArea = chart.chartArea;
-        const wrapperW = chart.width;
         const ttW = ultimoAnchoTooltipCache;
+        const ttH = ultimoAltoTooltipCache;
 
-        let posX = tooltip.caretX;
-        const minX = (ttW / 2) + 6;
-        const maxX = wrapperW - (ttW / 2) - 6;
-        if (posX < minX) posX = minX;
-        if (posX > maxX) posX = maxX;
+        // Posicionar a la derecha de la línea del cursor; si el cursor está en la mitad derecha, pasar el cuadro a la izquierda de la línea
+        let posX = tooltip.caretX + 14;
+        if (posX + ttW > chartArea.right - 6) {
+            posX = tooltip.caretX - ttW - 14;
+        }
+        if (posX < chartArea.left + 6) {
+            posX = chartArea.left + 6;
+        }
+
+        // Mantener el cuadro dentro de la altura del gráfico para que no tape la tabla de Pools de abajo
+        let posY = chartArea.top + 8;
+        if (posY + ttH > chartArea.bottom - 4) {
+            posY = Math.max(2, chartArea.bottom - ttH - 4);
+        }
 
         ttEl.style.left = posX + 'px';
-        ttEl.style.top = (chartArea.bottom + 2) + 'px';
+        ttEl.style.top = posY + 'px';
     }
 
     function construirLeyendasPildora() {
@@ -1260,6 +1299,8 @@
         if (!chartInstance) return;
         chartInstance.options.scales.x.min = limiteDatosIzqGlobal;
         chartInstance.options.scales.x.max = limiteDatosDerGlobal;
+        chartInstance.options.plugins.zoom.limits.x.min = limiteDatosIzqGlobal;
+        chartInstance.options.plugins.zoom.limits.x.max = limiteDatosDerGlobal;
         chartInstance.resetZoom('none');
         chartInstance.options.scales.x.min = limiteDatosIzqGlobal;
         chartInstance.options.scales.x.max = limiteDatosDerGlobal;
@@ -1437,8 +1478,8 @@
         return { crudos, valoresHr, valoresTempMax, valoresTempMin, totalRegistros: crudos.length };
     }
 
-    // Paso 2: Agrupa los puntos según el paso dinámico LOD (180s = 3m, 120s = 2m, 60s = 1m) manteniendo clavados el primer y último punto real
-    function construirSeriesConPaso(crudosBase, pasoSeg) {
+    // Paso 2: Agrupa los puntos según el paso dinámico LOD e inserta un punto ancla invisible en limiteIzqForzado para que 7d/30d SIEMPRE respeten el espacio vacío previo
+    function construirSeriesConPaso(crudosBase, pasoSeg, limiteIzqForzado) {
         let agrupados = [];
 
         if (pasoSeg <= 60 || crudosBase.length <= 2) {
@@ -1449,7 +1490,6 @@
 
             for (let i = 0; i < crudosBase.length; i++) {
                 let c = crudosBase[i];
-                // Anclar el último registro en su timestamp exacto para que el gráfico termine justo al borde derecho sin hueco negro
                 let bTs = (i === ultimoIdx) ? c.ts : (Math.floor(c.ts / pasoSeg) * pasoSeg);
 
                 if (!mapaBuckets.has(bTs)) {
@@ -1490,6 +1530,18 @@
         let maxErrPeriodo = 0;
         mapaMetaPuntos = {};
         ultimoTsTooltipRenderizado = null;
+
+        // Punto ancla invisible en el borde izquierdo de la ventana (obligatorio para que Chart.js y el plugin de Zoom no auto-recorten los días vacíos en 7d y 30d)
+        if (limiteIzqForzado && agrupados.length > 0 && agrupados[0].ts > limiteIzqForzado + 60) {
+            ptsH.push({ x: limiteIzqForzado, y: null });
+            ptsT.push({ x: limiteIzqForzado, y: null });
+            ptsTMin.push({ x: limiteIzqForzado, y: null });
+            ptsA.push({ x: limiteIzqForzado, y: null });
+            ptsClima.push({ x: limiteIzqForzado, y: null });
+            ptsSens.push({ x: limiteIzqForzado, y: null });
+            ptsE.push({ x: limiteIzqForzado, y: null });
+            mapaMetaPuntos[limiteIzqForzado] = { esSeparadorCorte: true };
+        }
 
         const UMBRAL_CORTE_SEG = Math.max(240, pasoSeg * 2.5);
 
@@ -1561,7 +1613,7 @@
         ocultarTooltipGris();
         ocultarSmartTooltip();
         
-        // Determinar el primer y último timestamp con datos reales válidos
+        // Determinar el primer y último timestamp con datos reales válidos en toda la BD enviada
         let maxTsValido = 0;
         let minTsValidoGlobal = Infinity;
         for (let i = 0; i < rawFechas.length; i++) {
@@ -1574,7 +1626,10 @@
         }
         const nowTs = maxTsValido > 0 ? Math.floor(maxTsValido / 60) * 60 : Math.floor(Date.now() / 60000) * 60;
         if (maxTsValido > 0 && minTsValidoGlobal < Infinity) {
+            primerTsGrabadoGlobal = Math.floor(minTsValidoGlobal / 60) * 60;
             diasRealesGrabados = Math.max(0.1, Number(((maxTsValido - minTsValidoGlobal) / 86400).toFixed(1)));
+        } else {
+            primerTsGrabadoGlobal = nowTs;
         }
 
         let segundosRango = 24 * 3600;
@@ -1587,27 +1642,43 @@
         const base = recolectarBasePorMinuto(minTs);
         crudosPorMinutoCache = base.crudos;
 
-        // Calcular paso LOD inicial (3m para 6h/24h, y al hacer zoom bajará solo a 2m y 1m)
+        // Definir los límites exactos de la ventana solicitada:
+        // En 6h siempre son 6h; en 24h, 7d y 30d SIEMPRE se respeta la ventana calendario completa (minTs) para que si solo hay 2.2 días grabados, NO ocupen todo el ancho de 7d o 30d
+        const primerTsEnRango = crudosPorMinutoCache.length > 0 ? crudosPorMinutoCache[0].ts : minTs;
+        const ultimoTsEnRango = crudosPorMinutoCache.length > 0 ? crudosPorMinutoCache[crudosPorMinutoCache.length - 1].ts : nowTs;
+
+        const limiteIzq = (rango === '6h') ? Math.max(minTs, primerTsEnRango) : minTs;
+        const limiteDer = ultimoTsEnRango;
+        limiteDatosIzqGlobal = limiteIzq;
+        limiteDatosDerGlobal = limiteDer;
+
+        // Calcular paso LOD inicial acorde al rango completo
         pasoAgrupacionActualSeg = calcularPasoAgrupacionLOD(segundosRango);
         actualizarBadgeLOD(pasoAgrupacionActualSeg);
 
-        const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, maxErrPeriodo, primerTsReal, ultimoTsReal } = construirSeriesConPaso(crudosPorMinutoCache, pasoAgrupacionActualSeg);
+        const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, maxErrPeriodo } = construirSeriesConPaso(crudosPorMinutoCache, pasoAgrupacionActualSeg, limiteIzq);
         
         let valoresHr = base.valoresHr;
         let valoresTempMax = base.valoresTempMax;
         let valoresTempMin = base.valoresTempMin;
-        let totalRegistros = base.totalRegistros;
 
+        // Filtrar lecturas de rampa de encendido (< 60% de la mediana) para que Mín y Prom reflejen la operación real
         let avgBruto = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length) : 0;
-        let valoresHrOperativos = valoresHr.filter(v => v >= avgBruto * 0.25);
+        let valoresHrOperativos = valoresHr.filter(v => v >= avgBruto * 0.60);
         if (valoresHrOperativos.length === 0) valoresHrOperativos = valoresHr;
 
-        let avgHr = valoresHrOperativos.length > 0 ? (valoresHrOperativos.reduce((a,b)=>a+b,0) / valoresHrOperativos.length).toFixed(2) : "0.00";
+        let avgHrNum = valoresHrOperativos.length > 0 ? (valoresHrOperativos.reduce((a,b)=>a+b,0) / valoresHrOperativos.length) : 0;
+        promedioHrOperativoGlobal = avgHrNum;
+
+        let avgHr = avgHrNum.toFixed(2);
         let maxHr = valoresHrOperativos.length > 0 ? Math.max(...valoresHrOperativos).toFixed(2) : "0.00";
         let minHr = valoresHrOperativos.length > 0 ? Math.min(...valoresHrOperativos).toFixed(2) : "0.00";
         let maxT = valoresTempMax.length > 0 ? Math.max(...valoresTempMax) : 0;
         let minT = valoresTempMin.length > 0 ? Math.min(...valoresTempMin) : 0;
-        let pctEstab = totalRegistros > 0 ? Math.round((valoresHr.length / totalRegistros) * 100) : 100;
+
+        // Estabilidad (Uptime): minutos activos minando dividido entre los minutos transcurridos desde que empezó a registrarse en esta ventana
+        let spanActivoDesdeInicioMin = Math.max(1, Math.round((limiteDer - Math.max(minTs, primerTsEnRango)) / 60) + 1);
+        let pctEstab = valoresHr.length > 0 ? Math.min(100, Math.round((valoresHr.length / spanActivoDesdeInicioMin) * 100)) : 100;
 
         document.getElementById('statProm').innerText = `${avgHr} ${unidadMinero}`;
         document.getElementById('statMax').innerText = `${maxHr} ${unidadMinero}`;
@@ -1684,22 +1755,19 @@
             hidden: visibilidadCurvas['err'] === false
         });
 
-        // En 6h y 24h evitamos huecos a la izquierda si recién arrancó, pero en 7d y 30d respetamos la ventana completa (mostrando en blanco los días previos si lleva solo 4 días)
-        const limiteIzq = (rango === '6h' || rango === '24h') ? Math.max(minTs, primerTsReal) : minTs;
-        // El borde derecho SIEMPRE se ancla exactamente al último dato recibido para que no exista hueco negro a la derecha
-        const limiteDer = ultimoTsReal;
-        limiteDatosIzqGlobal = limiteIzq;
-        limiteDatosDerGlobal = limiteDer;
-
         const topeEjeErrores = Math.max(20, maxErrPeriodo * 4);
 
         if(chartInstance) {
-            chartInstance.options.scales.x.min = limiteIzq;
-            chartInstance.options.scales.x.max = limiteDer;
+            chartInstance.data.datasets = datasetsList;
             chartInstance.options.scales.y2.max = topeEjeErrores;
             chartInstance.options.plugins.zoom.limits.x.min = limiteIzq;
             chartInstance.options.plugins.zoom.limits.x.max = limiteDer;
-            chartInstance.data.datasets = datasetsList;
+            chartInstance.options.scales.x.min = limiteIzq;
+            chartInstance.options.scales.x.max = limiteDer;
+            // Crítico: limpiar la memoria de escala previa del plugin de Zoom para que 7d y 30d apliquen inmediatamente los 7 o 30 días completos
+            chartInstance.resetZoom('none');
+            chartInstance.options.scales.x.min = limiteIzq;
+            chartInstance.options.scales.x.max = limiteDer;
             actualizarPuntosYResolucionSegunZoom(chartInstance);
             chartInstance.update('none');
             construirLeyendasPildora();
@@ -1761,7 +1829,7 @@
                     scales: { 
                         x: { 
                             type: 'linear',
-                            bounds: 'ticks',
+                            bounds: 'data',
                             offset: false,
                             min: limiteIzq,
                             max: limiteDer,
