@@ -122,7 +122,7 @@
     <div class="panel-title" style="margin-bottom: 10px;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
-            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none; cursor:pointer;" onclick="forzarActualizacionUbicacion()" title="Clic para actualizar ubicación GPS precisa" translate="no"></span>
+            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none;" translate="no"></span>
         </div>
         <div class="chart-filters">
             <button class="btn-reset-zoom" id="btnResetZoom" onclick="resetearZoomGrafico()">🔍 100%</button>
@@ -134,13 +134,13 @@
         </div>
     </div>
 
-    <!-- Barra de métricas dinámicas (Incluye Clima Real y Sensación Térmica) -->
+    <!-- Barra de métricas dinámicas (Incluye Clima Real de la Granja y Sensación Térmica) -->
     <div class="chart-stats-bar" translate="no">
         <div class="stat-item">Prom: <b id="statProm" style="color:var(--accent-blue);">0.00</b></div>
         <div class="stat-item">Máx: <b id="statMax">0.00</b></div>
         <div class="stat-item">Mín: <b id="statMin">0.00</b></div>
         <div class="stat-item">Temp Máx/Mín: <b id="statTempPico" style="color:#ffb300;">0°/0°C</b></div>
-        <div class="stat-item">Clima / Sensación: <b id="statClimaHoy" style="color:#38bdf8;">--° / --°C</b></div>
+        <div class="stat-item">Clima Granja / Sensación: <b id="statClimaHoy" style="color:#38bdf8;">--° / --°C</b></div>
         <div class="stat-item">Estabilidad: <b id="statUptime" style="color:var(--accent-green);">100%</b></div>
     </div>
 
@@ -165,13 +165,16 @@
     const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
 
+    // Ubicación física del Antminer enviada por el Servidor (detectada desde la IP del Agente, sin pedir GPS al celular)
+    const GRANJA_LAT = {{ ultimo.farm_lat | default(-17.7833) }};
+    const GRANJA_LON = {{ ultimo.farm_lon | default(-63.1821) }};
+    const GRANJA_CIUDAD = "{{ ultimo.farm_city | default('Santa Cruz de la Sierra') }}";
+
     let chartInstance = null;
     let rangoActual = '24h';
     let cursorDentroArea = false;
     let mapaMetaPuntos = {};
-    let cacheClimaExterior = []; // [{ts, temp, sensacion}]
-    let nombreCiudadClima = "";
-    // Conserva qué curvas apagó o encendió el usuario para que no se reseteen al cambiar de rango
+    let cacheClimaExterior = [];
     let visibilidadCurvas = {};
 
     function formatearFechaTooltip(d) {
@@ -195,7 +198,7 @@
         return horaStr;
     }
 
-    // Fórmula oficial NOAA Rothfusz Heat Index (Sin Humidex para no inflar la temperatura por encima de Google Weather)
+    // Fórmula oficial NOAA Rothfusz Heat Index (coincide con Google Weather)
     function calcularSensacionTermicaNOAA(tempC, humedadPct, apparentFallback) {
         if (tempC >= 26.5 && humedadPct >= 40) {
             let T = (tempC * 9 / 5) + 32;
@@ -218,100 +221,15 @@
         return Math.round(tempC);
     }
 
-    // Detecta la ubicación real en cualquier país del mundo usando GPS o triple respaldo de IP
-    async function detectarUbicacionMundial(forzarGps = false) {
-        if (!forzarGps) {
-            try {
-                const guardado = localStorage.getItem('emg_geo_cache_v4');
-                if (guardado) {
-                    const obj = JSON.parse(guardado);
-                    if (obj.lat && obj.lon && (Date.now() - obj.ts < 1800000)) {
-                        return obj;
-                    }
-                }
-            } catch(e) {}
-        }
-
-        const probarGps = () => new Promise((resolve) => {
-            if (!navigator.geolocation) return resolve(null);
-            navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                    const lat = Number(pos.coords.latitude.toFixed(4));
-                    const lon = Number(pos.coords.longitude.toFixed(4));
-                    let nombreLugar = "Ubicación GPS";
-                    try {
-                        const rNom = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&accept-language=es`);
-                        if (rNom.ok) {
-                            const jNom = await rNom.json();
-                            const addr = jNom.address || {};
-                            const barrio = addr.suburb || addr.neighbourhood || addr.quarter || "";
-                            const ciudad = addr.city || addr.town || addr.village || addr.state || "";
-                            nombreLugar = (barrio && ciudad) ? `${barrio}, ${ciudad}` : (ciudad || barrio || "GPS Local");
-                        }
-                    } catch(e) {}
-                    resolve({ lat, lon, ciudad: nombreLugar });
-                },
-                () => resolve(null),
-                { enableHighAccuracy: true, timeout: 3000, maximumAge: 300000 }
-            );
-        });
-
-        let loc = await probarGps();
-
-        if (!loc) {
-            const apisIp = [
-                {
-                    url: "https://ipwho.is/",
-                    parse: (j) => (j && j.success !== false && j.latitude && j.longitude) ? { lat: Number(j.latitude), lon: Number(j.longitude), ciudad: j.city || j.region || j.country } : null
-                },
-                {
-                    url: "https://freeipapi.com/api/json",
-                    parse: (j) => (j && j.latitude && j.longitude) ? { lat: Number(j.latitude), lon: Number(j.longitude), ciudad: j.cityName || j.regionName || j.countryName } : null
-                },
-                {
-                    url: "https://ipapi.co/json/",
-                    parse: (j) => (j && j.latitude && j.longitude) ? { lat: Number(j.latitude), lon: Number(j.longitude), ciudad: j.city || j.region || j.country_name } : null
-                }
-            ];
-
-            for (let api of apisIp) {
-                try {
-                    const r = await fetch(api.url);
-                    if (r.ok) {
-                        const j = await r.json();
-                        const res = api.parse(j);
-                        if (res && !isNaN(res.lat) && !isNaN(res.lon)) {
-                            loc = res;
-                            break;
-                        }
-                    }
-                } catch(e) {}
-            }
-        }
-
-        if (loc) {
-            try {
-                localStorage.setItem('emg_geo_cache_v4', JSON.stringify({ ...loc, ts: Date.now() }));
-            } catch(e) {}
-        }
-        return loc;
-    }
-
-    function forzarActualizacionUbicacion() {
-        localStorage.removeItem('emg_geo_cache_v4');
-        cargarClimaExteriorAutomatico(true);
-    }
-
-    async function cargarClimaExteriorAutomatico(forzarGps = false) {
+    // Carga el clima exclusivamente para las coordenadas de la GRANJA donde está el Antminer (sin pedir permiso GPS al navegador)
+    async function cargarClimaDeLaGranja() {
         try {
-            const ubicacion = await detectarUbicacionMundial(forzarGps);
-            if (!ubicacion || ubicacion.lat === undefined || ubicacion.lon === undefined) return;
-
-            const { lat, lon, ciudad } = ubicacion;
+            const lat = GRANJA_LAT;
+            const lon = GRANJA_LON;
+            const ciudad = GRANJA_CIUDAD;
             const ahoraTs = Math.floor(Date.now() / 1000);
 
-            // 1. Consultar la Estación Meteorológica Oficial en Vivo (METAR Aeropuerto local vía wttr.in)
-            // Las estaciones METAR miden la temperatura real del aire con termómetro físico (idéntico a Google Weather: 32°C / 38°C)
+            // 1. Consultar estación aeroportuaria oficial METAR de la zona de la granja
             let tempMetarVivo = null;
             let humMetarVivo = null;
 
@@ -322,7 +240,6 @@
                         const cc = jW.current_condition[0];
                         let tM = Number(cc.temp_C);
                         let hM = Number(cc.humidity);
-                        // Validar que sea un rango físico coherente (-50°C a +55°C)
                         if (!isNaN(tM) && tM >= -50 && tM <= 55) {
                             tempMetarVivo = tM;
                             humMetarVivo = (!isNaN(hM) && hM > 0) ? hM : 60;
@@ -330,7 +247,7 @@
                     }
                 }).catch(() => {});
 
-            // 2. Consultar curva horaria de 30 días en Open-Meteo (SIN gfs_seamless crudo para que no infle a 38°C)
+            // 2. Consultar historial de 30 días de las coordenadas de la granja en Open-Meteo
             const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&past_days=30&forecast_days=1&timeformat=unixtime&timezone=GMT`;
 
             const [_, rMet] = await Promise.all([promesaMetar, fetch(urlMeteo)]);
@@ -344,25 +261,19 @@
                 const appTemps = jMet.hourly.apparent_temperature || [];
                 const hums = jMet.hourly.relative_humidity_2m || [];
 
-                // Calibración inteligente: si la estación física METAR tiene una diferencia con el satélite en la hora actual,
-                // calculamos el offset suave para calibrar las horas del día actual
                 let tempSateliteActual = (jMet.current && jMet.current.temperature_2m !== undefined) ? Number(jMet.current.temperature_2m) : null;
                 let humSateliteActual = (jMet.current && jMet.current.relative_humidity_2m !== undefined) ? Number(jMet.current.relative_humidity_2m) : 60;
 
-                // Si METAR respondió (ej. 32°C), usamos la estación física real; si no, usamos el satélite con corrección
                 let tempRealHoy = (tempMetarVivo !== null) ? Math.round(tempMetarVivo) : (tempSateliteActual !== null ? Math.round(tempSateliteActual) : null);
                 let humRealHoy = (humMetarVivo !== null) ? humMetarVivo : humSateliteActual;
                 let offsetCalibracion = (tempRealHoy !== null && tempSateliteActual !== null) ? (tempRealHoy - tempSateliteActual) : 0;
-                // Limitar el offset máximo a ±4°C por seguridad
                 if (offsetCalibracion > 4) offsetCalibracion = 4;
                 if (offsetCalibracion < -4) offsetCalibracion = -4;
 
                 for (let i = 0; i < times.length; i++) {
                     const tsHora = Number(times[i]);
-                    // Solo guardar historial hasta la hora actual (descartar horas futuras de la noche)
                     if (tsHora <= ahoraTs + 900 && temps[i] !== null && temps[i] !== undefined) {
                         let tBase = Number(temps[i]);
-                        // Aplicar calibración gradual en las últimas 6 horas para que la curva empalme perfecto con la estación local
                         let horasAtras = (ahoraTs - tsHora) / 3600;
                         let factorCal = (horasAtras >= 0 && horasAtras <= 6) ? (1 - (horasAtras / 6)) : 0;
                         let tCalibrada = Math.round(tBase + (offsetCalibracion * factorCal));
@@ -392,20 +303,19 @@
 
                 cacheClimaExterior.sort((a, b) => a.ts - b.ts);
 
-                nombreCiudadClima = ciudad || "Exterior";
                 const badge = document.getElementById('climaUbicacionBadge');
                 if (badge && cacheClimaExterior.length > 0) {
                     const ultimoClima = cacheClimaExterior[cacheClimaExterior.length - 1];
                     const tMostrar = tempRealHoy !== null ? tempRealHoy : ultimoClima.temp;
                     const sMostrar = sensRealHoy !== null ? sensRealHoy : ultimoClima.sensacion;
-                    badge.innerHTML = `📍 ${nombreCiudadClima}: <b>${tMostrar}°C</b> <span style="color:#c084fc;">(Sensación ${sMostrar}°C)</span>`;
+                    badge.innerHTML = `🏭 Granja (${ciudad}): <b>${tMostrar}°C</b> <span style="color:#c084fc;">(Sensación ${sMostrar}°C)</span>`;
                     badge.style.display = 'inline-block';
                     document.getElementById('statClimaHoy').innerHTML = `${tMostrar}°C / <span style="color:#c084fc;">${sMostrar}°C</span>`;
                 }
                 updateChart(rangoActual);
             }
         } catch (err) {
-            console.log("Clima exterior opcional no disponible:", err);
+            console.log("Clima de la granja no disponible:", err);
         }
     }
 
@@ -435,7 +345,6 @@
         };
     }
 
-    // Plugin profesional 1: Dibuja los números de Hashrate (izq) y Temperatura (der) DENTRO del gráfico
     const pluginNumerosDentroGrafico = {
         id: 'numerosDentroGrafico',
         afterDraw: function(chart) {
@@ -481,7 +390,6 @@
         }
     };
 
-    // Plugin profesional 2: Línea Guía Vertical (Crosshair)
     const pluginCrosshairVertical = {
         id: 'crosshairVertical',
         afterDraw: function(chart) {
@@ -550,7 +458,7 @@
             }
             if (meta.clima !== null && meta.clima !== undefined) {
                 let txtSens = (meta.sensacion !== null && meta.sensacion !== undefined) ? ` (Sensación: <b style="color:#c084fc;">${meta.sensacion}°C</b>)` : '';
-                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Exterior: <b>${meta.clima}°C</b>${txtSens}</div>`;
+                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b>${meta.clima}°C</b>${txtSens}</div>`;
             }
             html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Alerta: Encendido pero sin minar</div>`;
         } else {
@@ -572,7 +480,7 @@
                 html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Temp Entrada/Amb: <b>${meta.amb}°C</b></div>`;
             }
             if (meta.clima !== null && meta.clima !== undefined) {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Exterior: <b>${meta.clima}°C</b></div>`;
+                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja (${GRANJA_CIUDAD}): <b>${meta.clima}°C</b></div>`;
             }
             if (meta.sensacion !== null && meta.sensacion !== undefined) {
                 html += `<div class="tt-row"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación Térmica: <b>${meta.sensacion}°C</b></div>`;
@@ -797,7 +705,6 @@
         const minTs = nowTs - segundosRango;
         const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, valoresHr, valoresTempMax, valoresTempMin, totalRegistros } = procesarDatosLimpios(minTs);
         
-        // Filtrar puntos de rampa de encendido (< 25% de la mediana) para que el Mínimo y Promedio reflejen la operación real
         let avgBruto = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length) : 0;
         let valoresHrOperativos = valoresHr.filter(v => v >= avgBruto * 0.25);
         if (valoresHrOperativos.length === 0) valoresHrOperativos = valoresHr;
@@ -862,7 +769,7 @@
 
         if (tieneClimaExt) {
             datasetsList.push({
-                id: 'clima', type: 'line', label: '🌤️ Clima Exterior °C', data: ptsClima,
+                id: 'clima', type: 'line', label: '🌤️ Clima Granja °C', data: ptsClima,
                 borderColor: '#38bdf8', borderDash: [2, 2],
                 tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#38bdf8',
                 borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
@@ -973,6 +880,6 @@
 
     window.addEventListener('load', function() {
         updateChart('24h');
-        cargarClimaExteriorAutomatico();
+        cargarClimaDeLaGranja();
     });
 </script>
