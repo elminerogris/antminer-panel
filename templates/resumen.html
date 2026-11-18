@@ -1,63 +1,72 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    .grid-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:20px}
-    .card{background:var(--bg-card);padding:18px;border-radius:8px;border:1px solid var(--border-color)}
-    .card h4{margin:0;font-size:0.72em;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px}
-    .card .val{font-size:1.6em;font-weight:bold;margin-top:8px;color:var(--text-main)}
-    .card .sub{font-size:0.78em;color:var(--text-muted);margin-top:5px}
+    .grid-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+    .card{background:var(--bg-card);padding:14px 16px;border-radius:6px;border:1px solid var(--border-color)}
+    .card h4{margin:0;font-size:0.68em;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px}
+    .card .val{font-size:1.35em;font-weight:bold;margin-top:6px;color:var(--text-main)}
+    .card .sub{font-size:0.75em;color:var(--text-muted);margin-top:4px}
 
-    .calc-bar{background:var(--bg-card);padding:15px 20px;border-radius:8px;border:1px solid var(--border-color);margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px}
+    /* Semáforo térmico estilo AntminerTools */
+    .t-ok { color: #00e676 !important; font-weight: bold; }
+    .t-warn { color: #ffb300 !important; font-weight: bold; }
+    .t-crit { color: #ff5252 !important; font-weight: bold; }
+    .badge-t-ok { background: rgba(0, 230, 118, 0.12); color: #00e676; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; display: inline-block; }
+    .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; display: inline-block; }
+    .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; display: inline-block; }
+
+    .calc-bar{background:var(--bg-card);padding:13px 18px;border-radius:8px;border:1px solid var(--border-color);margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px}
     .calc-group{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .calc-input{background:var(--bg-input);border:1px solid var(--border-color);color:var(--text-main);padding:7px 10px;border-radius:6px;width:90px;font-weight:bold;outline:none}
     
-    .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px}
     .bulk-actions{display:flex;gap:8px;flex-wrap:wrap}
-    .btn-action{background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-main);padding:8px 14px;border-radius:6px;cursor:pointer;font-size:0.82em;font-weight:bold;transition:0.2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+    .btn-action{background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-main);padding:8px 13px;border-radius:6px;cursor:pointer;font-size:0.82em;font-weight:bold;transition:0.2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
     .btn-action:hover{border-color:var(--accent-blue);color:var(--accent-blue)}
 
     .table-container{background:var(--bg-card);border-radius:8px;border:1px solid var(--border-color);overflow-x:auto;-webkit-overflow-scrolling:touch}
     table{width:100%;min-width:850px;border-collapse:collapse;white-space:nowrap}
-    th{text-align:left;padding:12px 15px;color:var(--text-muted);font-size:0.73em;text-transform:uppercase;border-bottom:1px solid var(--border-color)}
-    td{padding:14px 15px;border-bottom:1px solid var(--border-color);font-size:0.86em}
+    th{text-align:left;padding:12px 15px;color:var(--text-muted);font-size:0.72em;text-transform:uppercase;border-bottom:1px solid var(--border-color)}
+    td{padding:13px 15px;border-bottom:1px solid var(--border-color);font-size:0.85em}
     tr:last-child td{border-bottom:none}
     tr:hover{background:var(--hover-bg)}
     .miner-link{color:var(--accent-blue);font-weight:bold;text-decoration:none}
     .miner-link:hover{text-decoration:underline}
-    .badge-temp{padding:4px 8px;border-radius:4px;font-weight:bold;font-size:0.85em}
 </style>
 
+{% set flota_t_cls = 't-crit' if flota.temp_max >= 85 else ('t-warn' if flota.temp_max >= 75 else 't-ok') %}
 <div class="grid-top">
     <div class="card">
         <h4>Estado de Flota</h4>
-        <div class="val" translate="no">{{ en_linea }} <span style="font-size:0.55em;color:var(--text-muted);">/ {{ totales }} activos</span></div>
+        <div class="val" translate="no">{{ en_linea }} <span style="font-size:0.6em;color:var(--text-muted);font-weight:normal;">/ {{ totales }} activos</span></div>
         <div class="sub"><span style="color:var(--accent-green);">● {{ en_linea }} Online</span> &nbsp;|&nbsp; <span style="color:var(--accent-red);">● {{ offline }} Offline</span></div>
     </div>
 
     <div class="card">
         <h4>Hashrate Activo</h4>
         {% if flota.hashrate_total > 0 or (flota.ksol_total == 0 and flota.ghs_total == 0) %}
-            <div class="val" style="color:var(--accent-blue);" translate="no">{{ flota.hashrate_total }} <span style="font-size:0.55em;">TH/s</span></div>
+            <div class="val" style="color:var(--accent-blue);" translate="no">{{ flota.hashrate_total }} <span style="font-size:0.6em;color:var(--text-muted);font-weight:normal;">TH/s</span></div>
         {% endif %}
         {% if flota.ksol_total > 0 %}
-            <div class="val" style="color:var(--accent-green); font-size:1.25em; margin-top:4px;" translate="no">{{ flota.ksol_total }} <span style="font-size:0.65em;">kSol/s (Equihash)</span></div>
+            <div class="val" style="color:var(--accent-green); font-size:1.15em; margin-top:4px;" translate="no">{{ flota.ksol_total }} <span style="font-size:0.65em;">kSol/s</span></div>
         {% endif %}
         {% if flota.ghs_total > 0 %}
-            <div class="val" style="color:#ffb300; font-size:1.25em; margin-top:4px;" translate="no">{{ flota.ghs_total }} <span style="font-size:0.65em;">GH/s (Scrypt)</span></div>
+            <div class="val" style="color:#ffb300; font-size:1.15em; margin-top:4px;" translate="no">{{ flota.ghs_total }} <span style="font-size:0.65em;">GH/s</span></div>
         {% endif %}
         <div class="sub">Potencia en tiempo real</div>
     </div>
 
     <div class="card">
         <h4>Consumo Eléctrico</h4>
-        <div class="val" translate="no">{{ flota.consumo_kw }} <span style="font-size:0.55em;color:var(--text-muted);">kW</span></div>
+        <div class="val" translate="no">{{ flota.consumo_kw }} <span style="font-size:0.6em;color:var(--text-muted);font-weight:normal;">kW</span></div>
         <div class="sub" translate="no">{{ "{:,.0f}".format(flota.consumo_w_total) }} Watts totales</div>
     </div>
 
     <div class="card">
         <h4>Temperatura Máx</h4>
-        <div class="val" style="color:{{ 'var(--accent-red)' if flota.temp_max >= 80 else 'var(--accent-green)' }};" translate="no">{{ flota.temp_max }}°C</div>
-        <div class="sub">Pico actual en sala</div>
+        <div class="val {{ flota_t_cls }}" translate="no">{{ flota.temp_max }}°C</div>
+        <div class="sub">
+            {% if flota.temp_max >= 85 %}🔴 Nivel Crítico{% elif flota.temp_max >= 75 %}🟠 Advertencia{% else %}🟢 Sala Normal{% endif %}
+        </div>
     </div>
 
     <div class="card">
@@ -75,7 +84,7 @@
 
 <div class="calc-bar">
     <div class="calc-group">
-        <span style="font-weight:bold;font-size:0.9em;">⚡ Tarifa Eléctrica (USD/kWh):</span>
+        <span style="font-weight:bold;font-size:0.88em;">⚡ Tarifa Eléctrica (USD/kWh):</span>
         <input type="number" step="0.01" id="tarifaKwh" class="calc-input" value="0.00" oninput="recalcularCostos()">
         <span style="color:var(--text-muted);font-size:0.82em;" id="resumenLuzDia">Costo eléctrico: $0.00 / día</span>
     </div>
@@ -104,6 +113,8 @@
         </thead>
         <tbody>
             {% for r in registros %}
+            {% set t_num = r.temp_num | int %}
+            {% set row_t_cls = 'badge-t-crit' if t_num >= 85 else ('badge-t-warn' if t_num >= 75 else 'badge-t-ok') %}
             <tr>
                 <td><input type="checkbox" class="miner-check" value="{{ r.ip }}"></td>
                 <td>
@@ -123,9 +134,11 @@
                     {% endif %}
                 </td>
                 <td translate="no">
-                    <span class="badge-temp" style="background:{{ 'rgba(255,82,82,0.15);color:var(--accent-red);' if r.temp_num >= 80 else 'rgba(0,230,118,0.12);color:var(--accent-green);' }}">
-                        {{ r.temp_num }}°C
-                    </span>
+                    {% if t_num > 0 %}
+                        <span class="{{ row_t_cls }}">{{ t_num }}°C</span>
+                    {% else %}
+                        <span style="color:var(--text-muted);">0°C</span>
+                    {% endif %}
                 </td>
                 <td translate="no">{{ r.consumo_kw }}</td>
                 <td translate="no">{{ r.eficiencia }} {{ r.unidad_efi | default('J/TH') }}</td>
