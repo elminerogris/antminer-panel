@@ -1,32 +1,494 @@
-<div class="card" style="padding:0; overflow:hidden;">
-    <div class="panel-title" style="padding: 16px 20px 0 20px; justify-content: flex-start;">🎛️ Placas de Hash</div>
-    <div class="table-responsive">
-        <table class="info-table">
-            <tr>
-                <th>Placa</th>
-                <th>Hashrate</th>
-                <th>Frecuencia</th>
-                <th translate="no">chipNum</th>
-                <th translate="no">hwNum</th>
-                <th>Temperaturas</th>
-            </tr>
-            {% for c in extra.cadenas %}
-            {% set tc = c.temp_c | int %}
-            {% set tp = c.temp_p | int %}
-            {% set chip_cls = 'badge-t-crit' if tc >= 85 else ('badge-t-warn' if tc >= 75 else 'badge-t-ok') %}
-            {% set pcb_cls = 'badge-t-crit' if tp >= 75 else ('badge-t-warn' if tp >= 65 else 'badge-t-ok') %}
-            <tr>
-                <td>#{{ c.id }}</td>
-                <td translate="no">{{ c.hr if c.hr is defined and c.hr > 0 else ultimo.hashrate_c0 }} {{ ultimo.unidad }}</td>
-                <td style="color:var(--text-muted);" translate="no">{{ (c.freq ~ ' MHz') if (c.freq is defined and c.freq > 0) else '-' }}</td>
-                <td style="color:var(--accent-green); font-weight:bold;" translate="no">{{ c.chips if c.chips is defined else '-' }}</td>
-                <td style="color:{{ 'var(--accent-red)' if (c.hw is defined and c.hw > 0) else 'var(--text-muted)' }}; font-weight:bold;" translate="no">{{ c.hw if c.hw is defined else 0 }}</td>
-                <td translate="no">
-                    Chip <span class="{{ chip_cls }}">{{ tc }}°C</span> &nbsp;|&nbsp;
-                    PCB <span class="{{ pcb_cls }}">{{ tp }}°C</span>
-                </td>
-            </tr>
-            {% endfor %}
+<style>
+    /* Contenedor Principal de Placas de Hash (Hashboards) */
+    .hb-card-pro {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-bottom: 20px;
+        overflow: hidden;
+        position: relative;
+    }
+    .hb-header-pro {
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.01);
+    }
+    .hb-title-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .hb-title-txt {
+        font-weight: bold;
+        font-size: 1.08em;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .hb-health-badge {
+        font-size: 0.72em;
+        padding: 2px 9px;
+        border-radius: 12px;
+        font-family: monospace;
+        font-weight: bold;
+        cursor: help;
+    }
+    .hb-health-badge.ok {
+        color: #00e676;
+        background: rgba(0, 230, 118, 0.1);
+        border: 1px solid rgba(0, 230, 118, 0.3);
+    }
+    .hb-health-badge.warn {
+        color: #ffb300;
+        background: rgba(255, 179, 0, 0.12);
+        border: 1px solid rgba(255, 179, 0, 0.35);
+    }
+    .hb-health-badge.crit {
+        color: #ff5252;
+        background: rgba(255, 82, 82, 0.14);
+        border: 1px solid rgba(255, 82, 82, 0.4);
+    }
+
+    /* Sub-barra de diagnóstico rápido de Silicio y Disipación */
+    .hb-subbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 14px;
+        flex-wrap: wrap;
+        padding: 8px 16px;
+        background: rgba(10, 12, 18, 0.45);
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.75em;
+    }
+    .hb-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--text-muted);
+        cursor: help;
+        border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
+        padding-bottom: 1px;
+        user-select: none;
+        transition: 0.18s;
+    }
+    .hb-stat-item:hover {
+        color: #fff;
+        border-bottom-color: var(--accent-blue);
+        text-shadow: 0 0 8px rgba(51, 102, 255, 0.45);
+    }
+    .hb-stat-item b {
+        color: var(--text-main);
+        font-family: monospace;
+        font-size: 1.05em;
+    }
+
+    /* Tabla Profesional de Hashboards */
+    .hb-table-pro {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+    .hb-table-pro th {
+        padding: 10px 12px;
+        font-size: 0.72em;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.015);
+        border-bottom: 1px solid var(--border-color);
+        cursor: help;
+        user-select: none;
+    }
+    .hb-table-pro th:hover {
+        color: #fff;
+    }
+    .hb-table-pro td {
+        padding: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.85em;
+        vertical-align: middle;
+    }
+    .hb-table-pro tr:last-child td {
+        border-bottom: none;
+    }
+    .hb-table-pro tbody tr {
+        transition: background 0.15s ease;
+    }
+    .hb-table-pro tbody tr:hover {
+        background: rgba(255, 255, 255, 0.025);
+    }
+
+    /* Identificador de Placa / Cadena */
+    .hb-id-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-family: monospace;
+        font-size: 0.92em;
+        background: rgba(51, 102, 255, 0.12);
+        color: #60a5fa;
+        border: 1px solid rgba(51, 102, 255, 0.35);
+    }
+    .hb-dot-alive {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #00e676;
+        box-shadow: 0 0 6px #00e676;
+    }
+    .hb-dot-dead {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #ff5252;
+        box-shadow: 0 0 6px #ff5252;
+    }
+
+    /* Barras de progreso de Hashrate y Temperatura */
+    .hb-metric-wrap {
+        min-width: 110px;
+    }
+    .hb-bar-bg {
+        width: 100%;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 5px;
+        position: relative;
+    }
+    .hb-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+
+    /* Píldora de Chips ASIC */
+    .hb-chips-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 14px;
+        font-family: monospace;
+        font-weight: bold;
+        font-size: 0.9em;
+        background: rgba(0, 230, 118, 0.1);
+        color: #00e676;
+        border: 1px solid rgba(0, 230, 118, 0.28);
+    }
+    .hb-chips-pill.missing {
+        background: rgba(255, 82, 82, 0.12);
+        color: #ff5252;
+        border-color: rgba(255, 82, 82, 0.35);
+    }
+
+    /* Píldora de Diferencial Térmico (Delta T = Chip - PCB) */
+    .hb-delta-pill {
+        font-family: monospace;
+        font-size: 0.85em;
+        padding: 2px 7px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Adaptación a Celular: Tarjetas compactas sin scroll horizontal */
+    @media (max-width: 768px) {
+        .hb-table-pro thead {
+            display: none;
+        }
+        .hb-table-pro,
+        .hb-table-pro tbody,
+        .hb-table-pro tr,
+        .hb-table-pro td {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .hb-table-pro tr {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.01);
+        }
+        .hb-table-pro td {
+            padding: 5px 0;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .hb-table-pro td::before {
+            content: attr(data-label);
+            font-size: 0.76em;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            min-width: 105px;
+            flex-shrink: 0;
+        }
+        .hb-metric-wrap {
+            text-align: right;
+            min-width: 135px;
+        }
+    }
+</style>
+
+{% set total_placas = extra.cadenas | length %}
+{% set ns = namespace(chips_tot=0, hw_tot=0, max_chip=0, max_delta=0, freq_sum=0, freq_cnt=0, placas_ok=0) %}
+{% for c in extra.cadenas %}
+    {% set c_hr = c.hr | default(ultimo.hashrate_c0) | float %}
+    {% set c_tc = c.temp_c | default(0) | int %}
+    {% set c_tp = c.temp_p | default(0) | int %}
+    {% set c_chips = c.chips | default(114) | int %}
+    {% set c_hw = c.hw | default(0) | int %}
+    {% set c_freq = c.freq | default(0) | int %}
+    {% set delta_cp = (c_tc - c_tp) if (c_tc > 0 and c_tp > 0) else 0 %}
+    {% set ns.chips_tot = ns.chips_tot + c_chips %}
+    {% set ns.hw_tot = ns.hw_tot + c_hw %}
+    {% if c_tc > ns.max_chip %}{% set ns.max_chip = c_tc %}{% endif %}
+    {% if delta_cp > ns.max_delta %}{% set ns.max_delta = delta_cp %}{% endif %}
+    {% if c_freq > 0 %}{% set ns.freq_sum = ns.freq_sum + c_freq %}{% set ns.freq_cnt = ns.freq_cnt + 1 %}{% endif %}
+    {% if c_hr > 0 or c_tc > 15 %}{% set ns.placas_ok = ns.placas_ok + 1 %}{% endif %}
+{% endfor %}
+{% set freq_prom = (ns.freq_sum // ns.freq_cnt) if ns.freq_cnt > 0 else 0 %}
+
+<div class="hb-card-pro">
+    <!-- Cabecera Principal -->
+    <div class="hb-header-pro">
+        <div class="hb-title-group">
+            <span class="hb-title-txt">🌡️ Placas de Hash y Telemetría de Chips</span>
+            {% if ns.max_chip >= 85 or ns.placas_ok < total_placas %}
+                <span class="hb-health-badge crit" data-hb-tt="badge_salud" translate="no">🔴 Revisar Placas ({{ ns.placas_ok }}/{{ total_placas }} Activas)</span>
+            {% elif ns.max_chip >= 75 or ns.max_delta >= 20 %}
+                <span class="hb-health-badge warn" data-hb-tt="badge_salud" translate="no">🟠 Temp Elevada ({{ ns.max_chip }}°C)</span>
+            {% else %}
+                <span class="hb-health-badge ok" data-hb-tt="badge_salud" translate="no">🟢 {{ ns.placas_ok }}/{{ total_placas }} Placas Óptimas</span>
+            {% endif %}
+        </div>
+        <span style="font-size:0.75em; color:var(--text-muted); font-family:monospace;" data-hb-tt="info_límite" translate="no">
+            🛡️ Corte Térmico: <b style="color:#ff5252;">85°C</b>
+        </span>
+    </div>
+
+    <!-- Barra de Resumen Técnico de Hashboards -->
+    <div class="hb-subbar" translate="no">
+        <div style="display:flex; align-items:center; gap:10px 16px; flex-wrap:wrap;">
+            <div class="hb-stat-item" data-hb-tt="stat_chips">
+                Chips Activos: <b style="color:#00e676;">{{ ns.chips_tot }} ASICs</b>
+            </div>
+            {% if freq_prom > 0 %}
+            <div class="hb-stat-item" data-hb-tt="stat_freq">
+                Frecuencia Prom: <b style="color:#38bdf8;">{{ freq_prom }} MHz</b>
+            </div>
+            {% endif %}
+            <div class="hb-stat-item" data-hb-tt="stat_delta">
+                ΔT Disipación (Chip-PCB): <b style="color:{{ '#ff5252' if ns.max_delta >= 22 else ('#ffb300' if ns.max_delta >= 18 else '#00e676') }};">+{{ ns.max_delta }}°C</b>
+            </div>
+            <div class="hb-stat-item" data-hb-tt="stat_hw">
+                Errores Placas: <b style="color:{{ '#ff5252' if ns.hw_tot > 100 else 'var(--text-main)' }};">{{ "{:,}".format(ns.hw_tot) }}</b>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Cadenas / Placas (Responsive) -->
+    <div>
+        <table class="hb-table-pro">
+            <thead>
+                <tr>
+                    <th data-hb-tt="col_chain">Placa (Cadena)</th>
+                    <th data-hb-tt="col_hr">Hashrate Real</th>
+                    <th data-hb-tt="col_chips">Chips (ASIC)</th>
+                    <th data-hb-tt="col_freq">Frecuencia</th>
+                    <th data-hb-tt="col_tchip">Temp Chip (Silicio)</th>
+                    <th data-hb-tt="col_tpcb">Temp PCB (Placa)</th>
+                    <th data-hb-tt="col_delta">ΔT / Errores HW</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set hr_ideal_placa = (ultimo.hashrate / (total_placas if total_placas > 0 else 3)) if ultimo.hashrate > 0 else 1 %}
+                {% for c in extra.cadenas %}
+                {% set c_hr = c.hr | default(ultimo.hashrate_c0) | float %}
+                {% set c_tc = c.temp_c | default(0) | int %}
+                {% set c_tp = c.temp_p | default(0) | int %}
+                {% set c_chips = c.chips | default(114) | int %}
+                {% set c_hw = c.hw | default(0) | int %}
+                {% set c_freq = c.freq | default(0) | int %}
+                {% set delta_t = (c_tc - c_tp) if (c_tc > 0 and c_tp > 0) else 0 %}
+                {% set pct_hr = ((c_hr / hr_ideal_placa) * 100) if hr_ideal_placa > 0 else 100 %}
+                {% if pct_hr > 100 %}{% set pct_hr = 100 %}{% endif %}
+                {% set color_chip = '#ff5252' if c_tc >= 85 else ('#ffb300' if c_tc >= 75 else '#3366ff') %}
+                {% set estado_chip_txt = 'Crítica' if c_tc >= 85 else ('Alerta' if c_tc >= 75 else 'Óptima') %}
+                <tr>
+                    <td data-label="Placa Hash" translate="no">
+                        <span class="hb-id-badge">
+                            <span class="{{ 'hb-dot-alive' if (c_hr > 0 or c_tc > 15) else 'hb-dot-dead' }}"></span>
+                            Cadena #{{ c.id }}
+                        </span>
+                    </td>
+                    <td data-label="Hashrate Real" translate="no">
+                        <div class="hb-metric-wrap">
+                            <div>
+                                <b style="color:var(--text-main); font-family:monospace; font-size:1.05em;">{{ "%.2f"|format(c_hr) }}</b>
+                                <span style="color:var(--text-muted); font-size:0.85em;">{{ ultimo.unidad | default('TH/s') }}</span>
+                            </div>
+                            <div class="hb-bar-bg">
+                                <div class="hb-bar-fill" style="width:{{ pct_hr }}%; background:#3366ff;"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td data-label="Chips ASIC" translate="no">
+                        <span class="hb-chips-pill {{ 'missing' if c_chips == 0 else '' }}">
+                            ● {{ c_chips }} chips
+                        </span>
+                    </td>
+                    <td data-label="Frecuencia" translate="no">
+                        <span style="font-family:monospace; color:{{ 'var(--text-main)' if c_freq > 0 else 'var(--text-muted)' }}; font-weight:bold;">
+                            {{ (c_freq ~ ' MHz') if c_freq > 0 else 'Auto PLL' }}
+                        </span>
+                    </td>
+                    <td data-label="Temp Chip" translate="no">
+                        <div class="hb-metric-wrap">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                                <b style="color:{{ color_chip }}; font-family:monospace; font-size:1.08em;">{{ c_tc }}°C</b>
+                                <span style="font-size:0.75em; color:{{ color_chip }};">{{ estado_chip_txt }}</span>
+                            </div>
+                            <div class="hb-bar-bg">
+                                <div class="hb-bar-fill" style="width:{{ c_tc if c_tc <= 100 else 100 }}%; background:{{ color_chip }};"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td data-label="Temp PCB" translate="no">
+                        <div class="hb-metric-wrap">
+                            <div>
+                                <b style="color:#00e676; font-family:monospace; font-size:1.05em;">{{ c_tp }}°C</b>
+                                <span style="font-size:0.75em; color:var(--text-muted); margin-left:4px;">Entrada</span>
+                            </div>
+                            <div class="hb-bar-bg">
+                                <div class="hb-bar-fill" style="width:{{ c_tp if c_tp <= 100 else 100 }}%; background:#00e676;"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td data-label="ΔT / Errores HW" translate="no">
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <span class="hb-delta-pill" style="color:{{ '#ff5252' if delta_t >= 22 else ('#ffb300' if delta_t >= 18 else '#38bdf8') }};" title="Diferencia entre Chip y PCB">
+                                ΔT +{{ delta_t }}°C
+                            </span>
+                            <span style="font-family:monospace; font-size:0.88em; color:{{ '#ff5252' if c_hw > 50 else 'var(--text-muted)' }}; font-weight:{{ 'bold' if c_hw > 0 else 'normal' }};">
+                                {{ "{:,}".format(c_hw) }} HW
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
     </div>
 </div>
+
+<script>
+    const INFO_TOOLTIPS_HB = {
+        'badge_salud': {
+            titulo: '🩺 Diagnóstico General de Placas Hash',
+            desc: 'Verifica que todas las tarjetas hash estén entregando potencia y operando debajo del umbral térmico de riesgo.',
+            rango: '🟢 < 75°C Óptimo | 🟠 75-84°C Alerta | 🔴 ≥ 85°C Crítico'
+        },
+        'info_límite': {
+            titulo: '🛡️ Protección Térmica del Firmware',
+            desc: 'Los Antminer apagan automáticamente las placas hash cuando un sensor de chip alcanza entre 85°C y 90°C para evitar que se desuelden los ASICs.',
+            rango: 'Mantener siempre por debajo de 80°C'
+        },
+        'stat_chips': {
+            titulo: '🔬 Conteo Total de Chips ASIC',
+            desc: 'Suma de microprocesadores SHA-256/Equihash detectados en todas las cadenas (ej: 77 por placa en S19k Pro, 114 en S19, 108 en S21).',
+            rango: 'Si faltan chips ("x" en log), reiniciar o revisar voltaje'
+        },
+        'stat_freq': {
+            titulo: '⏱️ Frecuencia de Reloj (PLL MHz)',
+            desc: 'Velocidad de reloj a la que oscilan los chips ASIC. Mayor frecuencia genera más TH/s pero incrementa la temperatura y el consumo.',
+            rango: 'Rango habitual S19/S21: 450 MHz a 720 MHz'
+        },
+        'stat_delta': {
+            titulo: '🌡️ Diferencial Térmico (Chip vs PCB)',
+            desc: 'Resta entre la temperatura del Chip y la placa PCB. Si supera los 20°C significa que el polvo bloquea los disipadores o la pasta térmica está seca.',
+            rango: '🟢 8°-16°C Limpio | 🟠 17°-21°C Polvo | 🔴 ≥ 22°C Limpiar'
+        },
+        'stat_hw': {
+            titulo: '⚠️ Errores de Hardware Acumulados',
+            desc: 'Suma de cálculos corruptos reportados por las placas. Permite identificar exactamente cuál de las 3 placas necesita mantenimiento.',
+            rango: 'Ideal: distribución baja y pareja entre placas'
+        },
+        'col_chain': {
+            titulo: '🔌 Número de Ranura / Cadena (Chain)',
+            desc: 'Identificador físico de la tarjeta hash conectada a la placa de control (Cadena #0, #1 y #2).',
+            rango: 'Luz verde = Placa sincronizada y minando'
+        },
+        'col_hr': {
+            titulo: '⚡ Hashrate Individual por Placa',
+            desc: 'Potencia de minado aportada específicamente por esa tarjeta hash. Las 3 placas deben rendir casi lo mismo.',
+            rango: 'Desviación máxima normal entre placas: ±5%'
+        },
+        'col_chips': {
+            titulo: '🧩 Estado de los Chips en la Placa',
+            desc: 'Cantidad de chips respondiendo en esa cadena específica. Todos los chips deben estar presentes para cerrar el circuito en serie.',
+            rango: '100% de los chips de fábrica detectados'
+        },
+        'col_freq': {
+            titulo: '🎛️ Frecuencia de la Cadena',
+            desc: 'Frecuencia de operación asignada por el autotuning del firmware a esa placa en particular.',
+            rango: 'Ajuste automático según calidad del silicio'
+        },
+        'col_tchip': {
+            titulo: '🔥 Temperatura Interna del Chip (Hotspot)',
+            desc: 'Lectura del sensor interno del silicio en la salida de aire caliente de la placa. Es la métrica más importante del minero.',
+            rango: '🟢 55-74°C Ideal | 🟠 75-84°C Caliente | 🔴 ≥ 85°C Peligro'
+        },
+        'col_tpcb': {
+            titulo: '❄️ Temperatura de Placa Base (PCB)',
+            desc: 'Temperatura del circuito impreso cerca de la entrada de aire fresco o bloque de agua.',
+            rango: 'Suele estar entre 10°C y 16°C por debajo del Chip'
+        },
+        'col_delta': {
+            titulo: '📊 Transferencia Térmica y Errores HW',
+            desc: 'Muestra la brecha ΔT (Chip - PCB) y los errores de hardware exclusivos de esa placa para diagnosticar fallas físicas rápido.',
+            rango: 'ΔT bajo + pocos HW = Placa en perfecto estado'
+        }
+    };
+
+    window.addEventListener('load', function() {
+        document.querySelectorAll('[data-hb-tt]').forEach(el => {
+            const key = el.getAttribute('data-hb-tt');
+            const info = INFO_TOOLTIPS_HB[key];
+            if (!info) return;
+
+            el.addEventListener('mouseenter', function() {
+                if (typeof mostrarSmartTooltip === 'function') {
+                    mostrarSmartTooltip(el, info);
+                }
+            });
+            el.addEventListener('mouseleave', function() {
+                if (typeof ocultarSmartTooltip === 'function') {
+                    ocultarSmartTooltip();
+                }
+            });
+            el.addEventListener('click', function(e) {
+                if (typeof mostrarSmartTooltip === 'function') {
+                    e.stopPropagation();
+                    mostrarSmartTooltip(el, info);
+                }
+            });
+        });
+    });
+</script>
