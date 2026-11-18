@@ -15,7 +15,16 @@
         border-radius: 6px;
         font-size: 0.75em;
     }
-    .stat-item { display: flex; align-items: center; gap: 4px; color: var(--text-muted); }
+    .stat-item { 
+        display: flex; 
+        align-items: center; 
+        gap: 4px; 
+        color: var(--text-muted); 
+        position: relative;
+        cursor: help;
+        border-bottom: 1px dotted rgba(255, 255, 255, 0.15);
+        padding-bottom: 1px;
+    }
     .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.06em; }
 
     /* Leyendas interactivas compactas */
@@ -27,6 +36,7 @@
         align-items: center;
     }
     .legend-pill {
+        position: relative;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border-color);
         color: var(--text-main);
@@ -41,9 +51,78 @@
         transition: 0.2s;
         user-select: none;
     }
-    .legend-pill:hover { border-color: var(--accent-blue); }
+    .legend-pill:hover { border-color: var(--accent-blue); background: rgba(51, 102, 255, 0.08); }
     .legend-pill.off { opacity: 0.35; text-decoration: line-through; }
     .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+    /* Tooltip profesional instantáneo para botones y métricas */
+    .pill-info-tooltip {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%) translateY(4px);
+        width: 255px;
+        background: rgba(10, 11, 16, 0.98);
+        border: 1px solid rgba(51, 102, 255, 0.45);
+        border-radius: 6px;
+        padding: 9px 11px;
+        color: #d1d3e0;
+        font-family: sans-serif;
+        font-size: 11px;
+        font-weight: normal;
+        line-height: 1.4;
+        white-space: normal;
+        text-align: left;
+        text-decoration: none !important;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.75);
+        z-index: 3000;
+        pointer-events: none;
+        transition: opacity 0.16s ease, transform 0.16s ease;
+    }
+    .pill-info-tooltip::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 5px;
+        border-style: solid;
+        border-color: rgba(10, 11, 16, 0.98) transparent transparent transparent;
+    }
+    .legend-pill:hover .pill-info-tooltip,
+    .stat-item:hover .pill-info-tooltip {
+        visibility: visible;
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    .pill-tt-header {
+        color: #fff;
+        font-weight: bold;
+        font-size: 11.5px;
+        margin-bottom: 4px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .pill-tt-range {
+        margin-top: 6px;
+        padding: 3px 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 10.5px;
+        color: #38bdf8;
+    }
+    .pill-tt-action {
+        margin-top: 4px;
+        font-size: 10px;
+        color: #8b8d9c;
+        font-style: italic;
+    }
 
     /* Contenedor Full-Bleed */
     .chart-edge-container {
@@ -125,23 +204,62 @@
             <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none;" translate="no"></span>
         </div>
         <div class="chart-filters">
-            <button class="btn-reset-zoom" id="btnResetZoom" onclick="resetearZoomGrafico()">🔍 100%</button>
-            <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')">6 h</button>
-            <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')">24 h</button>
-            <button class="btn-filter" id="btn-7d" onclick="updateChart('7d')">7 d</button>
-            <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')">30 d</button>
-            <button class="btn-filter" onclick="descargarCapturaGrafico()" title="Descargar imagen del gráfico">📷</button>
+            <button class="btn-reset-zoom" id="btnResetZoom" onclick="resetearZoomGrafico()" title="Restablecer el zoom al 100% de la vista original">🔍 100%</button>
+            <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')" title="Ver telemetría detallada de las últimas 6 horas">6 h</button>
+            <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')" title="Ver historial de rendimiento de las últimas 24 horas">24 h</button>
+            <button class="btn-filter" id="btn-7d" onclick="updateChart('7d')" title="Ver tendencia semanal de los últimos 7 días">7 d</button>
+            <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')" title="Ver histórico mensual de los últimos 30 días">30 d</button>
+            <button class="btn-filter" onclick="descargarCapturaGrafico()" title="Descargar captura PNG del gráfico actual">📷</button>
         </div>
     </div>
 
-    <!-- Barra de métricas dinámicas -->
+    <!-- Barra de métricas dinámicas con descripciones al pasar el mouse -->
     <div class="chart-stats-bar" translate="no">
-        <div class="stat-item">Prom: <b id="statProm" style="color:var(--accent-blue);">0.00</b></div>
-        <div class="stat-item">Máx: <b id="statMax">0.00</b></div>
-        <div class="stat-item">Mín: <b id="statMin">0.00</b></div>
-        <div class="stat-item">Temp Máx/Mín: <b id="statTempPico" style="color:#ffb300;">0°/0°C</b></div>
-        <div class="stat-item">Clima Granja / Sensación: <b id="statClimaHoy" style="color:#38bdf8;">--° / --°C</b></div>
-        <div class="stat-item">Estabilidad: <b id="statUptime" style="color:var(--accent-green);">100%</b></div>
+        <div class="stat-item">
+            Prom: <b id="statProm" style="color:var(--accent-blue);">0.00</b>
+            <div class="pill-info-tooltip">
+                <div class="pill-tt-header"><span>⚡ Hashrate Promedio</span></div>
+                Media real de potencia de minado durante el periodo seleccionado (excluye caídas por reinicio).
+                <div class="pill-tt-range">Ideal: ≥ 98% del nominal del modelo</div>
+            </div>
+        </div>
+        <div class="stat-item">
+            Máx: <b id="statMax">0.00</b>
+            <div class="pill-info-tooltip">
+                <div class="pill-tt-header"><span>🚀 Pico Máximo de Hashrate</span></div>
+                Potencia máxima sostenida en 1 minuto registrada dentro de esta ventana de tiempo.
+            </div>
+        </div>
+        <div class="stat-item">
+            Mín: <b id="statMin">0.00</b>
+            <div class="pill-info-tooltip">
+                <div class="pill-tt-header"><span>📉 Hashrate Mínimo Operativo</span></div>
+                Lectura más baja registrada mientras el equipo estaba minando activo. Útil para detectar throttling térmico.
+            </div>
+        </div>
+        <div class="stat-item">
+            Temp Máx/Mín: <b id="statTempPico" style="color:#ffb300;">0°/0°C</b>
+            <div class="pill-info-tooltip">
+                <div class="pill-tt-header"><span>🌡️ Rango Térmico (Chip / PCB)</span></div>
+                Temperatura más alta en chips ASIC y más baja en placa PCB durante el periodo.
+                <div class="pill-tt-range">Óptimo: 60°-75°C | Crítico: ≥ 85°C</div>
+            </div>
+        </div>
+        <div class="stat-item">
+            Clima Granja / Sensación: <b id="statClimaHoy" style="color:#38bdf8;">--° / --°C</b>
+            <div class="pill-info-tooltip">
+                <div class="pill-tt-header"><span>🌤️ Meteorología Exterior</span></div>
+                Temperatura ambiente exterior en la ubicación de la granja y sensación térmica real (Índice NOAA por humedad).
+            </div>
+        </div>
+        <div class="stat-item">
+            Estabilidad: <b id="statUptime" style="color:var(--accent-green);">100%</b>
+            <div class="pill-info-tooltip">
+                <div class="pill-tt-header"><span>🟢 Disponibilidad (Uptime)</span></div>
+                Porcentaje del tiempo en que el minero estuvo entregando hashrate activo sin caídas ni paradas.
+                <div class="pill-tt-range">Estándar industrial: > 99.0%</div>
+            </div>
+        </div>
     </div>
 
     <!-- Píldoras interactivas para encender/apagar curvas -->
@@ -175,6 +293,45 @@
     let mapaMetaPuntos = {};
     let cacheClimaExterior = [];
     let visibilidadCurvas = {};
+
+    // Diccionario de descripciones técnicas para cada botón de curva del gráfico
+    const INFO_TOOLTIPS_CURVAS = {
+        'hr': {
+            titulo: '⚡ Hashrate (Potencia de Minado)',
+            desc: 'Velocidad de cálculo SHA-256 entregada en tiempo real por todas las placas hash.',
+            rango: 'Estable: línea plana sin caídas bruscas'
+        },
+        'tmax': {
+            titulo: '🌡️ Temperatura Máxima (Chips ASIC)',
+            desc: 'Punto más caliente medido en los sensores internos de los chips. Define la vida útil del silicio y el riesgo de apagado.',
+            rango: '🟢 < 75°C Normal | 🟠 75-84°C Alerta | 🔴 ≥ 85°C Crítico'
+        },
+        'tmin': {
+            titulo: '❄️ Temperatura Mínima (Placa PCB)',
+            desc: 'Temperatura en la zona de entrada de aire de la placa base (PCB). La brecha entre Temp Máx y PCB indica la eficiencia de disipación.',
+            rango: 'Diferencial ideal (Chip - PCB): 10°C a 18°C'
+        },
+        'tamb': {
+            titulo: '🍃 Temperatura Entrada / Ambiente',
+            desc: 'Temperatura del flujo de aire fresco que ingresa por los ventiladores frontales del minero.',
+            rango: 'Recomendado en sala: 15°C a 35°C'
+        },
+        'clima': {
+            titulo: '🌤️ Clima Exterior de la Granja',
+            desc: 'Temperatura meteorológica real en ' + GRANJA_CIUDAD + '. Permite comparar si una subida térmica del minero es por el clima o por suciedad.',
+            rango: 'Fuente: Estación METAR + Satélite Open-Meteo'
+        },
+        'sensacion': {
+            titulo: '🥵 Sensación Térmica (Índice NOAA)',
+            desc: 'Impacto térmico real combinando temperatura y humedad relativa. Alta humedad reduce la capacidad del aire para enfriar los disipadores.',
+            rango: 'Alerta de calor húmedo: ≥ 36°C'
+        },
+        'err': {
+            titulo: '⚠️ Errores de Hardware (HW Errors)',
+            desc: 'Cálculos corruptos descartados por los chips ASIC en cada minuto. Picos altos indican voltaje inestable, sobrecalentamiento o chip dañado.',
+            rango: 'Normal: 0 a 5 /min | Revisar placa: > 30 /min'
+        }
+    };
 
     function formatearFechaTooltip(d) {
         let dia = String(d.getDate()).padStart(2, '0');
@@ -596,7 +753,22 @@
             const btn = document.createElement('div');
             const isHidden = !chartInstance.isDatasetVisible(index);
             btn.className = 'legend-pill' + (isHidden ? ' off' : '');
-            btn.innerHTML = `<span class="legend-dot" style="background:${ds.borderColor};"></span><span>${ds.label}</span>`;
+
+            const info = INFO_TOOLTIPS_CURVAS[ds.id];
+            let tooltipHtml = '';
+            if (info) {
+                const estadoTxt = isHidden ? 'Clic para mostrar curva' : 'Clic para ocultar curva';
+                tooltipHtml = `
+                    <div class="pill-info-tooltip">
+                        <div class="pill-tt-header"><span>${info.titulo}</span></div>
+                        <div>${info.desc}</div>
+                        <div class="pill-tt-range">${info.rango}</div>
+                        <div class="pill-tt-action">🖱️ ${estadoTxt}</div>
+                    </div>
+                `;
+            }
+
+            btn.innerHTML = `<span class="legend-dot" style="background:${ds.borderColor};"></span><span>${ds.label}</span>${tooltipHtml}`;
             btn.onclick = function() {
                 const vis = chartInstance.isDatasetVisible(index);
                 chartInstance.setDatasetVisibility(index, !vis);
