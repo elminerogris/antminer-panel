@@ -1,125 +1,479 @@
-<div class="confirm-modal-overlay" id="confirmModal">
-    <div class="confirm-modal-box">
-        <div class="confirm-modal-title" id="confirmModalTitle">Confirmar acción</div>
-        <div class="confirm-modal-text" id="confirmModalText">¿Estás seguro de que deseas aplicar esta acción en el minero?</div>
-        <div class="confirm-modal-actions">
-            <button type="button" class="btn-modal-cancel" onclick="cerrarConfirmacion()">Cancelar</button>
-            <button type="button" class="btn-modal-confirm" id="btnConfirmarAccion">Confirmar</button>
-        </div>
-    </div>
-</div>
+<style>
+    /* Tarjeta Principal del Centro de Control y Logs */
+    .ctrl-card-pro {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-bottom: 20px;
+        padding: 16px;
+        position: relative;
+    }
+    .ctrl-grid-sections {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+    }
+    .ctrl-box {
+        background: rgba(10, 12, 18, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        padding: 14px;
+    }
+    .ctrl-box-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        font-weight: bold;
+        font-size: 0.92em;
+        color: var(--text-main);
+    }
+    .ctrl-box-sub {
+        font-size: 0.78em;
+        color: var(--text-muted);
+        font-weight: normal;
+        font-family: monospace;
+    }
 
-<div class="card">
-    <div>
-        <div class="panel-title" style="justify-content: flex-start;">🛠️ Panel de control</div>
-        <p style="color:var(--text-muted); font-size:0.8em; margin-top:0; margin-bottom:12px;">Acciones operativas directas sobre el minero.</p>
-        <div class="control-grid">
-            <button class="btn-control" style="border-color:var(--accent-red); color:var(--accent-red);" onclick="pedirConfirmacion('🔄 Reiniciar Minero', '¿Estás seguro de que deseas reiniciar el minero ahora?', 'restart', true)">🔄 Reiniciar</button>
-            <button class="btn-control" onclick="pedirConfirmacion('😴 Modo Reposo', '¿Deseas poner el minero en modo Reposo (Sleep)? Detendrá el minado.', 'sleep', true)">😴 Reposo</button>
-            <button class="btn-control active" onclick="pedirConfirmacion('▶ Modo Normal', '¿Deseas reanudar la operación del minero en modo Normal?', 'normal', true)">▶ Normal</button>
-            <button class="btn-control" style="color:gold; border-color:gold;" onclick="pedirConfirmacion('💡 Parpadear LED', '¿Deseas activar o desactivar el parpadeo del LED localizador en este minero?', 'blink', false)">💡 Parpadear LED</button>
-            <button class="btn-control" style="color:#a5a7b5; border-color:#a5a7b5;" onclick="pedirConfirmacion('🖥️ Ver Logs', '¿Deseas solicitar los registros del sistema (Logs) al minero?', 'logs', false)">🖥️ Ver Logs</button>
-            <button class="btn-control" style="color:#ff9100; border-color:#ff9100;" onclick="pedirConfirmacion('⚠️ Restablecer Minero', '¿Estás seguro de que deseas formatear y restablecer este minero a sus valores de fábrica?', 'reset', true)">⚠️ Restablecer</button>
+    /* Botones de Control con Efecto Neon Glow Semántico */
+    .ctrl-buttons-wrap {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .btn-ctrl-pro {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 8px 13px;
+        border-radius: 7px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 0.80em;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        user-select: none;
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+    .btn-ctrl-pro:active {
+        transform: translateY(0);
+    }
+
+    /* Variantes de Brillo (Glow) al pasar el mouse */
+    .btn-ctrl-pro.glow-blue:hover, .btn-ctrl-pro.glow-blue.active {
+        color: #fff;
+        background: rgba(51, 102, 255, 0.22);
+        border-color: #3b82f6;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.5);
+        transform: translateY(-1px);
+    }
+    .btn-ctrl-pro.glow-green {
+        color: #00e676;
+        border-color: rgba(0, 230, 118, 0.35);
+    }
+    .btn-ctrl-pro.glow-green:hover, .btn-ctrl-pro.glow-green.active {
+        color: #fff;
+        background: rgba(0, 230, 118, 0.22);
+        border-color: #00e676;
+        box-shadow: 0 0 14px rgba(0, 230, 118, 0.5);
+        transform: translateY(-1px);
+    }
+    .btn-ctrl-pro.glow-orange {
+        color: #ffb300;
+        border-color: rgba(255, 179, 0, 0.35);
+    }
+    .btn-ctrl-pro.glow-orange:hover, .btn-ctrl-pro.glow-orange.active {
+        color: #fff;
+        background: rgba(255, 179, 0, 0.22);
+        border-color: #ffb300;
+        box-shadow: 0 0 14px rgba(255, 179, 0, 0.5);
+        transform: translateY(-1px);
+    }
+    .btn-ctrl-pro.glow-red {
+        color: #ff5252;
+        border-color: rgba(255, 82, 82, 0.35);
+    }
+    .btn-ctrl-pro.glow-red:hover {
+        color: #fff;
+        background: rgba(255, 82, 82, 0.25);
+        border-color: #ff5252;
+        box-shadow: 0 0 14px rgba(255, 82, 82, 0.55);
+        transform: translateY(-1px);
+    }
+    .btn-ctrl-pro.glow-gold {
+        color: #facc15;
+        border-color: rgba(250, 204, 21, 0.35);
+    }
+    .btn-ctrl-pro.glow-gold:hover, .btn-ctrl-pro.glow-gold.blinking {
+        color: #fff;
+        background: rgba(250, 204, 21, 0.25);
+        border-color: #facc15;
+        box-shadow: 0 0 15px rgba(250, 204, 21, 0.65);
+        transform: translateY(-1px);
+    }
+
+    /* Consola / Terminal Unificada de Diagnóstico (Logs) */
+    .terminal-section-pro {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .terminal-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .terminal-tabs {
+        display: inline-flex;
+        gap: 5px;
+        flex-wrap: wrap;
+        background: rgba(10, 12, 18, 0.65);
+        padding: 4px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+    .btn-log-tab {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        padding: 5px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.76em;
+        font-weight: bold;
+        font-family: monospace;
+        transition: all 0.18s ease;
+    }
+    .btn-log-tab:hover {
+        color: #fff;
+        background: rgba(51, 102, 255, 0.14);
+        border-color: rgba(82, 140, 255, 0.5);
+    }
+    .btn-log-tab.active {
+        color: #38bdf8;
+        background: rgba(56, 189, 248, 0.16);
+        border-color: #38bdf8;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+    }
+
+    /* Controles de búsqueda y copia dentro del visor de Logs */
+    .terminal-actions {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .input-log-filter {
+        background: rgba(10, 12, 18, 0.8);
+        border: 1px solid var(--border-color);
+        color: #fff;
+        padding: 5px 9px;
+        border-radius: 6px;
+        font-size: 0.76em;
+        font-family: monospace;
+        outline: none;
+        width: 150px;
+    }
+    .input-log-filter:focus {
+        border-color: #38bdf8;
+    }
+    .btn-term-mini {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 4px 9px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.75em;
+        font-weight: bold;
+        transition: 0.15s;
+    }
+    .btn-term-mini:hover {
+        color: #fff;
+        border-color: var(--accent-blue);
+    }
+
+    .terminal-window-pro {
+        display: none;
+        background: #07080c;
+        color: #00e676;
+        padding: 14px;
+        border-radius: 7px;
+        font-family: monospace;
+        font-size: 0.80em;
+        line-height: 1.45;
+        height: 290px;
+        overflow-y: auto;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        margin-top: 10px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        box-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.8);
+    }
+</style>
+
+<div class="ctrl-card-pro">
+    <div class="ctrl-grid-sections">
+        <!-- SECCIÓN 1: MODO DE OPERACIÓN Y PERFILES TÉRMICOS -->
+        <div class="ctrl-box">
+            <div class="ctrl-box-header">
+                <span>⚡ Modo de Operación y Energía</span>
+                <span class="ctrl-box-sub" id="estadoComandoBadge" translate="no">● Listo</span>
+            </div>
+            <div class="ctrl-buttons-wrap">
+                <button class="btn-ctrl-pro glow-blue {{ 'active' if ultimo.hashrate > 0 else '' }}" data-ctrl-tt="modo_normal" onclick="ejecutarComandoPro('¿Activar modo Normal de minado en {{ ip }}?', '/cmd/{{ ip }}/normal', 'Modo Normal enviado', true)">
+                    ▶ Normal
+                </button>
+                <button class="btn-ctrl-pro glow-orange {{ 'active' if (not offline and ultimo.hashrate == 0) else '' }}" data-ctrl-tt="modo_sleep" onclick="ejecutarComandoPro('¿Poner en modo Reposo (Sleep) este minero? Detendrá el hashrate pero seguirá conectado.', '/cmd/{{ ip }}/sleep', 'Modo Reposo enviado', true)">
+                    😴 Reposo (Sleep)
+                </button>
+                <button class="btn-ctrl-pro glow-green" data-ctrl-tt="perfil_eco" onclick="ejecutarComandoPro('¿Aplicar perfil Invierno / Bajo Consumo (Low Power)?', '/cmd/{{ ip }}/profile_low', 'Perfil Eco enviado')">
+                    ❄️ Eco (Low)
+                </button>
+                <button class="btn-ctrl-pro glow-red" data-ctrl-tt="perfil_max" onclick="ejecutarComandoPro('¿Aplicar perfil Verano / Potencia Estándar (High)?', '/cmd/{{ ip }}/profile_high', 'Perfil Max enviado')">
+                    🔥 Max (High)
+                </button>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 2: ACCIONES DE HARDWARE Y MANTENIMIENTO -->
+        <div class="ctrl-box">
+            <div class="ctrl-box-header">
+                <span>🛠️ Acciones de Hardware</span>
+                <span class="ctrl-box-sub" translate="no">IP: {{ ip }}</span>
+            </div>
+            <div class="ctrl-buttons-wrap">
+                <button class="btn-ctrl-pro glow-red" data-ctrl-tt="hw_reboot" onclick="ejecutarComandoPro('¿Estás seguro de REINICIAR (Reboot) el minero {{ ip }}?', '/cmd/{{ ip }}/restart', 'Orden de reinicio enviada', true)">
+                    🔄 Reiniciar
+                </button>
+                <button class="btn-ctrl-pro glow-gold" id="btnLedLocator" data-ctrl-tt="hw_blink" onclick="activarLedLocator()">
+                    💡 Localizar LED
+                </button>
+                <button class="btn-ctrl-pro glow-blue" data-ctrl-tt="hw_scan" onclick="ejecutarComandoPro('¿Solicitar al Agente un escaneo completo de la red local en busca de nuevos mineros?', '/cmd/{{ ip }}/scan', 'Escaneo de red iniciado')">
+                    📡 Escanear Red
+                </button>
+            </div>
         </div>
     </div>
-    
-    <div id="terminal-wrapper" class="terminal-wrapper">
-        <div class="terminal-header">
-            <div class="terminal-tabs">
-                <button type="button" class="btn-log-tab active" id="tab-get_log" onclick="cambiarTipoLog('get_log')">General</button>
-                <button type="button" class="btn-log-tab" id="tab-clog" onclick="cambiarTipoLog('clog')" translate="no">Kernel (clog)</button>
-                <button type="button" class="btn-log-tab" id="tab-hlog" onclick="cambiarTipoLog('hlog')" translate="no">Hash (hlog)</button>
-                <button type="button" class="btn-log-tab" id="tab-dlog" onclick="cambiarTipoLog('dlog')" translate="no">Driver (dlog)</button>
+
+    <!-- SECCIÓN 3: CONSOLA UNIFICADA DE LOGS DEL KERNEL Y HASHBOARDS -->
+    <div class="terminal-section-pro">
+        <div class="terminal-toolbar">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <span style="font-weight:bold; font-size:0.9em; color:var(--text-main);">🖥️ Consola de Diagnóstico:</span>
+                <div class="terminal-tabs">
+                    <button class="btn-log-tab" id="tab-get_log" data-ctrl-tt="log_kernel" onclick="abrirLogUnificado('get_log')">Kernel Log</button>
+                    <button class="btn-log-tab" id="tab-hlog" data-ctrl-tt="log_hlog" onclick="abrirLogUnificado('hlog')">hlog (Placas)</button>
+                    <button class="btn-log-tab" id="tab-clog" data-ctrl-tt="log_clog" onclick="abrirLogUnificado('clog')">clog (Control)</button>
+                    <button class="btn-log-tab" id="tab-dlog" data-ctrl-tt="log_dlog" onclick="abrirLogUnificado('dlog')">dlog (Debug)</button>
+                </div>
             </div>
-            <div class="terminal-actions">
-                <button type="button" class="btn-log-action" id="btnCopyLog" onclick="copiarLogs()">📋 Copiar</button>
-                <button type="button" class="btn-log-action btn-log-close" onclick="cerrarLogs()">✖ Cerrar</button>
+
+            <div class="terminal-actions" id="terminalActionsBar">
+                <input type="text" id="inputFiltroLog" class="input-log-filter" placeholder="🔍 Filtrar (ej: error, fan, temp)..." oninput="filtrarTextoTerminal()">
+                <button class="btn-term-mini" onclick="filtrarSoloErroresLog()" title="Mostrar solo líneas con errores o advertencias">⚠️ Solo Errores</button>
+                <button class="btn-term-mini" onclick="copiarLogPortapapeles(this)" title="Copiar log completo">📋 Copiar</button>
+                <button class="btn-term-mini" onclick="cerrarConsolaLog()" title="Ocultar consola">✖</button>
             </div>
         </div>
-        <div id="terminal-box" class="terminal">Esperando logs...</div>
+
+        <div id="terminalUnificadaBox" class="terminal-window-pro" translate="no">Seleccione una pestaña de log arriba...</div>
     </div>
 </div>
 
 <script>
-    let comandoPendiente = null;
-    let recargarPendiente = false;
-    let logInterval = null;
+    let contenidoLogOriginalCache = "";
+    let tipoLogActivo = "";
 
-    function pedirConfirmacion(titulo, texto, comando, recargar) {
-        comandoPendiente = comando;
-        recargarPendiente = recargar;
-        document.getElementById('confirmModalTitle').innerText = titulo;
-        document.getElementById('confirmModalText').innerText = texto;
-        document.getElementById('confirmModal').style.display = 'flex';
+    const INFO_TOOLTIPS_CTRL = {
+        'modo_normal': {
+            titulo: '▶ Modo Normal de Minería',
+            desc: 'Reanuda el trabajo de todas las placas hash a su frecuencia nominal configurada.',
+            rango: 'Estado estándar de producción 24/7'
+        },
+        'modo_sleep': {
+            titulo: '😴 Modo Reposo (Sleep Mode)',
+            desc: 'Apaga la alimentación de las placas hash dejando encendida solo la placa de control con consumo mínimo (~40W). Ideal para cortes programados o calor extremo.',
+            rango: 'Hashrate: 0 TH/s | Mantiene conexión web activa'
+        },
+        'perfil_eco': {
+            titulo: '❄️ Perfil Bajo Consumo (Low Power Mode)',
+            desc: 'Reduce ligeramente el voltaje y frecuencia del minero para mejorar la eficiencia (J/TH) y bajar la temperatura entre 4°C y 7°C.',
+            rango: 'Recomendado en olas de calor o tarifas eléctricas altas'
+        },
+        'perfil_max': {
+            titulo: '🔥 Perfil Potencia Estándar / Alta',
+            desc: 'Configura el work-mode del firmware Bitmain para entregar el máximo hashrate nominal del equipo.',
+            rango: 'Requiere buena ventilación (< 78°C en chips)'
+        },
+        'hw_reboot': {
+            titulo: '🔄 Reinicio Completo del Sistema (Reboot)',
+            desc: 'Reinicia el sistema operativo Linux de la placa de control y vuelve a sincronizar todos los chips ASIC desde cero.',
+            rango: 'Tiempo de reconexión: 2 a 4 minutos'
+        },
+        'hw_blink': {
+            titulo: '💡 Localizador Físico por LED (Blink)',
+            desc: 'Hace parpadear rápidamente las luces LED roja y verde del minero en el rack para que el técnico identifique físicamente cuál máquina es.',
+            rango: 'Útil en granjas con decenas de equipos iguales'
+        },
+        'hw_scan': {
+            titulo: '📡 Escaneo Automático de Subred',
+            desc: 'Ordena al agente local escanear los 254 puertos 4028 de la red LAN para descubrir mineros nuevos o que cambiaron de IP por DHCP.',
+            rango: 'Duración del escaneo: ~5 segundos'
+        },
+        'log_kernel': {
+            titulo: '📜 Kernel Log (Registro Principal)',
+            desc: 'Muestra el arranque del sistema, detección de ventiladores, fallas de fuente (PSU), temperatura y conexión con los pools.',
+            rango: 'Ideal para diagnosticar por qué un equipo se detuvo'
+        },
+        'log_hlog': {
+            titulo: '📊 hlog (Diagnóstico de Placas Hash)',
+            desc: 'Registro específico del estado de los chips ASIC, voltajes de dominio y calibración de frecuencia por cadena.',
+            rango: 'Permite ver si un chip específico corta la cadena'
+        },
+        'log_clog': {
+            titulo: '📄 clog (Control Board Log)',
+            desc: 'Eventos internos del proceso bmminer/cgminer en la tarjeta controladora.',
+            rango: 'Auditoría de comandos y reinicios de software'
+        },
+        'log_dlog': {
+            titulo: '🔍 dlog (Debug Hardware Log)',
+            desc: 'Registro detallado de bajo nivel de comunicación I2C/UART entre la controladora, sensores de temperatura y PSU.',
+            rango: 'Para soporte electrónico avanzado'
+        }
+    };
+
+    function ejecutarComandoPro(mensajeConfirm, urlCmd, textoExito, recargar = false) {
+        if (!confirm(mensajeConfirm)) return;
+        const badge = document.getElementById('estadoComandoBadge');
+        if (badge) {
+            badge.style.color = '#38bdf8';
+            badge.innerText = '⏳ Enviando orden...';
+        }
+        fetch(urlCmd).then(() => {
+            if (badge) {
+                badge.style.color = '#00e676';
+                badge.innerText = '✅ ' + (textoExito || 'En cola (15-30s)');
+            }
+            if (recargar) {
+                setTimeout(() => location.reload(), 2200);
+            } else {
+                setTimeout(() => {
+                    if (badge) {
+                        badge.style.color = 'var(--text-muted)';
+                        badge.innerText = '● Listo';
+                    }
+                }, 5000);
+            }
+        });
     }
 
-    function cerrarConfirmacion() {
-        comandoPendiente = null;
-        document.getElementById('confirmModal').style.display = 'none';
+    function activarLedLocator() {
+        const btn = document.getElementById('btnLedLocator');
+        ejecutarComandoPro('¿Hacer parpadear el LED físico de este minero para ubicarlo en el rack?', '/cmd/{{ ip }}/blink', 'LED Parpadeando');
+        if (btn) {
+            btn.classList.add('blinking');
+            setTimeout(() => btn.classList.remove('blinking'), 6000);
+        }
     }
 
-    document.getElementById('btnConfirmarAccion').addEventListener('click', function() {
-        if (!comandoPendiente) return;
-        let cmd = comandoPendiente;
-        let rec = recargarPendiente;
-        cerrarConfirmacion();
+    function abrirLogUnificado(tipo) {
+        tipoLogActivo = tipo;
+        document.querySelectorAll('.btn-log-tab').forEach(b => b.classList.remove('active'));
+        const tabBtn = document.getElementById('tab-' + tipo);
+        if (tabBtn) tabBtn.classList.add('active');
 
-        if (cmd === 'logs') {
-            solicitarLogs('get_log');
-        } else if (cmd === 'guardar_red') {
-            let host = encodeURIComponent(document.getElementById('net_host').value.trim());
-            let proto = encodeURIComponent(document.getElementById('net_proto').value);
-            let nip = encodeURIComponent(document.getElementById('net_ip').value.trim());
-            let mask = encodeURIComponent(document.getElementById('net_mask').value.trim());
-            let gw = encodeURIComponent(document.getElementById('net_gw').value.trim());
-            let dns = encodeURIComponent(document.getElementById('net_dns').value.trim());
-            fetch(`/cmd/{{ ip }}/set_network?host=${host}&proto=${proto}&nip=${nip}&mask=${mask}&gw=${gw}&dns=${dns}`)
-                .then(() => alert('Configuración de red enviada a la cola del Agente.'));
-        } else {
-            fetch('/cmd/{{ ip }}/' + cmd).then(() => {
-                if (rec) {
-                    location.reload();
-                } else {
-                    alert('Orden enviada a la cola del Agente.');
+        const box = document.getElementById('terminalUnificadaBox');
+        const actions = document.getElementById('terminalActionsBar');
+        const inputF = document.getElementById('inputFiltroLog');
+        if (inputF) inputF.value = '';
+
+        box.style.display = 'block';
+        actions.style.display = 'flex';
+        box.innerText = `⏳ Solicitando [${tipo}] al minero {{ ip }} a través del Agente...\nEsperando respuesta (2-4 segundos)...`;
+
+        fetch('/cmd/{{ ip }}/' + tipo).then(() => {
+            setTimeout(async () => {
+                try {
+                    let r = await fetch('/api/ver_log/{{ ip }}');
+                    let txt = await r.text();
+                    contenidoLogOriginalCache = txt || 'Sin datos devueltos por el minero.';
+                    box.innerText = contenidoLogOriginalCache;
+                    box.scrollTop = box.scrollHeight;
+                } catch (e) {
+                    box.innerText = 'Error al recuperar el log desde el servidor.';
+                }
+            }, 2400);
+        });
+    }
+
+    function filtrarTextoTerminal() {
+        const q = (document.getElementById('inputFiltroLog').value || '').toLowerCase().trim();
+        const box = document.getElementById('terminalUnificadaBox');
+        if (!box || !contenidoLogOriginalCache) return;
+        if (!q) {
+            box.innerText = contenidoLogOriginalCache;
+            box.scrollTop = box.scrollHeight;
+            return;
+        }
+        const lineas = contenidoLogOriginalCache.split('\n');
+        const filtradas = lineas.filter(l => l.toLowerCase().includes(q));
+        box.innerText = filtradas.length > 0
+            ? `--- Mostrando ${filtradas.length} línea(s) que coinciden con "${q}" ---\n\n` + filtradas.join('\n')
+            : `No se encontraron líneas con "${q}" en este log.`;
+    }
+
+    function filtrarSoloErroresLog() {
+        const inputF = document.getElementById('inputFiltroLog');
+        const box = document.getElementById('terminalUnificadaBox');
+        if (!box || !contenidoLogOriginalCache) return;
+        if (inputF) inputF.value = 'ERROR / WARN / FAIL';
+
+        const patron = /(error|err|fail|warn|fatal|missing|fan lost|overheat|high temp|crc|socket|dead)/i;
+        const lineas = contenidoLogOriginalCache.split('\n');
+        const criticas = lineas.filter(l => patron.test(l));
+        box.innerText = criticas.length > 0
+            ? `⚠️ --- ${criticas.length} Eventos Críticos / Advertencias Detectadas ---\n\n` + criticas.join('\n')
+            : `✅ No se detectaron errores críticos (error, fail, fan lost, overheat) en este registro.`;
+    }
+
+    function copiarLogPortapapeles(btnEl) {
+        const box = document.getElementById('terminalUnificadaBox');
+        if (!box || !box.innerText) return;
+        navigator.clipboard.writeText(box.innerText).then(() => {
+            const orig = btnEl.innerText;
+            btnEl.innerText = '✅ Copiado';
+            setTimeout(() => { btnEl.innerText = orig; }, 1400);
+        });
+    }
+
+    function cerrarConsolaLog() {
+        document.getElementById('terminalUnificadaBox').style.display = 'none';
+        document.getElementById('terminalActionsBar').style.display = 'none';
+        document.querySelectorAll('.btn-log-tab').forEach(b => b.classList.remove('active'));
+    }
+
+    window.addEventListener('load', function() {
+        document.querySelectorAll('[data-ctrl-tt]').forEach(el => {
+            const key = el.getAttribute('data-ctrl-tt');
+            const info = INFO_TOOLTIPS_CTRL[key];
+            if (!info) return;
+
+            el.addEventListener('mouseenter', function() {
+                if (typeof mostrarSmartTooltip === 'function') {
+                    mostrarSmartTooltip(el, info);
                 }
             });
-        }
-    });
-
-    function solicitarLogs(tipo = 'get_log') {
-        document.getElementById('terminal-wrapper').style.display = 'block';
-        let tb = document.getElementById('terminal-box');
-        tb.innerText = 'Solicitando ' + tipo + ' al agente... (puede tardar hasta 30s)';
-        fetch('/cmd/{{ ip }}/' + tipo).then(() => {
-            if (logInterval) clearInterval(logInterval);
-            logInterval = setInterval(async () => {
-                let r = await fetch('/api/ver_log/{{ ip }}');
-                let txt = await r.text();
-                if (txt.length > 5 && !txt.startsWith('Esperando')) {
-                    tb.innerText = txt;
+            el.addEventListener('mouseleave', function() {
+                if (typeof ocultarSmartTooltip === 'function') {
+                    ocultarSmartTooltip();
                 }
-            }, 3000);
+            });
         });
-    }
-
-    function cambiarTipoLog(tipo) {
-        document.querySelectorAll('.btn-log-tab').forEach(b => b.classList.remove('active'));
-        let tabBtn = document.getElementById('tab-' + tipo);
-        if (tabBtn) tabBtn.classList.add('active');
-        solicitarLogs(tipo);
-    }
-
-    function copiarLogs() {
-        let txt = document.getElementById('terminal-box').innerText;
-        navigator.clipboard.writeText(txt).then(() => {
-            let btn = document.getElementById('btnCopyLog');
-            btn.innerText = '✅ Copiado';
-            setTimeout(() => { btn.innerText = '📋 Copiar'; }, 2000);
-        });
-    }
-
-    function cerrarLogs() {
-        document.getElementById('terminal-wrapper').style.display = 'none';
-        if (logInterval) clearInterval(logInterval);
-    }
+    });
 </script>
