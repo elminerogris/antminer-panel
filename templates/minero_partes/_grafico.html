@@ -122,7 +122,7 @@
     <div class="panel-title" style="margin-bottom: 10px;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
-            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.1); padding:2px 8px; border-radius:12px; display:none;" translate="no"></span>
+            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none;" translate="no"></span>
         </div>
         <div class="chart-filters">
             <button class="btn-reset-zoom" id="btnResetZoom" onclick="resetearZoomGrafico()">🔍 100%</button>
@@ -134,13 +134,13 @@
         </div>
     </div>
 
-    <!-- Barra de métricas dinámicas (Incluye Temp Max, Temp Min y Estabilidad) -->
+    <!-- Barra de métricas dinámicas (Incluye Clima Real y Sensación Térmica) -->
     <div class="chart-stats-bar" translate="no">
         <div class="stat-item">Prom: <b id="statProm" style="color:var(--accent-blue);">0.00</b></div>
         <div class="stat-item">Máx: <b id="statMax">0.00</b></div>
         <div class="stat-item">Mín: <b id="statMin">0.00</b></div>
         <div class="stat-item">Temp Máx/Mín: <b id="statTempPico" style="color:#ffb300;">0°/0°C</b></div>
-        <div class="stat-item">Clima Ext: <b id="statClimaHoy" style="color:#38bdf8;">--°C</b></div>
+        <div class="stat-item">Clima / Sensación: <b id="statClimaHoy" style="color:#38bdf8;">--° / --°C</b></div>
         <div class="stat-item">Estabilidad: <b id="statUptime" style="color:var(--accent-green);">100%</b></div>
     </div>
 
@@ -168,8 +168,8 @@
     let rangoActual = '24h';
     let cursorDentroArea = false;
     let mapaMetaPuntos = {};
-    let cacheClimaExterior = []; // [{ts, temp}]
-    let nombreCiudadClima = "";
+    let cacheClimaExterior = []; // [{ts, temp, sensacion}]
+    let nombreCiudadClima = "Santa Cruz de la Sierra";
 
     function formatearFechaTooltip(d) {
         let dia = String(d.getDate()).padStart(2, '0');
@@ -192,43 +192,123 @@
         return horaStr;
     }
 
-    // Obtener clima real e historial de los últimos 30 días automáticamente según ubicación
+    // Calcula la Sensación Térmica (Heat Index / Humidex) real cuando hay alta temperatura y humedad tropical
+    function calcularSensacionTermicaPrecisa(tempC, humedadPct, apparentApi) {
+        let stBase = apparentApi !== null && apparentApi !== undefined ? Number(apparentApi) : tempC;
+        if (tempC >= 26 && humedadPct >= 45) {
+            // Fórmula NOAA Rothfusz Heat Index adaptada a °C (idéntica a la usada por Google Weather / The Weather Channel)
+            let T = (tempC * 9 / 5) + 32;
+            let R = humedadPct;
+            let HI = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R
+                     - 0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R
+                     + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
+            let hiC = (HI - 32) * 5 / 9;
+            // Humidex canadiense/tropical como referencia superior en climas húmedos
+            let e = (humedadPct / 100) * 6.105 * Math.exp((17.27 * tempC) / (237.7 + tempC));
+            let humidex = tempC + (5 / 9) * (e - 10);
+            return Math.round(Math.max(stBase, hiC, humidex));
+        }
+        return Math.round(stBase);
+    }
+
+    // Obtiene coordenadas exactas (GPS del dispositivo o Estación Argentina, Santa Cruz de la Sierra) y sincroniza en UTC real
     async function cargarClimaExteriorAutomatico() {
         try {
-            let lat = -17.7833, lon = -63.1821, ciudad = "Local";
-            try {
-                const rGeo = await fetch("https://ipapi.co/json/");
-                if (rGeo.ok) {
-                    const jGeo = await rGeo.json();
-                    if (jGeo.latitude && jGeo.longitude) {
-                        lat = jGeo.latitude; lon = jGeo.longitude;
-                        ciudad = jGeo.city || jGeo.region || "Local";
-                    }
-                }
-            } catch(e) {}
+            // Coordenadas base: Estación Argentina, Santa Cruz de la Sierra, Bolivia
+            let lat = -17.7863, lon = -63.1648, ciudad = "Estación Argentina, Santa Cruz";
 
-            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m&past_days=30&forecast_days=1&timeformat=unixtime&timezone=auto`;
+            // 1. Intentar GPS preciso del navegador si ya tiene permiso concedido (sin bloquear)
+            const obtenerGps = () => new Promise((resolve) => {
+                if (!navigator.geolocation) return resolve(null);
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+                    () => resolve(null),
+                    { enableHighAccuracy: false, timeout: 2200, maximumAge: 600000 }
+                );
+            });
+
+            let coordsGps = await obtenerGps();
+            if (coordsGps) {
+                lat = coordsGps.lat;
+                lon = coordsGps.lon;
+            } else {
+                // Fallback por IP verificando si está fuera de Santa Cruz
+                try {
+                    const rGeo = await fetch("https://ipapi.co/json/");
+                    if (rGeo.ok) {
+                        const jGeo = await rGeo.json();
+                        if (jGeo.latitude && jGeo.longitude) {
+                            // Si está en Santa Cruz, mantener coordenadas precisas de Estación Argentina
+                            if (jGeo.city && jGeo.city.toLowerCase().includes("santa cruz")) {
+                                lat = -17.7863; lon = -63.1648;
+                                ciudad = "Santa Cruz de la Sierra";
+                            } else {
+                                lat = jGeo.latitude; lon = jGeo.longitude;
+                                ciudad = jGeo.city || jGeo.region || "Local";
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            // IMPORTANTE: timezone=GMT asegura que los unixtime estén en UTC puro (sin el desfase de 4 horas)
+            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&past_days=30&forecast_days=1&timeformat=unixtime&timezone=GMT`;
             const rMet = await fetch(urlMeteo);
             if (!rMet.ok) return;
             const jMet = await rMet.json();
+
             if (jMet.hourly && jMet.hourly.time && jMet.hourly.temperature_2m) {
                 cacheClimaExterior = [];
-                for (let i = 0; i < jMet.hourly.time.length; i++) {
-                    if (jMet.hourly.temperature_2m[i] !== null) {
+                const times = jMet.hourly.time;
+                const temps = jMet.hourly.temperature_2m;
+                const appTemps = jMet.hourly.apparent_temperature || [];
+                const hums = jMet.hourly.relative_humidity_2m || [];
+
+                for (let i = 0; i < times.length; i++) {
+                    if (temps[i] !== null && temps[i] !== undefined) {
+                        let tReal = Number(temps[i]);
+                        let hum = hums[i] !== undefined && hums[i] !== null ? Number(hums[i]) : 60;
+                        let stCalc = calcularSensacionTermicaPrecisa(tReal, hum, appTemps[i]);
+
                         cacheClimaExterior.push({
-                            ts: Number(jMet.hourly.time[i]),
-                            temp: Math.round(Number(jMet.hourly.temperature_2m[i]))
+                            ts: Number(times[i]),
+                            temp: Math.round(tReal),
+                            sensacion: stCalc,
+                            humedad: Math.round(hum)
                         });
                     }
                 }
+
+                // Si viene el bloque 'current' en tiempo real, ajustar el punto actual para máxima exactitud con Google Weather
+                let tempActualVivo = null;
+                let sensActualVivo = null;
+                let humActualVivo = 60;
+
+                if (jMet.current && jMet.current.temperature_2m !== undefined) {
+                    let tCur = Number(jMet.current.temperature_2m);
+                    humActualVivo = Number(jMet.current.relative_humidity_2m || 60);
+                    tempActualVivo = Math.round(tCur);
+                    sensActualVivo = calcularSensacionTermicaPrecisa(tCur, humActualVivo, jMet.current.apparent_temperature);
+
+                    const ahoraTs = Math.floor(Date.now() / 1000);
+                    cacheClimaExterior.push({
+                        ts: ahoraTs,
+                        temp: tempActualVivo,
+                        sensacion: sensActualVivo,
+                        humedad: Math.round(humActualVivo)
+                    });
+                    cacheClimaExterior.sort((a, b) => a.ts - b.ts);
+                }
+
                 nombreCiudadClima = ciudad;
                 const badge = document.getElementById('climaUbicacionBadge');
                 if (badge && cacheClimaExterior.length > 0) {
-                    const ahoraTs = Math.floor(Date.now() / 1000);
-                    let masCercano = cacheClimaExterior.reduce((prev, curr) => Math.abs(curr.ts - ahoraTs) < Math.abs(prev.ts - ahoraTs) ? curr : prev);
-                    badge.innerText = `🌤️ ${ciudad}: ${masCercano.temp}°C`;
+                    const ultimoClima = cacheClimaExterior[cacheClimaExterior.length - 1];
+                    const tMostrar = tempActualVivo !== null ? tempActualVivo : ultimoClima.temp;
+                    const sMostrar = sensActualVivo !== null ? sensActualVivo : ultimoClima.sensacion;
+                    badge.innerHTML = `🌤️ ${ciudad}: <b>${tMostrar}°C</b> <span style="color:#c084fc;">(Sensación ${sMostrar}°C)</span>`;
                     badge.style.display = 'inline-block';
-                    document.getElementById('statClimaHoy').innerText = `${masCercano.temp}°C`;
+                    document.getElementById('statClimaHoy').innerHTML = `${tMostrar}°C / <span style="color:#c084fc;">${sMostrar}°C</span>`;
                 }
                 updateChart(rangoActual);
             }
@@ -237,18 +317,31 @@
         }
     }
 
+    // Interpola linealmente entre horas para que el clima y la sensación térmica coincidan al minuto exacto con cada punto del minero
     function obtenerClimaParaTimestamp(ts) {
         if (!cacheClimaExterior || cacheClimaExterior.length === 0) return null;
-        // Buscar la hora más cercana en el historial meteorológico
-        let izq = 0, der = cacheClimaExterior.length - 1;
+        let n = cacheClimaExterior.length;
+        if (ts <= cacheClimaExterior[0].ts) return cacheClimaExterior[0];
+        if (ts >= cacheClimaExterior[n - 1].ts) return cacheClimaExterior[n - 1];
+
+        let izq = 0, der = n - 1;
         while (izq <= der) {
             let mid = (izq + der) >> 1;
             let midTs = cacheClimaExterior[mid].ts;
-            if (Math.abs(midTs - ts) <= 1800) return cacheClimaExterior[mid].temp;
+            if (midTs === ts) return cacheClimaExterior[mid];
             if (midTs < ts) izq = mid + 1;
             else der = mid - 1;
         }
-        return null;
+
+        let pPrev = cacheClimaExterior[Math.max(0, der)];
+        let pNext = cacheClimaExterior[Math.min(n - 1, izq)];
+        let span = pNext.ts - pPrev.ts;
+        if (span <= 0 || span > 7200) return pPrev;
+        let ratio = (ts - pPrev.ts) / span;
+        return {
+            temp: Math.round(pPrev.temp + ratio * (pNext.temp - pPrev.temp)),
+            sensacion: Math.round(pPrev.sensacion + ratio * (pNext.sensacion - pPrev.sensacion))
+        };
     }
 
     // Plugin profesional 1: Dibuja los números de Hashrate (izq) y Temperatura (der) DENTRO del gráfico
@@ -351,7 +444,7 @@
 
         const titulo = formatearFechaTooltip(new Date(tsSegundos * 1000));
         let deltaT = "";
-        if (meta.temp > 0 && (meta.amb || meta.clima)) {
+        if (meta.temp > 0 && (meta.amb || meta.clima !== null)) {
             let refAmb = meta.amb || meta.clima;
             deltaT = `<span style="color:#a5a7b5; font-size:0.88em;">ΔT +${meta.temp - refAmb}°C</span>`;
         }
@@ -363,7 +456,8 @@
                 html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Max: <b>${meta.temp}°C</b> (Equipo encendido)</div>`;
             }
             if (meta.clima !== null && meta.clima !== undefined) {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Exterior: <b>${meta.clima}°C</b></div>`;
+                let txtSens = (meta.sensacion !== null && meta.sensacion !== undefined) ? ` (Sensación: <b style="color:#c084fc;">${meta.sensacion}°C</b>)` : '';
+                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Exterior: <b>${meta.clima}°C</b>${txtSens}</div>`;
             }
             html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Alerta: Encendido pero sin minar</div>`;
         } else {
@@ -385,7 +479,10 @@
                 html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Temp Entrada/Amb: <b>${meta.amb}°C</b></div>`;
             }
             if (meta.clima !== null && meta.clima !== undefined) {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima (${nombreCiudadClima || 'Ext'}): <b>${meta.clima}°C</b></div>`;
+                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Exterior: <b>${meta.clima}°C</b></div>`;
+            }
+            if (meta.sensacion !== null && meta.sensacion !== undefined) {
+                html += `<div class="tt-row"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación Térmica: <b>${meta.sensacion}°C</b></div>`;
             }
             let errNuevos = meta.err || 0;
             let ds = meta.deltaS || 30;
@@ -501,14 +598,11 @@
             let hVal = rawHr[i] !== null && rawHr[i] !== undefined ? Number(rawHr[i]) : 0;
             let tVal = rawTemp[i] !== null && rawTemp[i] !== undefined ? Number(rawTemp[i]) : 0;
 
-            // Descartar registros fantasma (0 TH/s y 0°C)
             if (hVal === 0 && tVal <= 5) continue;
 
-            // Si la máquina NO está minando (hVal === 0), la temperatura ambiente del sensor interno no debe graficarse ni puentearse
             let ambVal = (hVal > 0 && rawAmb.length > i && rawAmb[i] !== null && rawAmb[i] > 0) ? Number(rawAmb[i]) : null;
             if (hVal > 0 && ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) ambVal = tempAmbActual;
 
-            // PUNTO 6 DE TU FOTO: Si el minero está detenido (0 TH/s) o recién reiniciando, anular falsos picos de errores HW de arranque
             let errVal = (rawErr.length > i && rawErr[i] !== null) ? Number(rawErr[i]) : 0;
             if (hVal === 0 || (i > 0 && Number(rawHr[i - 1] || 0) === 0)) {
                 errVal = 0;
@@ -516,18 +610,20 @@
 
             let cads = (rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales;
             let tMinVal = hVal > 0 ? extraerTempMinimaPlaca(cads, tVal) : null;
-            let climaVal = obtenerClimaParaTimestamp(ts);
+            let objClima = obtenerClimaParaTimestamp(ts);
+            let climaVal = objClima ? objClima.temp : null;
+            let sensVal = objClima ? objClima.sensacion : null;
 
-            crudos.push({ ts, hr: hVal, temp: tVal, tempMin: tMinVal, amb: ambVal, clima: climaVal, err: errVal, cads });
+            crudos.push({ ts, hr: hVal, temp: tVal, tempMin: tMinVal, amb: ambVal, clima: climaVal, sensacion: sensVal, err: errVal, cads });
         }
 
         crudos.sort((a, b) => a.ts - b.ts);
 
-        let ptsH = [], ptsT = [], ptsTMin = [], ptsA = [], ptsClima = [], ptsE = [];
+        let ptsH = [], ptsT = [], ptsTMin = [], ptsA = [], ptsClima = [], ptsSens = [], ptsE = [];
         let valoresHr = [], valoresTempMax = [], valoresTempMin = [];
         mapaMetaPuntos = {};
 
-        const UMBRAL_CORTE_SEG = 240; // >4 min sin datos = minero apagado -> cortar todas las líneas del minero
+        const UMBRAL_CORTE_SEG = 240;
 
         for (let i = 0; i < crudos.length; i++) {
             let actual = crudos[i];
@@ -543,7 +639,7 @@
                     ptsH.push({ x: tsCorte, y: null });
                     ptsT.push({ x: tsCorte, y: null });
                     ptsTMin.push({ x: tsCorte, y: null });
-                    ptsA.push({ x: tsCorte, y: null }); // Corta también Temp Ambiente cuando el equipo estuvo apagado
+                    ptsA.push({ x: tsCorte, y: null });
                     ptsE.push({ x: tsCorte, y: null });
                     mapaMetaPuntos[tsCorte] = { esSeparadorCorte: true };
                 }
@@ -555,11 +651,12 @@
                 ptsTMin.push({ x: actual.ts, y: null });
                 ptsA.push({ x: actual.ts, y: null });
                 ptsClima.push({ x: actual.ts, y: actual.clima });
-                ptsE.push({ x: actual.ts, y: 0 }); // Sin errores HW cuando está detenido
+                ptsSens.push({ x: actual.ts, y: actual.sensacion });
+                ptsE.push({ x: actual.ts, y: 0 });
                 valoresTempMax.push(actual.temp);
                 mapaMetaPuntos[actual.ts] = {
                     estadoPunto: 'SIN_MINAR',
-                    hr: 0, temp: actual.temp, tempMin: null, amb: null, clima: actual.clima, err: 0, deltaS: deltaS, cadenas: actual.cads
+                    hr: 0, temp: actual.temp, tempMin: null, amb: null, clima: actual.clima, sensacion: actual.sensacion, err: 0, deltaS: deltaS, cadenas: actual.cads
                 };
             } else {
                 let tempValida = actual.temp > 5 ? actual.temp : null;
@@ -568,6 +665,7 @@
                 ptsTMin.push({ x: actual.ts, y: actual.tempMin });
                 ptsA.push({ x: actual.ts, y: actual.amb });
                 ptsClima.push({ x: actual.ts, y: actual.clima });
+                ptsSens.push({ x: actual.ts, y: actual.sensacion });
                 ptsE.push({ x: actual.ts, y: actual.err });
 
                 valoresHr.push(actual.hr);
@@ -576,12 +674,12 @@
 
                 mapaMetaPuntos[actual.ts] = {
                     estadoPunto: 'NORMAL',
-                    hr: actual.hr, temp: tempValida || 0, tempMin: actual.tempMin, amb: actual.amb, clima: actual.clima, err: actual.err, deltaS: deltaS, cadenas: actual.cads
+                    hr: actual.hr, temp: tempValida || 0, tempMin: actual.tempMin, amb: actual.amb, clima: actual.clima, sensacion: actual.sensacion, err: actual.err, deltaS: deltaS, cadenas: actual.cads
                 };
             }
         }
 
-        return { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsE, valoresHr, valoresTempMax, valoresTempMin, totalRegistros: crudos.length };
+        return { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, valoresHr, valoresTempMax, valoresTempMin, totalRegistros: crudos.length };
     }
 
     function updateChart(rango) {
@@ -601,7 +699,7 @@
         if (rango === '30d') segundosRango = 30 * 86400;
 
         const minTs = nowTs - segundosRango;
-        const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsE, valoresHr, valoresTempMax, valoresTempMin, totalRegistros } = procesarDatosLimpios(minTs);
+        const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, valoresHr, valoresTempMax, valoresTempMin, totalRegistros } = procesarDatosLimpios(minTs);
         
         let avgHr = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length).toFixed(2) : "0.00";
         let maxHr = valoresHr.length > 0 ? Math.max(...valoresHr).toFixed(2) : "0.00";
@@ -642,7 +740,7 @@
             {
                 id: 'tmin', type: 'line', label: '❄️ Temp Mín (PCB) °C', data: ptsTMin,
                 borderColor: '#fb923c', borderDash: [2, 4],
-                backgroundColor: 'rgba(255, 179, 0, 0.07)', fill: '-1', // Sombrea suavemente la banda entre Temp Máx y Temp Mín
+                backgroundColor: 'rgba(255, 179, 0, 0.07)', fill: '-1',
                 tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#fb923c',
                 borderWidth: 1.2, yAxisID: 'y1', spanGaps: false
             }
@@ -653,9 +751,7 @@
                 id: 'tamb', type: 'line', label: '🍃 Entrada/Amb °C', data: ptsA,
                 borderColor: '#00e676', borderDash: [3, 3],
                 tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#00e676',
-                borderWidth: 1.5, yAxisID: 'y1',
-                // PUNTO 3 DE TU FOTO: spanGaps en FALSE para que si el minero está apagado NO aparezca línea de Temp Ambiente
-                spanGaps: false
+                borderWidth: 1.5, yAxisID: 'y1', spanGaps: false
             });
         }
 
@@ -664,7 +760,13 @@
                 id: 'clima', type: 'line', label: '🌤️ Clima Exterior °C', data: ptsClima,
                 borderColor: '#38bdf8', borderDash: [2, 2],
                 tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#38bdf8',
-                borderWidth: 1.4, yAxisID: 'y1', spanGaps: true
+                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true
+            });
+            datasetsList.push({
+                id: 'sensacion', type: 'line', label: '🥵 Sensación Térmica °C', data: ptsSens,
+                borderColor: '#c084fc', borderDash: [4, 2],
+                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#c084fc',
+                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true
             });
         }
 
@@ -688,7 +790,6 @@
                 options: { 
                     parsed: false,
                     responsive: true, maintainAspectRatio: false,
-                    // Padding lateral de 16px para que todas las horas abajo tengan distancia matemática idéntica sin cortarse
                     layout: { padding: { left: 14, right: 14, top: 6, bottom: 0 } },
                     interaction: { mode: 'index', axis: 'x', intersect: false },
                     plugins: { 
@@ -697,7 +798,6 @@
                             enabled: false,
                             external: renderizarTooltipExterno
                         },
-                        // PUNTO 4 DE TU FOTO: Zoom con dos dedos en celular (Pinch) y arrastre horizontal (Pan)
                         zoom: {
                             pan: {
                                 enabled: true,
@@ -735,7 +835,6 @@
                                 axis.ticks = nuevosTicks;
                             },
                             ticks: { 
-                                // PUNTO 1 DE TU FOTO: align 'center' garantiza que todas las horas estén exactamente a la misma distancia
                                 minRotation: 0, maxRotation: 0, autoSkip: false,
                                 align: 'center',
                                 color: '#8b8d9c', font: { size: 10.5 },
