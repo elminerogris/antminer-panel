@@ -254,24 +254,35 @@
         user-select: none;
     }
 
-    /* Tooltip flotante lateral estilo TradingView (no tapa las tablas de abajo) */
+    /* Tooltip flotante en línea 0 debajo del gráfico (NO tapa las curvas en celular ni en PC) */
     .custom-chart-tooltip {
+        --arrow-x: 50%;
         position: absolute;
         display: none;
         pointer-events: none;
-        background: rgba(10, 11, 16, 0.94);
-        backdrop-filter: blur(4px);
+        background: rgba(10, 11, 16, 0.96);
         border: 1px solid rgba(255, 255, 255, 0.18);
         border-radius: 6px;
-        padding: 8px 11px;
+        padding: 9px 12px;
         color: #fff;
         font-family: sans-serif;
-        font-size: 0.76em;
-        line-height: 1.42;
+        font-size: 0.78em;
+        line-height: 1.45;
         z-index: 1500;
         white-space: nowrap;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+        transform: translate3d(-50%, 0, 0);
         will-change: left, top;
+    }
+    .custom-chart-tooltip::before {
+        content: "";
+        position: absolute;
+        top: -6px;
+        left: var(--arrow-x, 50%);
+        transform: translateX(-50%);
+        border-width: 0 6px 6px 6px;
+        border-style: solid;
+        border-color: transparent transparent rgba(10, 11, 16, 0.96) transparent;
     }
     .tt-title {
         font-weight: bold;
@@ -285,7 +296,7 @@
         gap: 10px;
     }
     .tt-row { display: flex; align-items: center; gap: 6px; }
-    .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.94em; }
+    .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.95em; }
     .tt-box { width: 9px; height: 9px; display: inline-block; border-radius: 2px; flex-shrink: 0; }
     .tt-badge-status {
         margin-top: 4px;
@@ -386,7 +397,6 @@
     let horasRealesGrabadas = 0;
     let ultimoTsTooltipRenderizado = null;
     let ultimoAnchoTooltipCache = 235;
-    let ultimoAltoTooltipCache = 140;
     let rectCanvasCache = null;
 
     // Genera dinámicamente las descripciones profesionales con la ciudad/país actualizados del cliente
@@ -641,8 +651,13 @@
             });
         }
 
-        document.addEventListener('click', function() {
+        // Cerrar tooltips al tocar fuera en celular o hacer scroll
+        document.addEventListener('click', function(e) {
             ocultarSmartTooltip();
+            const canvas = document.getElementById('hashrateChart');
+            if (canvas && e.target !== canvas) {
+                ocultarTooltipGris();
+            }
         });
         window.addEventListener('scroll', function() {
             rectCanvasCache = null;
@@ -746,7 +761,6 @@
             chart.scales.x.min = minX;
             chart.scales.x.max = maxX;
         }
-        // Sobrescribir la memoria interna (initialScaleBounds) del plugin de zoom para que NO regrese a 24h
         if (chart.$zoom && chart.$zoom._originalScaleLimits && chart.$zoom._originalScaleLimits.x) {
             chart.$zoom._originalScaleLimits.x.min = minX;
             chart.$zoom._originalScaleLimits.x.max = maxX;
@@ -1133,6 +1147,9 @@
         afterDraw: function(chart) {
             if (!cursorDentroArea || !chart.tooltip || !chart.tooltip._active || !chart.tooltip._active.length) return;
             const activePoint = chart.tooltip._active[0];
+            const dp0 = chart.tooltip.dataPoints && chart.tooltip.dataPoints[0];
+            if (dp0 && mapaMetaPuntos[dp0.parsed.x] && mapaMetaPuntos[dp0.parsed.x].esSeparadorCorte) return;
+
             const ctx = chart.ctx;
             const x = activePoint.element.x;
             const topY = chart.chartArea.top;
@@ -1161,7 +1178,7 @@
         }
     }
 
-    // Tooltip lateral inteligente estilo TradingView (flota dentro del gráfico a izquierda/derecha del cursor sin tapar la tabla de Pools inferior)
+    // Tooltip posicionado DEBAJO de la línea 0 (chartArea.bottom + 2) para NO tapar jamás las curvas en celular ni en PC
     function renderizarTooltipExterno(context) {
         const { chart, tooltip } = context;
         const ttEl = document.getElementById('customChartTooltip');
@@ -1246,32 +1263,28 @@
             ttEl.innerHTML = html;
             ttEl.style.display = 'block';
             ultimoAnchoTooltipCache = ttEl.offsetWidth || 235;
-            ultimoAltoTooltipCache = ttEl.offsetHeight || 140;
         } else if (ttEl.style.display === 'none') {
             ttEl.style.display = 'block';
         }
 
         const chartArea = chart.chartArea;
+        // Usar clientWidth real (píxeles CSS) en vez de chart.width (píxeles físicos Retina) para que en celular nunca se desborde
+        const wrapperW = chart.canvas.clientWidth || chart.width;
         const ttW = ultimoAnchoTooltipCache;
-        const ttH = ultimoAltoTooltipCache;
 
-        // Posicionar a la derecha de la línea del cursor; si el cursor está en la mitad derecha, pasar el cuadro a la izquierda de la línea
-        let posX = tooltip.caretX + 14;
-        if (posX + ttW > chartArea.right - 6) {
-            posX = tooltip.caretX - ttW - 14;
-        }
-        if (posX < chartArea.left + 6) {
-            posX = chartArea.left + 6;
-        }
+        let posX = tooltip.caretX;
+        const minX = (ttW / 2) + 6;
+        const maxX = wrapperW - (ttW / 2) - 6;
+        if (posX < minX) posX = minX;
+        if (posX > maxX) posX = maxX;
 
-        // Mantener el cuadro dentro de la altura del gráfico para que no tape la tabla de Pools de abajo
-        let posY = chartArea.top + 8;
-        if (posY + ttH > chartArea.bottom - 4) {
-            posY = Math.max(2, chartArea.bottom - ttH - 4);
-        }
+        // Mover la flechita superior para que apunte exactamente a la línea punteada aunque la caja se frene en los bordes del celular
+        let arrowOffsetPx = (ttW / 2) + (tooltip.caretX - posX);
+        arrowOffsetPx = Math.max(14, Math.min(ttW - 14, arrowOffsetPx));
+        ttEl.style.setProperty('--arrow-x', arrowOffsetPx + 'px');
 
         ttEl.style.left = posX + 'px';
-        ttEl.style.top = posY + 'px';
+        ttEl.style.top = (chartArea.bottom + 2) + 'px';
     }
 
     function construirLeyendasPildora() {
@@ -1677,7 +1690,6 @@
         crudosPorMinutoCache = base.crudos;
 
         // TODOS los rangos (6h, 24h, 7d, 30d) respetan estrictamente su ventana calendario completa [minTs, ultimoTsEnRango].
-        // Así, si una máquina nueva lleva 3h conectada y eliges 6h, ocupa exactamente la mitad derecha (50%) y la mitad izquierda queda vacía.
         const primerTsEnRango = crudosPorMinutoCache.length > 0 ? crudosPorMinutoCache[0].ts : minTs;
         const ultimoTsEnRango = crudosPorMinutoCache.length > 0 ? crudosPorMinutoCache[crudosPorMinutoCache.length - 1].ts : nowTs;
 
