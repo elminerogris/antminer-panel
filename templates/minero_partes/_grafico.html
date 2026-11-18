@@ -1,0 +1,206 @@
+<div class="card">
+    <div class="panel-title">
+        <div>☑ Hashrate <span id="hrPromedio" style="color:var(--text-muted); font-size:0.85em; margin-left:10px; font-weight:normal;"></span></div>
+        <div class="chart-filters">
+            <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')">6 h</button>
+            <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')">24 h</button>
+            <button class="btn-filter" id="btn-7d" onclick="updateChart('7d')">7 d</button>
+            <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')">30 d</button>
+        </div>
+    </div>
+    <div style="height: 380px; position: relative;"><canvas id="hashrateChart"></canvas></div>
+</div>
+
+<script>
+    const unidadMinero = "{{ ultimo.unidad }}";
+    const rawFechas = {{ graf_fechas_raw | safe }};
+    const rawHr = {{ graf_hashrate | safe }};
+    const rawTemp = {{ graf_temps | safe }};
+    const rawAmb = {{ graf_temp_amb | default('[]') | safe }};
+    const rawErr = {{ graf_errores | default('[]') | safe }};
+    const rawCadHist = {{ graf_cadenas_hist | default('[]') | safe }};
+    const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
+    const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
+    let chartInstance = null;
+    let titulosTooltip = [];
+
+    function formatearFechaTooltip(d) {
+        let dia = String(d.getDate()).padStart(2, '0');
+        let mes = String(d.getMonth() + 1).padStart(2, '0');
+        let anio = String(d.getFullYear()).slice(-2);
+        let horas = String(d.getHours()).padStart(2, '0');
+        let mins = String(d.getMinutes()).padStart(2, '0');
+        return `${dia}/${mes}/${anio} ${horas}:${mins}`;
+    }
+
+    function formatearEtiquetaEjeX(d, rango) {
+        let horas = String(d.getHours()).padStart(2, '0');
+        let mins = String(d.getMinutes()).padStart(2, '0');
+        let horaStr = `${horas}:${mins}`;
+        if (rango === '7d' || rango === '30d') {
+            let dia = String(d.getDate()).padStart(2, '0');
+            let mes = String(d.getMonth() + 1).padStart(2, '0');
+            return [horaStr, `${dia}/${mes}`];
+        }
+        return horaStr;
+    }
+
+    if (window.Chart && Chart.Tooltip && Chart.Tooltip.positioners) {
+        Chart.Tooltip.positioners.enLineaCero = function(items, eventPosition) {
+            if (!items.length) return false;
+            const chartArea = this.chart.chartArea;
+            if (chartArea) {
+                return { x: eventPosition.x, y: chartArea.bottom - 15 };
+            }
+            return { x: eventPosition.x, y: eventPosition.y };
+        };
+    }
+
+    function updateChart(rango) {
+        document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + rango).classList.add('active');
+        
+        let limitDate = new Date();
+        if(rango === '6h') limitDate.setHours(limitDate.getHours() - 6);
+        if(rango === '24h') limitDate.setHours(limitDate.getHours() - 24);
+        if(rango === '7d') limitDate.setDate(limitDate.getDate() - 7);
+        if(rango === '30d') limitDate.setDate(limitDate.getDate() - 30);
+        
+        let fL = [], fTooltip = [], fH = [], fT = [], fA = [], fE = [], fDeltaSec = [], fCads = [];
+        fL.push(formatearEtiquetaEjeX(limitDate, rango));
+        fTooltip.push(formatearFechaTooltip(limitDate));
+        fH.push(null); fT.push(null); fA.push(null); fE.push(null); fDeltaSec.push(30); fCads.push([]);
+
+        for(let i=0; i<rawFechas.length; i++) {
+            let d = new Date(rawFechas[i] * 1000); 
+            if(d >= limitDate) {
+                fL.push(formatearEtiquetaEjeX(d, rango)); 
+                fTooltip.push(formatearFechaTooltip(d));
+                fH.push(rawHr[i]); 
+                fT.push(rawTemp[i]);
+                
+                let ambVal = (rawAmb.length > i && rawAmb[i] !== null && rawAmb[i] > 0) ? rawAmb[i] : null;
+                if (ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) {
+                    ambVal = tempAmbActual;
+                }
+                fA.push(ambVal);
+                
+                let errIntervalo = (rawErr.length > i && rawErr[i] !== null) ? rawErr[i] : 0;
+                let deltaS = (i > 0 && (rawFechas[i] - rawFechas[i-1]) > 0 && (rawFechas[i] - rawFechas[i-1]) <= 300) ? (rawFechas[i] - rawFechas[i-1]) : 30;
+                fE.push(errIntervalo);
+                fDeltaSec.push(deltaS);
+                fCads.push((rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales);
+            }
+        }
+        titulosTooltip = fTooltip;
+        
+        let validHr = fH.filter(v => v !== null && v > 0);
+        let avgHr = validHr.length > 0 ? (validHr.reduce((a,b)=>a+b,0) / validHr.length).toFixed(2) : "0.00";
+        let promEl = document.getElementById('hrPromedio');
+        if(promEl) promEl.innerText = 'Promedio: ' + avgHr + ' ' + unidadMinero;
+        
+        let tieneTempAmbiente = fA.some(v => v !== null && v > 0) || (tempAmbActual > 0);
+
+        let datasetsList = [
+            { id: 'hr', label: 'Hashrate (' + unidadMinero + ')', data: fH, borderColor: '#3366ff', backgroundColor: 'rgba(51,102,255,0.1)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 2, spanGaps: false },
+            { id: 'tmax', label: 'Temperatura Max °C', data: fT, cadsHist: fCads, borderColor: '#ffb300', borderDash: [5, 5], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: false }
+        ];
+
+        if (tieneTempAmbiente) {
+            datasetsList.push({
+                id: 'tamb', label: 'Temp Ambiente / Entrada °C', data: fA,
+                borderColor: '#00e676', borderDash: [3, 3], tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y1', spanGaps: true
+            });
+        }
+
+        datasetsList.push({
+            id: 'err', label: 'Errores HW (Nuevos)', data: fE, deltaSecs: fDeltaSec,
+            borderColor: '#ff5252', backgroundColor: 'rgba(255,82,82,0.2)', fill: true, tension: 0.1, pointRadius: 0, borderWidth: 1.5, yAxisID: 'y2', spanGaps: false
+        });
+
+        if(chartInstance) {
+            chartInstance.data.labels = fL;
+            chartInstance.data.datasets = datasetsList;
+            chartInstance.update();
+        } else {
+            const ctx = document.getElementById('hashrateChart').getContext('2d');
+            chartInstance = new Chart(ctx, { 
+                type: 'line', 
+                data: { labels: fL, datasets: datasetsList },
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    layout: { padding: { bottom: 85 } },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { 
+                        tooltip: { 
+                            position: 'enLineaCero',
+                            yAlign: 'top',
+                            caretPadding: 4,
+                            backgroundColor: 'rgba(10, 11, 16, 0.94)',
+                            borderColor: 'rgba(255, 255, 255, 0.15)',
+                            borderWidth: 1,
+                            callbacks: { 
+                                title: function(context) { 
+                                    let idx = context[0].dataIndex;
+                                    return titulosTooltip[idx] || context[0].label; 
+                                },
+                                label: function(context) { 
+                                    let dsId = context.dataset.id;
+                                    if(dsId === 'hr') { return '⚡ Hashrate: ' + context.parsed.y + ' ' + unidadMinero; } 
+                                    if(dsId === 'tmax') { 
+                                        let t = context.parsed.y;
+                                        let estadoT = t >= 85 ? '🔴 Crítica' : (t >= 75 ? '🟠 Advertencia' : '🟢 Normal');
+                                        let arr = ['🌡️ Temp Max: ' + t + '°C (' + estadoT + ')'];
+                                        let cads = (context.dataset.cadsHist && context.dataset.cadsHist[context.dataIndex]) ? context.dataset.cadsHist[context.dataIndex] : cadenasActuales;
+                                        if (cads && cads.length > 0) {
+                                            for(let c = 0; c < cads.length; c++) {
+                                                arr.push('   Placa #' + cads[c].id + ' -> Chip: ' + cads[c].temp_c + '°C | PCB: ' + cads[c].temp_p + '°C');
+                                            }
+                                        }
+                                        return arr; 
+                                    }
+                                    if(dsId === 'tamb') {
+                                        let valA = context.parsed.y || tempAmbActual;
+                                        if (!valA || valA <= 0) return null;
+                                        return '🍃 Temp Ambiente: ' + valA + '°C';
+                                    }
+                                    if(dsId === 'err') {
+                                        let errNuevos = context.parsed.y || 0;
+                                        let ds = (context.dataset.deltaSecs && context.dataset.deltaSecs[context.dataIndex]) ? context.dataset.deltaSecs[context.dataIndex] : 30;
+                                        let porSegundo = (errNuevos / ds).toFixed(2);
+                                        return `⚠️ Errores HW: ${errNuevos} nuevos (${porSegundo} /s)`;
+                                    }
+                                } 
+                            } 
+                        } 
+                    },
+                    scales: { 
+                        x: { 
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            afterBuildTicks: function(axis) {
+                                const totalLabels = axis.chart.data.labels ? axis.chart.data.labels.length : 0;
+                                if (totalLabels <= 1) return;
+                                const esMovil = window.innerWidth <= 768;
+                                const numTicks = Math.min(esMovil ? 7 : 11, totalLabels);
+                                const nuevosTicks = [];
+                                for (let i = 0; i < numTicks; i++) {
+                                    const idx = Math.round(i * (totalLabels - 1) / (numTicks - 1));
+                                    nuevosTicks.push({ value: idx });
+                                }
+                                axis.ticks = nuevosTicks;
+                            },
+                            ticks: { 
+                                minRotation: 0, maxRotation: 0, autoSkip: false,
+                                color: '#8b8d9c', font: { size: 11 }
+                            }
+                        }, 
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }, 
+                        y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100 },
+                        y2: { display: false, min: 0, suggestedMax: 10 }
+                    } 
+                } 
+            });
+        }
+    }
+    window.addEventListener('load', function() { updateChart('24h'); });
+</script>
