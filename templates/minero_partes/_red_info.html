@@ -1,87 +1,511 @@
-<div class="grid-2">
-    <div class="card" style="padding:0; overflow:hidden;">
-        <div class="pools-header">
-            <span>🌐 Configuración IP</span>
-            <button class="btn-guardar" onclick="confirmarCambioIP()">💾 Guardar IP</button>
-        </div>
+<style>
+    /* Grilla de 2 Columnas: Especificaciones del Dispositivo + Configuración de Red LAN */
+    .hw-net-grid-pro {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .info-card-pro {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .info-header-pro {
+        padding: 13px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        background: rgba(255, 255, 255, 0.015);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .info-header-title {
+        font-weight: bold;
+        font-size: 1.02em;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .proto-badge-pro {
+        font-size: 0.72em;
+        font-family: monospace;
+        font-weight: bold;
+        padding: 2px 9px;
+        border-radius: 12px;
+        cursor: help;
+    }
+    .proto-badge-pro.static {
+        background: rgba(56, 189, 248, 0.12);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+    .proto-badge-pro.dhcp {
+        background: rgba(192, 132, 252, 0.12);
+        color: #c084fc;
+        border: 1px solid rgba(192, 132, 252, 0.35);
+    }
+
+    /* Lista de Especificaciones Técnicas con Copiado Rápido */
+    .specs-list-pro {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .specs-list-pro tr {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+        transition: background 0.15s ease;
+    }
+    .specs-list-pro tr:last-child {
+        border-bottom: none;
+    }
+    .specs-list-pro tr:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+    .specs-list-pro td {
+        padding: 10px 16px;
+        font-size: 0.84em;
+    }
+    .specs-list-pro td:first-child {
+        color: var(--text-muted);
+        font-weight: bold;
+        cursor: help;
+        user-select: none;
+        width: 38%;
+    }
+    .specs-list-pro td:first-child:hover {
+        color: #fff;
+    }
+    .specs-list-pro td:last-child {
+        text-align: right;
+        color: var(--text-main);
+        font-family: monospace;
+        font-size: 0.92em;
+    }
+
+    .copyable-spec-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 2px 8px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .copyable-spec-chip:hover {
+        border-color: var(--accent-blue);
+        background: rgba(51, 102, 255, 0.12);
+        color: #fff;
+    }
+
+    /* Formulario de Red Estática / DHCP */
+    .net-form-body {
+        padding: 12px 16px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px 12px;
+    }
+    .net-field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .net-field-label {
+        font-size: 0.72em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        font-weight: bold;
+        cursor: help;
+        user-select: none;
+    }
+    .net-field-label:hover {
+        color: #fff;
+    }
+    .input-net-pro {
+        background: rgba(10, 12, 18, 0.55);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 7px 9px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.88em;
+        outline: none;
+        width: 100%;
+        box-sizing: border-box;
+        transition: all 0.18s ease;
+    }
+    .input-net-pro:focus {
+        border-color: #3b82f6;
+        background: rgba(10, 12, 18, 0.85);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+    }
+    .input-net-pro.edited {
+        border-color: #38bdf8;
+        background: rgba(56, 189, 248, 0.06);
+    }
+    .input-net-pro:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    .net-footer-bar {
+        padding: 10px 16px 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .btn-save-net-pro {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%);
+        border: 1px solid rgba(82, 140, 255, 0.65);
+        color: #60a5fa;
+        padding: 7px 14px;
+        border-radius: 7px;
+        cursor: pointer;
+        font-size: 0.80em;
+        font-weight: bold;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.22);
+    }
+    .btn-save-net-pro:hover {
+        color: #fff;
+        background: rgba(51, 102, 255, 0.35);
+        border-color: #60a5fa;
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+        transform: translateY(-1px);
+    }
+    .btn-save-net-pro.unsaved-pulse {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.48) 0%, rgba(37, 99, 235, 0.32) 100%);
+        color: #fff;
+        border-color: #38bdf8;
+        box-shadow: 0 0 16px rgba(56, 189, 248, 0.75);
+    }
+
+    @media (max-width: 768px) {
+        .net-form-body {
+            grid-template-columns: 1fr;
+        }
+        .btn-save-net-pro {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+{% set es_dhcp = (extra.net_proto | default('Static') | lower == 'dhcp') %}
+
+<div class="hw-net-grid-pro">
+    <!-- TARJETA 1: INFORMACIÓN TÉCNICA DEL DISPOSITIVO -->
+    <div class="info-card-pro">
         <div>
-            <div class="net-form-row">
-                <div class="net-label">Info Red</div>
-                <div class="net-info-box" translate="no">
-                    eth0<br>
-                    [MAC] {{ extra.mac }}<br>
-                    [IP] {{ ip }}<br>
-                    [Sub] {{ extra.netmask }}
-                </div>
+            <div class="info-header-pro">
+                <span class="info-header-title">ℹ️ Identidad y Especificaciones del ASIC</span>
+                <span class="proto-badge-pro static" data-net-tt="hw_identidad" translate="no">Bitmain OEM</span>
             </div>
-            <div class="net-form-row">
-                <div class="net-label">Hostname</div>
-                <div><input type="text" id="net_host" value="{{ extra.hostname }}" class="input-pool" translate="no"></div>
-            </div>
-            <div class="net-form-row">
-                <div class="net-label">Protocolo</div>
-                <div>
-                    <select id="net_proto" class="select-net" onchange="toggleCamposIP()" translate="no">
-                        <option value="2" {{ 'selected' if extra.net_proto == 'Static' else '' }}>Static</option>
-                        <option value="1" {{ 'selected' if extra.net_proto == 'DHCP' else '' }}>DHCP</option>
-                    </select>
-                </div>
-            </div>
-            <div class="net-form-row">
-                <div class="net-label">Dirección IP</div>
-                <div><input type="text" id="net_ip" value="{{ ip }}" class="input-pool" translate="no"></div>
-            </div>
-            <div class="net-form-row">
-                <div class="net-label">Máscara Subred</div>
-                <div><input type="text" id="net_mask" value="{{ extra.netmask }}" class="input-pool" translate="no"></div>
-            </div>
-            <div class="net-form-row">
-                <div class="net-label">Gateway</div>
-                <div><input type="text" id="net_gw" value="{{ extra.gateway }}" class="input-pool" translate="no"></div>
-            </div>
-            <div class="net-form-row">
-                <div class="net-label">DNS</div>
-                <div><input type="text" id="net_dns" value="{{ extra.dns }}" class="input-pool" translate="no"></div>
-            </div>
+            <table class="specs-list-pro">
+                <tr>
+                    <td data-net-tt="spec_modelo">Modelo Exacto</td>
+                    <td translate="no"><b style="color:var(--text-main);">{{ modelo }}</b></td>
+                </tr>
+                <tr>
+                    <td data-net-tt="spec_fw">Versión Firmware</td>
+                    <td translate="no" style="max-width:210px; overflow:hidden; text-overflow:ellipsis;" title="{{ extra.firmware }}">{{ extra.firmware }}</td>
+                </tr>
+                <tr>
+                    <td data-net-tt="spec_mac">Dirección MAC</td>
+                    <td translate="no">
+                        <span class="copyable-spec-chip" onclick="copiarTextoSpec('{{ extra.mac }}', this)" title="Clic para copiar MAC">
+                            {{ extra.mac }} <span style="font-size:0.85em; opacity:0.7;">📋</span>
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td data-net-tt="spec_serial">N° de Serie (PSU/HB)</td>
+                    <td translate="no">
+                        <span class="copyable-spec-chip" onclick="copiarTextoSpec('{{ extra.serial }}', this)" title="Clic para copiar Serie">
+                            {{ extra.serial }} <span style="font-size:0.85em; opacity:0.7;">📋</span>
+                        </span>
+                    </td>
+                </tr>
+                <tr>
+                    <td data-net-tt="spec_eficiencia">Eficiencia Energética</td>
+                    <td translate="no">
+                        {% if dispositivo.eficiencia %}
+                            {% set ef = dispositivo.eficiencia | float %}
+                            <b style="color:#c084fc;">{{ "%.2f"|format((ef / 1000) if ef > 1000 else ef) }} {{ ultimo.unidad_efi | default('J/TH') }}</b>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td data-net-tt="spec_cooling">Ventiladores / Hydro</td>
+                    <td translate="no" style="color:#38bdf8;">{{ ultimo.fans }}</td>
+                </tr>
+            </table>
+        </div>
+        <div class="net-footer-bar" style="font-size:0.75em; color:var(--text-muted); font-family:monospace;" translate="no">
+            <span>Puerto API: <b style="color:#00e676;">TCP 4028 / HTTP 80</b></span>
+            <span>Uptime: <b style="color:var(--text-main);">{{ ultimo.uptime }}</b></span>
         </div>
     </div>
 
-    <div class="card" style="padding:0; overflow:hidden;">
-        <div class="panel-title" style="padding: 16px 20px 0 20px; justify-content: flex-start;">ℹ️ Información del dispositivo</div>
-        <div class="table-responsive">
-            <table class="info-table info-device">
-                <tr><td>Modelo</td><td translate="no">{{ modelo }}</td></tr>
-                <tr><td>Firmware / Sistema</td><td translate="no">{{ extra.firmware }}</td></tr>
-                <tr><td>Serie</td><td translate="no">{{ extra.serial }}</td></tr>
-                <tr><td>MAC</td><td translate="no">{{ extra.mac }}</td></tr>
-                <tr><td>IP</td><td translate="no">{{ ip }}</td></tr>
-                <tr><td>Eficiencia</td><td translate="no">{{ dispositivo.eficiencia }} {{ ultimo.unidad_efi }}</td></tr>
-                <tr><td>Tiempo activo</td><td translate="no">{{ ultimo.uptime }}</td></tr>
-                <tr><td>{{ 'Refrigeración' if 'Hydro' in ultimo.fans else 'Ventiladores' }}</td><td translate="no">{{ ultimo.fans }}</td></tr>
-            </table>
+    <!-- TARJETA 2: CONFIGURACIÓN REMOTA DE RED (IP ESTÁTICA / DHCP) -->
+    <div class="info-card-pro">
+        <div>
+            <div class="info-header-pro">
+                <span class="info-header-title">🌐 Configuración de Red LAN</span>
+                <span class="proto-badge-pro {{ 'dhcp' if es_dhcp else 'static' }}" id="badgeProtoRed" data-net-tt="net_proto_badge" translate="no">
+                    ● Modo {{ 'DHCP' if es_dhcp else 'IP Estática' }}
+                </span>
+            </div>
+
+            <div class="net-form-body" translate="no">
+                <div class="net-field-group">
+                    <label class="net-field-label" data-net-tt="net_host">Hostname (Nombre Red)</label>
+                    <input type="text" id="net_host" value="{{ extra.hostname | default('Antminer') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+                </div>
+
+                <div class="net-field-group">
+                    <label class="net-field-label" data-net-tt="net_proto">Protocolo IP</label>
+                    <select id="net_proto" class="input-net-pro" onchange="cambiarModoProtocoloRed(); marcarRedEditada(this)">
+                        <option value="2" {{ 'selected' if not es_dhcp else '' }}>Static (IP Fija Recomendada)</option>
+                        <option value="1" {{ 'selected' if es_dhcp else '' }}>DHCP (Automática por Router)</option>
+                    </select>
+                </div>
+
+                <div class="net-field-group">
+                    <label class="net-field-label" data-net-tt="net_ip">Dirección IPv4</label>
+                    <input type="text" id="net_ip" value="{{ ip }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+                </div>
+
+                <div class="net-field-group">
+                    <label class="net-field-label" data-net-tt="net_mask">Máscara de Subred</label>
+                    <input type="text" id="net_mask" value="{{ extra.netmask | default('255.255.255.0') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+                </div>
+
+                <div class="net-field-group">
+                    <label class="net-field-label" data-net-tt="net_gw">Puerta de Enlace (Gateway)</label>
+                    <input type="text" id="net_gw" value="{{ extra.gateway | default('192.168.0.1') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+                </div>
+
+                <div class="net-field-group">
+                    <label class="net-field-label" data-net-tt="net_dns">Servidor DNS</label>
+                    <input type="text" id="net_dns" value="{{ extra.dns | default('8.8.8.8') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+                </div>
+            </div>
+        </div>
+
+        <div class="net-footer-bar">
+            <span style="font-size:0.74em; color:var(--text-muted);" id="estadoRedMsg" translate="no">
+                🔒 Evita duplicar IPs en la misma subred
+            </span>
+            <button type="button" class="btn-save-net-pro" id="btnGuardarRedPro" data-net-tt="btn_guardar_red" onclick="guardarConfiguracionRed()">
+                <span id="icoGuardarRed">💾</span>
+                <span id="txtGuardarRed">Guardar Red</span>
+            </button>
         </div>
     </div>
 </div>
 
 <script>
-    function toggleCamposIP() {
-        let elProto = document.getElementById('net_proto');
-        if (!elProto) return;
-        let esDhcp = elProto.value === '1';
-        ['net_ip', 'net_mask', 'net_gw', 'net_dns'].forEach(id => {
-            let inp = document.getElementById(id);
-            if (inp) inp.disabled = esDhcp;
+    const INFO_TOOLTIPS_NET = {
+        'hw_identidad': {
+            titulo: '🏭 Especificaciones de Fábrica',
+            desc: 'Datos físicos extraídos directamente de la EEPROM de la tarjeta de control y las placas hash del minero.',
+            rango: 'Toca MAC o Serie para copiar al portapapeles'
+        },
+        'spec_modelo': {
+            titulo: '🖥️ Modelo y Algoritmo del Minero',
+            desc: 'Serie comercial detectada por el firmware (S19, S19k Pro, S19 XP, S21, S23 Hydro, Z15 Pro).',
+            rango: 'Determina el perfil de eficiencia nominal'
+        },
+        'spec_fw': {
+            titulo: '💿 Versión de Firmware Instalada',
+            desc: 'Fecha de compilación del sistema operativo interno del Antminer. Firmwares recientes mejoran la estabilidad de los chips.',
+            rango: 'Extraído vía CGI / API 4028'
+        },
+        'spec_mac': {
+            titulo: '🏷️ Dirección Física MAC (Ethernet)',
+            desc: 'Identificador único de la tarjeta de red del minero. Sirve para reservar su IP en el router MikroTik/Ubiquiti de la granja.',
+            rango: 'Haz clic sobre la MAC para copiarla'
+        },
+        'spec_serial': {
+            titulo: '🔢 Número de Serie de Placa / Equipo',
+            desc: 'Código de serie grabado en las placas hash para control de garantía y trazabilidad de inventario.',
+            rango: 'Haz clic para copiar el número de serie'
+        },
+        'spec_eficiencia': {
+            titulo: '⚡ Eficiencia Energética Real',
+            desc: 'Relación entre los vatios consumidos y los Terahashes producidos en este instante.',
+            rango: 'S21: ~16.5 J/TH | S19k Pro: ~23 J/TH | S19: ~29.5 J/TH'
+        },
+        'spec_cooling': {
+            titulo: '🌀 Estado de Ventiladores / Agua',
+            desc: 'Muestra las revoluciones de cada turbina de enfriamiento o la temperatura del líquido refrigerante en sistemas Hydro.',
+            rango: 'Falla de un ventilador detiene el minado por seguridad'
+        },
+        'net_proto_badge': {
+            titulo: '🌐 Protocolo de Asignación IP',
+            desc: 'En granjas profesionales se recomienda IP Estática (Static) para que los mineros nunca cambien de posición tras un corte de luz.',
+            rango: 'Static = IP fija permanente'
+        },
+        'net_host': {
+            titulo: '📛 Hostname del Dispositivo',
+            desc: 'Nombre de red con el que el minero se identifica ante el router de la granja (sin espacios ni caracteres especiales).',
+            rango: 'Ejemplo: Antminer14'
+        },
+        'net_proto': {
+            titulo: '🔀 Selector Static vs DHCP',
+            desc: 'Elige Static para fijar manualmente la IP, máscara y puerta de enlace, o DHCP para que el router le asigne una automática.',
+            rango: 'Recomendado: Static'
+        },
+        'net_ip': {
+            titulo: '📍 Dirección IPv4 Local',
+            desc: 'Dirección IP del minero dentro de tu red LAN. Si la cambias a una nueva IP, el agente local la agregará automáticamente a su lista.',
+            rango: 'Formato: 192.168.0.XX'
+        },
+        'net_mask': {
+            titulo: '🛡️ Máscara de Subred (Netmask)',
+            desc: 'Define el tamaño de la red local de la granja. Para redes de hasta 254 equipos siempre es 255.255.255.0.',
+            rango: 'Estándar /24: 255.255.255.0'
+        },
+        'net_gw': {
+            titulo: '🚪 Puerta de Enlace (Gateway)',
+            desc: 'Dirección IP del router principal que le da salida a internet al minero para conectarse a los pools.',
+            rango: 'Habitual: 192.168.0.1 o 192.168.1.1'
+        },
+        'net_dns': {
+            titulo: '🔎 Servidor DNS Primario',
+            desc: 'Encargado de traducir los dominios de los pools (ej: btc.viabtc.io) a su dirección IP real.',
+            rango: 'Recomendados: 8.8.8.8 (Google) o 1.1.1.1 (Cloudflare)'
+        },
+        'btn_guardar_red': {
+            titulo: '💾 Aplicar Configuración de Red en el Minero',
+            desc: 'Envía los parámetros TCP/IP a set_network_conf.cgi del Antminer a través del Agente local.',
+            rango: 'Si cambias la IP, el minero pasará a responder en la nueva dirección'
+        }
+    };
+
+    function copiarTextoSpec(txt, elChip) {
+        if (!txt || txt === '-') return;
+        navigator.clipboard.writeText(txt).then(() => {
+            const orig = elChip.innerHTML;
+            elChip.innerHTML = `<span style="color:#00e676;">✅ Copiado</span>`;
+            setTimeout(() => { elChip.innerHTML = orig; }, 1300);
         });
     }
 
-    function confirmarCambioIP() {
-        let proto = document.getElementById('net_proto').value;
-        let nuevaIp = document.getElementById('net_ip').value.trim();
-        let msg = proto === '1' 
-            ? '¿Deseas cambiar la configuración de red a modo DHCP automático?' 
-            : `¿Estás seguro de asignar la IP estática ${nuevaIp} a este minero?`;
-        pedirConfirmacion('🌐 Guardar Configuración IP', msg, 'guardar_red', false);
+    function cambiarModoProtocoloRed() {
+        const proto = document.getElementById('net_proto').value;
+        const esDhcp = (proto === '1');
+        const campos = ['net_ip', 'net_mask', 'net_gw', 'net_dns'];
+        campos.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = esDhcp;
+        });
+        const badge = document.getElementById('badgeProtoRed');
+        if (badge) {
+            badge.className = 'proto-badge-pro ' + (esDhcp ? 'dhcp' : 'static');
+            badge.innerText = esDhcp ? '● Modo DHCP' : '● Modo IP Estática';
+        }
     }
 
-    window.addEventListener('load', function() { toggleCamposIP(); });
+    function marcarRedEditada(inputEl) {
+        if (inputEl) inputEl.classList.add('edited');
+        const btn = document.getElementById('btnGuardarRedPro');
+        const txt = document.getElementById('txtGuardarRed');
+        if (btn) btn.classList.add('unsaved-pulse');
+        if (txt) txt.innerText = 'Aplicar Cambios de Red';
+    }
+
+    function validarFormatoIpv4(ipStr) {
+        const regex = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+        return regex.test((ipStr || '').trim());
+    }
+
+    function guardarConfiguracionRed() {
+        const host = (document.getElementById('net_host').value || 'Antminer').trim();
+        const proto = document.getElementById('net_proto').value;
+        const nip = (document.getElementById('net_ip').value || '').trim();
+        const mask = (document.getElementById('net_mask').value || '').trim();
+        const gw = (document.getElementById('net_gw').value || '').trim();
+        const dns = (document.getElementById('net_dns').value || '8.8.8.8').trim();
+
+        if (proto === '2') {
+            if (!validarFormatoIpv4(nip) || !validarFormatoIpv4(mask) || !validarFormatoIpv4(gw)) {
+                alert('⚠️ Verifica que la Dirección IP, Máscara de Subred y Puerta de Enlace tengan un formato IPv4 válido (ej: 192.168.0.15).');
+                return;
+            }
+        }
+
+        const msgConfirm = (proto === '1')
+            ? `¿Cambiar el minero {{ ip }} a modo DHCP automático?`
+            : `¿Aplicar IP Estática [${nip}] con Gateway [${gw}] en el minero {{ ip }}?`;
+
+        if (!confirm(msgConfirm)) return;
+
+        const btn = document.getElementById('btnGuardarRedPro');
+        const ico = document.getElementById('icoGuardarRed');
+        const txt = document.getElementById('txtGuardarRed');
+        const msg = document.getElementById('estadoRedMsg');
+
+        if (ico) ico.innerText = '⏳';
+        if (txt) txt.innerText = 'Enviando...';
+
+        const urlCmd = `/cmd/{{ ip }}/set_network?host=${encodeURIComponent(host)}&proto=${encodeURIComponent(proto)}&nip=${encodeURIComponent(nip)}&mask=${encodeURIComponent(mask)}&gw=${encodeURIComponent(gw)}&dns=${encodeURIComponent(dns)}`;
+
+        fetch(urlCmd).then(() => {
+            document.querySelectorAll('.input-net-pro.edited').forEach(el => el.classList.remove('edited'));
+            if (btn) btn.classList.remove('unsaved-pulse');
+            if (ico) ico.innerText = '✅';
+            if (txt) txt.innerText = '¡Red en Cola!';
+            if (msg) {
+                msg.style.color = '#00e676';
+                msg.innerText = '✅ Orden enviada al Agente (se aplicará en ~20s)';
+            }
+            setTimeout(() => {
+                if (ico) ico.innerText = '💾';
+                if (txt) txt.innerText = 'Guardar Red';
+            }, 4500);
+        });
+    }
+
+    window.addEventListener('load', function() {
+        cambiarModoProtocoloRed();
+        document.querySelectorAll('[data-net-tt]').forEach(el => {
+            const key = el.getAttribute('data-net-tt');
+            const info = INFO_TOOLTIPS_NET[key];
+            if (!info) return;
+
+            el.addEventListener('mouseenter', function() {
+                if (typeof mostrarSmartTooltip === 'function') {
+                    mostrarSmartTooltip(el, info);
+                }
+            });
+            el.addEventListener('mouseleave', function() {
+                if (typeof ocultarSmartTooltip === 'function') {
+                    ocultarSmartTooltip();
+                }
+            });
+            el.addEventListener('click', function(e) {
+                if (el.tagName !== 'BUTTON' && typeof mostrarSmartTooltip === 'function') {
+                    e.stopPropagation();
+                    mostrarSmartTooltip(el, info);
+                }
+            });
+        });
+    });
 </script>
