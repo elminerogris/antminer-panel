@@ -1,25 +1,30 @@
+<!-- Librerías oficiales para Zoom con 2 dedos (Pinch-to-Zoom) en celular y mouse -->
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
 <style>
     /* Estadísticas rápidas del periodo */
     .chart-stats-bar {
         display: flex;
-        gap: 12px;
+        gap: 10px 14px;
         flex-wrap: wrap;
         margin-bottom: 10px;
         padding: 8px 10px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid var(--border-color);
         border-radius: 6px;
-        font-size: 0.76em;
+        font-size: 0.75em;
     }
     .stat-item { display: flex; align-items: center; gap: 4px; color: var(--text-muted); }
     .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.06em; }
 
-    /* Leyendas interactivas compactas en una sola fila deslizable o adaptable */
+    /* Leyendas interactivas compactas */
     .chart-CustomLegends {
         display: flex;
         gap: 6px;
         flex-wrap: wrap;
         margin-bottom: 8px;
+        align-items: center;
     }
     .legend-pill {
         background: rgba(255, 255, 255, 0.03);
@@ -40,12 +45,25 @@
     .legend-pill.off { opacity: 0.35; text-decoration: line-through; }
     .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 
-    /* Contenedor Full-Bleed (estira el gráfico hacia los bordes de la tarjeta) */
+    /* Contenedor Full-Bleed */
     .chart-edge-container {
-        height: 300px;
+        height: 305px;
         position: relative;
         margin-left: -12px;
         margin-right: -12px;
+        touch-action: pan-y;
+    }
+
+    .btn-reset-zoom {
+        display: none;
+        background: rgba(51, 102, 255, 0.2);
+        border: 1px solid var(--accent-blue);
+        color: var(--accent-blue);
+        padding: 4px 9px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.78em;
+        font-weight: bold;
     }
 
     /* Tooltip flotante en línea 0 */
@@ -83,6 +101,9 @@
         font-size: 1.02em;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         padding-bottom: 3px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
     }
     .tt-row { display: flex; align-items: center; gap: 6px; }
     .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.95em; }
@@ -99,10 +120,12 @@
 
 <div class="card" style="position: relative; overflow: visible; z-index: 20; padding-left: 16px; padding-right: 16px;">
     <div class="panel-title" style="margin-bottom: 10px;">
-        <div style="display:flex; align-items:center; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
+            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.1); padding:2px 8px; border-radius:12px; display:none;" translate="no"></span>
         </div>
         <div class="chart-filters">
+            <button class="btn-reset-zoom" id="btnResetZoom" onclick="resetearZoomGrafico()">🔍 100%</button>
             <button class="btn-filter" id="btn-6h" onclick="updateChart('6h')">6 h</button>
             <button class="btn-filter active" id="btn-24h" onclick="updateChart('24h')">24 h</button>
             <button class="btn-filter" id="btn-7d" onclick="updateChart('7d')">7 d</button>
@@ -111,19 +134,20 @@
         </div>
     </div>
 
-    <!-- Barra de métricas dinámicas del rango seleccionado -->
+    <!-- Barra de métricas dinámicas (Incluye Temp Max, Temp Min y Estabilidad) -->
     <div class="chart-stats-bar" translate="no">
-        <div class="stat-item">Promedio: <b id="statProm" style="color:var(--accent-blue);">0.00</b></div>
+        <div class="stat-item">Prom: <b id="statProm" style="color:var(--accent-blue);">0.00</b></div>
         <div class="stat-item">Máx: <b id="statMax">0.00</b></div>
         <div class="stat-item">Mín: <b id="statMin">0.00</b></div>
-        <div class="stat-item">Temp Pico: <b id="statTempPico" style="color:#ffb300;">0°C</b></div>
+        <div class="stat-item">Temp Máx/Mín: <b id="statTempPico" style="color:#ffb300;">0°/0°C</b></div>
+        <div class="stat-item">Clima Ext: <b id="statClimaHoy" style="color:#38bdf8;">--°C</b></div>
         <div class="stat-item">Estabilidad: <b id="statUptime" style="color:var(--accent-green);">100%</b></div>
     </div>
 
     <!-- Píldoras interactivas para encender/apagar curvas -->
     <div class="chart-CustomLegends" id="customLegendsBar"></div>
 
-    <!-- Gráfico estirado de extremo a extremo con números internos -->
+    <!-- Gráfico estirado con soporte de Zoom con 2 dedos -->
     <div id="chartWrapper" class="chart-edge-container">
         <canvas id="hashrateChart"></canvas>
         <div id="customChartTooltip" class="custom-chart-tooltip" translate="no"></div>
@@ -144,6 +168,8 @@
     let rangoActual = '24h';
     let cursorDentroArea = false;
     let mapaMetaPuntos = {};
+    let cacheClimaExterior = []; // [{ts, temp}]
+    let nombreCiudadClima = "";
 
     function formatearFechaTooltip(d) {
         let dia = String(d.getDate()).padStart(2, '0');
@@ -166,7 +192,66 @@
         return horaStr;
     }
 
-    // Plugin profesional 1: Dibuja los números de Hashrate (izq) y Temperatura (der) DENTRO del gráfico estilo TradingView
+    // Obtener clima real e historial de los últimos 30 días automáticamente según ubicación
+    async function cargarClimaExteriorAutomatico() {
+        try {
+            let lat = -17.7833, lon = -63.1821, ciudad = "Local";
+            try {
+                const rGeo = await fetch("https://ipapi.co/json/");
+                if (rGeo.ok) {
+                    const jGeo = await rGeo.json();
+                    if (jGeo.latitude && jGeo.longitude) {
+                        lat = jGeo.latitude; lon = jGeo.longitude;
+                        ciudad = jGeo.city || jGeo.region || "Local";
+                    }
+                }
+            } catch(e) {}
+
+            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m&past_days=30&forecast_days=1&timeformat=unixtime&timezone=auto`;
+            const rMet = await fetch(urlMeteo);
+            if (!rMet.ok) return;
+            const jMet = await rMet.json();
+            if (jMet.hourly && jMet.hourly.time && jMet.hourly.temperature_2m) {
+                cacheClimaExterior = [];
+                for (let i = 0; i < jMet.hourly.time.length; i++) {
+                    if (jMet.hourly.temperature_2m[i] !== null) {
+                        cacheClimaExterior.push({
+                            ts: Number(jMet.hourly.time[i]),
+                            temp: Math.round(Number(jMet.hourly.temperature_2m[i]))
+                        });
+                    }
+                }
+                nombreCiudadClima = ciudad;
+                const badge = document.getElementById('climaUbicacionBadge');
+                if (badge && cacheClimaExterior.length > 0) {
+                    const ahoraTs = Math.floor(Date.now() / 1000);
+                    let masCercano = cacheClimaExterior.reduce((prev, curr) => Math.abs(curr.ts - ahoraTs) < Math.abs(prev.ts - ahoraTs) ? curr : prev);
+                    badge.innerText = `🌤️ ${ciudad}: ${masCercano.temp}°C`;
+                    badge.style.display = 'inline-block';
+                    document.getElementById('statClimaHoy').innerText = `${masCercano.temp}°C`;
+                }
+                updateChart(rangoActual);
+            }
+        } catch (err) {
+            console.log("Clima exterior opcional no disponible:", err);
+        }
+    }
+
+    function obtenerClimaParaTimestamp(ts) {
+        if (!cacheClimaExterior || cacheClimaExterior.length === 0) return null;
+        // Buscar la hora más cercana en el historial meteorológico
+        let izq = 0, der = cacheClimaExterior.length - 1;
+        while (izq <= der) {
+            let mid = (izq + der) >> 1;
+            let midTs = cacheClimaExterior[mid].ts;
+            if (Math.abs(midTs - ts) <= 1800) return cacheClimaExterior[mid].temp;
+            if (midTs < ts) izq = mid + 1;
+            else der = mid - 1;
+        }
+        return null;
+    }
+
+    // Plugin profesional 1: Dibuja los números de Hashrate (izq) y Temperatura (der) DENTRO del gráfico
     const pluginNumerosDentroGrafico = {
         id: 'numerosDentroGrafico',
         afterDraw: function(chart) {
@@ -181,7 +266,6 @@
             ctx.lineWidth = 3;
             ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
 
-            // Eje Izquierdo (Hashrate) adentro a la izquierda
             if (yAxis && yAxis.ticks) {
                 ctx.textAlign = 'left';
                 ctx.fillStyle = 'rgba(165, 167, 181, 0.88)';
@@ -196,7 +280,6 @@
                 });
             }
 
-            // Eje Derecho (Temperatura °C) adentro a la derecha
             if (y1Axis && y1Axis.ticks) {
                 ctx.textAlign = 'right';
                 ctx.fillStyle = 'rgba(255, 179, 0, 0.85)';
@@ -267,45 +350,47 @@
         }
 
         const titulo = formatearFechaTooltip(new Date(tsSegundos * 1000));
-        let html = `<div class="tt-title">${titulo}</div>`;
+        let deltaT = "";
+        if (meta.temp > 0 && (meta.amb || meta.clima)) {
+            let refAmb = meta.amb || meta.clima;
+            deltaT = `<span style="color:#a5a7b5; font-size:0.88em;">ΔT +${meta.temp - refAmb}°C</span>`;
+        }
+        let html = `<div class="tt-title"><span>${titulo}</span>${deltaT}</div>`;
 
         if (meta.estadoPunto === 'SIN_MINAR') {
             html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;">0 ${unidadMinero} (Detenido)</b></div>`;
             if (meta.temp > 0) {
                 html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Max: <b>${meta.temp}°C</b> (Equipo encendido)</div>`;
             }
+            if (meta.clima !== null && meta.clima !== undefined) {
+                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Exterior: <b>${meta.clima}°C</b></div>`;
+            }
             html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Alerta: Encendido pero sin minar</div>`;
         } else {
-            tooltip.dataPoints.forEach(dp => {
-                const dsId = dp.dataset.id;
-                const valY = dp.parsed.y;
-                if (valY === null || valY === undefined) return;
-
-                if (dsId === 'hr') {
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${valY} ${unidadMinero}</b></div>`;
-                } else if (dsId === 'tmax' && valY > 0) {
-                    let estadoT = valY >= 85 ? '🔴 Crítica' : (valY >= 75 ? '🟠 Advertencia' : '🟢 Normal');
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Max: <b>${valY}°C</b> (${estadoT})</div>`;
-                    let cads = meta.cadenas || cadenasActuales;
-                    if (cads && cads.length > 0) {
-                        for (let c = 0; c < cads.length; c++) {
-                            if (cads[c].temp_c > 0 || cads[c].temp_p > 0) {
-                                html += `<div class="tt-sub">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
-                            }
+            html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${meta.hr} ${unidadMinero}</b></div>`;
+            if (meta.temp > 0) {
+                let estadoT = meta.temp >= 85 ? '🔴 Crítica' : (meta.temp >= 75 ? '🟠 Advertencia' : '🟢 Normal');
+                let txtMin = (meta.tempMin && meta.tempMin > 0) ? ` / Mín PCB: <b>${meta.tempMin}°C</b>` : '';
+                html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b>${meta.temp}°C</b>${txtMin} (${estadoT})</div>`;
+                let cads = meta.cadenas || cadenasActuales;
+                if (cads && cads.length > 0) {
+                    for (let c = 0; c < cads.length; c++) {
+                        if (cads[c].temp_c > 0 || cads[c].temp_p > 0) {
+                            html += `<div class="tt-sub">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
                         }
                     }
-                } else if (dsId === 'tamb') {
-                    let valA = valY || tempAmbActual;
-                    if (valA && valA > 0) {
-                        html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Temp Ambiente: <b>${valA}°C</b></div>`;
-                    }
-                } else if (dsId === 'err') {
-                    let errNuevos = valY || 0;
-                    let ds = meta.deltaS || 30;
-                    let porSeg = (errNuevos / ds).toFixed(2);
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b>${errNuevos} nuevos</b> (${porSeg} /s)</div>`;
                 }
-            });
+            }
+            if (meta.amb && meta.amb > 0) {
+                html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Temp Entrada/Amb: <b>${meta.amb}°C</b></div>`;
+            }
+            if (meta.clima !== null && meta.clima !== undefined) {
+                html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima (${nombreCiudadClima || 'Ext'}): <b>${meta.clima}°C</b></div>`;
+            }
+            let errNuevos = meta.err || 0;
+            let ds = meta.deltaS || 30;
+            let porSeg = (errNuevos / ds).toFixed(2);
+            html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b>${errNuevos} nuevos</b> (${porSeg} /s)</div>`;
         }
 
         ttEl.innerHTML = html;
@@ -313,7 +398,7 @@
 
         const chartArea = chart.chartArea;
         const wrapperW = chart.canvas.clientWidth;
-        const ttW = ttEl.offsetWidth || 230;
+        const ttW = ttEl.offsetWidth || 235;
 
         let posX = tooltip.caretX;
         const minX = (ttW / 2) + 6;
@@ -342,6 +427,12 @@
             };
             cont.appendChild(btn);
         });
+    }
+
+    function resetearZoomGrafico() {
+        if (!chartInstance) return;
+        chartInstance.resetZoom();
+        document.getElementById('btnResetZoom').style.display = 'none';
     }
 
     function descargarCapturaGrafico() {
@@ -373,11 +464,33 @@
         canvas.addEventListener('mousemove', function(e) { validarPosicionCursor(e.clientX, e.clientY); });
         canvas.addEventListener('mouseleave', function() { ocultarTooltipGris(); });
         canvas.addEventListener('touchstart', function(e) {
-            if (e.touches && e.touches.length > 0) validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
+            if (e.touches && e.touches.length === 1) {
+                validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
+            } else {
+                ocultarTooltipGris();
+            }
         }, {passive: true});
         canvas.addEventListener('touchmove', function(e) {
-            if (e.touches && e.touches.length > 0) validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
+            if (e.touches && e.touches.length === 1) {
+                validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
+            } else {
+                ocultarTooltipGris();
+            }
         }, {passive: true});
+    }
+
+    function extraerTempMinimaPlaca(cads, tempMaxFallback) {
+        if (!cads || !Array.isArray(cads) || cads.length === 0) {
+            return tempMaxFallback > 10 ? Math.max(15, tempMaxFallback - 8) : null;
+        }
+        let mins = [];
+        for (let i = 0; i < cads.length; i++) {
+            let tp = Number(cads[i].temp_p || 0);
+            let tc = Number(cads[i].temp_c || 0);
+            if (tp > 10) mins.push(tp);
+            else if (tc > 10) mins.push(Math.max(15, tc - 6));
+        }
+        return mins.length > 0 ? Math.min(...mins) : null;
     }
 
     function procesarDatosLimpios(minTs) {
@@ -388,26 +501,33 @@
             let hVal = rawHr[i] !== null && rawHr[i] !== undefined ? Number(rawHr[i]) : 0;
             let tVal = rawTemp[i] !== null && rawTemp[i] !== undefined ? Number(rawTemp[i]) : 0;
 
-            // Ignorar registros fantasma (0 TH/s y 0°C) para que nunca hagan caer la línea en picada hasta el suelo
-            if (hVal === 0 && tVal <= 5) {
-                continue;
+            // Descartar registros fantasma (0 TH/s y 0°C)
+            if (hVal === 0 && tVal <= 5) continue;
+
+            // Si la máquina NO está minando (hVal === 0), la temperatura ambiente del sensor interno no debe graficarse ni puentearse
+            let ambVal = (hVal > 0 && rawAmb.length > i && rawAmb[i] !== null && rawAmb[i] > 0) ? Number(rawAmb[i]) : null;
+            if (hVal > 0 && ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) ambVal = tempAmbActual;
+
+            // PUNTO 6 DE TU FOTO: Si el minero está detenido (0 TH/s) o recién reiniciando, anular falsos picos de errores HW de arranque
+            let errVal = (rawErr.length > i && rawErr[i] !== null) ? Number(rawErr[i]) : 0;
+            if (hVal === 0 || (i > 0 && Number(rawHr[i - 1] || 0) === 0)) {
+                errVal = 0;
             }
 
-            let ambVal = (rawAmb.length > i && rawAmb[i] !== null && rawAmb[i] > 0) ? Number(rawAmb[i]) : null;
-            if (ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) ambVal = tempAmbActual;
-            let errVal = (rawErr.length > i && rawErr[i] !== null) ? Number(rawErr[i]) : 0;
             let cads = (rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales;
+            let tMinVal = hVal > 0 ? extraerTempMinimaPlaca(cads, tVal) : null;
+            let climaVal = obtenerClimaParaTimestamp(ts);
 
-            crudos.push({ ts, hr: hVal, temp: tVal, amb: ambVal, err: errVal, cads });
+            crudos.push({ ts, hr: hVal, temp: tVal, tempMin: tMinVal, amb: ambVal, clima: climaVal, err: errVal, cads });
         }
 
         crudos.sort((a, b) => a.ts - b.ts);
 
-        let ptsH = [], ptsT = [], ptsA = [], ptsE = [];
-        let valoresHr = [], valoresTemp = [];
+        let ptsH = [], ptsT = [], ptsTMin = [], ptsA = [], ptsClima = [], ptsE = [];
+        let valoresHr = [], valoresTempMax = [], valoresTempMin = [];
         mapaMetaPuntos = {};
 
-        const UMBRAL_CORTE_SEG = 240; // Si el minero se apagó más de 4 minutos, deja espacio limpio sin línea
+        const UMBRAL_CORTE_SEG = 240; // >4 min sin datos = minero apagado -> cortar todas las líneas del minero
 
         for (let i = 0; i < crudos.length; i++) {
             let actual = crudos[i];
@@ -422,7 +542,8 @@
                     let tsCorte = crudos[i - 1].ts + 1;
                     ptsH.push({ x: tsCorte, y: null });
                     ptsT.push({ x: tsCorte, y: null });
-                    ptsA.push({ x: tsCorte, y: null });
+                    ptsTMin.push({ x: tsCorte, y: null });
+                    ptsA.push({ x: tsCorte, y: null }); // Corta también Temp Ambiente cuando el equipo estuvo apagado
                     ptsE.push({ x: tsCorte, y: null });
                     mapaMetaPuntos[tsCorte] = { esSeparadorCorte: true };
                 }
@@ -431,31 +552,36 @@
             if (actual.hr === 0 && actual.temp > 5) {
                 ptsH.push({ x: actual.ts, y: 0 });
                 ptsT.push({ x: actual.ts, y: actual.temp });
-                ptsA.push({ x: actual.ts, y: actual.amb });
-                ptsE.push({ x: actual.ts, y: actual.err });
-                valoresTemp.push(actual.temp);
+                ptsTMin.push({ x: actual.ts, y: null });
+                ptsA.push({ x: actual.ts, y: null });
+                ptsClima.push({ x: actual.ts, y: actual.clima });
+                ptsE.push({ x: actual.ts, y: 0 }); // Sin errores HW cuando está detenido
+                valoresTempMax.push(actual.temp);
                 mapaMetaPuntos[actual.ts] = {
                     estadoPunto: 'SIN_MINAR',
-                    hr: 0, temp: actual.temp, deltaS: deltaS, cadenas: actual.cads
+                    hr: 0, temp: actual.temp, tempMin: null, amb: null, clima: actual.clima, err: 0, deltaS: deltaS, cadenas: actual.cads
                 };
             } else {
                 let tempValida = actual.temp > 5 ? actual.temp : null;
                 ptsH.push({ x: actual.ts, y: actual.hr });
                 ptsT.push({ x: actual.ts, y: tempValida });
+                ptsTMin.push({ x: actual.ts, y: actual.tempMin });
                 ptsA.push({ x: actual.ts, y: actual.amb });
+                ptsClima.push({ x: actual.ts, y: actual.clima });
                 ptsE.push({ x: actual.ts, y: actual.err });
 
                 valoresHr.push(actual.hr);
-                if (tempValida !== null) valoresTemp.push(tempValida);
+                if (tempValida !== null) valoresTempMax.push(tempValida);
+                if (actual.tempMin !== null) valoresTempMin.push(actual.tempMin);
 
                 mapaMetaPuntos[actual.ts] = {
                     estadoPunto: 'NORMAL',
-                    hr: actual.hr, temp: tempValida || 0, deltaS: deltaS, cadenas: actual.cads
+                    hr: actual.hr, temp: tempValida || 0, tempMin: actual.tempMin, amb: actual.amb, clima: actual.clima, err: actual.err, deltaS: deltaS, cadenas: actual.cads
                 };
             }
         }
 
-        return { ptsH, ptsT, ptsA, ptsE, valoresHr, valoresTemp, totalRegistros: crudos.length };
+        return { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsE, valoresHr, valoresTempMax, valoresTempMin, totalRegistros: crudos.length };
     }
 
     function updateChart(rango) {
@@ -463,6 +589,7 @@
         document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
         let btnR = document.getElementById('btn-' + rango);
         if (btnR) btnR.classList.add('active');
+        document.getElementById('btnResetZoom').style.display = 'none';
         ocultarTooltipGris();
         
         const ultimoTsDato = rawFechas.length > 0 ? Math.max(...rawFechas) : Math.floor(Date.now() / 1000);
@@ -474,28 +601,30 @@
         if (rango === '30d') segundosRango = 30 * 86400;
 
         const minTs = nowTs - segundosRango;
-        const { ptsH, ptsT, ptsA, ptsE, valoresHr, valoresTemp, totalRegistros } = procesarDatosLimpios(minTs);
+        const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsE, valoresHr, valoresTempMax, valoresTempMin, totalRegistros } = procesarDatosLimpios(minTs);
         
         let avgHr = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length).toFixed(2) : "0.00";
         let maxHr = valoresHr.length > 0 ? Math.max(...valoresHr).toFixed(2) : "0.00";
         let minHr = valoresHr.length > 0 ? Math.min(...valoresHr).toFixed(2) : "0.00";
-        let maxT = valoresTemp.length > 0 ? Math.max(...valoresTemp) : 0;
+        let maxT = valoresTempMax.length > 0 ? Math.max(...valoresTempMax) : 0;
+        let minT = valoresTempMin.length > 0 ? Math.min(...valoresTempMin) : 0;
         let pctEstab = totalRegistros > 0 ? Math.round((valoresHr.length / totalRegistros) * 100) : 100;
 
         document.getElementById('statProm').innerText = `${avgHr} ${unidadMinero}`;
         document.getElementById('statMax').innerText = `${maxHr} ${unidadMinero}`;
         document.getElementById('statMin').innerText = `${minHr} ${unidadMinero}`;
         let elTp = document.getElementById('statTempPico');
-        elTp.innerText = `${maxT}°C`;
+        elTp.innerText = `${maxT}° / ${minT}°C`;
         elTp.style.color = maxT >= 85 ? '#ff5252' : (maxT >= 75 ? '#ffb300' : '#00e676');
         document.getElementById('statUptime').innerText = `${pctEstab}%`;
 
         const ctx = document.getElementById('hashrateChart').getContext('2d');
         const gradBlue = ctx.createLinearGradient(0, 0, 0, 270);
-        gradBlue.addColorStop(0, 'rgba(51, 102, 255, 0.32)');
+        gradBlue.addColorStop(0, 'rgba(51, 102, 255, 0.30)');
         gradBlue.addColorStop(1, 'rgba(51, 102, 255, 0.0)');
 
-        let tieneTempAmbiente = ptsA.some(p => p.y !== null && p.y > 0) || (tempAmbActual > 0);
+        let tieneTempAmbiente = ptsA.some(p => p.y !== null && p.y > 0);
+        let tieneClimaExt = ptsClima.some(p => p.y !== null && p.y !== undefined);
 
         let datasetsList = [
             {
@@ -505,19 +634,37 @@
                 borderWidth: 2, spanGaps: false
             },
             {
-                id: 'tmax', type: 'line', label: '🌡️ Temp Max °C', data: ptsT,
-                borderColor: '#ffb300', borderDash: [5, 5],
+                id: 'tmax', type: 'line', label: '🌡️ Temp Máx °C', data: ptsT,
+                borderColor: '#ffb300', borderDash: [5, 4],
                 tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#ffb300',
-                borderWidth: 1.6, yAxisID: 'y1', spanGaps: false
+                borderWidth: 1.7, yAxisID: 'y1', spanGaps: false
+            },
+            {
+                id: 'tmin', type: 'line', label: '❄️ Temp Mín (PCB) °C', data: ptsTMin,
+                borderColor: '#fb923c', borderDash: [2, 4],
+                backgroundColor: 'rgba(255, 179, 0, 0.07)', fill: '-1', // Sombrea suavemente la banda entre Temp Máx y Temp Mín
+                tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#fb923c',
+                borderWidth: 1.2, yAxisID: 'y1', spanGaps: false
             }
         ];
 
         if (tieneTempAmbiente) {
             datasetsList.push({
-                id: 'tamb', type: 'line', label: '🍃 Ambiente °C', data: ptsA,
+                id: 'tamb', type: 'line', label: '🍃 Entrada/Amb °C', data: ptsA,
                 borderColor: '#00e676', borderDash: [3, 3],
                 tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#00e676',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true
+                borderWidth: 1.5, yAxisID: 'y1',
+                // PUNTO 3 DE TU FOTO: spanGaps en FALSE para que si el minero está apagado NO aparezca línea de Temp Ambiente
+                spanGaps: false
+            });
+        }
+
+        if (tieneClimaExt) {
+            datasetsList.push({
+                id: 'clima', type: 'line', label: '🌤️ Clima Exterior °C', data: ptsClima,
+                borderColor: '#38bdf8', borderDash: [2, 2],
+                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#38bdf8',
+                borderWidth: 1.4, yAxisID: 'y1', spanGaps: true
             });
         }
 
@@ -541,14 +688,33 @@
                 options: { 
                     parsed: false,
                     responsive: true, maintainAspectRatio: false,
-                    layout: { padding: { left: 2, right: 2, top: 6, bottom: 0 } },
+                    // Padding lateral de 16px para que todas las horas abajo tengan distancia matemática idéntica sin cortarse
+                    layout: { padding: { left: 14, right: 14, top: 6, bottom: 0 } },
                     interaction: { mode: 'index', axis: 'x', intersect: false },
                     plugins: { 
                         legend: { display: false },
                         tooltip: { 
                             enabled: false,
                             external: renderizarTooltipExterno
-                        } 
+                        },
+                        // PUNTO 4 DE TU FOTO: Zoom con dos dedos en celular (Pinch) y arrastre horizontal (Pan)
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'x',
+                                onPanComplete: function() {
+                                    document.getElementById('btnResetZoom').style.display = 'inline-block';
+                                }
+                            },
+                            zoom: {
+                                wheel: { enabled: true },
+                                pinch: { enabled: true },
+                                mode: 'x',
+                                onZoomComplete: function() {
+                                    document.getElementById('btnResetZoom').style.display = 'inline-block';
+                                }
+                            }
+                        }
                     },
                     scales: { 
                         x: { 
@@ -569,8 +735,9 @@
                                 axis.ticks = nuevosTicks;
                             },
                             ticks: { 
+                                // PUNTO 1 DE TU FOTO: align 'center' garantiza que todas las horas estén exactamente a la misma distancia
                                 minRotation: 0, maxRotation: 0, autoSkip: false,
-                                align: 'inner',
+                                align: 'center',
                                 color: '#8b8d9c', font: { size: 10.5 },
                                 callback: function(value) {
                                     return formatearEtiquetaEjeX(new Date(value * 1000), rangoActual);
@@ -580,7 +747,6 @@
                         y: { 
                             grid: { color: 'rgba(255,255,255,0.05)' }, 
                             min: 0,
-                            // Ocultamos los números externos porque pluginNumerosDentroGrafico los dibuja ADENTRO del gráfico
                             ticks: { display: false }
                         }, 
                         y1: { 
@@ -597,5 +763,9 @@
             construirLeyendasPildora();
         }
     }
-    window.addEventListener('load', function() { updateChart('24h'); });
+
+    window.addEventListener('load', function() {
+        updateChart('24h');
+        cargarClimaExteriorAutomatico();
+    });
 </script>
