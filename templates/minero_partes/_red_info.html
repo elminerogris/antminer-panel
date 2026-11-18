@@ -1,0 +1,87 @@
+<div class="grid-2">
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div class="pools-header">
+            <span>🌐 Configuración IP</span>
+            <button class="btn-guardar" onclick="confirmarCambioIP()">💾 Guardar IP</button>
+        </div>
+        <div>
+            <div class="net-form-row">
+                <div class="net-label">Info Red</div>
+                <div class="net-info-box" translate="no">
+                    eth0<br>
+                    [MAC] {{ extra.mac }}<br>
+                    [IP] {{ ip }}<br>
+                    [Sub] {{ extra.netmask }}
+                </div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">Hostname</div>
+                <div><input type="text" id="net_host" value="{{ extra.hostname }}" class="input-pool" translate="no"></div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">Protocolo</div>
+                <div>
+                    <select id="net_proto" class="select-net" onchange="toggleCamposIP()" translate="no">
+                        <option value="2" {{ 'selected' if extra.net_proto == 'Static' else '' }}>Static</option>
+                        <option value="1" {{ 'selected' if extra.net_proto == 'DHCP' else '' }}>DHCP</option>
+                    </select>
+                </div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">Dirección IP</div>
+                <div><input type="text" id="net_ip" value="{{ ip }}" class="input-pool" translate="no"></div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">Máscara Subred</div>
+                <div><input type="text" id="net_mask" value="{{ extra.netmask }}" class="input-pool" translate="no"></div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">Gateway</div>
+                <div><input type="text" id="net_gw" value="{{ extra.gateway }}" class="input-pool" translate="no"></div>
+            </div>
+            <div class="net-form-row">
+                <div class="net-label">DNS</div>
+                <div><input type="text" id="net_dns" value="{{ extra.dns }}" class="input-pool" translate="no"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div class="panel-title" style="padding: 16px 20px 0 20px; justify-content: flex-start;">ℹ️ Información del dispositivo</div>
+        <div class="table-responsive">
+            <table class="info-table info-device">
+                <tr><td>Modelo</td><td translate="no">{{ modelo }}</td></tr>
+                <tr><td>Firmware / Sistema</td><td translate="no">{{ extra.firmware }}</td></tr>
+                <tr><td>Serie</td><td translate="no">{{ extra.serial }}</td></tr>
+                <tr><td>MAC</td><td translate="no">{{ extra.mac }}</td></tr>
+                <tr><td>IP</td><td translate="no">{{ ip }}</td></tr>
+                <tr><td>Eficiencia</td><td translate="no">{{ dispositivo.eficiencia }} {{ ultimo.unidad_efi }}</td></tr>
+                <tr><td>Tiempo activo</td><td translate="no">{{ ultimo.uptime }}</td></tr>
+                <tr><td>{{ 'Refrigeración' if 'Hydro' in ultimo.fans else 'Ventiladores' }}</td><td translate="no">{{ ultimo.fans }}</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleCamposIP() {
+        let elProto = document.getElementById('net_proto');
+        if (!elProto) return;
+        let esDhcp = elProto.value === '1';
+        ['net_ip', 'net_mask', 'net_gw', 'net_dns'].forEach(id => {
+            let inp = document.getElementById(id);
+            if (inp) inp.disabled = esDhcp;
+        });
+    }
+
+    function confirmarCambioIP() {
+        let proto = document.getElementById('net_proto').value;
+        let nuevaIp = document.getElementById('net_ip').value.trim();
+        let msg = proto === '1' 
+            ? '¿Deseas cambiar la configuración de red a modo DHCP automático?' 
+            : `¿Estás seguro de asignar la IP estática ${nuevaIp} a este minero?`;
+        pedirConfirmacion('🌐 Guardar Configuración IP', msg, 'guardar_red', false);
+    }
+
+    window.addEventListener('load', function() { toggleCamposIP(); });
+</script>
