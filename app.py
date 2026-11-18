@@ -1,16 +1,16 @@
-from flask import Flask, render_template, render_template_string, redirect, request, session, url_for, jsonify, Response
+from flask import Flask, render_template, render_template_string, redirect, request, session, url_for, jsonify, Response, g
 from jinja2 import TemplateNotFound
 from functools import wraps
 import psycopg2, psycopg2.extras, json, urllib.request, urllib.parse, time, calendar, csv, io, os, secrets, traceback
 from datetime import datetime, timedelta
 
 app = Flask(__name__, template_folder='templates')
-app.secret_key = 'super_secreta_antminer_tools'
+app.secret_key = os.environ.get("SECRET_KEY", "super_secreta_antminer_tools")
 
 DB_URL = os.environ.get("DATABASE_URL", "")
 ultimo_envio_alerta = {}
 ultima_limpieza_bd = 0
-cache_geo_granja = {}  # {ip_publica: {'lat': ..., 'lon': ..., 'ciudad': ..., 'ts': ...}}
+cache_geo_granja = {}  # {ip_publica: {'lat': ..., 'lon': ..., 'ciudad': ..., 'pais': ..., 'ts': ...}}
 db_inicializada = False
 
 @app.errorhandler(Exception)
@@ -28,7 +28,16 @@ def manejar_error_global(e):
 
 def get_db():
     if not DB_URL: raise Exception("Falta DATABASE_URL en Render")
-    return psycopg2.connect(DB_URL)
+    if 'db_con' not in g or g.db_con.closed != 0:
+        g.db_con = psycopg2.connect(DB_URL, connect_timeout=8)
+    return g.db_con
+
+@app.teardown_appcontext
+def cerrar_conexion_bd(exception=None):
+    con = g.pop('db_con', None)
+    if con is not None and con.closed == 0:
+        try: con.close()
+        except: pass
 
 def generar_api_key():
     return "EMG-" + secrets.token_hex(8).upper()
@@ -47,7 +56,7 @@ def a_float_seguro(val, defecto=0.0):
     except:
         return defecto
 
-# Detecta la ubicación física de la GRANJA a partir de la IP pública desde donde transmite agente.py
+# Detecta la ubicación física de la GRANJA (Ciudad y País) a partir de la IP pública desde donde transmite agente.py
 def obtener_ubicacion_ip_agente(ip_publica):
     global cache_geo_granja
     ahora = time.time()
@@ -72,12 +81,13 @@ def obtener_ubicacion_ip_agente(ip_publica):
                 lat = float(j.get('lat') or j.get('latitude'))
                 lon = float(j.get('lon') or j.get('longitude'))
                 ciudad = str(j.get('city') or j.get('regionName') or j.get('region') or 'Granja Local').strip()
-                res = {'lat': lat, 'lon': lon, 'ciudad': ciudad, 'ts': ahora}
+                pais = str(j.get('country') or 'Bolivia').strip()
+                res = {'lat': lat, 'lon': lon, 'ciudad': ciudad, 'pais': pais, 'ts': ahora}
                 cache_geo_granja[ip_publica] = res
                 return res
         except:
             pass
-    return {'lat': -17.7833, 'lon': -63.1821, 'ciudad': 'Santa Cruz de la Sierra', 'ts': ahora}
+    return {'lat': -17.7833, 'lon': -63.1821, 'ciudad': 'Santa Cruz de la Sierra', 'pais': 'Bolivia', 'ts': ahora}
 
 def render_seguro(nombre_archivo, **contexto):
     try:
@@ -108,11 +118,12 @@ def render_seguro(nombre_archivo, **contexto):
 def init_db():
     global db_inicializada
     if not DB_URL: return
+    con = None
     try:
-        con = get_db()
+        con = psycopg2.connect(DB_URL, connect_timeout=8)
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, owner TEXT DEFAULT 'giovanni', modelo TEXT, unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra')''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, owner TEXT DEFAULT 'giovanni', modelo TEXT, unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia')''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 1)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
@@ -121,46 +132,47 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS registro_alertas (id SERIAL PRIMARY KEY, owner TEXT, ip TEXT, tipo TEXT, mensaje TEXT, fecha TEXT)''')
         
         columnas_nuevas = [
-            "ALTER TABLE mineros_activos ADD COLUMN owner TEXT DEFAULT 'giovanni'",
-            "ALTER TABLE mineros_activos ADD COLUMN unidad TEXT DEFAULT 'TH/s'",
-            "ALTER TABLE mineros_activos ADD COLUMN hashrate_30m REAL DEFAULT 0.0",
-            "ALTER TABLE mineros_activos ADD COLUMN temp_amb INTEGER DEFAULT 0",
-            "ALTER TABLE mineros_activos ADD COLUMN pass1 TEXT DEFAULT '123'",
-            "ALTER TABLE mineros_activos ADD COLUMN pass2 TEXT DEFAULT '123'",
-            "ALTER TABLE mineros_activos ADD COLUMN pass3 TEXT DEFAULT '123'",
-            "ALTER TABLE mineros_activos ADD COLUMN cadenas TEXT",
-            "ALTER TABLE mineros_activos ADD COLUMN uptime TEXT DEFAULT '0h 0m'",
-            "ALTER TABLE mineros_activos ADD COLUMN status1 TEXT DEFAULT 'Alive'",
-            "ALTER TABLE mineros_activos ADD COLUMN acc1 INTEGER DEFAULT 0",
-            "ALTER TABLE mineros_activos ADD COLUMN rej1 INTEGER DEFAULT 0",
-            "ALTER TABLE mineros_activos ADD COLUMN status2 TEXT DEFAULT 'Alive'",
-            "ALTER TABLE mineros_activos ADD COLUMN acc2 INTEGER DEFAULT 0",
-            "ALTER TABLE mineros_activos ADD COLUMN rej2 INTEGER DEFAULT 0",
-            "ALTER TABLE mineros_activos ADD COLUMN status3 TEXT DEFAULT 'Dead'",
-            "ALTER TABLE mineros_activos ADD COLUMN acc3 INTEGER DEFAULT 0",
-            "ALTER TABLE mineros_activos ADD COLUMN rej3 INTEGER DEFAULT 0",
-            "ALTER TABLE mineros_activos ADD COLUMN hostname TEXT DEFAULT 'Antminer'",
-            "ALTER TABLE mineros_activos ADD COLUMN net_proto TEXT DEFAULT 'Static'",
-            "ALTER TABLE mineros_activos ADD COLUMN netmask TEXT DEFAULT '255.255.255.0'",
-            "ALTER TABLE mineros_activos ADD COLUMN gateway TEXT DEFAULT '192.168.0.1'",
-            "ALTER TABLE mineros_activos ADD COLUMN dns TEXT DEFAULT '8.8.8.8'",
-            "ALTER TABLE mineros_activos ADD COLUMN farm_lat REAL DEFAULT -17.7833",
-            "ALTER TABLE mineros_activos ADD COLUMN farm_lon REAL DEFAULT -63.1821",
-            "ALTER TABLE mineros_activos ADD COLUMN farm_city TEXT DEFAULT 'Santa Cruz de la Sierra'",
-            "ALTER TABLE cola_comandos ADD COLUMN owner TEXT DEFAULT 'giovanni'",
-            "ALTER TABLE historial_nube ADD COLUMN owner TEXT DEFAULT 'giovanni'",
-            "ALTER TABLE historial_nube ADD COLUMN errores INTEGER DEFAULT 0",
-            "ALTER TABLE historial_nube ADD COLUMN temp_amb INTEGER DEFAULT 0",
-            "ALTER TABLE historial_nube ADD COLUMN cadenas TEXT",
-            "ALTER TABLE nombres_mineros ADD COLUMN owner TEXT DEFAULT 'giovanni'",
-            "ALTER TABLE usuarios ADD COLUMN api_key TEXT",
-            "ALTER TABLE usuarios ADD COLUMN subnet TEXT DEFAULT '192.168.0'",
-            "ALTER TABLE usuarios ADD COLUMN tarifa_kwh REAL DEFAULT 0.0",
-            "ALTER TABLE usuarios ADD COLUMN tg_token TEXT DEFAULT ''",
-            "ALTER TABLE usuarios ADD COLUMN tg_chat_id TEXT DEFAULT ''",
-            "ALTER TABLE usuarios ADD COLUMN umbral_temp INTEGER DEFAULT 80",
-            "ALTER TABLE usuarios ADD COLUMN umbral_hr REAL DEFAULT 50.0",
-            "ALTER TABLE usuarios ADD COLUMN alertas_activas INTEGER DEFAULT 1"
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS unidad TEXT DEFAULT 'TH/s'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS hashrate_30m REAL DEFAULT 0.0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS temp_amb INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass1 TEXT DEFAULT '123'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass2 TEXT DEFAULT '123'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass3 TEXT DEFAULT '123'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS cadenas TEXT",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS uptime TEXT DEFAULT '0h 0m'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS status1 TEXT DEFAULT 'Alive'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS acc1 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS rej1 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS status2 TEXT DEFAULT 'Alive'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS acc2 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS rej2 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS status3 TEXT DEFAULT 'Dead'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS acc3 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS rej3 INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS hostname TEXT DEFAULT 'Antminer'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS net_proto TEXT DEFAULT 'Static'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS netmask TEXT DEFAULT '255.255.255.0'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS gateway TEXT DEFAULT '192.168.0.1'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS dns TEXT DEFAULT '8.8.8.8'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS farm_lat REAL DEFAULT -17.7833",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS farm_lon REAL DEFAULT -63.1821",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS farm_city TEXT DEFAULT 'Santa Cruz de la Sierra'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS farm_country TEXT DEFAULT 'Bolivia'",
+            "ALTER TABLE cola_comandos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS errores INTEGER DEFAULT 0",
+            "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS temp_amb INTEGER DEFAULT 0",
+            "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS cadenas TEXT",
+            "ALTER TABLE nombres_mineros ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS api_key TEXT",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS subnet TEXT DEFAULT '192.168.0'",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tarifa_kwh REAL DEFAULT 0.0",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tg_token TEXT DEFAULT ''",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tg_chat_id TEXT DEFAULT ''",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS umbral_temp INTEGER DEFAULT 80",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS umbral_hr REAL DEFAULT 50.0",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS alertas_activas INTEGER DEFAULT 1"
         ]
         for col_sql in columnas_nuevas:
             try: c.execute(col_sql)
@@ -169,6 +181,7 @@ def init_db():
         c.execute("CREATE INDEX IF NOT EXISTS idx_historial_ip_id ON historial_nube (ip, id DESC)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_historial_ip_fecha ON historial_nube (ip, fecha)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_historial_fecha ON historial_nube (fecha)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_cola_estado_owner ON cola_comandos (estado, owner)")
 
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         if not c.fetchone():
@@ -183,6 +196,9 @@ def init_db():
         db_inicializada = True
     except Exception as e:
         print(f"Error BD Init: {e}")
+        if con is not None and con.closed == 0:
+            try: con.close()
+            except: pass
 
 try: init_db()
 except Exception as e: print(f"Error init_db: {e}")
@@ -245,12 +261,16 @@ def index():
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     if usr_actual == 'giovanni':
         cur.execute("SELECT * FROM mineros_activos ORDER BY ip ASC")
+        cur.execute("SELECT * FROM nombres_mineros")
     else:
         cur.execute("SELECT * FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
     mineros = cur.fetchall()
-    cur.execute("SELECT * FROM nombres_mineros")
+
+    if usr_actual == 'giovanni':
+        cur.execute("SELECT ip, nombre FROM nombres_mineros")
+    else:
+        cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
-    con.close()
     
     datos_red = obtener_datos_red()
     registros, en_linea, offline = [], 0, 0
@@ -320,12 +340,20 @@ def index():
 @app.route('/minero/<ip>')
 @login_required
 def detalle_minero(ip):
+    usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos WHERE ip=%s", (ip,))
+    if usr_actual == 'giovanni':
+        cur.execute("SELECT * FROM mineros_activos WHERE ip=%s", (ip,))
+    else:
+        cur.execute("SELECT * FROM mineros_activos WHERE ip=%s AND owner=%s", (ip, usr_actual))
     m = cur.fetchone()
+    if not m: return redirect('/')
+
     cur.execute("SELECT nombre FROM nombres_mineros WHERE ip=%s", (ip,))
     n_row = cur.fetchone()
+
+    # 44000 registros de 1 minuto cubren los 30 días completos (30d * 1440m = 43200 registros)
     cur.execute("""
         SELECT fecha, hashrate, temp_max, temp_amb, errores, cadenas 
         FROM (
@@ -333,14 +361,11 @@ def detalle_minero(ip):
             FROM historial_nube 
             WHERE ip=%s 
             ORDER BY id DESC 
-            LIMIT 20000
+            LIMIT 44000
         ) sub 
         ORDER BY id ASC
     """, (ip,))
     hist = cur.fetchall()
-    con.close()
-    
-    if not m: return redirect('/')
     
     mod_str = str(m.get('modelo') or 'Antminer')
     unidad_hr = str(m.get('unidad') or ('kSol/s' if 'z15' in mod_str.lower() else 'TH/s'))
@@ -379,6 +404,7 @@ def detalle_minero(ip):
     farm_lat = a_float_seguro(m.get('farm_lat'), -17.7833)
     farm_lon = a_float_seguro(m.get('farm_lon'), -63.1821)
     farm_city = str(m.get('farm_city') or 'Santa Cruz de la Sierra')
+    farm_country = str(m.get('farm_country') or 'Bolivia')
     
     raw_uptime = str(m.get('uptime') or "")
     uptime_val = raw_uptime if (raw_uptime and raw_uptime != "0h 0m") else "En línea"
@@ -395,7 +421,7 @@ def detalle_minero(ip):
         ]
 
     f_raw, hr_g, tp_g, tamb_g, err_g, cad_g = [], [], [], [], [], []
-    prev_err = 0
+    prev_err = None
     if hist:
         for idx, h in enumerate(hist):
             try: dt_actual = datetime.strptime(h['fecha'], "%Y-%m-%d %H:%M:%S")
@@ -404,9 +430,13 @@ def detalle_minero(ip):
             f_raw.append(ts) 
             val_h = a_float_seguro(h.get('hashrate'), 0.0)
             
+            # Evitar pico artificial en el primer punto del historial inicializando prev_err con la primera lectura
             total_err_actual = a_int_seguro(h.get('errores'), 0)
-            diff_err = total_err_actual - prev_err
-            if diff_err < 0: diff_err = total_err_actual
+            if prev_err is None:
+                diff_err = 0
+            else:
+                diff_err = total_err_actual - prev_err
+                if diff_err < 0: diff_err = total_err_actual
             err_g.append(max(0, diff_err))
             prev_err = total_err_actual
 
@@ -433,7 +463,7 @@ def detalle_minero(ip):
         'errores': a_int_seguro(m.get('errores'), 0), 'consumo': f"{round(c_val/1000, 2)} kW", 
         'fans': fans, 'uptime': uptime_val, 
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0,
-        'farm_lat': farm_lat, 'farm_lon': farm_lon, 'farm_city': farm_city
+        'farm_lat': farm_lat, 'farm_lon': farm_lon, 'farm_city': farm_city, 'farm_country': farm_country
     }
     extra = {
         'worker1': worker1, 'pool1': pool1, 'pass1': pass1, 'status1': status1, 'acc1': acc1, 'rej1': rej1,
@@ -461,9 +491,12 @@ def mineros():
     else:
         cur.execute("SELECT * FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
     filas = cur.fetchall()
-    cur.execute("SELECT * FROM nombres_mineros")
+
+    if usr_actual == 'giovanni':
+        cur.execute("SELECT ip, nombre FROM nombres_mineros")
+    else:
+        cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
-    con.close()
 
     lista_mineros = []
     contadores = {'total': len(filas), 'online': 0, 'offline': 0, 'alerta_temp': 0, 'alerta_hw': 0}
@@ -586,7 +619,6 @@ def alertas():
 
     cur.execute("SELECT * FROM registro_alertas WHERE owner=%s ORDER BY id DESC LIMIT 100", (usr_actual,))
     historial = cur.fetchall()
-    con.close()
     return render_seguro('alertas.html', active_page='alertas', cfg=cfg, historial=historial, msg=msg)
 
 # --- VISTA: /ajustes -> templates/ajustes.html ---
@@ -625,7 +657,6 @@ def ajustes():
         nueva_k = generar_api_key()
         cur.execute("UPDATE usuarios SET api_key=%s WHERE username=%s", (nueva_k, usr_actual))
         u_data['api_key'] = nueva_k
-    con.close()
 
     user_info = {
         'username': usr_actual,
@@ -644,7 +675,6 @@ def descargar_agente():
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT api_key, subnet FROM usuarios WHERE username=%s", (usr_actual,))
     u = cur.fetchone() or {}
-    con.close()
     api_k = u.get('api_key') or generar_api_key()
     sub = u.get('subnet') or '192.168.0'
 
@@ -673,7 +703,7 @@ def login():
         u = request.form.get('username'); p = request.form.get('password')
         con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute("SELECT * FROM usuarios WHERE username=%s AND password=%s", (u, p))
-        usr = cur.fetchone(); con.close()
+        usr = cur.fetchone()
         if usr:
             session['usuario'] = u; session['plan'] = usr.get('plan', 'Gratis'); session['saldo'] = usr.get('saldo', 0.0)
             return redirect('/')
@@ -687,7 +717,6 @@ def register():
         try:
             con = get_db(); con.autocommit = True; cur = con.cursor()
             cur.execute("INSERT INTO usuarios (username, password, plan, saldo, api_key) VALUES (%s, %s, 'Gratis', 0.0, %s)", (u, p, generar_api_key()))
-            con.close()
             return render_seguro('login.html', success='Cuenta creada con API Key propia. Ahora inicia sesión.', mode='login')
         except: return render_seguro('login.html', error='El nombre de usuario ya está en uso', mode='register')
     return render_seguro('login.html', mode='register')
@@ -704,14 +733,13 @@ def guardar_nombre():
     if ip and nombre:
         con = get_db(); con.autocommit = True; cur = con.cursor()
         cur.execute("INSERT INTO nombres_mineros (ip, owner, nombre) VALUES (%s, %s, %s) ON CONFLICT (ip) DO UPDATE SET nombre=EXCLUDED.nombre, owner=EXCLUDED.owner", (ip, usr_actual, nombre))
-        con.close()
     return redirect(f'/minero/{ip}')
 
 @app.route('/cmd_bulk', methods=['POST'])
 @login_required
 def cmd_bulk():
     usr_actual = session.get('usuario', 'giovanni')
-    data = request.json
+    data = request.get_json(silent=True) or {}
     accion = data.get('accion')
     ips = data.get('ips', [])
     ordenes_custom = data.get('ordenes_custom', [])
@@ -724,7 +752,6 @@ def cmd_bulk():
     elif accion and ips:
         for ip in ips:
             cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, %s, 'pendiente', %s)", (usr_actual, ip, accion, ahora))
-    con.close()
     return jsonify({"status": "ok"})
 
 @app.route('/cmd/<ip>/<accion>')
@@ -751,7 +778,6 @@ def comando_minero(ip, accion):
     if cmd_str:
         con = get_db(); con.autocommit = True; cur = con.cursor()
         cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, %s, 'pendiente', %s)", (usr_actual, ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-        con.close()
     return "OK"
 
 @app.route('/exportar_csv')
@@ -759,8 +785,11 @@ def comando_minero(ip, accion):
 def exportar_csv():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos")
-    filas = cur.fetchall(); con.close()
+    if usr_actual == 'giovanni':
+        cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos ORDER BY ip ASC")
+    else:
+        cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
+    filas = cur.fetchall()
     output = io.StringIO(); writer = csv.writer(output)
     writer.writerow(['IP', 'Modelo', 'Hashrate', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
     for f in filas: writer.writerow([f['ip'], f['modelo'], f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
@@ -770,16 +799,15 @@ def exportar_csv():
 def ver_log(ip):
     con = get_db(); cur = con.cursor()
     cur.execute("SELECT contenido FROM logs_mineros WHERE ip=%s", (ip,))
-    log = cur.fetchone(); con.close()
+    log = cur.fetchone()
     return log[0] if log else "Esperando respuesta..."
 
 @app.route('/api/recibir_logs', methods=['POST'])
 def recibir_logs():
-    data = request.json
+    data = request.get_json(silent=True)
     if data and 'ip' in data and 'log' in data:
         con = get_db(); con.autocommit = True; cur = con.cursor()
         cur.execute("INSERT INTO logs_mineros (ip, contenido, fecha) VALUES (%s, %s, %s) ON CONFLICT(ip) DO UPDATE SET contenido=EXCLUDED.contenido, fecha=EXCLUDED.fecha", (data['ip'], data['log'], datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-        con.close()
     return "OK", 200
 
 @app.route('/api/recibir_datos', methods=['POST'])
@@ -795,6 +823,7 @@ def recibir_datos():
     f_lat = geo_granja['lat']
     f_lon = geo_granja['lon']
     f_city = geo_granja['ciudad']
+    f_country = geo_granja.get('pais', 'Bolivia')
 
     con = get_db(); con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -810,7 +839,11 @@ def recibir_datos():
         cur.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         u_cfg = cur.fetchone()
 
-    cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente'")
+    # Entregar únicamente los comandos pendientes que pertenecen a esta cuenta/granja
+    if owner_user == 'giovanni':
+        cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND (owner='giovanni' OR owner IS NULL)")
+    else:
+        cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND owner=%s", (owner_user,))
     pend = cur.fetchall()
     ordenes = [{"ip": c['ip'], "comando": c['comando']} for c in pend]
     for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c['id'],))
@@ -863,10 +896,10 @@ def recibir_datos():
             cadenas_list = m.get('cadenas', [])
             cadenas_json = json.dumps(cadenas_list)
             
-            cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
-                            owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, farm_lat=EXCLUDED.farm_lat, farm_lon=EXCLUDED.farm_lon, farm_city=EXCLUDED.farm_city''', 
-                        (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city))
+            cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
+                            owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, farm_lat=EXCLUDED.farm_lat, farm_lon=EXCLUDED.farm_lon, farm_city=EXCLUDED.farm_city, farm_country=EXCLUDED.farm_country''', 
+                        (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country))
             
             # Garantizar solo 1 registro por minuto en historial_nube
             cur.execute("SELECT id, hashrate, temp_max FROM historial_nube WHERE ip=%s AND fecha=%s LIMIT 1", (ip_m, ahora_minuto))
@@ -875,7 +908,6 @@ def recibir_datos():
                 cur.execute("INSERT INTO historial_nube (owner, ip, hashrate, temp_max, temp_amb, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                             (owner_user, ip_m, hr_m, temp_m, t_amb, err, cadenas_json, ahora_minuto))
             else:
-                # Si ya había una lectura en este mismo minuto, actualizarla promediando hashrate y conservando la temperatura máxima
                 hr_prev = a_float_seguro(row_min.get('hashrate'), hr_m)
                 hr_prom = round((hr_prev + hr_m) / 2.0, 2) if (hr_prev > 0 and hr_m > 0) else max(hr_prev, hr_m)
                 t_max_min = max(a_int_seguro(row_min.get('temp_max'), 0), temp_m)
@@ -884,6 +916,7 @@ def recibir_datos():
 
             guardados_ok += 1
 
+            # Sistema de Alertas Automáticas (Temperatura Alta + Caída de Hashrate)
             if alertas_on:
                 if temp_m >= umbral_t:
                     k_al = f"{owner_user}_{ip_m}_TEMP"
@@ -892,20 +925,29 @@ def recibir_datos():
                         msg_al = f"El equipo {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
                         cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_al, ahora))
                         enviar_telegram(tg_tok, tg_cid, f"🔥 <b>ALERTA DE TEMPERATURA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b>\nHashrate: {hr_m} {unid}")
+
+                if umbral_h > 0 and hr_m < umbral_h and temp_m > 5:
+                    k_hr = f"{owner_user}_{ip_m}_LOWHR"
+                    if ahora_ts - ultimo_envio_alerta.get(k_hr, 0) > 1800:
+                        ultimo_envio_alerta[k_hr] = ahora_ts
+                        msg_hr = f"El equipo {mod_m} ({ip_m}) cayó a {hr_m} {unid} (Mínimo configurado: {umbral_h} {unid})."
+                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE', %s, %s)", (owner_user, ip_m, msg_hr, ahora))
+                        enviar_telegram(tg_tok, tg_cid, f"⚠️ <b>CAÍDA DE HASHRATE</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nHashrate actual: <b>{hr_m} {unid}</b> (Umbral: {umbral_h} {unid})\nTemperatura: {temp_m}°C")
         except Exception as err_m:
             print(f"Error guardando minero {m.get('ip')}: {err_m}")
 
-    # Limpieza automática de registros con más de 30 días (1 vez por hora)
+    # Limpieza automática de registros con más de 30 días y comandos viejos (1 vez por hora)
     if ahora_ts - ultima_limpieza_bd > 3600:
         ultima_limpieza_bd = ahora_ts
         try:
             fecha_limite_30d = (ahora_dt - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+            fecha_limite_cmd = (ahora_dt - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
             cur.execute("DELETE FROM historial_nube WHERE fecha < %s", (fecha_limite_30d,))
             cur.execute("DELETE FROM registro_alertas WHERE fecha < %s", (fecha_limite_30d,))
+            cur.execute("DELETE FROM cola_comandos WHERE estado='enviado' AND fecha < %s", (fecha_limite_cmd,))
         except Exception as err_clean:
             print(f"Error en limpieza automática 30d: {err_clean}")
     
-    con.close()
     return jsonify({"status": "ok", "guardados": guardados_ok, "ordenes": ordenes}), 200
 
 if __name__ == '__main__':
