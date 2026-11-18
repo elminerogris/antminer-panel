@@ -164,12 +164,15 @@
     const rawCadHist = {{ graf_cadenas_hist | default('[]') | safe }};
     const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
+
     let chartInstance = null;
     let rangoActual = '24h';
     let cursorDentroArea = false;
     let mapaMetaPuntos = {};
     let cacheClimaExterior = []; // [{ts, temp, sensacion}]
     let nombreCiudadClima = "";
+    // Conserva qué curvas apagó o encendió el usuario para que no se reseteen al cambiar de rango
+    let visibilidadCurvas = {};
 
     function formatearFechaTooltip(d) {
         let dia = String(d.getDate()).padStart(2, '0');
@@ -192,29 +195,34 @@
         return horaStr;
     }
 
-    // Fórmula de Sensación Térmica idéntica a Google Weather / The Weather Channel (NOAA Rothfusz + Humidex)
-    function calcularSensacionTermicaUniversal(tempC, humedadPct, apparentApi) {
-        let stApi = (apparentApi !== null && apparentApi !== undefined && !isNaN(apparentApi)) ? Number(apparentApi) : tempC;
-        if (tempC >= 25 && humedadPct >= 40) {
+    // Fórmula oficial NOAA Rothfusz Heat Index (Sin Humidex para no inflar la temperatura por encima de Google Weather)
+    function calcularSensacionTermicaNOAA(tempC, humedadPct, apparentFallback) {
+        if (tempC >= 26.5 && humedadPct >= 40) {
             let T = (tempC * 9 / 5) + 32;
             let R = humedadPct;
-            let HI = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R
-                     - 0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R
-                     + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
+            let HI = -42.379
+                     + 2.04901523 * T
+                     + 10.14333127 * R
+                     - 0.22475541 * T * R
+                     - 0.00683783 * T * T
+                     - 0.05481717 * R * R
+                     + 0.00122874 * T * T * R
+                     + 0.00085282 * T * R * R
+                     - 0.00000199 * T * T * R * R;
             let hiC = (HI - 32) * 5 / 9;
-            // Humidex tropical (calcula la presión de vapor real en climas húmedos como Santa Cruz)
-            let e = (humedadPct / 100) * 6.105 * Math.exp((17.27 * tempC) / (237.7 + tempC));
-            let humidex = tempC + (5 / 9) * (e - 10);
-            return Math.round(Math.max(stApi, hiC, humidex));
+            return Math.round(Math.max(tempC, hiC));
         }
-        return Math.round(stApi);
+        if (apparentFallback !== null && apparentFallback !== undefined && !isNaN(apparentFallback)) {
+            return Math.round(Number(apparentFallback));
+        }
+        return Math.round(tempC);
     }
 
     // Detecta la ubicación real en cualquier país del mundo usando GPS o triple respaldo de IP
     async function detectarUbicacionMundial(forzarGps = false) {
         if (!forzarGps) {
             try {
-                const guardado = localStorage.getItem('emg_geo_cache_v3');
+                const guardado = localStorage.getItem('emg_geo_cache_v4');
                 if (guardado) {
                     const obj = JSON.parse(guardado);
                     if (obj.lat && obj.lon && (Date.now() - obj.ts < 1800000)) {
@@ -283,14 +291,14 @@
 
         if (loc) {
             try {
-                localStorage.setItem('emg_geo_cache_v3', JSON.stringify({ ...loc, ts: Date.now() }));
+                localStorage.setItem('emg_geo_cache_v4', JSON.stringify({ ...loc, ts: Date.now() }));
             } catch(e) {}
         }
         return loc;
     }
 
     function forzarActualizacionUbicacion() {
-        localStorage.removeItem('emg_geo_cache_v3');
+        localStorage.removeItem('emg_geo_cache_v4');
         cargarClimaExteriorAutomatico(true);
     }
 
@@ -302,26 +310,30 @@
             const { lat, lon, ciudad } = ubicacion;
             const ahoraTs = Math.floor(Date.now() / 1000);
 
-            // 1. Consultar Estación Meteorológica Real en Vivo (METAR / Aeropuerto más cercano vía wttr.in) + Modelo NOAA GFS (usado por Google Weather)
-            let tempEstacionVivo = null;
-            let sensEstacionVivo = null;
-            let humEstacionVivo = null;
+            // 1. Consultar la Estación Meteorológica Oficial en Vivo (METAR Aeropuerto local vía wttr.in)
+            // Las estaciones METAR miden la temperatura real del aire con termómetro físico (idéntico a Google Weather: 32°C / 38°C)
+            let tempMetarVivo = null;
+            let humMetarVivo = null;
 
-            const promesaWttr = fetch(`https://wttr.in/${lat},${lon}?format=j1`)
+            const promesaMetar = fetch(`https://wttr.in/${lat},${lon}?format=j1`)
                 .then(r => r.ok ? r.json() : null)
                 .then(jW => {
                     if (jW && jW.current_condition && jW.current_condition[0]) {
                         const cc = jW.current_condition[0];
-                        tempEstacionVivo = Number(cc.temp_C);
-                        humEstacionVivo = Number(cc.humidity || 60);
-                        sensEstacionVivo = calcularSensacionTermicaUniversal(tempEstacionVivo, humEstacionVivo, Number(cc.FeelsLikeC));
+                        let tM = Number(cc.temp_C);
+                        let hM = Number(cc.humidity);
+                        // Validar que sea un rango físico coherente (-50°C a +55°C)
+                        if (!isNaN(tM) && tM >= -50 && tM <= 55) {
+                            tempMetarVivo = tM;
+                            humMetarVivo = (!isNaN(hM) && hM > 0) ? hM : 60;
+                        }
                     }
                 }).catch(() => {});
 
-            // 2. Consultar historial de 30 días usando modelo NOAA GFS Seamless (el mismo modelo americano de Google Weather) + best_match
-            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&models=gfs_seamless&past_days=30&forecast_days=1&timeformat=unixtime&timezone=GMT`;
-            
-            const [_, rMet] = await Promise.all([promesaWttr, fetch(urlMeteo)]);
+            // 2. Consultar curva horaria de 30 días en Open-Meteo (SIN gfs_seamless crudo para que no infle a 38°C)
+            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&past_days=30&forecast_days=1&timeformat=unixtime&timezone=GMT`;
+
+            const [_, rMet] = await Promise.all([promesaMetar, fetch(urlMeteo)]);
             if (!rMet || !rMet.ok) return;
             const jMet = await rMet.json();
 
@@ -332,55 +344,49 @@
                 const appTemps = jMet.hourly.apparent_temperature || [];
                 const hums = jMet.hourly.relative_humidity_2m || [];
 
-                // Solo cargar horas hasta AHORA MISMO (ahoraTs + 1800) para NO meter las horas frías de la noche futura
+                // Calibración inteligente: si la estación física METAR tiene una diferencia con el satélite en la hora actual,
+                // calculamos el offset suave para calibrar las horas del día actual
+                let tempSateliteActual = (jMet.current && jMet.current.temperature_2m !== undefined) ? Number(jMet.current.temperature_2m) : null;
+                let humSateliteActual = (jMet.current && jMet.current.relative_humidity_2m !== undefined) ? Number(jMet.current.relative_humidity_2m) : 60;
+
+                // Si METAR respondió (ej. 32°C), usamos la estación física real; si no, usamos el satélite con corrección
+                let tempRealHoy = (tempMetarVivo !== null) ? Math.round(tempMetarVivo) : (tempSateliteActual !== null ? Math.round(tempSateliteActual) : null);
+                let humRealHoy = (humMetarVivo !== null) ? humMetarVivo : humSateliteActual;
+                let offsetCalibracion = (tempRealHoy !== null && tempSateliteActual !== null) ? (tempRealHoy - tempSateliteActual) : 0;
+                // Limitar el offset máximo a ±4°C por seguridad
+                if (offsetCalibracion > 4) offsetCalibracion = 4;
+                if (offsetCalibracion < -4) offsetCalibracion = -4;
+
                 for (let i = 0; i < times.length; i++) {
                     const tsHora = Number(times[i]);
-                    if (tsHora <= ahoraTs + 1800 && temps[i] !== null && temps[i] !== undefined) {
-                        let tReal = Number(temps[i]);
+                    // Solo guardar historial hasta la hora actual (descartar horas futuras de la noche)
+                    if (tsHora <= ahoraTs + 900 && temps[i] !== null && temps[i] !== undefined) {
+                        let tBase = Number(temps[i]);
+                        // Aplicar calibración gradual en las últimas 6 horas para que la curva empalme perfecto con la estación local
+                        let horasAtras = (ahoraTs - tsHora) / 3600;
+                        let factorCal = (horasAtras >= 0 && horasAtras <= 6) ? (1 - (horasAtras / 6)) : 0;
+                        let tCalibrada = Math.round(tBase + (offsetCalibracion * factorCal));
+
                         let hum = (hums[i] !== undefined && hums[i] !== null) ? Number(hums[i]) : 60;
-                        let stCalc = calcularSensacionTermicaUniversal(tReal, hum, appTemps[i]);
+                        let stCalc = calcularSensacionTermicaNOAA(tCalibrada, hum, appTemps[i]);
 
                         cacheClimaExterior.push({
                             ts: tsHora,
-                            temp: Math.round(tReal),
+                            temp: tCalibrada,
                             sensacion: stCalc
                         });
                     }
                 }
 
-                // Determinar la temperatura exacta de AHORA MISMO (priorizando la lectura más alta/real entre estación aeropuerto METAR y GFS current)
-                let tVivoFinal = null;
-                let sVivoFinal = null;
+                let sensRealHoy = null;
+                if (tempRealHoy !== null) {
+                    let appCur = (jMet.current && jMet.current.apparent_temperature !== undefined) ? Number(jMet.current.apparent_temperature) : tempRealHoy;
+                    sensRealHoy = calcularSensacionTermicaNOAA(tempRealHoy, humRealHoy, appCur);
 
-                if (jMet.current && jMet.current.temperature_2m !== undefined) {
-                    let tGfs = Number(jMet.current.temperature_2m);
-                    let hGfs = Number(jMet.current.relative_humidity_2m !== undefined ? jMet.current.relative_humidity_2m : 60);
-                    let sGfs = calcularSensacionTermicaUniversal(tGfs, hGfs, jMet.current.apparent_temperature);
-                    tVivoFinal = Math.round(tGfs);
-                    sVivoFinal = sGfs;
-                }
-
-                if (tempEstacionVivo !== null && !isNaN(tempEstacionVivo)) {
-                    // Si la estación local aeroportuaria (METAR) reporta más calor diurno que el modelo satelital, usar la estación real
-                    if (tVivoFinal === null || tempEstacionVivo >= tVivoFinal) {
-                        tVivoFinal = Math.round(tempEstacionVivo);
-                        sVivoFinal = sensEstacionVivo;
-                    }
-                }
-
-                if (tVivoFinal !== null) {
-                    // Ajustar también la última hora del historial para que empalme suavemente con la temperatura real actual
-                    if (cacheClimaExterior.length > 0) {
-                        const ult = cacheClimaExterior[cacheClimaExterior.length - 1];
-                        if (Math.abs(ahoraTs - ult.ts) <= 3600) {
-                            ult.temp = tVivoFinal;
-                            ult.sensacion = sVivoFinal;
-                        }
-                    }
                     cacheClimaExterior.push({
                         ts: ahoraTs,
-                        temp: tVivoFinal,
-                        sensacion: sVivoFinal
+                        temp: tempRealHoy,
+                        sensacion: sensRealHoy
                     });
                 }
 
@@ -390,8 +396,8 @@
                 const badge = document.getElementById('climaUbicacionBadge');
                 if (badge && cacheClimaExterior.length > 0) {
                     const ultimoClima = cacheClimaExterior[cacheClimaExterior.length - 1];
-                    const tMostrar = tVivoFinal !== null ? tVivoFinal : ultimoClima.temp;
-                    const sMostrar = sVivoFinal !== null ? sVivoFinal : ultimoClima.sensacion;
+                    const tMostrar = tempRealHoy !== null ? tempRealHoy : ultimoClima.temp;
+                    const sMostrar = sensRealHoy !== null ? sensRealHoy : ultimoClima.sensacion;
                     badge.innerHTML = `📍 ${nombreCiudadClima}: <b>${tMostrar}°C</b> <span style="color:#c084fc;">(Sensación ${sMostrar}°C)</span>`;
                     badge.style.display = 'inline-block';
                     document.getElementById('statClimaHoy').innerHTML = `${tMostrar}°C / <span style="color:#c084fc;">${sMostrar}°C</span>`;
@@ -606,6 +612,7 @@
             btn.onclick = function() {
                 const vis = chartInstance.isDatasetVisible(index);
                 chartInstance.setDatasetVisibility(index, !vis);
+                visibilidadCurvas[ds.id] = !vis;
                 chartInstance.update();
                 construirLeyendasPildora();
             };
@@ -727,6 +734,8 @@
                     ptsT.push({ x: tsCorte, y: null });
                     ptsTMin.push({ x: tsCorte, y: null });
                     ptsA.push({ x: tsCorte, y: null });
+                    ptsClima.push({ x: tsCorte, y: null });
+                    ptsSens.push({ x: tsCorte, y: null });
                     ptsE.push({ x: tsCorte, y: null });
                     mapaMetaPuntos[tsCorte] = { esSeparadorCorte: true };
                 }
@@ -788,9 +797,14 @@
         const minTs = nowTs - segundosRango;
         const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, valoresHr, valoresTempMax, valoresTempMin, totalRegistros } = procesarDatosLimpios(minTs);
         
-        let avgHr = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length).toFixed(2) : "0.00";
-        let maxHr = valoresHr.length > 0 ? Math.max(...valoresHr).toFixed(2) : "0.00";
-        let minHr = valoresHr.length > 0 ? Math.min(...valoresHr).toFixed(2) : "0.00";
+        // Filtrar puntos de rampa de encendido (< 25% de la mediana) para que el Mínimo y Promedio reflejen la operación real
+        let avgBruto = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length) : 0;
+        let valoresHrOperativos = valoresHr.filter(v => v >= avgBruto * 0.25);
+        if (valoresHrOperativos.length === 0) valoresHrOperativos = valoresHr;
+
+        let avgHr = valoresHrOperativos.length > 0 ? (valoresHrOperativos.reduce((a,b)=>a+b,0) / valoresHrOperativos.length).toFixed(2) : "0.00";
+        let maxHr = valoresHrOperativos.length > 0 ? Math.max(...valoresHrOperativos).toFixed(2) : "0.00";
+        let minHr = valoresHrOperativos.length > 0 ? Math.min(...valoresHrOperativos).toFixed(2) : "0.00";
         let maxT = valoresTempMax.length > 0 ? Math.max(...valoresTempMax) : 0;
         let minT = valoresTempMin.length > 0 ? Math.min(...valoresTempMin) : 0;
         let pctEstab = totalRegistros > 0 ? Math.round((valoresHr.length / totalRegistros) * 100) : 100;
@@ -804,7 +818,7 @@
         document.getElementById('statUptime').innerText = `${pctEstab}%`;
 
         const ctx = document.getElementById('hashrateChart').getContext('2d');
-        const gradBlue = ctx.createLinearGradient(0, 0, 0, 270);
+        const gradBlue = ctx.createLinearGradient(0, 0, 0, 275);
         gradBlue.addColorStop(0, 'rgba(51, 102, 255, 0.30)');
         gradBlue.addColorStop(1, 'rgba(51, 102, 255, 0.0)');
 
@@ -816,20 +830,23 @@
                 id: 'hr', type: 'line', label: '⚡ Hashrate (' + unidadMinero + ')', data: ptsH,
                 borderColor: '#3366ff', backgroundColor: gradBlue, fill: true,
                 tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#3366ff',
-                borderWidth: 2, spanGaps: false
+                borderWidth: 2, spanGaps: false,
+                hidden: visibilidadCurvas['hr'] === false
             },
             {
                 id: 'tmax', type: 'line', label: '🌡️ Temp Máx °C', data: ptsT,
                 borderColor: '#ffb300', borderDash: [5, 4],
                 tension: 0.1, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#ffb300',
-                borderWidth: 1.7, yAxisID: 'y1', spanGaps: false
+                borderWidth: 1.7, yAxisID: 'y1', spanGaps: false,
+                hidden: visibilidadCurvas['tmax'] === false
             },
             {
                 id: 'tmin', type: 'line', label: '❄️ Temp Mín (PCB) °C', data: ptsTMin,
                 borderColor: '#fb923c', borderDash: [2, 4],
                 backgroundColor: 'rgba(255, 179, 0, 0.07)', fill: '-1',
                 tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#fb923c',
-                borderWidth: 1.2, yAxisID: 'y1', spanGaps: false
+                borderWidth: 1.2, yAxisID: 'y1', spanGaps: false,
+                hidden: visibilidadCurvas['tmin'] === false
             }
         ];
 
@@ -838,7 +855,8 @@
                 id: 'tamb', type: 'line', label: '🍃 Entrada/Amb °C', data: ptsA,
                 borderColor: '#00e676', borderDash: [3, 3],
                 tension: 0.1, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#00e676',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: false
+                borderWidth: 1.5, yAxisID: 'y1', spanGaps: false,
+                hidden: visibilidadCurvas['tamb'] === false
             });
         }
 
@@ -847,20 +865,23 @@
                 id: 'clima', type: 'line', label: '🌤️ Clima Exterior °C', data: ptsClima,
                 borderColor: '#38bdf8', borderDash: [2, 2],
                 tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#38bdf8',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true
+                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
+                hidden: visibilidadCurvas['clima'] === false
             });
             datasetsList.push({
                 id: 'sensacion', type: 'line', label: '🥵 Sensación Térmica °C', data: ptsSens,
                 borderColor: '#c084fc', borderDash: [4, 2],
                 tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#c084fc',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true
+                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
+                hidden: visibilidadCurvas['sensacion'] === false
             });
         }
 
         datasetsList.push({
             id: 'err', type: 'bar', label: '⚠️ Errores HW', data: ptsE,
             borderColor: '#ff5252', backgroundColor: 'rgba(255, 82, 82, 0.55)',
-            barThickness: 4, yAxisID: 'y2'
+            barThickness: 4, yAxisID: 'y2',
+            hidden: visibilidadCurvas['err'] === false
         });
 
         if(chartInstance) {
