@@ -1,4 +1,5 @@
 from flask import Flask, render_template, redirect, request, session, url_for, jsonify, Response
+from jinja2 import TemplateNotFound
 from functools import wraps
 import psycopg2, psycopg2.extras, json, urllib.request, time, calendar, csv, io, os
 from datetime import datetime
@@ -88,9 +89,11 @@ def obtener_datos_red():
     cache_red['ultima_act'] = ahora
     return datos
 
+# --- VISTA: / y /resumen -> templates/resumen.html ---
 @app.route('/')
+@app.route('/resumen')
 @login_required
-def index():
+def resumen():
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM mineros_activos ORDER BY ip ASC")
@@ -164,9 +167,10 @@ def index():
     }
     return render_template('resumen.html', active_page='resumen', registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota)
 
+# --- VISTA: /minero/<ip> -> templates/minero.html ---
 @app.route('/minero/<ip>')
 @login_required
-def detalle_minero(ip):
+def minero(ip):
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM mineros_activos WHERE ip=%s", (ip,))
@@ -283,76 +287,123 @@ def detalle_minero(ip):
     if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
     disp = {'eficiencia': eficiencia_val}
     
-    return render_template('detalle.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str, ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas), graf_cadenas_hist=json.dumps(cad_g))
+    try:
+        return render_template('minero.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str, ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas), graf_cadenas_hist=json.dumps(cad_g))
+    except TemplateNotFound:
+        return render_template('detalle.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str, ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas), graf_cadenas_hist=json.dumps(cad_g))
 
-@app.route('/guardar_nombre', methods=['POST'])
+# --- VISTA: /mineros -> templates/mineros.html ---
+@app.route('/mineros')
 @login_required
-def guardar_nombre():
-    ip = request.form.get('ip')
-    nombre = request.form.get('nombre')
-    if ip and nombre:
-        con = get_db(); con.autocommit = True; cur = con.cursor()
-        cur.execute("INSERT INTO nombres_mineros (ip, nombre) VALUES (%s, %s) ON CONFLICT (ip) DO UPDATE SET nombre=EXCLUDED.nombre", (ip, nombre))
-        con.close()
-    return redirect(f'/minero/{ip}')
+def mineros():
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM mineros_activos ORDER BY ip ASC")
+    filas = cur.fetchall()
+    cur.execute("SELECT * FROM nombres_mineros")
+    nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
+    con.close()
 
-@app.route('/cmd_bulk', methods=['POST'])
-@login_required
-def cmd_bulk():
-    data = request.json
-    accion = data.get('accion')
-    ips = data.get('ips', [])
-    if accion and ips:
-        con = get_db(); con.autocommit = True; cur = con.cursor()
-        for ip in ips: cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, accion, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-        con.close()
-    return "OK"
+    lista_mineros = []
+    contadores = {'total': len(filas), 'online': 0, 'offline': 0, 'alerta_temp': 0, 'alerta_hw': 0}
 
-@app.route('/cmd/<ip>/<accion>')
-@login_required
-def comando_minero(ip, accion):
-    cmd_str = ""
-    if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
-        cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
-    elif accion == 'set_network':
-        host = request.args.get('host', 'Antminer')
-        proto = request.args.get('proto', '2')
-        nip = request.args.get('nip', ip)
-        mask = request.args.get('mask', '255.255.255.0')
-        gw = request.args.get('gw', '192.168.0.1')
-        dns = request.args.get('dns', '8.8.8.8')
-        cmd_str = f"set_network|{host}|{proto}|{nip}|{mask}|{gw}|{dns}"
-    elif accion == 'guardar_pools': 
-        u1 = request.args.get('u1', ''); w1 = request.args.get('w1', ''); p1 = request.args.get('p1', '123')
-        u2 = request.args.get('u2', ''); w2 = request.args.get('w2', ''); p2 = request.args.get('p2', '123')
-        u3 = request.args.get('u3', ''); w3 = request.args.get('w3', ''); p3 = request.args.get('p3', '123')
-        cmd_str = f"guardar_pools|{u1}|{w1}|{p1}|{u2}|{w2}|{p2}|{u3}|{w3}|{p3}"
-        
-    if cmd_str:
-        con = get_db(); con.autocommit = True; cur = con.cursor()
-        cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
-        con.close()
-    return "OK"
+    for m in filas:
+        ip = m['ip']
+        mod = m.get('modelo') or 'Antminer'
+        unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
+        unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
+        nombre = nombres_dict.get(ip, ip.split('.')[-1])
+        ult = m['ultima_act'] if m['ultima_act'] else datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        segs = (datetime.utcnow() - datetime.strptime(ult, "%Y-%m-%d %H:%M:%S")).total_seconds()
+        es_online = segs < 180
 
+        hr = float(m['hashrate']) if (es_online and m['hashrate']) else 0.0
+        hr_30m = float(m.get('hashrate_30m') or hr) if es_online else 0.0
+        t_max = int(m['temp_max']) if (es_online and m['temp_max']) else 0
+        t_amb = int(m.get('temp_amb') or 0) if es_online else 0
+        cons_w = float(m['consumo_w']) if (es_online and m['consumo_w']) else 0.0
+        err_hw = int(m.get('errores') or 0) if es_online else 0
+
+        efi = round(cons_w / hr, 2) if hr > 0 else 0.0
+        if efi > 1000: efi = round(efi / 1000, 2)
+
+        try: cads = json.loads(m['cadenas']) if m.get('cadenas') else []
+        except: cads = []
+        placas_activas = len(cads) if es_online else 0
+        chips_totales = sum(int(c.get('chips', 0)) for c in cads) if es_online else 0
+
+        acc1 = int(m.get('acc1') or 0)
+        rej1 = int(m.get('rej1') or 0)
+        tot_shares = acc1 + rej1
+        pct_rej = round((rej1 / tot_shares) * 100, 2) if tot_shares > 0 else 0.0
+
+        if es_online:
+            contadores['online'] += 1
+            if t_max >= 78: contadores['alerta_temp'] += 1
+            if err_hw > 50 or pct_rej > 1.5: contadores['alerta_hw'] += 1
+        else:
+            contadores['offline'] += 1
+
+        lista_mineros.append({
+            'ip': ip,
+            'ultimo_octeto': ip.split('.')[-1],
+            'nombre': nombre,
+            'modelo': mod,
+            'mac': m.get('mac') or '-',
+            'firmware': m.get('firmware') or '-',
+            'online': es_online,
+            'uptime': (m.get('uptime') or 'En línea') if es_online else 'Offline',
+            'hashrate': hr,
+            'hashrate_30m': hr_30m,
+            'unidad': unidad,
+            'unidad_efi': unidad_efi,
+            'eficiencia': efi,
+            'consumo_kw': round(cons_w / 1000.0, 2),
+            'temp_max': t_max,
+            'temp_amb': t_amb,
+            'errores': err_hw,
+            'fans': m.get('fans') or '0 / 0 RPM',
+            'placas_activas': placas_activas,
+            'chips_totales': chips_totales,
+            'pool1': m.get('pool1') or '-',
+            'worker1': m.get('worker1') or '-',
+            'pass1': m.get('pass1') or '123',
+            'pool2': m.get('pool2') or '',
+            'worker2': m.get('worker2') or '',
+            'pass2': m.get('pass2') or '123',
+            'pool3': m.get('pool3') or '',
+            'worker3': m.get('worker3') or '',
+            'pass3': m.get('pass3') or '123',
+            'acc1': acc1,
+            'rej1': rej1,
+            'pct_rej': pct_rej
+        })
+
+    return render_template('mineros.html', active_page='mineros', mineros=lista_mineros, stats=contadores)
+
+# --- VISTAS DE MENÚ CON MISMO NOMBRE DE ARCHIVO ---
 @app.route('/plan')
 @login_required
-def plan(): return render_template('plan.html', active_page='plan', current_plan=session.get('plan', 'Gratis'), saldo=session.get('saldo', 0.0))
+def plan():
+    return render_template('plan.html', active_page='plan', current_plan=session.get('plan', 'Gratis'), saldo=session.get('saldo', 0.0))
 
 @app.route('/granjas')
 @login_required
-def granjas(): return render_template('subpaginas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
-
-@app.route('/mineros')
-@login_required
-def mineros(): return redirect('/')
+def granjas():
+    try: return render_template('granjas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
+    except TemplateNotFound: return render_template('subpaginas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
 
 @app.route('/alertas')
 @login_required
-def alertas(): return render_template('subpaginas.html', active_page='alertas', titulo="🔔 Centro de Alertas")
+def alertas():
+    try: return render_template('alertas.html', active_page='alertas', titulo="🔔 Centro de Alertas")
+    except TemplateNotFound: return render_template('subpaginas.html', active_page='alertas', titulo="🔔 Centro de Alertas")
 
 @app.route('/ajustes')
 @login_required
-def ajustes(): return render_template('subpaginas.html', active_page='ajustes', titulo="⚙️ Ajustes del Sistema")
+def ajustes():
+    try: return render_template('ajustes.html', active_page='ajustes', titulo="⚙️ Ajustes del Sistema")
+    except TemplateNotFound: return render_template('subpaginas.html', active_page='ajustes', titulo="⚙️ Ajustes del Sistema")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -381,6 +432,62 @@ def register():
 
 @app.route('/logout')
 def logout(): session.clear(); return redirect('/login')
+
+@app.route('/guardar_nombre', methods=['POST'])
+@login_required
+def guardar_nombre():
+    ip = request.form.get('ip')
+    nombre = request.form.get('nombre')
+    if ip and nombre:
+        con = get_db(); con.autocommit = True; cur = con.cursor()
+        cur.execute("INSERT INTO nombres_mineros (ip, nombre) VALUES (%s, %s) ON CONFLICT (ip) DO UPDATE SET nombre=EXCLUDED.nombre", (ip, nombre))
+        con.close()
+    return redirect(f'/minero/{ip}')
+
+@app.route('/cmd_bulk', methods=['POST'])
+@login_required
+def cmd_bulk():
+    data = request.json
+    accion = data.get('accion')
+    ips = data.get('ips', [])
+    ordenes_custom = data.get('ordenes_custom', [])
+    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    if ordenes_custom:
+        for item in ordenes_custom:
+            cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (item['ip'], item['comando'], ahora))
+    elif accion and ips:
+        for ip in ips:
+            cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, accion, ahora))
+    con.close()
+    return jsonify({"status": "ok"})
+
+@app.route('/cmd/<ip>/<accion>')
+@login_required
+def comando_minero(ip, accion):
+    cmd_str = ""
+    if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
+        cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
+    elif accion == 'set_network':
+        host = request.args.get('host', 'Antminer')
+        proto = request.args.get('proto', '2')
+        nip = request.args.get('nip', ip)
+        mask = request.args.get('mask', '255.255.255.0')
+        gw = request.args.get('gw', '192.168.0.1')
+        dns = request.args.get('dns', '8.8.8.8')
+        cmd_str = f"set_network|{host}|{proto}|{nip}|{mask}|{gw}|{dns}"
+    elif accion == 'guardar_pools': 
+        u1 = request.args.get('u1', ''); w1 = request.args.get('w1', ''); p1 = request.args.get('p1', '123')
+        u2 = request.args.get('u2', ''); w2 = request.args.get('w2', ''); p2 = request.args.get('p2', '123')
+        u3 = request.args.get('u3', ''); w3 = request.args.get('w3', ''); p3 = request.args.get('p3', '123')
+        cmd_str = f"guardar_pools|{u1}|{w1}|{p1}|{u2}|{w2}|{p2}|{u3}|{w3}|{p3}"
+        
+    if cmd_str:
+        con = get_db(); con.autocommit = True; cur = con.cursor()
+        cur.execute("INSERT INTO cola_comandos (ip, comando, estado, fecha) VALUES (%s, %s, 'pendiente', %s)", (ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con.close()
+    return "OK"
 
 @app.route('/exportar_csv')
 @login_required
