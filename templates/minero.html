@@ -210,7 +210,7 @@
     </div>
 </div>
 
-<!-- FILA 2: Gráfico de Hashrate (Con fechas verticales mirando a la derecha y +15% tamaño) -->
+<!-- FILA 2: Gráfico de Hashrate -->
 <div class="card">
     <div class="panel-title">
         <div>☑ Hashrate <span id="hrPromedio" style="color:var(--text-muted); font-size:0.85em; margin-left:10px; font-weight:normal;"></span></div>
@@ -221,7 +221,7 @@
             <button class="btn-filter" id="btn-30d" onclick="updateChart('30d')">30 d</button>
         </div>
     </div>
-    <div style="height: 410px; position: relative;"><canvas id="hashrateChart"></canvas></div>
+    <div style="height: 380px; position: relative;"><canvas id="hashrateChart"></canvas></div>
 </div>
 
 <!-- FILA 3: Pools (Justo debajo de Hashrate) -->
@@ -359,14 +359,29 @@
     let logInterval = null;
     const unidadMinero = "{{ ultimo.unidad }}";
 
-    // Formateador de fecha exacto: 17/11/26 22:58
-    function formatearFechaCorta24h(d) {
+    // Para el cuadro emergente (Tooltip): 18/11/26 00:11
+    function formatearFechaTooltip(d) {
         let dia = String(d.getDate()).padStart(2, '0');
         let mes = String(d.getMonth() + 1).padStart(2, '0');
         let anio = String(d.getFullYear()).slice(-2);
         let horas = String(d.getHours()).padStart(2, '0');
         let mins = String(d.getMinutes()).padStart(2, '0');
         return `${dia}/${mes}/${anio} ${horas}:${mins}`;
+    }
+
+    // Para las etiquetas echadas debajo del gráfico según el rango:
+    // En 6h y 24h -> "00:11"
+    // En 7d y 30d -> ["00:11", "18/11"] (dos líneas horizontales)
+    function formatearEtiquetaEjeX(d, rango) {
+        let horas = String(d.getHours()).padStart(2, '0');
+        let mins = String(d.getMinutes()).padStart(2, '0');
+        let horaStr = `${horas}:${mins}`;
+        if (rango === '7d' || rango === '30d') {
+            let dia = String(d.getDate()).padStart(2, '0');
+            let mes = String(d.getMonth() + 1).padStart(2, '0');
+            return [horaStr, `${dia}/${mes}`];
+        }
+        return horaStr;
     }
 
     // Posicionador personalizado: ancla el cuadro de información en la línea roja que indica 0
@@ -383,42 +398,6 @@
             return { x: eventPosition.x, y: eventPosition.y };
         };
     }
-
-    // Plugin que dibuja las fechas debajo del gráfico verticales con la cabeza mirando hacia la derecha (+90°) y 15% más grandes
-    const pluginFechasCabezaDerecha = {
-        id: 'fechasCabezaDerecha',
-        afterDraw: function(chart) {
-            const xAxis = chart.scales.x;
-            const chartArea = chart.chartArea;
-            if (!xAxis || !chartArea) return;
-            const ctx = chart.ctx;
-            const ticks = xAxis.ticks;
-            const labels = chart.data.labels || [];
-
-            ctx.save();
-            // 15% más grande: 11.5px
-            ctx.font = '11.5px sans-serif';
-            ctx.fillStyle = '#8b8d9c';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-
-            for (let i = 0; i < ticks.length; i++) {
-                const tick = ticks[i];
-                const labelTxt = labels[tick.value] !== undefined ? labels[tick.value] : tick.label;
-                if (!labelTxt) continue;
-                const xPos = xAxis.getPixelForTick(i);
-                const yPos = chartArea.bottom + 8;
-
-                ctx.save();
-                ctx.translate(xPos, yPos);
-                // Rotación +90 grados (+PI/2): la cabeza (parte superior de las letras) apunta hacia la derecha
-                ctx.rotate(Math.PI / 2);
-                ctx.fillText(labelTxt, 0, 0);
-                ctx.restore();
-            }
-            ctx.restore();
-        }
-    };
 
     function toggleCamposIP() {
         let esDhcp = document.getElementById('net_proto').value === '1';
@@ -569,6 +548,7 @@
     const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
     let chartInstance = null;
+    let titulosTooltip = [];
     
     function updateChart(rango) {
         document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
@@ -580,15 +560,16 @@
         if(rango === '7d') limitDate.setDate(limitDate.getDate() - 7);
         if(rango === '30d') limitDate.setDate(limitDate.getDate() - 30);
         
-        let fL = [], fH = [], fT = [], fA = [], fE = [], fDeltaSec = [], fCads = [];
-        let labelLimite = formatearFechaCorta24h(limitDate);
-        fL.push(labelLimite); fH.push(null); fT.push(null); fA.push(null); fE.push(null); fDeltaSec.push(30); fCads.push([]);
+        let fL = [], fTooltip = [], fH = [], fT = [], fA = [], fE = [], fDeltaSec = [], fCads = [];
+        fL.push(formatearEtiquetaEjeX(limitDate, rango));
+        fTooltip.push(formatearFechaTooltip(limitDate));
+        fH.push(null); fT.push(null); fA.push(null); fE.push(null); fDeltaSec.push(30); fCads.push([]);
 
         for(let i=0; i<rawFechas.length; i++) {
             let d = new Date(rawFechas[i] * 1000); 
             if(d >= limitDate) {
-                let label = formatearFechaCorta24h(d);
-                fL.push(label); 
+                fL.push(formatearEtiquetaEjeX(d, rango)); 
+                fTooltip.push(formatearFechaTooltip(d));
                 fH.push(rawHr[i]); 
                 fT.push(rawTemp[i]);
                 
@@ -605,6 +586,7 @@
                 fCads.push((rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales);
             }
         }
+        titulosTooltip = fTooltip;
         
         let validHr = fH.filter(v => v !== null && v > 0);
         let avgHr = validHr.length > 0 ? (validHr.reduce((a,b)=>a+b,0) / validHr.length).toFixed(2) : "0.00";
@@ -660,11 +642,10 @@
                     labels: fL, 
                     datasets: datasetsList
                 },
-                plugins: [pluginFechasCabezaDerecha],
                 options: { 
                     responsive: true, maintainAspectRatio: false,
                     layout: {
-                        padding: { bottom: 115 }
+                        padding: { bottom: 85 }
                     },
                     interaction: { mode: 'index', intersect: false },
                     plugins: { 
@@ -676,7 +657,10 @@
                             borderColor: 'rgba(255, 255, 255, 0.15)',
                             borderWidth: 1,
                             callbacks: { 
-                                title: function(context) { return context[0].label; },
+                                title: function(context) { 
+                                    let idx = context[0].dataIndex;
+                                    return titulosTooltip[idx] || context[0].label; 
+                                },
                                 label: function(context) { 
                                     let dsId = context.dataset.id;
                                     if(dsId === 'hr') { return '⚡ Hashrate: ' + context.parsed.y + ' ' + unidadMinero; } 
@@ -713,8 +697,8 @@
                             afterBuildTicks: function(axis) {
                                 const totalLabels = axis.chart.data.labels ? axis.chart.data.labels.length : 0;
                                 if (totalLabels <= 1) return;
-                                // Construir 14 ticks espaciados uniformemente garantizando siempre el primero (0) y el último (totalLabels - 1)
-                                const numTicks = Math.min(14, totalLabels);
+                                const esMovil = window.innerWidth <= 768;
+                                const numTicks = Math.min(esMovil ? 7 : 11, totalLabels);
                                 const nuevosTicks = [];
                                 for (let i = 0; i < numTicks; i++) {
                                     const idx = Math.round(i * (totalLabels - 1) / (numTicks - 1));
@@ -723,9 +707,11 @@
                                 axis.ticks = nuevosTicks;
                             },
                             ticks: { 
-                                // Ocultamos el texto nativo porque pluginFechasCabezaDerecha lo dibuja rotado a +90°
-                                display: false,
-                                maxTicksLimit: 14
+                                minRotation: 0,
+                                maxRotation: 0,
+                                autoSkip: false,
+                                color: '#8b8d9c',
+                                font: { size: 11 }
                             }
                         }, 
                         y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0 }, 
