@@ -328,25 +328,25 @@
         <div class="miner-title-row">
             <a href="/" class="btn-back-pro" data-top-tt="btn_volver">←</a>
             <h1 class="miner-name-h1" id="nombreTexto" translate="no">{{ nombre }}</h1>
-            <span class="miner-status-badge {{ 'offline' if offline else 'online' }}" data-top-tt="badge_estado" translate="no">
+            <span class="miner-status-badge {{ 'offline' if offline else 'online' }}" data-top-tt="badge_estado">
                 <span class="miner-pulse-dot"></span>
                 {{ 'SIN CONEXIÓN' if offline else 'EN LÍNEA' }}
             </span>
             <button type="button" class="btn-edit-name-pro" data-top-tt="btn_editar_nombre" onclick="toggleEditarNombrePro()">✏️ Renombrar</button>
         </div>
 
-        <div class="miner-sub-meta" translate="no">
-            <span class="meta-pill-tag">🖥️ {{ modelo }}</span>
+        <div class="miner-sub-meta">
+            <span class="meta-pill-tag" translate="no">🖥️ {{ modelo }}</span>
             <span class="meta-pill-tag">
-                <span>🌐 {{ ip }}</span>
+                <span translate="no">🌐 {{ ip }}</span>
                 <button type="button" class="btn-copy-ip-top" onclick="copiarIpCabecera('{{ ip }}', this)" title="Copiar dirección IP">
                     <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                     <span>Copiar</span>
                 </button>
             </span>
-            <span class="meta-pill-tag">⏱️ Uptime: <b style="color:var(--text-main);">{{ ultimo.uptime }}</b></span>
+            <span class="meta-pill-tag">⏱️ Tiempo activo: <b style="color:var(--text-main);" translate="no">{{ ultimo.uptime }}</b></span>
             {% if ultimo.farm_city is defined and ultimo.farm_city %}
-            <span class="meta-pill-tag" style="color:#38bdf8; border-color:rgba(56,189,248,0.25);">📍 {{ ultimo.farm_city }}</span>
+            <span class="meta-pill-tag" style="color:#38bdf8; border-color:rgba(56,189,248,0.25);" translate="no">📍 {{ ultimo.farm_city }}</span>
             {% endif %}
         </div>
 
@@ -362,23 +362,23 @@
 <!-- Banner de Advertencia si está desconectado -->
 <div class="offline-alert-pro">
     <div>
-        <b style="color:#ff5252;">⛔ Este Antminer no responde en la red local</b>
+        <b style="color:#ff5252;">⛔ Este minero no responde en la red local</b>
         <span style="color:var(--text-muted); margin-left:6px;">Mostrando los últimos registros históricos almacenados en la base de datos.</span>
     </div>
     <span style="font-family:monospace; font-size:0.9em; color:#ffb300;">Verifica alimentación o cable Ethernet</span>
 </div>
 
 <!-- Grilla de 6 Tarjetas KPI Superiores -->
-<div class="kpi-grid-pro" translate="no">
+<div class="kpi-grid-pro">
     <!-- 1. HASHRATE TIEMPO REAL (5s) -->
     <div class="kpi-card-pro" data-top-tt="kpi_hr5s">
         <div class="kpi-top-row">
             <h4 class="kpi-label">⚡ Hashrate 5s</h4>
-            <span class="kpi-mini-badge" style="background:{{ 'rgba(0,230,118,0.12)' if diff_hr_pct >= -3 else 'rgba(255,179,0,0.15)' }}; color:{{ '#00e676' if diff_hr_pct >= -3 else '#ffb300' }};">
+            <span class="kpi-mini-badge" style="background:{{ 'rgba(0,230,118,0.12)' if diff_hr_pct >= -3 else 'rgba(255,179,0,0.15)' }}; color:{{ '#00e676' if diff_hr_pct >= -3 else '#ffb300' }};" translate="no">
                 {{ '+' if diff_hr_pct >= 0 else '' }}{{ "%.1f"|format(diff_hr_pct) }}%
             </span>
         </div>
-        <div class="kpi-val-main" style="color:#3b82f6;">
+        <div class="kpi-val-main" style="color:#3b82f6;" translate="no">
             {{ "%.2f"|format(hr_5s) }} <span class="kpi-unit">{{ ultimo.unidad | default('TH/s') }}</span>
         </div>
         <div class="kpi-progress-bg">
@@ -392,12 +392,12 @@
             <h4 class="kpi-label">📊 Promedio 30m</h4>
             <span class="kpi-mini-badge" style="background:rgba(56,189,248,0.12); color:#38bdf8;">Estable</span>
         </div>
-        <div class="kpi-val-main" style="color:#38bdf8;">
+        <div class="kpi-val-main" style="color:#38bdf8;" translate="no">
             {{ "%.2f"|format(hr_30m) }} <span class="kpi-unit">{{ ultimo.unidad | default('TH/s') }}</span>
         </div>
         <div class="kpi-sub-row">
             <span>Por placa:</span>
-            <b style="color:var(--text-main);">{{ ultimo.hashrate_c0 }} {{ ultimo.unidad | default('TH/s') }}</b>
+            <b style="color:var(--text-main);" translate="no">{{ ultimo.hashrate_c0 }} {{ ultimo.unidad | default('TH/s') }}</b>
         </div>
     </div>
 
@@ -409,7 +409,7 @@
             <h4 class="kpi-label">🌡️ Temp Máx</h4>
             <span class="kpi-mini-badge" style="background:rgba(255,255,255,0.06); color:{{ col_t }};">{{ txt_t }}</span>
         </div>
-        <div class="kpi-val-main" style="color:{{ col_t }};">
+        <div class="kpi-val-main" style="color:{{ col_t }};" translate="no">
             {{ t_max }}°C
             {% if t_amb > 0 %}
             <span class="kpi-unit" style="color:#00e676;">(Amb {{ t_amb }}°C)</span>
@@ -424,16 +424,16 @@
     <div class="kpi-card-pro" data-top-tt="kpi_consumo">
         <div class="kpi-top-row">
             <h4 class="kpi-label">🔌 Consumo</h4>
-            <span class="kpi-mini-badge" style="background:rgba(192,132,252,0.12); color:#c084fc;">
+            <span class="kpi-mini-badge" style="background:rgba(192,132,252,0.12); color:#c084fc;" translate="no">
                 {{ "%.1f"|format(efi_val) }} {{ ultimo.unidad_efi | default('J/TH') }}
             </span>
         </div>
-        <div class="kpi-val-main" style="color:#c084fc;">
+        <div class="kpi-val-main" style="color:#c084fc;" translate="no">
             {{ ultimo.consumo }}
         </div>
         <div class="kpi-sub-row">
             <span>Eficiencia:</span>
-            <b style="color:var(--text-main);">{{ "%.2f"|format(efi_val) }} {{ ultimo.unidad_efi | default('J/TH') }}</b>
+            <b style="color:var(--text-main);" translate="no">{{ "%.2f"|format(efi_val) }} {{ ultimo.unidad_efi | default('J/TH') }}</b>
         </div>
     </div>
 
@@ -446,12 +446,12 @@
                 {{ 'Revisar' if err_hw > 100 else 'Normal' }}
             </span>
         </div>
-        <div class="kpi-val-main" style="color:{{ col_err }};">
+        <div class="kpi-val-main" style="color:{{ col_err }};" translate="no">
             {{ "{:,}".format(err_hw) }}
         </div>
         <div class="kpi-sub-row">
             <span>Desde arranque:</span>
-            <b>{{ ultimo.uptime }}</b>
+            <b translate="no">{{ ultimo.uptime }}</b>
         </div>
     </div>
 
@@ -461,12 +461,12 @@
             <h4 class="kpi-label">🌀 Refrigeración</h4>
             <span class="kpi-mini-badge" style="background:rgba(56,189,248,0.12); color:#38bdf8;">Activa</span>
         </div>
-        <div class="kpi-val-main" style="font-size:0.95em; margin-top:11px; color:var(--text-main); line-height:1.25;">
+        <div class="kpi-val-main" style="font-size:0.95em; margin-top:11px; color:var(--text-main); line-height:1.25;" translate="no">
             {{ ultimo.fans }}
         </div>
         <div class="kpi-sub-row" style="margin-top:8px;">
             <span>Flujo Térmico:</span>
-            <b style="color:#00e676;">100% OK</b>
+            <b style="color:#00e676;" translate="no">100% OK</b>
         </div>
     </div>
 </div>
@@ -482,7 +482,7 @@
         },
         'badge_estado': {
             titulo: '🟢 Estado de Enlace en Tiempo Real',
-            desc: 'Indica si el agente local se comunicó con el puerto 4028/HTTP del Antminer en los últimos 5 minutos.',
+            desc: 'Indica si el agente local se comunicó con el puerto 4028/HTTP del minero en los últimos 5 minutos.',
             rango: 'En línea = Transmisión activa cada 25s'
         },
         'btn_editar_nombre': {
@@ -497,17 +497,17 @@
         },
         'kpi_hr30m': {
             titulo: '📊 Hashrate Promedio (30 Minutos)',
-            desc: 'Media móvil oficial reportada por CGMiner/BMMiner. Es el valor más fiable para comparar contra lo que acredita el Pool.',
+            desc: 'Media móvil oficial reportada por el firmware del equipo. Es el valor más fiable para comparar contra lo que acredita el Pool.',
             rango: 'Debe coincidir con el hashrate nominal del modelo'
         },
         'kpi_temp': {
             titulo: '🌡️ Temperatura Pico del Silicio',
-            desc: 'Lectura del chip más caliente entre todas las placas hash del equipo. Si supera los 85°C se activa la protección de apagado.',
+            desc: 'Lectura del chip más caliente entre todas las placas hash del equipo.',
             rango: '🟢 < 75°C Óptima | 🟠 75-84°C Alerta | 🔴 ≥ 85°C Crítica'
         },
         'kpi_consumo': {
-            titulo: '🔌 Potencia Eléctrica y Eficiencia (J/TH)',
-            desc: 'Consumo estimado en Kilovatios (kW) de la fuente APW y eficiencia energética en Joules por Terahash.',
+            titulo: '🔌 Potencia Eléctrica y Eficiencia',
+            desc: 'Consumo estimado en Kilovatios (kW) de la fuente y eficiencia energética del equipo.',
             rango: 'Menor J/TH = Mayor rentabilidad eléctrica'
         },
         'kpi_errores': {
@@ -517,7 +517,7 @@
         },
         'kpi_cooling': {
             titulo: '🌀 Sistema de Enfriamiento (RPM / Hydro)',
-            desc: 'Velocidad en revoluciones por minuto (RPM) de los 4 ventiladores o temperaturas de agua en modelos Hydro.',
+            desc: 'Velocidad en revoluciones por minuto (RPM) de los ventiladores o temperaturas de agua en modelos Hydro.',
             rango: 'Rango normal fans: 3.500 a 6.200 RPM'
         }
     };
