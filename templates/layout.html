@@ -38,7 +38,7 @@
             --accent-red: #ff5252;
             --hover-bg: rgba(255, 255, 255, 0.04);
             --active-bg: rgba(51, 102, 255, 0.14);
-            --topbar-bg: #0d0f17;
+            --topbar-bg: rgba(13, 15, 23, 0.90);
         }
         :root[data-theme="light"] {
             --bg-body: #f1f5f9;
@@ -55,7 +55,7 @@
             --accent-red: #ef4444;
             --hover-bg: #f1f5f9;
             --active-bg: rgba(37, 99, 235, 0.10);
-            --topbar-bg: #ffffff;
+            --topbar-bg: rgba(255, 255, 255, 0.92);
         }
 
         * { box-sizing: border-box; }
@@ -228,6 +228,7 @@
         .top-bar {
             min-height: 60px;
             background: var(--topbar-bg);
+            backdrop-filter: blur(8px);
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
@@ -278,22 +279,31 @@
             border-radius: 7px;
             cursor: pointer;
             user-select: none;
-            transition: border-color 0.2s ease;
+            transition: all 0.2s ease;
         }
         .top-status:hover { border-color: rgba(0, 230, 118, 0.45); }
         .top-status.paused { border-color: rgba(255, 179, 0, 0.45); }
-        .top-status.syncing { border-color: #38bdf8; }
         .status-envivo { color: var(--accent-green); display: flex; align-items: center; gap: 6px; }
         .top-status.paused .status-envivo { color: #ffb300; }
+        #liveCountdown {
+            display: inline-block;
+            min-width: 34px;
+            text-align: center;
+        }
         .dot-pulse {
             width: 8px;
             height: 8px;
             background: var(--accent-green);
             border-radius: 50%;
+            animation: pulse 1.5s infinite;
             flex-shrink: 0;
         }
-        .top-status.paused .dot-pulse { background: #ffb300; }
-        .top-status.syncing .dot-pulse { background: #38bdf8; }
+        .top-status.paused .dot-pulse { background: #ffb300; animation: none; }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
+        }
 
         .main-content {
             flex: 1;
@@ -340,6 +350,7 @@
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.65);
             z-index: 999;
+            backdrop-filter: blur(3px);
         }
         .overlay.active { display: block; }
 
@@ -355,7 +366,7 @@
             border-radius: 8px;
             font-size: 0.85em;
             font-weight: bold;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(59, 130, 246, 0.35);
             z-index: 99999;
             display: none;
             align-items: center;
@@ -551,7 +562,7 @@
         }
 
         // ============================================================
-        // MOTOR EN VIVO ULTRA-ESTABLE PARA iOS SAFARI (ZERO-REFLOW)
+        // MOTOR EN VIVO QUIRÚRGICO + PUENTE PARA GRÁFICOS EN TIEMPO REAL
         // ============================================================
         const LIVE_INTERVAL_SEC = 20;
         const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan', '/admin'];
@@ -579,14 +590,12 @@
             return dedoEnPantalla || (Date.now() - ultimoScrollTs) < 3500;
         }
 
-        // Solo actualiza nodos de texto y barras de progreso; jamás toca styles de contenedores
-        function parcharSoloValores(nodoActual, nodoNuevo) {
+        function parcharSoloTextos(nodoActual, nodoNuevo) {
             if (!nodoActual || !nodoNuevo) return;
 
             if (nodoActual.nodeType === 1) {
                 const tag = nodoActual.tagName;
                 if (['SCRIPT', 'STYLE', 'CANVAS', 'INPUT', 'TEXTAREA', 'SELECT', 'SVG', 'IFRAME', 'BUTTON'].includes(tag)) return;
-                if (nodoActual.classList && (nodoActual.classList.contains('edited') || nodoActual.classList.contains('unsaved-pulse'))) return;
             }
 
             if (nodoActual.nodeType === 3 && nodoNuevo.nodeType === 3) {
@@ -601,24 +610,32 @@
             }
 
             if (nodoActual.nodeType === 1) {
-                // Solo actualizar ancho en barras de progreso explícitas
-                if (nodoActual.classList && (
-                    nodoActual.classList.contains('mini-bar-fill') ||
-                    nodoActual.classList.contains('shares-bar-acc') ||
-                    nodoActual.classList.contains('shares-bar-rej')
-                )) {
-                    const wNuevo = nodoNuevo.style.width;
-                    if (wNuevo && nodoActual.style.width !== wNuevo) {
-                        nodoActual.style.width = wNuevo;
+                if (nodoActual.classList) {
+                    // Actualizar solo clases de estado (Alive/Dead, Temp OK/Warn/Crit)
+                    if (nodoActual.classList.contains('pool-status-pill') || nodoActual.classList.contains('boards-temp-pill')) {
+                        if (nodoActual.className !== nodoNuevo.className) {
+                            nodoActual.className = nodoNuevo.className;
+                        }
                     }
-                    return;
+                    // Actualizar solo ancho en barras de progreso explícitas
+                    if (
+                        nodoActual.classList.contains('mini-bar-fill') ||
+                        nodoActual.classList.contains('shares-bar-acc') ||
+                        nodoActual.classList.contains('shares-bar-rej')
+                    ) {
+                        const w = nodoNuevo.style.width;
+                        if (w && nodoActual.style.width !== w) {
+                            nodoActual.style.width = w;
+                        }
+                        return;
+                    }
                 }
 
                 const hijosAct = nodoActual.childNodes;
                 const hijosNue = nodoNuevo.childNodes;
                 const len = Math.min(hijosAct.length, hijosNue.length);
                 for (let i = 0; i < len; i++) {
-                    parcharSoloValores(hijosAct[i], hijosNue[i]);
+                    parcharSoloTextos(hijosAct[i], hijosNue[i]);
                 }
             }
         }
@@ -626,8 +643,6 @@
         async function actualizacionSilenciosaEnVivo() {
             if (actualizandoAhora || !navigator.onLine) return;
             actualizandoAhora = true;
-            const pill = document.getElementById('liveStatusPill');
-            if (pill) pill.classList.add('syncing');
 
             try {
                 const resp = await fetch(window.location.href, {
@@ -643,8 +658,10 @@
                 if (nuevoMain && actualMain && !usuarioEstaEditando() && !usuarioEstaInteractuando()) {
                     const scrollAntes = actualMain.scrollTop;
                     requestAnimationFrame(() => {
-                        parcharSoloValores(actualMain, nuevoMain);
-                        if (actualMain.scrollTop !== scrollAntes) {
+                        parcharSoloTextos(actualMain, nuevoMain);
+                        // Notificar a gráficos (como _grafico.html) para que se actualicen en vivo
+                        window.dispatchEvent(new CustomEvent('emg:live-update', { detail: { doc } }));
+                        if (Math.abs(actualMain.scrollTop - scrollAntes) > 0) {
                             actualMain.scrollTop = scrollAntes;
                         }
                     });
@@ -652,7 +669,6 @@
             } catch (e) {
                 console.log('Sync en vivo omitido:', e);
             } finally {
-                if (pill) pill.classList.remove('syncing');
                 actualizandoAhora = false;
             }
         }
