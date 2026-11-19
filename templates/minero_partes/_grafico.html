@@ -961,7 +961,7 @@
                     badge.style.display = 'inline-block';
                     document.getElementById('statClimaHoy').innerHTML = `${tMostrar}°C / <span style="color:#c084fc;">${sMostrar}°C</span>`;
                 }
-                updateChart(rangoActual);
+                updateChart(rangoActual, true);
             }
         } catch (err) {
             console.log("Clima de la granja no disponible:", err);
@@ -1647,14 +1647,30 @@
         return { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, maxErrPeriodo, primerTsReal, ultimoTsReal };
     }
 
-    function updateChart(rango) {
+    function updateChart(rango, esActualizacionEnVivo = false) {
         rangoActual = rango;
-        document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
-        let btnR = document.getElementById('btn-' + rango);
-        if (btnR) btnR.classList.add('active');
-        document.getElementById('btnResetZoom').style.display = 'none';
-        ocultarTooltipGris();
-        ocultarSmartTooltip();
+        if (!esActualizacionEnVivo) {
+            document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+            let btnR = document.getElementById('btn-' + rango);
+            if (btnR) btnR.classList.add('active');
+            document.getElementById('btnResetZoom').style.display = 'none';
+            ocultarTooltipGris();
+            ocultarSmartTooltip();
+        }
+
+        // Conservar el zoom actual si se trata de una actualización silenciosa en vivo
+        let estabaConZoom = false;
+        let prevMinZoom = 0;
+        let prevMaxZoom = 0;
+        if (esActualizacionEnVivo && chartInstance && chartInstance.scales && chartInstance.scales.x) {
+            const spanVis = chartInstance.scales.x.max - chartInstance.scales.x.min;
+            const spanTot = limiteDatosDerGlobal - limiteDatosIzqGlobal;
+            if (spanTot > 0 && spanVis < spanTot - 60) {
+                estabaConZoom = true;
+                prevMinZoom = chartInstance.scales.x.min;
+                prevMaxZoom = chartInstance.scales.x.max;
+            }
+        }
         
         // Determinar el primer y último timestamp con datos reales válidos en toda la BD enviada
         let maxTsValido = 0;
@@ -1698,8 +1714,8 @@
         limiteDatosIzqGlobal = limiteIzq;
         limiteDatosDerGlobal = limiteDer;
 
-        // Calcular paso LOD inicial acorde al rango completo
-        pasoAgrupacionActualSeg = calcularPasoAgrupacionLOD(segundosRango);
+        // Calcular paso LOD inicial acorde al rango completo o al zoom activo
+        pasoAgrupacionActualSeg = calcularPasoAgrupacionLOD(estabaConZoom ? (prevMaxZoom - prevMinZoom) : segundosRango);
         actualizarBadgeLOD(pasoAgrupacionActualSeg);
 
         const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, maxErrPeriodo } = construirSeriesConPaso(crudosPorMinutoCache, pasoAgrupacionActualSeg, limiteIzq, limiteDer);
@@ -1806,10 +1822,16 @@
         if(chartInstance) {
             chartInstance.data.datasets = datasetsList;
             chartInstance.options.scales.y2.max = topeEjeErrores;
-            fijarEscalaExactaEnChart(chartInstance, limiteIzq, limiteDer);
+            if (estabaConZoom) {
+                fijarEscalaExactaEnChart(chartInstance, prevMinZoom, prevMaxZoom);
+            } else {
+                fijarEscalaExactaEnChart(chartInstance, limiteIzq, limiteDer);
+            }
             actualizarPuntosYResolucionSegunZoom(chartInstance);
             chartInstance.update('none');
-            construirLeyendasPildora();
+            if (!esActualizacionEnVivo) {
+                construirLeyendasPildora();
+            }
         } else {
             chartInstance = new Chart(ctx, { 
                 type: 'line', 
@@ -1933,6 +1955,45 @@
             construirLeyendasPildora();
         }
     }
+
+    // Puente 100% JSON en vivo: inyecta los últimos minutos sin parpadear ni atrasarse
+    async function actualizarGraficoEnVivoJSON() {
+        try {
+            const r = await fetch('/api/live/minero/{{ ip }}', { cache: 'no-store' });
+            if (!r.ok) return;
+            const data = await r.json();
+            if (!data.ok || !data.puntos || data.puntos.length === 0) return;
+
+            let huboCambio = false;
+            data.puntos.forEach(p => {
+                const idx = rawFechas.lastIndexOf(p.ts);
+                if (idx !== -1) {
+                    if (rawHr[idx] !== p.hr || rawTemp[idx] !== p.temp || rawErr[idx] !== p.err) {
+                        rawHr[idx] = p.hr;
+                        rawTemp[idx] = p.temp;
+                        rawAmb[idx] = p.amb;
+                        rawErr[idx] = p.err;
+                        rawCadHist[idx] = p.cadenas;
+                        huboCambio = true;
+                    }
+                } else if (rawFechas.length === 0 || p.ts > rawFechas[rawFechas.length - 1]) {
+                    rawFechas.push(p.ts);
+                    rawHr.push(p.hr);
+                    rawTemp.push(p.temp);
+                    rawAmb.push(p.amb);
+                    rawErr.push(p.err);
+                    rawCadHist.push(p.cadenas);
+                    huboCambio = true;
+                }
+            });
+
+            if (huboCambio && chartInstance) {
+                updateChart(rangoActual, true);
+            }
+        } catch (e) {}
+    }
+
+    window.addEventListener('emg:live-update', actualizarGraficoEnVivoJSON);
 
     window.addEventListener('load', function() {
         inicializarEventosTooltips();
