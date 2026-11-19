@@ -234,6 +234,7 @@
         color: #fff;
     }
 
+    /* Aviso discreto de scroll lateral en móvil (se oculta al deslizar) */
     .boards-scroll-hint {
         display: none;
         padding: 5px 14px;
@@ -242,6 +243,38 @@
         background: rgba(51, 102, 255, 0.06);
         border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         text-align: right;
+        transition: opacity 0.3s ease, max-height 0.3s ease, padding 0.3s ease;
+        max-height: 36px;
+        overflow: hidden;
+    }
+    .boards-scroll-hint.hint-hidden {
+        opacity: 0;
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        border-bottom-color: transparent;
+    }
+
+    /* Envoltorio para sombra lateral derecha (Fade-out) en móvil */
+    .boards-table-outer {
+        position: relative;
+        width: 100%;
+    }
+    .boards-table-outer::after {
+        content: "";
+        display: none;
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 38px;
+        pointer-events: none;
+        background: linear-gradient(to right, rgba(13, 15, 23, 0) 0%, var(--bg-card, #11131c) 92%);
+        transition: opacity 0.25s ease;
+        z-index: 4;
+    }
+    .boards-table-outer.scrolled-end::after {
+        opacity: 0;
     }
 
     /* Tabla horizontal deslizable igual que Pools */
@@ -425,6 +458,7 @@
         .thermal-cut-lbl-extra { display: none; }
         .thermal-cut-input { width: 36px; }
         .boards-scroll-hint { display: block; }
+        .boards-table-outer::after { display: block; }
         .boards-table-pro th,
         .boards-table-pro td {
             padding: 8px 9px;
@@ -505,86 +539,88 @@
         </span>
     </div>
 
-    <div class="boards-scroll-hint">↔ Desliza la tabla hacia los lados para ver Temps, Chips y Errores</div>
+    <div class="boards-scroll-hint" id="boardsMobileHint">↔ Desliza la tabla hacia la derecha para ver Temps, Chips y Errores</div>
 
-    <div class="boards-table-scroll">
-        <table class="boards-table-pro">
-            <thead>
-                <tr>
-                    <th data-board-tip="col_placa"><span class="boards-th-inner">Placa Hash <span class="board-info-dot">i</span></span></th>
-                    <th data-board-tip="col_hr"><span class="boards-th-inner">Hashrate Real <span class="board-info-dot">i</span></span></th>
-                    <th data-board-tip="col_chips"><span class="boards-th-inner">Chips ASIC <span class="board-info-dot">i</span></span></th>
-                    <th data-board-tip="col_freq"><span class="boards-th-inner">Frecuencia <span class="board-info-dot">i</span></span></th>
-                    <th data-board-tip="col_tchip"><span class="boards-th-inner">Temp Chip <span class="board-info-dot">i</span></span></th>
-                    <th data-board-tip="col_tpcb"><span class="boards-th-inner">Temp PCB <span class="board-info-dot">i</span></span></th>
-                    <th data-board-tip="col_dthw"><span class="boards-th-inner">ΔT / Errores HW <span class="board-info-dot">i</span></span></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for c in extra.cadenas %}
-                {% set tc = c.temp_c | int %}
-                {% set tp = c.temp_p | int %}
-                {% set dt_c = tc - tp %}
-                {% set hr_c = c.hr | float %}
-                {% set pct_hr = (hr_c / ns.max_hr * 100) if ns.max_hr > 0 else 0 %}
-                {% set pct_tc = (tc / 90 * 100) if tc < 90 else 100 %}
-                {% set pct_tp = (tp / 90 * 100) if tp < 90 else 100 %}
-                <tr>
-                    <td>
-                        <span class="chain-id-pill">
-                            <span class="chain-dot {{ '' if hr_c > 0 else 'off' }}"></span>
-                            Cadena <span translate="no">#{{ c.id }}</span>
-                        </span>
-                    </td>
-                    <td translate="no">
-                        <div class="mini-bar-wrap">
-                            <div class="mini-bar-top">
-                                <b style="color:var(--text-main);">{{ "%.2f"|format(hr_c) }}</b>
-                                <span style="color:var(--text-muted); font-size:0.85em;">{{ ultimo.unidad | default('TH/s') }}</span>
+    <div class="boards-table-outer" id="boardsTableOuter">
+        <div class="boards-table-scroll" id="boardsTableScroll">
+            <table class="boards-table-pro">
+                <thead>
+                    <tr>
+                        <th data-board-tip="col_placa"><span class="boards-th-inner">Placa Hash <span class="board-info-dot">i</span></span></th>
+                        <th data-board-tip="col_hr"><span class="boards-th-inner">Hashrate Real <span class="board-info-dot">i</span></span></th>
+                        <th data-board-tip="col_chips"><span class="boards-th-inner">Chips ASIC <span class="board-info-dot">i</span></span></th>
+                        <th data-board-tip="col_freq"><span class="boards-th-inner">Frecuencia <span class="board-info-dot">i</span></span></th>
+                        <th data-board-tip="col_tchip"><span class="boards-th-inner">Temp Chip <span class="board-info-dot">i</span></span></th>
+                        <th data-board-tip="col_tpcb"><span class="boards-th-inner">Temp PCB <span class="board-info-dot">i</span></span></th>
+                        <th data-board-tip="col_dthw"><span class="boards-th-inner">ΔT / Errores HW <span class="board-info-dot">i</span></span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in extra.cadenas %}
+                    {% set tc = c.temp_c | int %}
+                    {% set tp = c.temp_p | int %}
+                    {% set dt_c = tc - tp %}
+                    {% set hr_c = c.hr | float %}
+                    {% set pct_hr = (hr_c / ns.max_hr * 100) if ns.max_hr > 0 else 0 %}
+                    {% set pct_tc = (tc / 90 * 100) if tc < 90 else 100 %}
+                    {% set pct_tp = (tp / 90 * 100) if tp < 90 else 100 %}
+                    <tr>
+                        <td>
+                            <span class="chain-id-pill">
+                                <span class="chain-dot {{ '' if hr_c > 0 else 'off' }}"></span>
+                                Cadena <span translate="no">#{{ c.id }}</span>
+                            </span>
+                        </td>
+                        <td translate="no">
+                            <div class="mini-bar-wrap">
+                                <div class="mini-bar-top">
+                                    <b style="color:var(--text-main);">{{ "%.2f"|format(hr_c) }}</b>
+                                    <span style="color:var(--text-muted); font-size:0.85em;">{{ ultimo.unidad | default('TH/s') }}</span>
+                                </div>
+                                <div class="mini-bar-bg">
+                                    <div class="mini-bar-fill" style="width:{{ pct_hr }}%; background:#3b82f6;"></div>
+                                </div>
                             </div>
-                            <div class="mini-bar-bg">
-                                <div class="mini-bar-fill" style="width:{{ pct_hr }}%; background:#3b82f6;"></div>
+                        </td>
+                        <td translate="no">
+                            <span class="chips-pill">● {{ c.chips }} chips</span>
+                        </td>
+                        <td style="font-family:monospace; font-weight:bold; color:var(--text-main);" translate="no">
+                            {{ c.freq }} <span style="color:var(--text-muted); font-weight:normal;">MHz</span>
+                        </td>
+                        <td>
+                            <div class="mini-bar-wrap">
+                                <div class="mini-bar-top">
+                                    <b style="color:{{ '#ff5252' if tc >= 82 else ('#ffb300' if tc >= 75 else '#60a5fa') }};" translate="no">{{ tc }}°C</b>
+                                    <span style="font-size:0.82em; color:{{ '#ff5252' if tc >= 82 else ('#ffb300' if tc >= 75 else '#60a5fa') }};">
+                                        {{ 'Crítica' if tc >= 82 else ('Alerta' if tc >= 75 else 'Óptima') }}
+                                    </span>
+                                </div>
+                                <div class="mini-bar-bg">
+                                    <div class="mini-bar-fill" style="width:{{ pct_tc }}%; background:{{ '#ff5252' if tc >= 82 else ('#ffb300' if tc >= 75 else '#3b82f6') }};"></div>
+                                </div>
                             </div>
-                        </div>
-                    </td>
-                    <td translate="no">
-                        <span class="chips-pill">● {{ c.chips }} chips</span>
-                    </td>
-                    <td style="font-family:monospace; font-weight:bold; color:var(--text-main);" translate="no">
-                        {{ c.freq }} <span style="color:var(--text-muted); font-weight:normal;">MHz</span>
-                    </td>
-                    <td>
-                        <div class="mini-bar-wrap">
-                            <div class="mini-bar-top">
-                                <b style="color:{{ '#ff5252' if tc >= 82 else ('#ffb300' if tc >= 75 else '#60a5fa') }};" translate="no">{{ tc }}°C</b>
-                                <span style="font-size:0.82em; color:{{ '#ff5252' if tc >= 82 else ('#ffb300' if tc >= 75 else '#60a5fa') }};">
-                                    {{ 'Crítica' if tc >= 82 else ('Alerta' if tc >= 75 else 'Óptima') }}
-                                </span>
+                        </td>
+                        <td>
+                            <div class="mini-bar-wrap">
+                                <div class="mini-bar-top">
+                                    <b style="color:#00e676;" translate="no">{{ tp }}°C</b>
+                                    <span style="font-size:0.82em; color:var(--text-muted);">Entrada</span>
+                                </div>
+                                <div class="mini-bar-bg">
+                                    <div class="mini-bar-fill" style="width:{{ pct_tp }}%; background:#00e676;"></div>
+                                </div>
                             </div>
-                            <div class="mini-bar-bg">
-                                <div class="mini-bar-fill" style="width:{{ pct_tc }}%; background:{{ '#ff5252' if tc >= 82 else ('#ffb300' if tc >= 75 else '#3b82f6') }};"></div>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="mini-bar-wrap">
-                            <div class="mini-bar-top">
-                                <b style="color:#00e676;" translate="no">{{ tp }}°C</b>
-                                <span style="font-size:0.82em; color:var(--text-muted);">Entrada</span>
-                            </div>
-                            <div class="mini-bar-bg">
-                                <div class="mini-bar-fill" style="width:{{ pct_tp }}%; background:#00e676;"></div>
-                            </div>
-                        </div>
-                    </td>
-                    <td translate="no">
-                        <span class="delta-pill">ΔT {{ '+' if dt_c >= 0 else '' }}{{ dt_c }}°C</span>
-                        <span style="font-family:monospace; color:{{ '#ff5252' if (c.hw | int) > 20 else 'var(--text-muted)' }}; font-weight:bold;">{{ c.hw }} HW</span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        </td>
+                        <td translate="no">
+                            <span class="delta-pill">ΔT {{ '+' if dt_c >= 0 else '' }}{{ dt_c }}°C</span>
+                            <span style="font-family:monospace; color:{{ '#ff5252' if (c.hw | int) > 20 else 'var(--text-muted)' }}; font-weight:bold;">{{ c.hw }} HW</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -787,4 +823,84 @@
 
         window.addEventListener('scroll', hideTip, { passive: true });
     })();
+
+    // Animación Peek (1 sola vez al bajar en celular) + control de sombra derecha y aviso
+    function inicializarPeekYSombraPlacas() {
+        const scroller = document.getElementById('boardsTableScroll');
+        const outer = document.getElementById('boardsTableOuter');
+        const hint = document.getElementById('boardsMobileHint');
+        if (!scroller || !outer || scroller.dataset.peekInit === '1') return;
+        scroller.dataset.peekInit = '1';
+
+        let peekEjecutado = false;
+        let animandoPeek = false;
+        let usuarioToco = false;
+        let timerIda = null;
+        let timerVuelta = null;
+
+        function actualizarEstadoSombra() {
+            const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+            if (maxScroll <= 4 || scroller.scrollLeft >= maxScroll - 8) {
+                outer.classList.add('scrolled-end');
+            } else {
+                outer.classList.remove('scrolled-end');
+            }
+
+            if (!animandoPeek && scroller.scrollLeft > 22 && hint) {
+                hint.classList.add('hint-hidden');
+            }
+        }
+
+        function cancelarPeek() {
+            usuarioToco = true;
+            animandoPeek = false;
+            if (timerIda) clearTimeout(timerIda);
+            if (timerVuelta) clearTimeout(timerVuelta);
+        }
+
+        scroller.addEventListener('touchstart', cancelarPeek, { passive: true });
+        scroller.addEventListener('pointerdown', cancelarPeek, { passive: true });
+        scroller.addEventListener('scroll', actualizarEstadoSombra, { passive: true });
+        window.addEventListener('resize', actualizarEstadoSombra, { passive: true });
+        actualizarEstadoSombra();
+
+        if ('IntersectionObserver' in window) {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (
+                        entry.isIntersecting &&
+                        !peekEjecutado &&
+                        !usuarioToco &&
+                        window.innerWidth <= 768 &&
+                        (scroller.scrollWidth - scroller.clientWidth) > 40 &&
+                        scroller.scrollLeft === 0
+                    ) {
+                        peekEjecutado = true;
+                        observer.disconnect();
+
+                        timerIda = setTimeout(() => {
+                            if (usuarioToco) return;
+                            animandoPeek = true;
+                            scroller.scrollTo({ left: 58, behavior: 'smooth' });
+
+                            timerVuelta = setTimeout(() => {
+                                if (!usuarioToco) {
+                                    scroller.scrollTo({ left: 0, behavior: 'smooth' });
+                                }
+                                setTimeout(() => { animandoPeek = false; }, 450);
+                            }, 620);
+                        }, 350);
+                    }
+                });
+            }, { threshold: 0.35 });
+
+            observer.observe(scroller);
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', inicializarPeekYSombraPlacas);
+    } else {
+        inicializarPeekYSombraPlacas();
+    }
 </script>
