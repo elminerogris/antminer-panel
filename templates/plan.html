@@ -1,86 +1,594 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-    .card-dark { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 30px; }
-    .plan-title { font-size: 1.5em; font-weight: bold; margin-bottom: 5px; color: var(--text-main); }
-    .plan-price { font-size: 2.5em; font-weight: bold; color: var(--accent-blue); margin: 15px 0; }
-    .plan-price span { font-size: 0.4em; color: var(--text-muted); font-weight: normal; }
-    .plan-features { list-style: none; padding: 0; margin: 20px 0; color: var(--text-muted); line-height: 2; }
-    .plan-features li::before { content: '✔️'; margin-right: 10px; color: var(--accent-green); }
-    .btn-upgrade { background: var(--accent-blue); color: white; border: none; padding: 12px; border-radius: 4px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; font-size: 1em; }
-    .btn-upgrade:hover { background: #254ee6; }
-    
-    .wallet-card { background: linear-gradient(135deg, #1b1d29 0%, #14151f 100%); border: 1px solid var(--accent-blue); text-align: center; }
-    .wallet-balance { font-size: 3em; font-weight: bold; color: var(--accent-green); margin: 20px 0; }
-    .deposit-options { display: flex; flex-direction: column; gap: 15px; margin-top: 30px; text-align: left; }
-    .deposit-box { background: var(--bg-body); border: 1px dashed var(--border-color); padding: 15px; border-radius: 6px; }
-    .qr-box { display: flex; align-items: center; gap: 20px; }
-    .qr-img { width: 100px; height: 100px; background: white; padding: 5px; border-radius: 4px; }
-    .copy-text { background: var(--bg-card); padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-family: monospace; display: flex; justify-content: space-between; color: var(--accent-blue); margin-top: 10px; cursor: pointer;}
+    /* Encabezado de Facturación */
+    .billing-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-bottom: 22px;
+        padding: 16px 20px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+    .billing-header h1 {
+        margin: 0;
+        font-size: 1.45em;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .billing-header p {
+        margin: 4px 0 0 0;
+        color: var(--text-muted);
+        font-size: 0.86em;
+    }
+    .current-plan-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.78em;
+        font-weight: bold;
+        font-family: monospace;
+        background: rgba(51, 102, 255, 0.14);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.45);
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+    }
+    .current-plan-pill.pro {
+        background: rgba(0, 230, 118, 0.14);
+        color: #00e676;
+        border-color: rgba(0, 230, 118, 0.45);
+        box-shadow: 0 0 12px rgba(0, 230, 118, 0.25);
+    }
+
+    /* Grilla Principal Responsiva */
+    .plan-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 1fr;
+        gap: 22px;
+        align-items: start;
+    }
+    @media (max-width: 920px) {
+        .plan-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Tarjetas de Planes */
+    .plans-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+    .card-plan {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.22s ease;
+    }
+    .card-plan:hover {
+        border-color: rgba(82, 140, 255, 0.55);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    }
+    .card-plan.active-plan {
+        border-color: #00e676;
+        box-shadow: 0 0 18px rgba(0, 230, 118, 0.15);
+    }
+    .card-plan.pro-highlight {
+        background: linear-gradient(145deg, rgba(20, 24, 38, 0.95) 0%, rgba(13, 15, 23, 0.98) 100%);
+        border-color: rgba(59, 130, 246, 0.5);
+    }
+    .plan-top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .plan-title {
+        font-size: 1.25em;
+        font-weight: bold;
+        color: var(--text-main);
+    }
+    .plan-badge {
+        font-size: 0.72em;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 3px 10px;
+        border-radius: 14px;
+        font-family: monospace;
+    }
+    .plan-badge.activo {
+        background: rgba(0, 230, 118, 0.15);
+        color: #00e676;
+        border: 1px solid rgba(0, 230, 118, 0.4);
+    }
+    .plan-badge.recomendado {
+        background: rgba(51, 102, 255, 0.2);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.5);
+    }
+
+    .plan-price {
+        font-size: 2.3em;
+        font-weight: bold;
+        font-family: monospace;
+        color: #60a5fa;
+        margin: 14px 0 8px 0;
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+    }
+    .plan-price span {
+        font-size: 0.38em;
+        color: var(--text-muted);
+        font-family: sans-serif;
+        font-weight: normal;
+    }
+
+    .plan-features {
+        list-style: none;
+        padding: 0;
+        margin: 16px 0 20px 0;
+        color: #d1d3e0;
+        font-size: 0.88em;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+    }
+    .plan-features li {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+    .feat-check {
+        color: #00e676;
+        font-weight: bold;
+        font-size: 1.05em;
+    }
+
+    /* Simulador Interactivo de Flota (Plan Pro) */
+    .calc-box {
+        background: rgba(10, 12, 18, 0.65);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 18px;
+    }
+    .calc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.82em;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+    }
+    .calc-header b {
+        color: #38bdf8;
+        font-family: monospace;
+        font-size: 1.15em;
+    }
+    .calc-slider {
+        width: 100%;
+        accent-color: #3b82f6;
+        cursor: pointer;
+    }
+    .calc-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 8px;
+        font-size: 0.8em;
+        font-family: monospace;
+        color: var(--text-muted);
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    /* Botones con Neon Glow */
+    .btn-plan-action {
+        width: 100%;
+        padding: 11px 16px;
+        border-radius: 7px;
+        font-weight: bold;
+        font-size: 0.92em;
+        cursor: pointer;
+        transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .btn-plan-primary {
+        background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
+        color: #fff;
+        border: 1px solid #60a5fa;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.45);
+    }
+    .btn-plan-primary:hover {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        box-shadow: 0 0 22px rgba(59, 130, 246, 0.75);
+        transform: translateY(-1px);
+    }
+    .btn-plan-disabled {
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text-muted);
+        border: 1px solid var(--border-color);
+        cursor: default;
+    }
+
+    /* Tarjeta de Billetera */
+    .wallet-card {
+        background: linear-gradient(160deg, rgba(22, 26, 42, 0.98) 0%, rgba(12, 14, 22, 0.98) 100%);
+        border: 1px solid rgba(59, 130, 246, 0.45);
+        border-radius: 10px;
+        padding: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    .wallet-top {
+        text-align: center;
+        padding-bottom: 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .wallet-label {
+        font-size: 0.78em;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+        font-weight: bold;
+    }
+    .wallet-balance {
+        font-size: 2.8em;
+        font-weight: bold;
+        font-family: monospace;
+        color: #00e676;
+        margin: 8px 0 6px 0;
+        text-shadow: 0 0 18px rgba(0, 230, 118, 0.25);
+    }
+    .wallet-balance span {
+        font-size: 0.36em;
+        color: var(--text-main);
+        font-weight: bold;
+        vertical-align: middle;
+    }
+
+    /* Pestañas de Método de Depósito */
+    .deposit-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        background: rgba(10, 12, 18, 0.7);
+        padding: 4px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin: 18px 0 14px 0;
+    }
+    .btn-dep-tab {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 0.82em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .btn-dep-tab:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .btn-dep-tab.active.binance {
+        background: rgba(252, 213, 53, 0.14);
+        color: #FCD535;
+        border-color: rgba(252, 213, 53, 0.45);
+        box-shadow: 0 0 12px rgba(252, 213, 53, 0.2);
+    }
+    .btn-dep-tab.active.trc20 {
+        background: rgba(0, 230, 118, 0.14);
+        color: #00e676;
+        border-color: rgba(0, 230, 118, 0.45);
+        box-shadow: 0 0 12px rgba(0, 230, 118, 0.2);
+    }
+
+    .deposit-panel {
+        display: none;
+        background: rgba(10, 12, 18, 0.55);
+        border: 1px dashed rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 16px;
+    }
+    .deposit-panel.active {
+        display: block;
+    }
+    .qr-flex {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    @media (max-width: 520px) {
+        .qr-flex {
+            flex-direction: column;
+            text-align: center;
+        }
+    }
+    .qr-img-pro {
+        width: 108px;
+        height: 108px;
+        background: #fff;
+        padding: 6px;
+        border-radius: 8px;
+        flex-shrink: 0;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+    }
+    .copy-box-pro {
+        background: rgba(15, 18, 28, 0.9);
+        padding: 9px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.86em;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: #60a5fa;
+        margin-top: 10px;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        word-break: break-all;
+    }
+    .copy-box-pro:hover {
+        border-color: #3b82f6;
+        background: rgba(51, 102, 255, 0.12);
+        color: #fff;
+    }
+
+    .wallet-notice {
+        margin-top: 14px;
+        padding: 10px 12px;
+        border-radius: 6px;
+        background: rgba(56, 189, 248, 0.08);
+        border-left: 3px solid #38bdf8;
+        font-size: 0.78em;
+        color: #d1d3e0;
+        line-height: 1.45;
+    }
+
+    /* Toast Flotante */
+    .billing-toast {
+        position: fixed;
+        bottom: 22px;
+        right: 22px;
+        background: rgba(10, 12, 18, 0.96);
+        border: 1px solid #00e676;
+        color: #fff;
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-size: 0.86em;
+        font-weight: bold;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 230, 118, 0.3);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        gap: 8px;
+    }
 </style>
 
-<div style="margin-bottom: 30px;">
-    <h1 style="margin:0;">💳 Billetera y Planes</h1>
-    <p style="color: var(--text-muted);">Administra tu suscripción, agrega fondos y expande el límite de tu granja.</p>
+<div id="billingToast" class="billing-toast" translate="no"></div>
+
+<!-- Encabezado -->
+<div class="billing-header">
+    <div>
+        <h1>💳 Billetera y Planes</h1>
+        <p>Administra tu suscripción, recarga saldo en USDT y escala el límite de tu granja sin interrupciones.</p>
+    </div>
+    <span class="current-plan-pill {{ 'pro' if current_plan == 'Pro' else '' }}" translate="no">
+        ● Plan Activo: {{ current_plan }}
+    </span>
 </div>
 
 <div class="plan-grid">
-    <div>
-        <div class="card-dark" style="margin-bottom: 20px; {{ 'border-color: var(--accent-green);' if current_plan == 'Gratis' else '' }}">
-            <div class="plan-title">Plan Gratis (Hobby)</div>
-            <div class="plan-price">$0.00 <span>/ mes</span></div>
+    <!-- COLUMNA IZQUIERDA: PLANES -->
+    <div class="plans-stack">
+        <!-- PLAN PROFESIONAL (DESTACADO ARRIBA) -->
+        <div class="card-plan pro-highlight {{ 'active-plan' if current_plan == 'Pro' else '' }}">
+            <div class="plan-top-bar">
+                <div class="plan-title">🚀 Plan Profesional</div>
+                {% if current_plan == 'Pro' %}
+                    <span class="plan-badge activo">● Plan Actual</span>
+                {% else %}
+                    <span class="plan-badge recomendado">⭐ Recomendado</span>
+                {% endif %}
+            </div>
+
+            <div class="plan-price" translate="no">$1.50 <span>/ minero / mes</span></div>
+
             <ul class="plan-features">
-                <li>Monitoreo de hasta 3 mineros.</li>
-                <li>Retención de historial de 24 horas.</li>
-                <li>Soporte comunitario.</li>
+                <li><span class="feat-check">✔</span> Mineros y granjas ilimitadas.</li>
+                <li><span class="feat-check">✔</span> Acciones Masivas (Pools, Reinicio, Reposo, LED).</li>
+                <li><span class="feat-check">✔</span> Perfiles de Energía (Eco / Max) y Alertas Telegram.</li>
+                <li><span class="feat-check">✔</span> Historial completo de 30 días y Exportación CSV.</li>
             </ul>
-            <button class="btn-upgrade" style="background:var(--bg-body); color:var(--text-main); border: 1px solid var(--border-color);" disabled>Plan Actual</button>
+
+            <!-- Simulador Interactivo de Costo -->
+            <div class="calc-box">
+                <div class="calc-header">
+                    <span>Simulador de Flota:</span>
+                    <b id="calcMinerosTxt" translate="no">10 mineros</b>
+                </div>
+                <input type="range" id="calcSlider" class="calc-slider" min="1" max="100" value="10" oninput="actualizarSimuladorPlan()">
+                <div class="calc-footer" translate="no">
+                    <span>Costo mensual: <b id="calcCostoTxt" style="color:#fff;">$15.00 USDT</b></span>
+                    <span id="calcCoberturaTxt" style="color:#00e676;"></span>
+                </div>
+            </div>
+
+            {% if current_plan == 'Pro' %}
+                <button class="btn-plan-action btn-plan-disabled" disabled>✅ Plan Profesional Activo</button>
+            {% else %}
+                <button class="btn-plan-action btn-plan-primary" onclick="solicitarUpgradePro()">⚡ Activar Plan Profesional</button>
+            {% endif %}
         </div>
 
-        <div class="card-dark" style="{{ 'border-color: var(--accent-green);' if current_plan == 'Pro' else '' }}">
-            <div class="plan-title">Plan Profesional</div>
-            <div class="plan-price">$1.50 <span>/ minero / mes</span></div>
+        <!-- PLAN GRATIS -->
+        <div class="card-plan {{ 'active-plan' if current_plan == 'Gratis' else '' }}">
+            <div class="plan-top-bar">
+                <div class="plan-title">🌱 Plan Gratis (Hobby)</div>
+                {% if current_plan == 'Gratis' %}
+                    <span class="plan-badge activo">● Plan Actual</span>
+                {% endif %}
+            </div>
+
+            <div class="plan-price" style="color:var(--text-main);" translate="no">$0.00 <span>/ mes</span></div>
+
             <ul class="plan-features">
-                <li>Mineros ilimitados.</li>
-                <li>Acciones Masivas (Bulk Actions).</li>
-                <li>Perfiles de Overclock Automático.</li>
-                <li>Exportación CSV e Historial 30 días.</li>
+                <li><span class="feat-check">✔</span> Monitoreo de hasta 3 mineros.</li>
+                <li><span class="feat-check">✔</span> Retención de historial de 24 horas.</li>
+                <li><span class="feat-check">✔</span> Diagnóstico básico de temperaturas y pools.</li>
             </ul>
-            <button class="btn-upgrade" onclick="alert('Contacte al administrador para activar este plan.')">Mejorar a Pro</button>
+
+            {% if current_plan == 'Gratis' %}
+                <button class="btn-plan-action btn-plan-disabled" disabled>● Tu Plan Actual</button>
+            {% else %}
+                <button class="btn-plan-action btn-plan-disabled" disabled>Plan Básico</button>
+            {% endif %}
         </div>
     </div>
 
-    <div class="card-dark wallet-card">
-        <h2 style="margin-top:0;">Mi Billetera (Saldo)</h2>
-        <div class="wallet-balance">${{ "%.2f"|format(saldo) }} <span style="font-size:0.4em; color:var(--text-main);">USDT</span></div>
-        <p style="color: var(--text-muted); font-size: 0.9em;">El saldo se debita automáticamente cada mes según tu cantidad de mineros y tu plan activo.</p>
-        
-        <div class="deposit-options">
-            <h3 style="margin-bottom: 0;">⬇️ Agregar Fondos</h3>
-            <div class="deposit-box">
-                <div style="font-weight: bold; color: #FCD535; margin-bottom: 10px;">🟡 Binance Pay (Recomendado)</div>
-                <div class="qr-box">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=235489710" alt="QR Binance" class="qr-img">
-                    <div>
-                        <div style="font-size: 0.85em; color: var(--text-muted);">Escanea el código QR desde tu app de Binance o copia el Pay ID.</div>
-                        <div class="copy-text" onclick="navigator.clipboard.writeText('235489710'); alert('Pay ID Copiado')">
-                            <span>ID: 235489710</span> <span>📋</span>
-                        </div>
+    <!-- COLUMNA DERECHA: BILLETERA Y DEPÓSITOS -->
+    <div class="wallet-card">
+        <div class="wallet-top">
+            <div class="wallet-label">💰 Saldo Disponible en Billetera</div>
+            <div class="wallet-balance" translate="no">${{ "%.2f"|format(saldo) }} <span>USDT</span></div>
+            <p style="color: var(--text-muted); font-size: 0.82em; margin: 0;">
+                El saldo se debita automáticamente cada mes según tu cantidad de mineros activos.
+            </p>
+        </div>
+
+        <!-- Selector de Red de Pago -->
+        <div class="deposit-tabs">
+            <button type="button" id="tab-binance" class="btn-dep-tab active binance" onclick="cambiarTabDeposito('binance')">
+                🟡 Binance Pay
+            </button>
+            <button type="button" id="tab-trc20" class="btn-dep-tab trc20" onclick="cambiarTabDeposito('trc20')">
+                🟢 USDT (TRC20)
+            </button>
+        </div>
+
+        <!-- PANEL BINANCE PAY -->
+        <div id="panel-binance" class="deposit-panel active">
+            <div style="font-weight:bold; color:#FCD535; font-size:0.9em; margin-bottom:12px;">
+                🟡 Binance Pay — 0% Comisiones (Recomendado)
+            </div>
+            <div class="qr-flex">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=235489710" alt="QR Binance Pay" class="qr-img-pro">
+                <div style="flex:1;">
+                    <div style="font-size:0.82em; color:var(--text-muted); line-height:1.4;">
+                        Abre tu app de Binance, toca <b>Pay → Enviar</b> y escanea el QR o copia el Pay ID:
+                    </div>
+                    <div class="copy-box-pro" onclick="copiarDatoPago('235489710', 'Binance Pay ID', this)" translate="no">
+                        <span>ID: 235489710</span>
+                        <span>📋</span>
                     </div>
                 </div>
             </div>
-            <div class="deposit-box">
-                <div style="font-weight: bold; color: var(--accent-green); margin-bottom: 10px;">🟢 Red Tron (TRC20) USDT</div>
-                <div style="font-size: 0.85em; color: var(--text-muted);">Envía USDT únicamente por la red TRC20 a esta dirección:</div>
-                <div class="copy-text" onclick="navigator.clipboard.writeText('TWMxYQ3...Ejemplo...TUgMvR'); alert('Dirección Copiada')">
-                    <span>TWMxYQ3...Ejemplo...TUgMvR</span> <span>📋</span>
+        </div>
+
+        <!-- PANEL USDT TRC20 -->
+        <div id="panel-trc20" class="deposit-panel">
+            <div style="font-weight:bold; color:#00e676; font-size:0.9em; margin-bottom:12px;">
+                🟢 Red Tron (TRC20) — Solo USDT
+            </div>
+            <div class="qr-flex">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=TWMxYQ3...Ejemplo...TUgMvR" alt="QR USDT TRC20" class="qr-img-pro">
+                <div style="flex:1;">
+                    <div style="font-size:0.82em; color:var(--text-muted); line-height:1.4;">
+                        Envía únicamente <b>USDT por la red TRC20</b>. Enviar otro token o red puede causar pérdida de fondos:
+                    </div>
+                    <div class="copy-box-pro" onclick="copiarDatoPago('TWMxYQ3...Ejemplo...TUgMvR', 'Dirección TRC20', this)" translate="no">
+                        <span>TWMxYQ3...Ejemplo...TUgMvR</span>
+                        <span>📋</span>
+                    </div>
                 </div>
             </div>
-            <div style="font-size: 0.8em; color: var(--text-sub); text-align: center; margin-top: 10px;">
-                Una vez realizado el pago, el saldo se acreditará en tu cuenta en un lapso de 5 a 15 minutos.
-            </div>
         </div>
+
+        <div class="wallet-notice">
+            ⏱️ <b>Acreditación rápida:</b> Una vez realizada la transferencia, el saldo se refleja en tu cuenta en un lapso de <b>5 a 15 minutos</b>.
+        </div>
+
+        <button type="button" class="btn-plan-action btn-plan-primary" style="margin-top: 14px;" onclick="mostrarToastBilling('Envía tu comprobante al administrador con tu usuario para acreditar al instante.')">
+            📩 Ya realicé mi pago (Notificar)
+        </button>
     </div>
 </div>
+
+<script>
+    const SALDO_ACTUAL = {{ saldo | default(0.0) | float }};
+    const PRECIO_POR_MINERO = 1.50;
+
+    function mostrarToastBilling(msg) {
+        const t = document.getElementById('billingToast');
+        if (!t) return;
+        t.innerHTML = '✅ ' + msg;
+        t.style.display = 'flex';
+        setTimeout(() => { t.style.display = 'none'; }, 3500);
+    }
+
+    function cambiarTabDeposito(tipo) {
+        document.querySelectorAll('.btn-dep-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.deposit-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('tab-' + tipo).classList.add('active');
+        document.getElementById('panel-' + tipo).classList.add('active');
+    }
+
+    function copiarDatoPago(texto, etiqueta, el) {
+        navigator.clipboard.writeText(texto).then(() => {
+            mostrarToastBilling(etiqueta + ' copiado al portapapeles.');
+            const icono = el.querySelector('span:last-child');
+            if (icono) {
+                icono.innerText = '✅';
+                setTimeout(() => { icono.innerText = '📋'; }, 1400);
+            }
+        });
+    }
+
+    function actualizarSimuladorPlan() {
+        const cant = parseInt(document.getElementById('calcSlider').value || '10');
+        const costo = cant * PRECIO_POR_MINERO;
+        document.getElementById('calcMinerosTxt').innerText = cant + (cant === 1 ? ' minero' : ' mineros');
+        document.getElementById('calcCostoTxt').innerText = '$' + costo.toFixed(2) + ' USDT';
+
+        const elCob = document.getElementById('calcCoberturaTxt');
+        if (SALDO_ACTUAL >= costo) {
+            const meses = Math.floor(SALDO_ACTUAL / costo);
+            elCob.style.color = '#00e676';
+            elCob.innerText = `Saldo cubre ~${meses} mes${meses === 1 ? '' : 'es'}`;
+        } else {
+            const falta = (costo - SALDO_ACTUAL).toFixed(2);
+            elCob.style.color = '#ffb300';
+            elCob.innerText = `Faltan $${falta} USDT`;
+        }
+    }
+
+    function solicitarUpgradePro() {
+        const cant = parseInt(document.getElementById('calcSlider').value || '10');
+        const costo = (cant * PRECIO_POR_MINERO).toFixed(2);
+        mostrarToastBilling(`Solicitud Pro (${cant} mineros · $${costo}/mes). Recarga tu billetera o contacta al administrador.`);
+    }
+
+    window.addEventListener('load', actualizarSimuladorPlan);
+</script>
 {% endblock %}
