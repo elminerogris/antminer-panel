@@ -141,11 +141,11 @@
         font-size: 1.05em;
     }
 
-    /* Píldoras de plantillas rápidas (Presets) y Auto-Sync */
+    /* Píldoras de plantillas rápidas (Presets) */
     .pools-presets-bar {
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
         flex-wrap: wrap;
     }
     .preset-label {
@@ -153,18 +153,21 @@
         font-size: 0.92em;
         margin-right: 2px;
         cursor: help;
+        flex-shrink: 0;
     }
     .preset-pill {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border-color);
         color: var(--text-muted);
-        padding: 3px 9px;
+        padding: 4px 10px;
         border-radius: 14px;
         font-size: 0.90em;
         font-weight: bold;
         cursor: pointer;
         transition: all 0.18s ease;
         user-select: none;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
     .preset-pill:hover {
         color: #fff;
@@ -222,7 +225,7 @@
     .pools-table-pro tbody tr { transition: background 0.15s ease; }
     .pools-table-pro tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 
-    /* Prioridad interactiva con indicador visual de ayuda */
+    /* Prioridad interactiva */
     .pool-rank-wrap {
         display: inline-flex;
         flex-direction: column;
@@ -389,8 +392,18 @@
         font-family: monospace;
     }
 
-    /* Diseño Responsivo: Tarjetas limpias y perfectamente alineadas en Celular */
+    /* Diseño Responsivo: Tarjetas limpias, anti-zoom iOS y barra deslizable en Celular */
     @media (max-width: 768px) {
+        .pools-presets-bar {
+            width: 100%;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .input-pool-pro {
+            font-size: 16px !important; /* Evita el zoom automático de Safari en iPhone */
+        }
         .pools-table-pro thead { display: none; }
         .pools-table-pro,
         .pools-table-pro tbody,
@@ -477,8 +490,8 @@
     <!-- Mini Guía Rápida para Principiantes -->
     <div id="poolsBeginnerGuide" class="pools-beginner-guide">
         <b>👋 Guía rápida en 3 pasos:</b><br>
-        1. Toca una <b>Plantilla BTC</b> abajo (ej. <i>ViaBTC</i> o <i>F2Pool</i>) para rellenar automáticamente los 3 servidores oficiales.<br>
-        2. En la fila <b>1 (Primario)</b>, escribe tu <b>Worker</b> con el formato <code>TuUsuario.001</code> (se copiará solo a las filas 2 y 3).<br>
+        1. Toca una <b>Plantilla BTC</b> abajo (ej. <i>ViaBTC</i>, <i>NiceHash</i> o <i>F2Pool</i>) para rellenar automáticamente los 3 servidores oficiales.<br>
+        2. En la fila <b>1 (Primario)</b>, escribe tu <b>Worker</b> con el formato <code>TuUsuario.001</code> (en NiceHash usa tu <code>MiningAddress.001</code>).<br>
         3. Presiona <b>💾 Guardar Todos los Pools</b>. Si el servidor #1 falla alguna vez, tu minero cambiará automáticamente al #2 o #3 sin dejar de minar.
     </div>
 
@@ -502,9 +515,10 @@
         <div class="pools-presets-bar">
             <span class="preset-label" data-pool-tt="presets_info">⚡ Plantillas:</span>
             <span class="preset-pill" onclick="aplicarPlantillaPool('viabtc')">ViaBTC</span>
+            <span class="preset-pill" onclick="aplicarPlantillaPool('nicehash')">NiceHash</span>
             <span class="preset-pill" onclick="aplicarPlantillaPool('f2pool')">F2Pool</span>
-            <span class="preset-pill" onclick="aplicarPlantillaPool('braiins')">Braiins</span>
             <span class="preset-pill" onclick="aplicarPlantillaPool('antpool')">AntPool</span>
+            <span class="preset-pill" onclick="aplicarPlantillaPool('braiins')">Braiins</span>
             <span class="preset-pill" onclick="aplicarPlantillaPool('luxor')">Luxor</span>
         </div>
     </div>
@@ -749,7 +763,7 @@
         },
         'presets_info': {
             titulo: '⚡ Plantillas Oficiales Anti-Caídas',
-            desc: 'Rellena con 1 clic los 3 puertos oficiales recomendados del pool (3333 principal, 443 respaldo y 25 emergencia) sin borrar tu Worker.',
+            desc: 'Rellena con 1 clic los 3 servidores/puertos oficiales del pool elegido (ViaBTC, NiceHash, F2Pool, AntPool, Braiins o Luxor) sin borrar tu Worker.',
             rango: 'Elige tu pool y luego presiona Guardar'
         },
         'col_prio': {
@@ -765,7 +779,7 @@
         'col_worker': {
             titulo: '👷 Nombre del Worker (TuCuenta.Minero)',
             desc: 'Es el nombre de tu cuenta en el pool seguido de un punto y un número para identificar esta máquina (ej: MiCuenta.001).',
-            rango: 'Formato estándar: UsuarioPool.NumeroMaquina'
+            rango: 'En NiceHash usa tu MiningAddress.001'
         },
         'col_pass': {
             titulo: '🔑 Contraseña del Pool',
@@ -795,20 +809,25 @@
             'stratum+tcp://btc.viabtc.io:443',
             'stratum+tcp://btc.viabtc.io:25'
         ],
+        'nicehash': [
+            'stratum+tcp://sha256asicboost.auto.nicehash.com:9200',
+            'stratum+tcp://sha256asicboost.usa-east.nicehash.com:3368',
+            'stratum+tcp://sha256asicboost.eu-west.nicehash.com:3368'
+        ],
         'f2pool': [
             'stratum+tcp://btc.f2pool.com:1314',
             'stratum+tcp://btc.f2pool.com:3333',
             'stratum+tcp://btc.f2pool.com:25'
         ],
-        'braiins': [
-            'stratum+tcp://stratum.braiins.com:3333',
-            'stratum+tcp://us-east.stratum.braiins.com:3333',
-            'stratum+tcp://stratum.braiins.com:443'
-        ],
         'antpool': [
             'stratum+tcp://ss.antpool.com:3333',
             'stratum+tcp://ss.antpool.com:443',
             'stratum+tcp://ss.antpool.com:25'
+        ],
+        'braiins': [
+            'stratum+tcp://stratum.braiins.com:3333',
+            'stratum+tcp://us-east.stratum.braiins.com:3333',
+            'stratum+tcp://stratum.braiins.com:443'
         ],
         'luxor': [
             'stratum+tcp://btc.global.luxor.tech:700',
