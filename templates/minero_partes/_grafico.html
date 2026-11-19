@@ -309,44 +309,44 @@
 </style>
 
 <!-- Portal flotante único en la ventana para que NUNCA se corte con el menú izquierdo ni en celular -->
-<div id="smartFloatingTooltip" class="smart-floating-tooltip" translate="no"></div>
+<div id="smartFloatingTooltip" class="smart-floating-tooltip"></div>
 
 <div class="card" data-no-live-patch="1" style="position: relative; overflow: visible; z-index: 20; padding-left: 16px; padding-right: 16px;">
     <div class="panel-title" style="margin-bottom: 10px;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
-            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none; cursor:help;" translate="no"></span>
+            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none; cursor:help;"></span>
             <span id="lodResolutionBadge" class="lod-badge" translate="no">⚡ 3m</span>
         </div>
         <div class="chart-filters">
-            <button class="btn-reset-zoom" id="btnResetZoom" data-filter-key="reset_zoom" onclick="resetearZoomGrafico()">🔍 100%</button>
-            <button class="btn-filter" id="btn-6h" data-filter-key="6h" onclick="updateChart('6h')">6 h</button>
-            <button class="btn-filter active" id="btn-24h" data-filter-key="24h" onclick="updateChart('24h')">24 h</button>
-            <button class="btn-filter" id="btn-7d" data-filter-key="7d" onclick="updateChart('7d')">7 d</button>
-            <button class="btn-filter" id="btn-30d" data-filter-key="30d" onclick="updateChart('30d')">30 d</button>
+            <button class="btn-reset-zoom" id="btnResetZoom" data-filter-key="reset_zoom" onclick="resetearZoomGrafico()">🔍 <span translate="no">100%</span></button>
+            <button class="btn-filter" id="btn-6h" data-filter-key="6h" onclick="updateChart('6h')" translate="no">6 h</button>
+            <button class="btn-filter active" id="btn-24h" data-filter-key="24h" onclick="updateChart('24h')" translate="no">24 h</button>
+            <button class="btn-filter" id="btn-7d" data-filter-key="7d" onclick="updateChart('7d')" translate="no">7 d</button>
+            <button class="btn-filter" id="btn-30d" data-filter-key="30d" onclick="updateChart('30d')" translate="no">30 d</button>
             <button class="btn-filter" id="btnCamara" data-filter-key="camara" onclick="descargarCapturaGrafico()">📷</button>
         </div>
     </div>
 
     <!-- Barra de métricas dinámicas con soporte táctil y mouse anti-recorte -->
-    <div class="chart-stats-bar" translate="no">
+    <div class="chart-stats-bar">
         <div class="stat-item" data-stat-key="prom">
-            Prom: <b id="statProm" style="color:var(--accent-blue);">0.00</b>
+            Prom: <b id="statProm" style="color:var(--accent-blue);" translate="no">0.00</b>
         </div>
         <div class="stat-item" data-stat-key="max">
-            Máx: <b id="statMax">0.00</b>
+            Máx: <b id="statMax" translate="no">0.00</b>
         </div>
         <div class="stat-item" data-stat-key="min">
-            Mín: <b id="statMin">0.00</b>
+            Mín: <b id="statMin" translate="no">0.00</b>
         </div>
         <div class="stat-item" data-stat-key="temp_pico">
-            Temp Máx/Mín: <b id="statTempPico" style="color:#ffb300;">0°/0°C</b>
+            Temp Máx/Mín: <b id="statTempPico" style="color:#ffb300;" translate="no">0°/0°C</b>
         </div>
         <div class="stat-item" data-stat-key="clima_hoy">
-            Clima Granja / Sensación: <b id="statClimaHoy" style="color:#38bdf8;">--° / --°C</b>
+            Clima Granja / Sensación: <b id="statClimaHoy" style="color:#38bdf8;" translate="no">--° / --°C</b>
         </div>
         <div class="stat-item" data-stat-key="uptime">
-            Estabilidad: <b id="statUptime" style="color:var(--accent-green);">100%</b>
+            Estabilidad: <b id="statUptime" style="color:var(--accent-green);" translate="no">100%</b>
         </div>
     </div>
 
@@ -356,12 +356,13 @@
     <!-- Gráfico estirado con soporte de Zoom con 2 dedos y Doble Toque para resetear -->
     <div id="chartWrapper" class="chart-edge-container">
         <canvas id="hashrateChart"></canvas>
-        <div id="customChartTooltip" class="custom-chart-tooltip" translate="no"></div>
+        <div id="customChartTooltip" class="custom-chart-tooltip"></div>
     </div>
 </div>
 
 <script>
     const unidadMinero = "{{ ultimo.unidad }}";
+    const algoritmoMinero = "{{ ultimo.algoritmo | default('SHA-256') }}";
     const rawFechas = {{ graf_fechas_raw | safe }};
     const rawHr = {{ graf_hashrate | safe }};
     const rawTemp = {{ graf_temps | safe }};
@@ -399,21 +400,31 @@
     let ultimoAnchoTooltipCache = 235;
     let rectCanvasCache = null;
 
+    function obtenerCorteTempActual() {
+        const inp = document.getElementById('corteTempInput');
+        const sw = document.getElementById('corteActivoSwitch');
+        const val = inp ? parseInt(inp.value, 10) : {{ ultimo.corte_temp | default(85) | int }};
+        const temp = (!isNaN(val) && val >= 60 && val <= 105) ? val : 85;
+        const activo = sw ? !!sw.checked : {{ 'true' if ultimo.corte_activo else 'false' }};
+        return { temp, activo };
+    }
+
     // Genera dinámicamente las descripciones profesionales con la ciudad/país actualizados del cliente
     function obtenerInfoTooltipCurva(id, isHidden) {
         const estadoTxt = isHidden ? 'Toque el botón para mostrar curva' : 'Toque el botón para ocultar curva';
         const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD} (${GRANJA_PAIS})` : GRANJA_CIUDAD;
+        const corteCfg = obtenerCorteTempActual();
         const dic = {
             'hr': {
                 titulo: '⚡ Hashrate (Potencia de Minado)',
-                desc: 'Velocidad de cálculo SHA-256 entregada por las placas hash del equipo. Incluye línea guía punteada del promedio operativo.',
+                desc: `Velocidad de cálculo (${algoritmoMinero}) entregada por las placas hash del equipo. Incluye línea guía punteada del promedio operativo.`,
                 rango: 'Estable: línea continua cerca del promedio',
                 accion: estadoTxt
             },
             'tmax': {
                 titulo: '🌡️ Temperatura Máxima (Chips ASIC)',
                 desc: 'Punto más caliente en los sensores internos de los chips. Define la protección térmica y la vida útil del silicio.',
-                rango: '🟢 < 75°C Normal | 🟠 75-84°C Alerta | 🔴 ≥ 85°C Crítico',
+                rango: `🟢 < 75°C Normal | 🟠 75-${corteCfg.temp - 1}°C Alerta | 🔴 Corte: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`,
                 accion: estadoTxt
             },
             'tmin': {
@@ -453,6 +464,7 @@
     function obtenerInfoTooltipStat(key) {
         const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD}, ${GRANJA_PAIS}` : GRANJA_CIUDAD;
         const txtDias = diasRealesGrabados >= 1 ? ` (${diasRealesGrabados}d grabados en BD)` : (horasRealesGrabadas > 0 ? ` (${horasRealesGrabadas}h grabadas en BD)` : '');
+        const corteCfg = obtenerCorteTempActual();
         const dicStats = {
             'prom': {
                 titulo: '⚡ Hashrate Promedio Operativo',
@@ -472,7 +484,7 @@
             'temp_pico': {
                 titulo: '🌡️ Rango Térmico (Máx Chip / Mín PCB)',
                 desc: 'Temperatura más alta alcanzada por los chips ASIC y más baja en placa PCB en el periodo.',
-                rango: 'Óptimo: 60°C a 75°C | Apagado seguridad: ≥ 85°C'
+                rango: `Óptimo: 60°C a 75°C | Corte Térmico: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`
             },
             'clima_hoy': {
                 titulo: '🌤️ Meteorología Exterior de la Granja',
@@ -543,7 +555,7 @@
         let html = `<div class="pill-tt-header"><span>${infoObj.titulo}</span></div>`;
         html += `<div>${infoObj.desc}</div>`;
         if (infoObj.rango) {
-            html += `<div class="pill-tt-range">${infoObj.rango}</div>`;
+            html += `<div class="pill-tt-range" translate="no">${infoObj.rango}</div>`;
         }
         if (infoObj.accion) {
             html += `<div class="pill-tt-action">💡 ${infoObj.accion}</div>`;
@@ -953,7 +965,7 @@
                     const ultimoClima = cacheClimaExterior[cacheClimaExterior.length - 1];
                     const tMostrar = tempRealHoy !== null ? tempRealHoy : ultimoClima.temp;
                     const sMostrar = sensRealHoy !== null ? sensRealHoy : ultimoClima.sensacion;
-                    badge.innerHTML = `🏭 Granja (${ciudad}): <b>${tMostrar}°C</b> <span style="color:#c084fc;">(Sensación ${sMostrar}°C)</span>`;
+                    badge.innerHTML = `🏭 Granja (<span translate="no">${ciudad}</span>): <b translate="no">${tMostrar}°C</b> <span style="color:#c084fc;" translate="no">(Sensación ${sMostrar}°C)</span>`;
                     badge.style.display = 'inline-block';
                     document.getElementById('statClimaHoy').innerHTML = `${tMostrar}°C / <span style="color:#c084fc;">${sMostrar}°C</span>`;
                 }
@@ -990,7 +1002,7 @@
         };
     }
 
-    // Plugin profesional 1: Sombreado de zona sin historial previo (en cualquier rango 6h/24h/7d/30d) + Línea Promedio + Cuadrícula 1m + Números internos
+    // Plugin profesional 1: Sombreado de zona sin historial previo + Línea Promedio + Línea Corte Térmico + Cuadrícula 1m
     const pluginNumerosDentroGrafico = {
         id: 'numerosDentroGrafico',
         beforeDatasetsDraw: function(chart) {
@@ -999,7 +1011,6 @@
             if (!xAxis || !ca) return;
             const ctx = chart.ctx;
 
-            // 1. Sombreado sutil de "Zona sin historial previo" cuando la máquina lleva menos tiempo conectada que la ventana elegida (ej: 3h en vista 6h, o 2.2d en vista 30d)
             if (primerTsGrabadoGlobal > xAxis.min + 180) {
                 const xInicioDatos = Math.min(ca.right, Math.max(ca.left, xAxis.getPixelForValue(primerTsGrabadoGlobal)));
                 if (xInicioDatos > ca.left + 12) {
@@ -1010,7 +1021,6 @@
                 }
             }
 
-            // 2. Cuadrícula vertical tenue por minuto al hacer zoom cercano
             const span = xAxis.max - xAxis.min;
             if (span <= 5400) {
                 ctx.save();
@@ -1040,7 +1050,6 @@
 
             ctx.save();
 
-            // Indicador divisorio de inicio real de registros cuando el minero lleva menos tiempo que el botón seleccionado (ej: 3h en 6h, o 2.2d en 7d/30d)
             if (xAxis && primerTsGrabadoGlobal > xAxis.min + 180) {
                 const xInicioDatos = xAxis.getPixelForValue(primerTsGrabadoGlobal);
                 if (xInicioDatos > ca.left + 45 && xInicioDatos < ca.right - 15) {
@@ -1070,7 +1079,6 @@
                 }
             }
 
-            // Línea guía horizontal tenue del Hashrate Promedio Operativo (estilo Foreman/Grafana)
             if (yAxis && promedioHrOperativoGlobal > 0 && visibilidadCurvas['hr'] !== false) {
                 const yProm = yAxis.getPixelForValue(promedioHrOperativoGlobal);
                 if (yProm >= ca.top + 8 && yProm <= ca.bottom - 8) {
@@ -1085,16 +1093,17 @@
                 }
             }
 
-            // Línea horizontal tenue de límite térmico crítico (85°C)
+            // Línea horizontal de Corte Térmico configurada por el usuario
             if (y1Axis) {
-                const y85 = y1Axis.getPixelForValue(85);
-                if (y85 >= ca.top && y85 <= ca.bottom) {
+                const corteCfg = obtenerCorteTempActual();
+                const yCorte = y1Axis.getPixelForValue(corteCfg.temp);
+                if (yCorte >= ca.top && yCorte <= ca.bottom) {
                     ctx.beginPath();
                     ctx.setLineDash([4, 6]);
-                    ctx.moveTo(ca.left, y85);
-                    ctx.lineTo(ca.right, y85);
-                    ctx.lineWidth = 1;
-                    ctx.strokeStyle = 'rgba(255, 82, 82, 0.25)';
+                    ctx.moveTo(ca.left, yCorte);
+                    ctx.lineTo(ca.right, yCorte);
+                    ctx.lineWidth = corteCfg.activo ? 1.3 : 1;
+                    ctx.strokeStyle = corteCfg.activo ? 'rgba(255, 82, 82, 0.55)' : 'rgba(255, 82, 82, 0.22)';
                     ctx.stroke();
                     ctx.setLineDash([]);
                 }
@@ -1104,7 +1113,6 @@
             ctx.lineWidth = 3;
             ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
 
-            // Eje Izquierdo (Hashrate) adentro
             if (yAxis && yAxis.ticks) {
                 ctx.textAlign = 'left';
                 ctx.fillStyle = 'rgba(165, 167, 181, 0.88)';
@@ -1119,7 +1127,6 @@
                 });
             }
 
-            // Eje Derecho (Temperatura) adentro
             if (y1Axis && y1Axis.ticks) {
                 ctx.textAlign = 'right';
                 ctx.fillStyle = 'rgba(255, 179, 0, 0.85)';
@@ -1174,7 +1181,6 @@
         }
     }
 
-    // Tooltip posicionado DEBAJO de la línea 0 (chartArea.bottom + 2) para NO tapar jamás las curvas en celular ni en PC
     function renderizarTooltipExterno(context) {
         const { chart, tooltip } = context;
         const ttEl = document.getElementById('customChartTooltip');
@@ -1205,55 +1211,56 @@
                 let refAmb = meta.amb || meta.clima;
                 let diff = meta.temp - refAmb;
                 let signo = diff >= 0 ? '+' : '';
-                deltaT = `<span style="color:#a5a7b5; font-size:0.88em;">ΔT ${signo}${diff}°C</span>`;
+                deltaT = `<span style="color:#a5a7b5; font-size:0.88em;" translate="no">ΔT ${signo}${diff}°C</span>`;
             }
-            let html = `<div class="tt-title"><span>${titulo}</span>${deltaT}</div>`;
+            let html = `<div class="tt-title"><span translate="no">${titulo}</span>${deltaT}</div>`;
 
             if (meta.estadoPunto === 'SIN_MINAR') {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;">0 ${unidadMinero} (Detenido)</b></div>`;
+                html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;" translate="no">0 ${unidadMinero}</b> <span>(Detenido)</span></div>`;
                 if (meta.temp > 0) {
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Max: <b>${meta.temp}°C</b> (Equipo encendido)</div>`;
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b></div>`;
                 }
                 if (meta.clima !== null && meta.clima !== undefined) {
-                    let txtSens = (meta.sensacion !== null && meta.sensacion !== undefined) ? ` (Sensación: <b style="color:#c084fc;">${meta.sensacion}°C</b>)` : '';
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b>${meta.clima}°C</b>${txtSens}</div>`;
+                    let txtSens = (meta.sensacion !== null && meta.sensacion !== undefined) ? ` (Sensación: <b style="color:#c084fc;" translate="no">${meta.sensacion}°C</b>)` : '';
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b translate="no">${meta.clima}°C</b>${txtSens}</div>`;
                 }
-                html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Alerta: Encendido pero sin minar</div>`;
+                html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Encendido sin minar</div>`;
             } else {
                 let diffPromTxt = "";
                 if (promedioHrOperativoGlobal > 0) {
                     let pctVsProm = (((meta.hr - promedioHrOperativoGlobal) / promedioHrOperativoGlobal) * 100).toFixed(1);
                     let signoP = pctVsProm >= 0 ? '+' : '';
                     let colP = pctVsProm >= -3 ? '#00e676' : '#ffb300';
-                    diffPromTxt = ` <span style="color:${colP}; font-size:0.88em;">(${signoP}${pctVsProm}%)</span>`;
+                    diffPromTxt = ` <span style="color:${colP}; font-size:0.88em;" translate="no">(${signoP}${pctVsProm}%)</span>`;
                 }
-                html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b>${meta.hr} ${unidadMinero}</b>${diffPromTxt}</div>`;
+                html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b translate="no">${meta.hr} ${unidadMinero}</b>${diffPromTxt}</div>`;
                 if (meta.temp > 0) {
-                    let estadoT = meta.temp >= 85 ? '🔴 Crítica' : (meta.temp >= 75 ? '🟠 Advertencia' : '🟢 Normal');
-                    let txtMin = (meta.tempMin && meta.tempMin > 0) ? ` / Mín PCB: <b>${meta.tempMin}°C</b>` : '';
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b>${meta.temp}°C</b>${txtMin} (${estadoT})</div>`;
+                    const corteCfg = obtenerCorteTempActual();
+                    let estadoT = meta.temp >= corteCfg.temp ? 'Crítica' : (meta.temp >= 75 ? 'Alerta' : 'Normal');
+                    let txtMin = (meta.tempMin && meta.tempMin > 0) ? ` / Mín PCB: <b translate="no">${meta.tempMin}°C</b>` : '';
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${txtMin} (${estadoT})</div>`;
                     let cads = meta.cadenas || cadenasActuales;
                     if (cads && cads.length > 0) {
                         for (let c = 0; c < cads.length; c++) {
                             if (cads[c].temp_c > 0 || cads[c].temp_p > 0) {
-                                html += `<div class="tt-sub">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
+                                html += `<div class="tt-sub" translate="no">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
                             }
                         }
                     }
                 }
                 if (meta.amb && meta.amb > 0) {
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Temp Entrada/Amb: <b>${meta.amb}°C</b></div>`;
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Entrada/Amb: <b translate="no">${meta.amb}°C</b></div>`;
                 }
                 if (meta.clima !== null && meta.clima !== undefined) {
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja (${GRANJA_CIUDAD}): <b>${meta.clima}°C</b></div>`;
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima (<span translate="no">${GRANJA_CIUDAD}</span>): <b translate="no">${meta.clima}°C</b></div>`;
                 }
                 if (meta.sensacion !== null && meta.sensacion !== undefined) {
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación Térmica: <b>${meta.sensacion}°C</b></div>`;
+                    html += `<div class="tt-row"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b></div>`;
                 }
                 let errNuevos = meta.err || 0;
                 let ds = meta.deltaS || pasoAgrupacionActualSeg;
                 let porSeg = (errNuevos / ds).toFixed(2);
-                html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b>${errNuevos} nuevos</b> (${porSeg} /s)</div>`;
+                html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b translate="no">${errNuevos}</b> (<span translate="no">${porSeg}/s</span>)</div>`;
             }
 
             ttEl.innerHTML = html;
@@ -1264,7 +1271,6 @@
         }
 
         const chartArea = chart.chartArea;
-        // Usar clientWidth real (píxeles CSS) en vez de chart.width (píxeles físicos Retina) para que en celular nunca se desborde
         const wrapperW = chart.canvas.clientWidth || chart.width;
         const ttW = ultimoAnchoTooltipCache;
 
@@ -1274,7 +1280,6 @@
         if (posX < minX) posX = minX;
         if (posX > maxX) posX = maxX;
 
-        // Mover la flechita superior para que apunte exactamente a la línea punteada aunque la caja se frene en los bordes del celular
         let arrowOffsetPx = (ttW / 2) + (tooltip.caretX - posX);
         arrowOffsetPx = Math.max(14, Math.min(ttW - 14, arrowOffsetPx));
         ttEl.style.setProperty('--arrow-x', arrowOffsetPx + 'px');
@@ -1348,7 +1353,6 @@
         document.getElementById('btnResetZoom').style.display = 'none';
     }
 
-    // Exportación de imagen PNG con fondo oscuro sólido (evita capturas transparentes ilegibles)
     function descargarCapturaGrafico() {
         if (!chartInstance) return;
         const srcCanvas = chartInstance.canvas;
@@ -1411,7 +1415,6 @@
             }
         }, {passive: true});
 
-        // Throttling por requestAnimationFrame en touchmove para que el deslizamiento en móvil vaya a 60 FPS sin tirones
         canvas.addEventListener('touchmove', function(e) {
             if (e.touches && e.touches.length === 1) {
                 const tx = e.touches[0].clientX;
@@ -1442,7 +1445,6 @@
         return mins.length > 0 ? Math.min(...mins) : null;
     }
 
-    // Paso 1: Extrae los puntos base limpios de 1 minuto y calcula estadísticas exactas del periodo
     function recolectarBasePorMinuto(minTs) {
         let porMinuto = new Map();
 
@@ -1517,7 +1519,6 @@
         return { crudos, valoresHr, valoresTempMax, valoresTempMin, totalRegistros: crudos.length };
     }
 
-    // Paso 2: Agrupa los puntos según el paso dinámico LOD e inserta un punto ancla invisible en limiteIzqForzado para que 6h, 24h, 7d y 30d SIEMPRE respeten el espacio vacío previo
     function construirSeriesConPaso(crudosBase, pasoSeg, limiteIzqForzado, limiteDerForzado) {
         let agrupados = [];
 
@@ -1570,7 +1571,6 @@
         mapaMetaPuntos = {};
         ultimoTsTooltipRenderizado = null;
 
-        // Punto ancla invisible en el borde izquierdo de la ventana (obligatorio para que una máquina de 3h ocupe solo la mitad en 6h, o 2.2d ocupen solo su fracción en 7d/30d)
         if (limiteIzqForzado && (agrupados.length === 0 || agrupados[0].ts > limiteIzqForzado + 60)) {
             ptsH.push({ x: limiteIzqForzado, y: null });
             ptsT.push({ x: limiteIzqForzado, y: null });
@@ -1654,7 +1654,6 @@
             ocultarSmartTooltip();
         }
 
-        // Conservar el zoom actual y detectar si el usuario estaba viendo el borde derecho (tiempo real)
         let estabaConZoom = false;
         let estabaEnBordeDerecho = true;
         let prevMinZoom = 0;
@@ -1670,7 +1669,6 @@
             }
         }
         
-        // Determinar el primer y último timestamp con datos reales válidos en toda la BD enviada
         let maxTsValido = 0;
         let minTsValidoGlobal = Infinity;
         for (let i = 0; i < rawFechas.length; i++) {
@@ -1703,7 +1701,6 @@
         const base = recolectarBasePorMinuto(minTs);
         crudosPorMinutoCache = base.crudos;
 
-        // TODOS los rangos (6h, 24h, 7d, 30d) respetan estrictamente su ventana calendario completa [minTs, ultimoTsEnRango].
         const primerTsEnRango = crudosPorMinutoCache.length > 0 ? crudosPorMinutoCache[0].ts : minTs;
         const ultimoTsEnRango = crudosPorMinutoCache.length > 0 ? crudosPorMinutoCache[crudosPorMinutoCache.length - 1].ts : nowTs;
 
@@ -1712,7 +1709,6 @@
         limiteDatosIzqGlobal = limiteIzq;
         limiteDatosDerGlobal = limiteDer;
 
-        // Calcular paso LOD inicial acorde al rango completo o al zoom activo
         pasoAgrupacionActualSeg = calcularPasoAgrupacionLOD(estabaConZoom ? (prevMaxZoom - prevMinZoom) : segundosRango);
         actualizarBadgeLOD(pasoAgrupacionActualSeg);
 
@@ -1722,7 +1718,6 @@
         let valoresTempMax = base.valoresTempMax;
         let valoresTempMin = base.valoresTempMin;
 
-        // Filtrar lecturas de rampa de encendido (< 60% de la media) para que Mín y Prom reflejen la operación real
         let avgBruto = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length) : 0;
         let valoresHrOperativos = valoresHr.filter(v => v >= avgBruto * 0.60);
         if (valoresHrOperativos.length === 0) valoresHrOperativos = valoresHr;
@@ -1736,7 +1731,6 @@
         let maxT = valoresTempMax.length > 0 ? Math.max(...valoresTempMax) : 0;
         let minT = valoresTempMin.length > 0 ? Math.min(...valoresTempMin) : 0;
 
-        // Estabilidad (Uptime): minutos activos minando dividido entre los minutos transcurridos desde que empezó a registrarse en esta ventana
         let spanActivoDesdeInicioMin = Math.max(1, Math.round((limiteDer - Math.max(minTs, primerTsEnRango)) / 60) + 1);
         let pctEstab = valoresHr.length > 0 ? Math.min(100, Math.round((valoresHr.length / spanActivoDesdeInicioMin) * 100)) : 100;
 
@@ -1822,7 +1816,6 @@
             chartInstance.options.scales.y2.max = topeEjeErrores;
             if (estabaConZoom) {
                 if (estabaEnBordeDerecho) {
-                    // Auto-seguimiento en tiempo real: desliza la ventana de zoom hacia el nuevo minuto
                     const spanZoom = prevMaxZoom - prevMinZoom;
                     fijarEscalaExactaEnChart(chartInstance, Math.max(limiteIzq, limiteDer - spanZoom), limiteDer);
                 } else {
@@ -1905,7 +1898,6 @@
                                 const span = end - start;
                                 if (span <= 0) return;
 
-                                // Calcular cuántas etiquetas de hora caben según el ancho real de la pantalla (PC grande = más horas, celular = menos horas)
                                 const anchoPx = axis.width || (window.innerWidth - 40);
                                 const pxPorEtiqueta = (rangoActual === '7d' || rangoActual === '30d' || span > 86400) ? 72 : 64;
                                 const maxTicks = Math.max(4, Math.min(18, Math.floor(anchoPx / pxPorEtiqueta)));
@@ -1914,10 +1906,8 @@
                                 const margenBordeSeg = pasoSeg * 0.42;
                                 const nuevosTicks = [];
 
-                                // 1. Clavar SIEMPRE la primera etiqueta exactamente donde comienza el gráfico (borde izquierdo)
                                 nuevosTicks.push({ value: start });
 
-                                // 2. Agregar intervalos intermedios adaptados al tamaño de la pantalla (evitando chocar con el inicio y el fin)
                                 const primerTickIntermedio = Math.ceil(start / pasoSeg) * pasoSeg;
                                 for (let t = primerTickIntermedio; t <= end; t += pasoSeg) {
                                     if ((t - start) >= margenBordeSeg && (end - t) >= margenBordeSeg) {
@@ -1925,7 +1915,6 @@
                                     }
                                 }
 
-                                // 3. Clavar SIEMPRE la última etiqueta exactamente donde termina el gráfico (borde derecho)
                                 nuevosTicks.push({ value: end });
 
                                 axis.ticks = nuevosTicks;
@@ -1960,7 +1949,6 @@
         }
     }
 
-    // Puente 100% JSON en vivo: inyecta los últimos minutos sin parpadear ni atrasarse
     async function actualizarGraficoEnVivoJSON() {
         try {
             const r = await fetch('/api/live/minero/{{ ip }}', { cache: 'no-store' });
