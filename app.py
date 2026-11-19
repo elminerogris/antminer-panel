@@ -157,7 +157,7 @@ def init_db():
         con = psycopg2.connect(DB_URL, connect_timeout=8)
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'giovanni', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia')''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'giovanni', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia', corte_activo INTEGER DEFAULT 0, corte_temp INTEGER DEFAULT 85)''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 1)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
@@ -195,6 +195,8 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS farm_lon REAL DEFAULT -63.1821",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS farm_city TEXT DEFAULT 'Santa Cruz de la Sierra'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS farm_country TEXT DEFAULT 'Bolivia'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS corte_activo INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS corte_temp INTEGER DEFAULT 85",
             "ALTER TABLE cola_comandos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
             "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
             "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS errores INTEGER DEFAULT 0",
@@ -374,6 +376,21 @@ def api_guardar_tarifa():
     cur.execute("UPDATE usuarios SET tarifa_kwh=%s WHERE username=%s", (tarifa, usr_actual))
     return jsonify({"status": "ok", "tarifa_kwh": tarifa})
 
+# --- API: Guardar Corte Térmico individual por minero (OFF por defecto) ---
+@app.route('/api/guardar_corte_termico', methods=['POST'])
+@login_required
+def api_guardar_corte_termico():
+    usr_actual = session.get('usuario', 'giovanni')
+    data = request.get_json(silent=True) or {}
+    ip = str(data.get('ip') or '').strip()
+    activo = 1 if a_int_seguro(data.get('activo'), 0) == 1 else 0
+    temp = max(60, min(105, a_int_seguro(data.get('temp'), 85)))
+    if not ip:
+        return jsonify({"status": "error"}), 400
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    cur.execute("UPDATE mineros_activos SET corte_activo=%s, corte_temp=%s WHERE owner=%s AND ip=%s", (activo, temp, usr_actual, ip))
+    return jsonify({"status": "ok", "activo": activo, "temp": temp})
+
 # --- VISTA: / y /resumen -> templates/resumen.html ---
 @app.route('/')
 @app.route('/resumen')
@@ -542,6 +559,9 @@ def detalle_minero(ip):
     farm_city = str(m.get('farm_city') or 'Santa Cruz de la Sierra')
     farm_country = str(m.get('farm_country') or 'Bolivia')
 
+    corte_activo = bool(a_int_seguro(m.get('corte_activo'), 0) == 1)
+    corte_temp = a_int_seguro(m.get('corte_temp'), 85)
+
     raw_uptime = str(m.get('uptime') or "")
     uptime_val = raw_uptime if (raw_uptime and raw_uptime != "0h 0m") else "En línea"
     if offline: uptime_val = "Desconectado"
@@ -596,6 +616,7 @@ def detalle_minero(ip):
         'hashrate': hr_val, 'hashrate_30m': hr_30m_val, 'unidad': unidad_hr, 'unidad_efi': unidad_efi,
         'algoritmo': algoritmo_val, 'moneda': moneda_val,
         'temp_max': t_val, 'temp_amb': t_amb_val,
+        'corte_activo': corte_activo, 'corte_temp': corte_temp,
         'errores': a_int_seguro(m.get('errores'), 0), 'consumo': f"{round(c_val/1000, 2)} kW",
         'fans': fans, 'uptime': uptime_val,
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0,
@@ -1036,10 +1057,10 @@ def recibir_datos():
     plan_owner = (u_cfg.get('plan') or 'Gratis') if u_cfg else 'Gratis'
     es_pro = es_cuenta_pro(owner_user, plan_owner)
 
-    ips_existentes = set()
-    if not es_pro:
-        cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s", (owner_user,))
-        ips_existentes = {row['ip'] for row in cur.fetchall()}
+    cur.execute("SELECT ip, corte_activo, corte_temp FROM mineros_activos WHERE owner=%s", (owner_user,))
+    rows_exist = cur.fetchall()
+    ips_existentes = {row['ip'] for row in rows_exist}
+    cortes_dict = {row['ip']: (a_int_seguro(row.get('corte_activo'), 0), a_int_seguro(row.get('corte_temp'), 85)) for row in rows_exist}
 
     if owner_user == 'giovanni':
         cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND (owner='giovanni' OR owner IS NULL)")
@@ -1126,15 +1147,17 @@ def recibir_datos():
 
             guardados_ok += 1
 
+            corte_on_m, corte_temp_m = cortes_dict.get(ip_m, (0, 85))
+            if corte_on_m == 1 and temp_m >= corte_temp_m and hr_m > 0:
+                if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'CORTE_TERMICO', 1800):
+                    ordenes.append({"ip": ip_m, "comando": "sleep"})
+                    msg_em = f"🛡️ CORTE TÉRMICO: {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {corte_temp_m}°C). Puesto en REPOSO (Sleep)."
+                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'CORTE_TERMICO', %s, %s)", (owner_user, ip_m, msg_em, ahora))
+                    if alertas_on:
+                        enviar_telegram(tg_tok, tg_cid, f"🛡️ <b>CORTE TÉRMICO ACTIVADO</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b> (Límite: {corte_temp_m}°C)\nAcción: Puesto en <b>REPOSO (Sleep)</b>.")
+
             if alertas_on:
-                umbral_emergencia = max(85, umbral_t + 5)
-                if temp_m >= umbral_emergencia and hr_m > 0:
-                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP', 1800):
-                        ordenes.append({"ip": ip_m, "comando": "sleep"})
-                        msg_em = f"🛡️ AUTO-PROTECCIÓN: {mod_m} ({ip_m}) alcanzó {temp_m}°C. Puesto en REPOSO (Sleep) automáticamente."
-                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_em, ahora))
-                        enviar_telegram(tg_tok, tg_cid, f"🛡️ <b>AUTO-PROTECCIÓN ACTIVADA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura crítica: <b>{temp_m}°C</b>\nAcción: Puesto en <b>REPOSO (Sleep)</b> para proteger las placas hash.")
-                elif temp_m >= umbral_t:
+                if temp_m >= umbral_t:
                     if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP', 1800):
                         msg_al = f"El equipo {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
                         cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_al, ahora))
