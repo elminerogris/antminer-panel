@@ -73,6 +73,8 @@
             font-variant-numeric: tabular-nums;
         }
 
+        button, a, select { touch-action: manipulation; }
+
         .skiptranslate iframe { display: none !important; }
         body { top: 0px !important; }
         #google_translate_element { display: none; }
@@ -312,7 +314,13 @@
             overflow-y: auto;
             overflow-x: hidden;
             overflow-anchor: none;
+            overscroll-behavior-y: contain;
             -webkit-overflow-scrolling: touch;
+        }
+
+        /* Aislamiento de layout en tarjetas para cero saltos en móvil */
+        .kpi-card-pro, .boards-card-pro, .pools-card-pro {
+            contain: layout style;
         }
 
         .btn-menu {
@@ -562,7 +570,7 @@
         }
 
         // ============================================================
-        // MOTOR EN VIVO QUIRÚRGICO + PUENTE PARA GRÁFICOS EN TIEMPO REAL
+        // MOTOR EN VIVO QUIRÚRGICO CON AISLAMIENTO TOTAL DE GRÁFICOS
         // ============================================================
         const LIVE_INTERVAL_SEC = 20;
         const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan', '/admin'];
@@ -596,6 +604,10 @@
             if (nodoActual.nodeType === 1) {
                 const tag = nodoActual.tagName;
                 if (['SCRIPT', 'STYLE', 'CANVAS', 'INPUT', 'TEXTAREA', 'SELECT', 'SVG', 'IFRAME', 'BUTTON'].includes(tag)) return;
+                if (nodoActual.hasAttribute('data-no-live-patch')) return;
+                // PROTECCIÓN CRÍTICA: Jamás tocar la tarjeta del gráfico ni sus barras/badges calculados por JS
+                if (nodoActual.classList && nodoActual.classList.contains('card') && nodoActual.querySelector('canvas')) return;
+                if (nodoActual.classList && (nodoActual.classList.contains('chart-stats-bar') || nodoActual.classList.contains('chart-CustomLegends'))) return;
             }
 
             if (nodoActual.nodeType === 3 && nodoNuevo.nodeType === 3) {
@@ -611,13 +623,11 @@
 
             if (nodoActual.nodeType === 1) {
                 if (nodoActual.classList) {
-                    // Actualizar solo clases de estado (Alive/Dead, Temp OK/Warn/Crit)
                     if (nodoActual.classList.contains('pool-status-pill') || nodoActual.classList.contains('boards-temp-pill')) {
                         if (nodoActual.className !== nodoNuevo.className) {
                             nodoActual.className = nodoNuevo.className;
                         }
                     }
-                    // Actualizar solo ancho en barras de progreso explícitas
                     if (
                         nodoActual.classList.contains('mini-bar-fill') ||
                         nodoActual.classList.contains('shares-bar-acc') ||
@@ -659,7 +669,6 @@
                     const scrollAntes = actualMain.scrollTop;
                     requestAnimationFrame(() => {
                         parcharSoloTextos(actualMain, nuevoMain);
-                        // Notificar a gráficos (como _grafico.html) para que se actualicen en vivo
                         window.dispatchEvent(new CustomEvent('emg:live-update', { detail: { doc } }));
                         if (Math.abs(actualMain.scrollTop - scrollAntes) > 0) {
                             actualMain.scrollTop = scrollAntes;
