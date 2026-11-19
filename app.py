@@ -1149,5 +1149,55 @@ def recibir_datos():
 
     return jsonify({"status": "ok", "guardados": guardados_ok, "omitidos_por_plan": omitidos_por_plan, "ordenes": ordenes}), 200
 
+@app.route('/api/live/minero/<ip>')
+@login_required
+def api_live_minero(ip):
+    usr_actual = session.get('usuario', 'giovanni')
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT hashrate, temp_max, temp_amb, errores, cadenas FROM mineros_activos WHERE owner=%s AND ip=%s", (usr_actual, ip))
+    m = cur.fetchone()
+    if not m:
+        return jsonify({"ok": False}), 404
+
+    cur.execute("""
+        SELECT fecha, hashrate, temp_max, temp_amb, errores, cadenas
+        FROM (
+            SELECT id, fecha, hashrate, temp_max, temp_amb, errores, cadenas
+            FROM historial_nube
+            WHERE owner=%s AND ip=%s
+            ORDER BY id DESC
+            LIMIT 6
+        ) sub
+        ORDER BY id ASC
+    """, (usr_actual, ip))
+    rows = cur.fetchall()
+
+    puntos = []
+    prev_err = None
+    for h in rows:
+        try:
+            ts = calendar.timegm(datetime.strptime(h['fecha'], "%Y-%m-%d %H:%M:%S").timetuple())
+        except:
+            continue
+        tot_err = a_int_seguro(h.get('errores'), 0)
+        diff_err = 0 if prev_err is None else max(0, tot_err - prev_err if tot_err >= prev_err else tot_err)
+        prev_err = tot_err
+        try:
+            cads = json.loads(h['cadenas']) if h.get('cadenas') else []
+        except:
+            cads = []
+        t_amb = a_int_seguro(h.get('temp_amb'), 0)
+        puntos.append({
+            "ts": ts,
+            "hr": a_float_seguro(h.get('hashrate'), 0.0),
+            "temp": a_int_seguro(h.get('temp_max'), 0),
+            "amb": t_amb if t_amb > 0 else None,
+            "err": diff_err,
+            "cadenas": cads
+        })
+
+    return jsonify({"ok": True, "puntos": puntos})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
