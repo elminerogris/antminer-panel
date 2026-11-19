@@ -254,7 +254,7 @@
         user-select: none;
     }
 
-    /* Tooltip flotante en línea 0 debajo del gráfico (NO tapa las curvas en celular ni en PC) */
+    /* Tooltip flotante en línea 0 debajo del gráfico (por encima del botón flotante ↑) */
     .custom-chart-tooltip {
         --arrow-x: 50%;
         position: absolute;
@@ -268,7 +268,7 @@
         font-family: sans-serif;
         font-size: 0.78em;
         line-height: 1.45;
-        z-index: 1500;
+        z-index: 2200;
         white-space: nowrap;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
         transform: translate3d(-50%, 0, 0);
@@ -311,7 +311,7 @@
 <!-- Portal flotante único en la ventana para que NUNCA se corte con el menú izquierdo ni en celular -->
 <div id="smartFloatingTooltip" class="smart-floating-tooltip" translate="no"></div>
 
-<div class="card" style="position: relative; overflow: visible; z-index: 20; padding-left: 16px; padding-right: 16px;">
+<div class="card" data-no-live-patch="1" style="position: relative; overflow: visible; z-index: 20; padding-left: 16px; padding-right: 16px;">
     <div class="panel-title" style="margin-bottom: 10px;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
@@ -752,8 +752,8 @@
         chart.options.scales.x.min = minX;
         chart.options.scales.x.max = maxX;
         if (chart.options.plugins && chart.options.plugins.zoom && chart.options.plugins.zoom.limits) {
-            chart.options.plugins.zoom.limits.x.min = minX;
-            chart.options.plugins.zoom.limits.x.max = maxX;
+            chart.options.plugins.zoom.limits.x.min = limiteDatosIzqGlobal;
+            chart.options.plugins.zoom.limits.x.max = limiteDatosDerGlobal;
         }
         if (chart.scales && chart.scales.x) {
             chart.scales.x.options.min = minX;
@@ -762,8 +762,8 @@
             chart.scales.x.max = maxX;
         }
         if (chart.$zoom && chart.$zoom._originalScaleLimits && chart.$zoom._originalScaleLimits.x) {
-            chart.$zoom._originalScaleLimits.x.min = minX;
-            chart.$zoom._originalScaleLimits.x.max = maxX;
+            chart.$zoom._originalScaleLimits.x.min = limiteDatosIzqGlobal;
+            chart.$zoom._originalScaleLimits.x.max = limiteDatosDerGlobal;
         }
     }
 
@@ -797,7 +797,7 @@
         chart.scales.x.options.max = curMax;
     }
 
-    // Actualiza tanto el radio de los nodos como la resolución LOD (30m/15m -> 3m -> 2m -> 1m) al hacer zoom
+    // Actualiza la resolución LOD (30m/15m -> 3m -> 2m -> 1m) manteniendo SIEMPRE líneas limpias sin puntos
     function actualizarPuntosYResolucionSegunZoom(chart) {
         if (!chart || !chart.scales || !chart.scales.x) return;
         forzarLimitesSinEspacioVacio(chart);
@@ -821,14 +821,10 @@
             chart.options.scales.y2.max = Math.max(20, g.maxErrPeriodo * 4);
         }
 
-        let radio = 0;
-        if (span <= 1800) radio = 3.0;       // Zoom muy cercano (<= 30 min): nodos de 1m claros
-        else if (span <= 5400) radio = 2.0;  // Zoom cercano (<= 90 min): nodos de 1m medianos
-        else if (span <= 18000) radio = 1.4; // Zoom intermedio (<= 5 horas): nodos de 2m sutiles
-
+        // Mantener siempre líneas limpias (pointRadius = 0); el punto solo aparece al pasar el dedo/mouse
         chart.data.datasets.forEach(ds => {
             if (ds.type === 'line') {
-                ds.pointRadius = radio;
+                ds.pointRadius = 0;
             }
         });
     }
@@ -1658,8 +1654,9 @@
             ocultarSmartTooltip();
         }
 
-        // Conservar el zoom actual si se trata de una actualización silenciosa en vivo
+        // Conservar el zoom actual y detectar si el usuario estaba viendo el borde derecho (tiempo real)
         let estabaConZoom = false;
+        let estabaEnBordeDerecho = true;
         let prevMinZoom = 0;
         let prevMaxZoom = 0;
         if (esActualizacionEnVivo && chartInstance && chartInstance.scales && chartInstance.scales.x) {
@@ -1669,6 +1666,7 @@
                 estabaConZoom = true;
                 prevMinZoom = chartInstance.scales.x.min;
                 prevMaxZoom = chartInstance.scales.x.max;
+                estabaEnBordeDerecho = (limiteDatosDerGlobal - prevMaxZoom) <= 180;
             }
         }
         
@@ -1823,7 +1821,13 @@
             chartInstance.data.datasets = datasetsList;
             chartInstance.options.scales.y2.max = topeEjeErrores;
             if (estabaConZoom) {
-                fijarEscalaExactaEnChart(chartInstance, prevMinZoom, prevMaxZoom);
+                if (estabaEnBordeDerecho) {
+                    // Auto-seguimiento en tiempo real: desliza la ventana de zoom hacia el nuevo minuto
+                    const spanZoom = prevMaxZoom - prevMinZoom;
+                    fijarEscalaExactaEnChart(chartInstance, Math.max(limiteIzq, limiteDer - spanZoom), limiteDer);
+                } else {
+                    fijarEscalaExactaEnChart(chartInstance, prevMinZoom, prevMaxZoom);
+                }
             } else {
                 fijarEscalaExactaEnChart(chartInstance, limiteIzq, limiteDer);
             }
