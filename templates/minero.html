@@ -10,7 +10,6 @@
         box-sizing: border-box;
     }
 
-    /* Separador sutil entre secciones si algún módulo requiere margen extra */
     .miner-section-wrap {
         width: 100%;
         box-sizing: border-box;
@@ -57,7 +56,7 @@
         {% include "minero_partes/_grafico.html" %}
     </div>
 
-    <!-- 3. Placas de Hash y Telemetría de Chips (Ancho completo para lucir las 7 columnas) -->
+    <!-- 3. Placas de Hash y Telemetría de Chips -->
     <div class="miner-section-wrap">
         {% include "minero_partes/_placas_hash.html" %}
     </div>
@@ -79,13 +78,22 @@
 </div>
 
 <!-- Botón flotante para volver arriba -->
-<button type="button" id="btnScrollTopPro" class="btn-scroll-top-pro" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Volver arriba">↑</button>
+<button type="button" id="btnScrollTopPro" class="btn-scroll-top-pro" onclick="volverArribaSuave()" title="Volver arriba">↑</button>
 
 <script>
-    window.addEventListener('scroll', function() {
+    function volverArribaSuave() {
+        const area = document.getElementById('mainScrollArea');
+        if (area) area.scrollTo({ top: 0, behavior: 'smooth' });
+        else window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+        const area = document.getElementById('mainScrollArea');
         const btnTop = document.getElementById('btnScrollTopPro');
-        if (!btnTop) return;
-        btnTop.style.display = (window.scrollY > 420) ? 'inline-flex' : 'none';
-    }, { passive: true });
+        if (!area || !btnTop) return;
+        area.addEventListener('scroll', function() {
+            btnTop.style.display = (area.scrollTop > 420) ? 'inline-flex' : 'none';
+        }, { passive: true });
+    });
 </script>
 {% endblock %}
