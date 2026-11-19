@@ -10,13 +10,19 @@ MAX_WORKERS = 15
 MINER_USER = "root"
 MINER_PASS = "root"
 
-ips_conocidas = [
+# Tus IPs fijas base siempre protegidas
+IPS_BASE = [
     f"{SUBNET}.11",
     f"{SUBNET}.12",
     f"{SUBNET}.13",
     f"{SUBNET}.14",
     f"{SUBNET}.15"
 ]
+ips_conocidas = list(IPS_BASE)
+
+# Caché en memoria para no saturar el servidor HTTP de los mineros cada 30s
+cache_info_estatica = {}
+ultimo_escaneo_auto = 0
 
 def peticion_4028(ip, comando, parametro=""):
     try:
@@ -27,7 +33,7 @@ def peticion_4028(ip, comando, parametro=""):
         if parametro: cmd_dict["parameter"] = parametro
         s.sendall(json.dumps(cmd_dict).encode('utf-8'))
         resp = b""
-        s.settimeout(1.5)
+        s.settimeout(1.8)
         while True:
             try:
                 datos = s.recv(8192)
@@ -46,30 +52,19 @@ def peticion_4028(ip, comando, parametro=""):
     except:
         return None
 
-def peticion_http(ip, endpoint, metodo="GET", payload=None):
+def peticion_http(ip, endpoint, metodo="GET", payload=None, timeout_sec=2.5):
     url = f"http://{ip}/cgi-bin/{endpoint}"
     auth = HTTPDigestAuth(MINER_USER, MINER_PASS)
     headers = {'User-Agent': 'Mozilla/5.0', 'Referer': f'http://{ip}/'}
     try:
         if metodo == "GET":
-            r = requests.get(url, auth=auth, headers=headers, timeout=5)
+            r = requests.get(url, auth=auth, headers=headers, timeout=timeout_sec)
         elif metodo == "POST_EMPTY":
-            r = requests.post(url, auth=auth, headers=headers, data="", timeout=5)
+            r = requests.post(url, auth=auth, headers=headers, data="", timeout=timeout_sec)
         elif metodo == "POST_FORM":
-            r = requests.post(url, auth=auth, headers=headers, data=payload, timeout=5)
+            r = requests.post(url, auth=auth, headers=headers, data=payload, timeout=timeout_sec)
         else:
-            r = requests.post(url, auth=auth, headers=headers, json=payload, timeout=5)
-        if r.status_code == 200: return r.text
-    except: pass
-    try:
-        if metodo == "GET":
-            r = requests.get(url, headers=headers, timeout=5)
-        elif metodo == "POST_EMPTY":
-            r = requests.post(url, headers=headers, data="", timeout=5)
-        elif metodo == "POST_FORM":
-            r = requests.post(url, headers=headers, data=payload, timeout=5)
-        else:
-            r = requests.post(url, headers=headers, json=payload, timeout=5)
+            r = requests.post(url, auth=auth, headers=headers, json=payload, timeout=timeout_sec)
         if r.status_code == 200: return r.text
     except: pass
     return None
@@ -77,10 +72,8 @@ def peticion_http(ip, endpoint, metodo="GET", payload=None):
 def formatear_de_fabrica(ip):
     print(f"[{ip}] Ejecutando formateo de fábrica (Factory Reset)...")
     for ep in ["reset_conf.cgi", "factory_reset.cgi", "reset.cgi"]:
-        res_post = peticion_http(ip, ep, "POST_EMPTY")
-        res_get = peticion_http(ip, ep, "GET")
-        if res_post is not None or res_get is not None:
-            print(f"[{ip}] Comando de fábrica aceptado en {ep}.")
+        peticion_http(ip, ep, "POST_EMPTY", timeout_sec=4.0)
+        peticion_http(ip, ep, "GET", timeout_sec=4.0)
 
     payload_default = {
         "pools": [
@@ -92,13 +85,12 @@ def formatear_de_fabrica(ip):
         "bitmain-fan-ctrl": False,
         "bitmain-fan-pwm": "100"
     }
-    peticion_http(ip, "set_miner_conf.cgi", "POST", payload_default)
+    peticion_http(ip, "set_miner_conf.cgi", "POST", payload_default, timeout_sec=4.0)
     peticion_4028(ip, "removepool", "0")
     peticion_4028(ip, "removepool", "1")
     peticion_4028(ip, "removepool", "2")
-    
-    time.sleep(5)
-    peticion_http(ip, "reboot.cgi", "GET")
+    time.sleep(3)
+    peticion_http(ip, "reboot.cgi", "GET", timeout_sec=4.0)
 
 def extraer_numeros(val):
     if val is None or val == "": return []
@@ -178,6 +170,7 @@ def normalizar_hashrate_universal(valor_bruto, unidad_origen, modelo_str):
     return round(val / 1000.0, 2), "TH/s"
 
 def extraer_todo(ip):
+    global cache_info_estatica
     stats = peticion_4028(ip, "stats")
     summary = peticion_4028(ip, "summary")
     
@@ -190,62 +183,80 @@ def extraer_todo(ip):
     if summary and 'SUMMARY' in summary and len(summary['SUMMARY']) > 0:
         st_sum = summary['SUMMARY'][0]
 
+    # Fallback HTTP si el minero está en modo Sleep o tiene el puerto 4028 cerrado pero su web responde
+    if not st and not st_sum:
+        raw_st_cgi = peticion_http(ip, "stats.cgi", timeout_sec=1.8)
+        if raw_st_cgi:
+            try:
+                j_st = json.loads(raw_st_cgi)
+                if isinstance(j_st, dict):
+                    st = j_st.get('STATS', [j_st])[0] if isinstance(j_st.get('STATS'), list) and j_st.get('STATS') else j_st
+            except: pass
+        if not st:
+            raw_sum_cgi = peticion_http(ip, "summary.cgi", timeout_sec=1.8)
+            if raw_sum_cgi:
+                try:
+                    j_sum = json.loads(raw_sum_cgi)
+                    if isinstance(j_sum, dict):
+                        st_sum = j_sum.get('SUMMARY', [j_sum])[0] if isinstance(j_sum.get('SUMMARY'), list) and j_sum.get('SUMMARY') else j_sum
+                except: pass
+
     if not st and not st_sum:
         return None
 
-    # 1. DETECCIÓN DE MODELO Y SISTEMA INTELIGENTE (Braiins OS+, Vnish, LuxOS, S23, Hyd, Z15 Pro)
+    # 1. DETECCIÓN DE MODELO Y CACHÉ DE RED (Evita lentitud HTTP)
     modelo_str = str(buscar_llave(st, ["Type", "Miner", "Model", "minertype", "Description"], buscar_llave(st_sum, ["Type", "Miner", "Description"], ""))).strip()
-    sistema_inteligente = ""
+    
+    ahora_ts = time.time()
+    estatica = cache_info_estatica.get(ip, {})
+    if not estatica or (ahora_ts - estatica.get('ts', 0) > 600):
+        mac = estatica.get('mac', '-')
+        fw = estatica.get('fw', 'Desconocido')
+        hostname = estatica.get('hostname', f"Antminer{ip.split('.')[-1]}")
+        net_proto = estatica.get('net_proto', 'Static')
+        netmask = estatica.get('netmask', '255.255.255.0')
+        gateway = estatica.get('gateway', f"{SUBNET}.1")
+        dns = estatica.get('dns', '8.8.8.8')
 
-    ver_info = peticion_4028(ip, "version")
-    v_data = ver_info['VERSION'][0] if ver_info and 'VERSION' in ver_info and len(ver_info['VERSION']) > 0 else {}
-    if not modelo_str or modelo_str.lower() in ["antminer", "bmminer", "cgminer"]:
-        m_ver = str(buscar_llave(v_data, ['Type', 'Model', 'Miner', 'Description'], '')).strip()
-        if m_ver: modelo_str = m_ver
+        for k in ['Firmware Version', 'CompileTime', 'version', 'CGMiner', 'SubVersion']:
+            val = str(buscar_llave(st, [k], '')).strip()
+            if val and val.lower() != "release" and len(val) > 1:
+                fw = val; break
 
-    raw_str_all = (str(v_data) + " " + str(st_sum)).lower()
-    if "bos" in raw_str_all or "braiins" in raw_str_all: sistema_inteligente = "Braiins OS+"
-    elif "vnish" in raw_str_all or "anthill" in raw_str_all: sistema_inteligente = "Vnish AutoTune"
-    elif "luxos" in raw_str_all or "luxminer" in raw_str_all: sistema_inteligente = "LuxOS Smart"
-
-    mac = "-"
-    fw = "Desconocido"
-    hostname = f"Antminer{ip.split('.')[-1]}"
-    net_proto = "Static"
-    netmask = "255.255.255.0"
-    gateway = f"{SUBNET}.1"
-    dns = "8.8.8.8"
-
-    for ep_net in ["get_system_info.cgi", "get_network_info.cgi"]:
-        info_http = peticion_http(ip, ep_net)
+        info_http = peticion_http(ip, "get_system_info.cgi", timeout_sec=1.5)
         if info_http:
             try:
                 j_net = json.loads(info_http)
                 if not modelo_str or modelo_str.lower() == "antminer":
                     m_http = str(buscar_llave(j_net, ['minertype', 'model', 'type'], '')).strip()
                     if m_http: modelo_str = m_http
-                if mac == "-": mac = str(buscar_llave(j_net, ['macaddr', 'mac'], '-'))
+                mac = str(buscar_llave(j_net, ['macaddr', 'mac'], mac))
                 fw_cand = str(buscar_llave(j_net, ['system_filesystem_version', 'file_system_version', 'firmware_type', 'CompileTime'], '')).strip()
                 if fw_cand and fw_cand.lower() != "release": fw = fw_cand
-                h_cand = str(buscar_llave(j_net, ['hostname', 'ipHost'], '')).strip()
-                if h_cand: hostname = h_cand
+                hostname = str(buscar_llave(j_net, ['hostname', 'ipHost'], hostname)).strip()
                 p_cand = str(buscar_llave(j_net, ['nettype', 'conf_nettype', 'ipPro'], '')).strip()
                 if p_cand: net_proto = "DHCP" if "dhcp" in p_cand.lower() or p_cand == "1" else "Static"
-                m_cand = str(buscar_llave(j_net, ['netmask', 'conf_netmask', 'ipSub'], '')).strip()
-                if m_cand: netmask = m_cand
-                g_cand = str(buscar_llave(j_net, ['gateway', 'conf_gateway', 'ipGateway'], '')).strip()
-                if g_cand: gateway = g_cand
-                d_cand = str(buscar_llave(j_net, ['dnsservers', 'conf_dnsservers', 'ipDns'], '')).strip()
-                if d_cand: dns = d_cand
+                netmask = str(buscar_llave(j_net, ['netmask', 'conf_netmask', 'ipSub'], netmask)).strip()
+                gateway = str(buscar_llave(j_net, ['gateway', 'conf_gateway', 'ipGateway'], gateway)).strip()
+                dns = str(buscar_llave(j_net, ['dnsservers', 'conf_dnsservers', 'ipDns'], dns)).strip()
             except: pass
 
-    if fw == "Desconocido":
-        for k in ['Firmware Version', 'CompileTime', 'version', 'CGMiner', 'SubVersion']:
-            val = str(buscar_llave(st, [k], buscar_llave(v_data, [k], ''))).strip()
-            if val and val.lower() != "release" and len(val) > 1:
-                fw = val; break
-    if sistema_inteligente and sistema_inteligente.lower() not in fw.lower():
-        fw = f"{sistema_inteligente} ({fw})" if fw != "Desconocido" else sistema_inteligente
+        estatica = {
+            'ts': ahora_ts, 'modelo': modelo_str, 'mac': mac, 'fw': fw,
+            'hostname': hostname, 'net_proto': net_proto, 'netmask': netmask, 'gateway': gateway, 'dns': dns
+        }
+        cache_info_estatica[ip] = estatica
+
+    if not modelo_str and estatica.get('modelo'):
+        modelo_str = estatica['modelo']
+
+    mac = estatica.get('mac', '-')
+    fw = estatica.get('fw', 'Desconocido')
+    hostname = estatica.get('hostname', f"Antminer{ip.split('.')[-1]}")
+    net_proto = estatica.get('net_proto', 'Static')
+    netmask = estatica.get('netmask', '255.255.255.0')
+    gateway = estatica.get('gateway', f"{SUBNET}.1")
+    dns = estatica.get('dns', '8.8.8.8')
 
     # 2. EXTRACCIÓN DE HASHRATE Y CLASIFICACIÓN DE MODELO
     raw_5s = buscar_llave(st, ['GHS 5s', 'rate_5s'], buscar_llave(st_sum, ['GHS 5s', 'HS 5s'], None))
@@ -262,11 +273,11 @@ def extraer_todo(ip):
     val_test = a_float(raw_5s)
     if not modelo_str or modelo_str.lower() in ["antminer", "bmminer", "cgminer"]:
         if 400 <= val_test <= 1100: modelo_str = "Antminer Z15 Pro"
-        elif val_test > 380000: modelo_str = "Antminer S23 Hyd"
-        elif val_test > 280000: modelo_str = "Antminer S23"
-        elif val_test > 180000: modelo_str = "Antminer S21+"
-        elif val_test > 130000: modelo_str = "Antminer S19 XP"
-        elif val_test > 100000: modelo_str = "Antminer S19k Pro"
+        elif val_test > 380000 or (u_detectada == "THS" and val_test > 380): modelo_str = "Antminer S23 Hyd"
+        elif val_test > 280000 or (u_detectada == "THS" and val_test > 280): modelo_str = "Antminer S23"
+        elif val_test > 180000 or (u_detectada == "THS" and val_test > 180): modelo_str = "Antminer S21+"
+        elif val_test > 130000 or (u_detectada == "THS" and val_test > 130): modelo_str = "Antminer S19 XP"
+        elif val_test > 100000 or (u_detectada == "THS" and val_test > 100): modelo_str = "Antminer S19k Pro"
         else: modelo_str = "Antminer S19"
 
     hr_5s, unidad_hr = normalizar_hashrate_universal(raw_5s, u_detectada, modelo_str)
@@ -278,28 +289,14 @@ def extraer_todo(ip):
     # 3. CHIPS Y EFICIENCIA SEGÚN MODELO
     chips_por_defecto = 114
     efi = 17.5
-    if "z15" in mod_lower:
-        chips_por_defecto = 3
-        efi = 3.31
-    elif "s23" in mod_lower:
-        chips_por_defecto = 108
-        efi = 11.5 if "hyd" in mod_lower else 13.5
-    elif "s21" in mod_lower:
-        chips_por_defecto = 108
-        efi = 16.0 if "hyd" in mod_lower else 16.5
-    elif "s19k" in mod_lower:
-        chips_por_defecto = 77; efi = 23.0
-    elif "xp" in mod_lower:
-        chips_por_defecto = 110; efi = 20.8 if "hyd" in mod_lower else 21.5
-    elif "s19" in mod_lower:
-        chips_por_defecto = 114; efi = 29.5
+    if "z15" in mod_lower: chips_por_defecto = 3; efi = 3.31
+    elif "s23" in mod_lower: chips_por_defecto = 108; efi = 11.5 if "hyd" in mod_lower else 13.5
+    elif "s21" in mod_lower: chips_por_defecto = 108; efi = 16.0 if "hyd" in mod_lower else 16.5
+    elif "s19k" in mod_lower: chips_por_defecto = 77; efi = 23.0
+    elif "xp" in mod_lower: chips_por_defecto = 110; efi = 20.8 if "hyd" in mod_lower else 21.5
+    elif "s19" in mod_lower: chips_por_defecto = 114; efi = 29.5
 
     c_w = a_float(buscar_llave(st, ['watt', 'power', 'chain_power', 'power_consumption', 'psu_power'], buscar_llave(st_sum, ['Power', 'watt', 'Power Consumption'], 0)))
-    if c_w == 0:
-        tuner = peticion_4028(ip, "tunerstatus")
-        if tuner and 'TUNERSTATUS' in tuner and len(tuner['TUNERSTATUS']) > 0:
-            c_w = a_float(buscar_llave(tuner['TUNERSTATUS'][0], ['ApproximatePowerConsumption', 'Power', 'PowerLimit'], 0))
-
     if c_w < 100 and hr_5s > 0:
         c_w = hr_5s * efi
     elif hr_5s == 0:
@@ -375,13 +372,8 @@ def extraer_todo(ip):
                 if chips_num == 0 and (t_chip > 0 or hr_chain > 0):
                     chips_num = chips_por_defecto
                 cadenas.append({
-                    "id": len(cadenas),
-                    "temp_c": t_chip,
-                    "temp_p": t_pcb,
-                    "chips": chips_num,
-                    "hw": hw_num,
-                    "freq": freq_num,
-                    "hr": hr_chain
+                    "id": len(cadenas), "temp_c": t_chip, "temp_p": t_pcb,
+                    "chips": chips_num, "hw": hw_num, "freq": freq_num, "hr": hr_chain
                 })
                 if t_chip > 0: temps_max.append(t_chip)
 
@@ -412,46 +404,18 @@ def extraer_todo(ip):
                 if chips_num == 0 and (t_chip > 0 or hr_chain > 0):
                     chips_num = chips_por_defecto
                 cadenas.append({
-                    "id": len(cadenas),
-                    "temp_c": t_chip,
-                    "temp_p": t_pcb,
-                    "chips": chips_num,
-                    "hw": hw_num,
-                    "freq": freq_num,
-                    "hr": hr_chain
-                })
-                if t_chip > 0: temps_max.append(t_chip)
-
-    if not cadenas:
-        devs = peticion_4028(ip, "devs")
-        if devs and 'DEVS' in devs and len(devs['DEVS']) > 0:
-            for idx, dv in enumerate(devs['DEVS']):
-                t_chip = a_entero(buscar_llave(dv, ['Temperature', 'Chip Temp', 'temp'], 65))
-                hr_raw = buscar_llave(dv, ['MHS 5s', 'GHS 5s', 'THS 5s'], 0)
-                hr_chain, _ = normalizar_hashrate_universal(hr_raw, "MHS" if "MHS 5s" in dv else u_detectada, modelo_str)
-                hw_num = a_entero(buscar_llave(dv, ['Hardware Errors', 'hw'], 0))
-                freq_num = a_entero(buscar_llave(dv, ['Frequency', 'freq'], freq_global))
-                cadenas.append({
-                    "id": idx,
-                    "temp_c": t_chip,
-                    "temp_p": max(0, t_chip - 5),
-                    "chips": chips_por_defecto,
-                    "hw": hw_num,
-                    "freq": freq_num,
-                    "hr": hr_chain
+                    "id": len(cadenas), "temp_c": t_chip, "temp_p": t_pcb,
+                    "chips": chips_num, "hw": hw_num, "freq": freq_num, "hr": hr_chain
                 })
                 if t_chip > 0: temps_max.append(t_chip)
 
     if not amb_candidates and any(m in mod_lower for m in ["s21", "s23", "hyd"]):
-        for cgi_ep in ["stats.cgi", "summary.cgi"]:
-            raw_cgi = peticion_http(ip, cgi_ep)
-            if raw_cgi:
-                matches = re.findall(r'"(?:ambientemp|ambient_temp|env_temp|water_in_temp)"\s*:\s*([\d"\[\],\s.-]+)', raw_cgi, re.IGNORECASE)
-                for m_str in matches:
-                    val_m = a_entero_min(m_str)
-                    if 10 <= val_m <= 60:
-                        amb_candidates.append(val_m)
-                if amb_candidates: break
+        raw_cgi = peticion_http(ip, "stats.cgi", timeout_sec=1.2)
+        if raw_cgi:
+            matches = re.findall(r'"(?:ambientemp|ambient_temp|env_temp|water_in_temp)"\s*:\s*([\d"\[\],\s.-]+)', raw_cgi, re.IGNORECASE)
+            for m_str in matches:
+                val_m = a_entero_min(m_str)
+                if 10 <= val_m <= 60: amb_candidates.append(val_m)
 
     if not cadenas:
         t_fallback = a_entero(st.get('temp_max', 65))
@@ -487,48 +451,61 @@ def extraer_todo(ip):
         fans_str = "0 / 0 RPM"
 
     return {
-        "ip": ip, "modelo": modelo_str, "unidad": unidad_hr, "hashrate": round(hr_5s, 2), "hashrate_30m": round(hr_30m, 2),
-        "temp": tm, "temp_amb": temp_amb, "consumo": round(c_w, 0), "errores": errores_hw,
-        "fans": fans_str, "mac": mac, "serial": st.get('Hash Board SN', f"SN-{ip.replace('.', '')}"), "firmware": fw, "cadenas": cadenas,
+        "ip": ip, "modelo": modelo_str, "unidad": unidad_hr,
+        "hashrate": round(float(hr_5s), 2), "hashrate_30m": round(float(hr_30m), 2),
+        "temp": int(tm), "temp_amb": int(temp_amb), "consumo": round(float(c_w), 0), "errores": int(errores_hw),
+        "fans": fans_str, "mac": mac, "serial": str(st.get('Hash Board SN', f"SN-{ip.replace('.', '')}")), "firmware": fw, "cadenas": cadenas,
         "uptime": uptime_str,
         "hostname": hostname, "net_proto": net_proto, "netmask": netmask, "gateway": gateway, "dns": dns,
-        "pool1": p1_url, "worker1": p1_usr, "pass1": p1_pas, "status1": p1_st, "acc1": p1_acc, "rej1": p1_rej,
-        "pool2": p2_url, "worker2": p2_usr, "pass2": p2_pas, "status2": p2_st, "acc2": p2_acc, "rej2": p2_rej,
-        "pool3": p3_url, "worker3": p3_usr, "pass3": p3_pas, "status3": p3_st, "acc3": p3_acc, "rej3": p3_rej
+        "pool1": p1_url, "worker1": p1_usr, "pass1": p1_pas, "status1": p1_st, "acc1": int(p1_acc), "rej1": int(p1_rej),
+        "pool2": p2_url, "worker2": p2_usr, "pass2": p2_pas, "status2": p2_st, "acc2": int(p2_acc), "rej2": int(p2_rej),
+        "pool3": p3_url, "worker3": p3_usr, "pass3": p3_pas, "status3": p3_st, "acc3": int(p3_acc), "rej3": int(p3_rej)
     }
 
 def escanear_red():
-    print(f"Escaneando subred {SUBNET}.2 - {SUBNET}.254 en busca de mineros...")
-    encontradas = []
+    print(f"Escaneando subred {SUBNET}.2 - {SUBNET}.254 en busca de todos tus mineros...")
+    encontradas = list(IPS_BASE)
     def probar_4028(ip):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.35); s.connect((ip, 4028)); s.close(); return ip
+            s.settimeout(0.45); s.connect((ip, 4028)); s.close(); return ip
         except: return None
     ips_a_probar = [f"{SUBNET}.{i}" for i in range(2, 255)]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=35) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=40) as executor:
         for res in executor.map(probar_4028, ips_a_probar):
-            if res: encontradas.append(res)
-    print(f"Escaneo finalizado: {len(encontradas)} minero(s) detectado(s).")
+            if res and res not in encontradas: encontradas.append(res)
+    print(f"Escaneo finalizado: {len(encontradas)} IP(s) monitoreadas: {encontradas}")
     return encontradas
+
+def actualizar_config_minero_segura(ip_dest, nuevos_campos):
+    # Lee primero get_miner_conf.cgi para preservar ventiladores, frecuencia y work-mode existentes al guardar pools
+    conf_actual = {}
+    raw_conf = peticion_http(ip_dest, "get_miner_conf.cgi", "GET", timeout_sec=3.0)
+    if raw_conf:
+        try:
+            j_conf = json.loads(raw_conf)
+            if isinstance(j_conf, dict): conf_actual = j_conf
+        except: pass
+    conf_actual.update(nuevos_campos)
+    return peticion_http(ip_dest, "set_miner_conf.cgi", "POST", conf_actual, timeout_sec=4.5)
 
 def cambiar_modo_inteligente(ip_dest, modo):
     if modo == "sleep":
-        peticion_http(ip_dest, "set_miner_conf.cgi", "POST", {"bitmain-work-mode": "1", "miner-mode": 1})
+        actualizar_config_minero_segura(ip_dest, {"bitmain-work-mode": "1", "miner-mode": 1})
         peticion_4028(ip_dest, "pause")
     elif modo == "normal":
-        peticion_http(ip_dest, "set_miner_conf.cgi", "POST", {"bitmain-work-mode": "0", "miner-mode": 0})
+        actualizar_config_minero_segura(ip_dest, {"bitmain-work-mode": "0", "miner-mode": 0})
         peticion_4028(ip_dest, "resume")
 
 def procesar_comandos(ordenes):
     global ips_conocidas
     for cmd in ordenes:
         accion = cmd['comando']; ip_dest = cmd['ip']
+        print(f"--> Ejecutando orden remota [{accion}] en {ip_dest}")
         if accion == "scan":
-            nuevas_ips = escanear_red()
-            if nuevas_ips: ips_conocidas = nuevas_ips
+            ips_conocidas = escanear_red()
         elif accion == "restart":
-            peticion_http(ip_dest, "reboot.cgi")
+            peticion_http(ip_dest, "reboot.cgi", timeout_sec=4.0)
             peticion_4028(ip_dest, "restart")
         elif accion == "reset":
             formatear_de_fabrica(ip_dest)
@@ -537,88 +514,80 @@ def procesar_comandos(ordenes):
         elif accion == "normal":
             cambiar_modo_inteligente(ip_dest, "normal")
         elif accion == "blink":
-            peticion_http(ip_dest, "blink.cgi", "POST", {"blink": "true"})
+            peticion_http(ip_dest, "blink.cgi", "POST", {"blink": "true"}, timeout_sec=3.0)
+        elif accion.startswith("profile|"):
+            modo_str = accion.split('|')[1].lower()
+            val_modo = "2" if "low" in modo_str else "0"
+            actualizar_config_minero_segura(ip_dest, {"bitmain-work-mode": val_modo, "miner-mode": int(val_modo)})
         elif accion.startswith("set_network|"):
             partes = accion.split('|')
             if len(partes) >= 7:
                 host, proto, nip, mask, gw, dns = partes[1], partes[2], partes[3], partes[4], partes[5], partes[6]
-                payload_json = {
-                    "ipHost": host,
-                    "ipPro": int(proto) if proto.isdigit() else 2,
-                    "ipAddress": nip,
-                    "ipSub": mask,
-                    "ipGateway": gw,
-                    "ipDns": dns
-                }
-                payload_form = {
-                    "_ant_conf_hostname": host,
-                    "_ant_conf_nettype": "DHCP" if proto == "1" else "Static",
-                    "_ant_conf_ipaddress": nip,
-                    "_ant_conf_netmask": mask,
-                    "_ant_conf_gateway": gw,
-                    "_ant_conf_dnsservers": dns
-                }
-                peticion_http(ip_dest, "set_network_conf.cgi", "POST", payload_json)
-                peticion_http(ip_dest, "set_network_conf.cgi", "POST_FORM", payload_form)
-                if nip and nip not in ips_conocidas:
-                    ips_conocidas.append(nip)
+                payload_json = {"ipHost": host, "ipPro": int(proto) if proto.isdigit() else 2, "ipAddress": nip, "ipSub": mask, "ipGateway": gw, "ipDns": dns}
+                payload_form = {"_ant_conf_hostname": host, "_ant_conf_nettype": "DHCP" if proto == "1" else "Static", "_ant_conf_ipaddress": nip, "_ant_conf_netmask": mask, "_ant_conf_gateway": gw, "_ant_conf_dnsservers": dns}
+                peticion_http(ip_dest, "set_network_conf.cgi", "POST", payload_json, timeout_sec=4.0)
+                peticion_http(ip_dest, "set_network_conf.cgi", "POST_FORM", payload_form, timeout_sec=4.0)
+                if nip and nip not in ips_conocidas: ips_conocidas.append(nip)
         elif accion.startswith("guardar_pools|"):
             partes = accion.split('|')
             if len(partes) >= 10:
-                payload = {
+                nuevas_pools = {
                     "pools": [
                         {"url": partes[1], "user": partes[2], "pass": partes[3]},
                         {"url": partes[4], "user": partes[5], "pass": partes[6]},
                         {"url": partes[7], "user": partes[8], "pass": partes[9]}
                     ]
                 }
-                peticion_http(ip_dest, "set_miner_conf.cgi", "POST", payload)
-                peticion_4028(ip_dest, "removepool", "0")
-                peticion_4028(ip_dest, "removepool", "1")
-                peticion_4028(ip_dest, "removepool", "2")
-                time.sleep(0.3)
-                if partes[1]: peticion_4028(ip_dest, "addpool", f"{partes[1]},{partes[2]},{partes[3]}")
-                if partes[4]: peticion_4028(ip_dest, "addpool", f"{partes[4]},{partes[5]},{partes[6]}")
-                if partes[7]: peticion_4028(ip_dest, "addpool", f"{partes[7]},{partes[8]},{partes[9]}")
+                actualizar_config_minero_segura(ip_dest, nuevas_pools)
+                payload_form_pools = {
+                    "_ant_pool1url": partes[1], "_ant_pool1user": partes[2], "_ant_pool1pw": partes[3],
+                    "_ant_pool2url": partes[4], "_ant_pool2user": partes[5], "_ant_pool2pw": partes[6],
+                    "_ant_pool3url": partes[7], "_ant_pool3user": partes[8], "_ant_pool3pw": partes[9]
+                }
+                peticion_http(ip_dest, "set_miner_conf.cgi", "POST_FORM", payload_form_pools, timeout_sec=4.0)
         elif accion in ["get_log", "clog", "hlog", "dlog"]:
             endpoint = f"{accion}.cgi" if accion != "get_log" else "log.cgi"
-            log_txt = peticion_http(ip_dest, endpoint)
+            log_txt = peticion_http(ip_dest, endpoint, timeout_sec=4.0)
             if not log_txt and accion == "get_log":
-                log_txt = peticion_http(ip_dest, "get_kernel_log.cgi")
+                log_txt = peticion_http(ip_dest, "get_kernel_log.cgi", timeout_sec=4.0)
             if log_txt: 
-                try: requests.post(URL_LOGS, json={"api_key": API_KEY, "ip": ip_dest, "log": log_txt}, timeout=5)
+                try: requests.post(URL_LOGS, json={"api_key": API_KEY, "ip": ip_dest, "log": log_txt}, timeout=6)
                 except: pass
 
 def recolectar_y_enviar():
-    global ips_conocidas
+    global ips_conocidas, ultimo_escaneo_auto
+    ahora_ts = time.time()
+    # Escanear automáticamente al arrancar y cada 10 minutos para descubrir cualquier Antminer nuevo o reconectado
+    if ahora_ts - ultimo_escaneo_auto > 600:
+        ultimo_escaneo_auto = ahora_ts
+        ips_conocidas = escanear_red()
+
+    # Garantizar que nunca se borren tus 5 IPs base
+    for ip_b in IPS_BASE:
+        if ip_b not in ips_conocidas:
+            ips_conocidas.append(ip_b)
+
     datos = {"api_key": API_KEY, "mineros": []}
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for res in executor.map(extraer_todo, ips_conocidas):
             if res:
-                print(f"[{res['ip']}] {res['modelo']} | {res['hashrate']} {res['unidad']} | {res['fans']} | Acc1: {res['acc1']}")
+                print(f"[{res['ip']}] {res['modelo']} | {res['hashrate']} {res['unidad']} | Temp: {res['temp']}°C | Acc1: {res['acc1']}")
                 datos["mineros"].append(res)
-    
-    # Si en las IPs por defecto no respondió ningún minero, auto-escanear la subred automáticamente
-    if len(datos["mineros"]) == 0:
-        nuevas = escanear_red()
-        if nuevas:
-            ips_conocidas = nuevas
-            with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                for res in executor.map(extraer_todo, ips_conocidas):
-                    if res:
-                        print(f"[{res['ip']}] {res['modelo']} | {res['hashrate']} {res['unidad']} | {res['fans']} | Acc1: {res['acc1']}")
-                        datos["mineros"].append(res)
 
     try:
-        r = requests.post(URL_NUBE, json=datos, timeout=12)
+        r = requests.post(URL_NUBE, json=datos, timeout=15)
         if r.status_code == 200:
-            ordenes = r.json().get("ordenes", [])
+            resp_json = r.json()
+            print(f"[NUBE OK 200] {len(datos['mineros'])} mineros actualizados en línea.")
+            ordenes = resp_json.get("ordenes", [])
             if ordenes: procesar_comandos(ordenes)
+        else:
+            print(f"[ERROR NUBE {r.status_code}] Respuesta: {r.text[:150]}")
     except Exception as e:
-        print(f"Error nube: {e}")
+        print(f"[ERROR CONEXIÓN NUBE]: {e}")
 
 if __name__ == '__main__':
-    print("Iniciando Agente Universal El Minero Gris (S19/S21/S23/Hyd/Z15/SmartOS)...")
+    print("Iniciando Agente Universal El Minero Gris...")
     while True:
         recolectar_y_enviar()
-        time.sleep(30)
+        time.sleep(25)
