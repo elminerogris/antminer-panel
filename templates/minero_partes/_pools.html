@@ -149,6 +149,28 @@
         font-size: 1.05em;
     }
 
+    /* Envoltorio con sombra derecha para Plantillas en celular */
+    .pools-presets-outer {
+        position: relative;
+        max-width: 100%;
+    }
+    .pools-presets-outer::after {
+        content: "";
+        display: none;
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 34px;
+        pointer-events: none;
+        background: linear-gradient(to right, rgba(10, 12, 18, 0) 0%, rgba(13, 15, 23, 0.96) 92%);
+        transition: opacity 0.25s ease;
+        z-index: 3;
+    }
+    .pools-presets-outer.scrolled-end::after {
+        opacity: 0;
+    }
+
     /* Píldoras de plantillas rápidas (Presets) */
     .pools-presets-bar {
         display: flex;
@@ -461,15 +483,24 @@
         .mobile-scroll-hint {
             display: block;
         }
-        .pools-table-outer::after {
+        .pools-table-outer::after,
+        .pools-presets-outer::after {
             display: block;
+        }
+        .pools-presets-outer {
+            width: 100%;
         }
         .pools-presets-bar {
             width: 100%;
             flex-wrap: nowrap;
             overflow-x: auto;
-            padding: 2px 0 4px 0;
+            padding: 2px 24px 4px 0;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
             -webkit-overflow-scrolling: touch;
+        }
+        .pools-presets-bar::-webkit-scrollbar {
+            display: none;
         }
         .btn-guardar-pools-desktop {
             display: none !important;
@@ -547,14 +578,16 @@
             </div>
         </div>
 
-        <div class="pools-presets-bar">
-            <span class="preset-label" data-pool-tt="presets_info">⚡ Plantillas:</span>
-            <span class="preset-pill" onclick="aplicarPlantillaPool('viabtc')">ViaBTC</span>
-            <span class="preset-pill" onclick="aplicarPlantillaPool('nicehash')">NiceHash</span>
-            <span class="preset-pill" onclick="aplicarPlantillaPool('f2pool')">F2Pool</span>
-            <span class="preset-pill" onclick="aplicarPlantillaPool('antpool')">AntPool</span>
-            <span class="preset-pill" onclick="aplicarPlantillaPool('braiins')">Braiins</span>
-            <span class="preset-pill" onclick="aplicarPlantillaPool('luxor')">Luxor</span>
+        <div class="pools-presets-outer" id="poolsPresetsOuter">
+            <div class="pools-presets-bar" id="poolsPresetsBar">
+                <span class="preset-label" data-pool-tt="presets_info">⚡ Plantillas:</span>
+                <span class="preset-pill" onclick="aplicarPlantillaPool('viabtc')">ViaBTC</span>
+                <span class="preset-pill" onclick="aplicarPlantillaPool('nicehash')">NiceHash</span>
+                <span class="preset-pill" onclick="aplicarPlantillaPool('f2pool')">F2Pool</span>
+                <span class="preset-pill" onclick="aplicarPlantillaPool('antpool')">AntPool</span>
+                <span class="preset-pill" onclick="aplicarPlantillaPool('braiins')">Braiins</span>
+                <span class="preset-pill" onclick="aplicarPlantillaPool('luxor')">Luxor</span>
+            </div>
         </div>
     </div>
 
@@ -1011,12 +1044,13 @@
         }
     }
 
-    // Animación Peek (1 sola vez al bajar en celular) + control de sombra derecha y aviso
-    function inicializarPeekYSombraPools() {
-        const scroller = document.getElementById('poolsTableScroll');
-        const outer = document.getElementById('poolsTableOuter');
-        const hint = document.getElementById('poolsMobileHint');
-        if (!scroller || !outer) return;
+    // Helper reutilizable para Animación Peek (1 sola vez al bajar en celular) + Sombra derecha
+    function configurarPeekYSombra(scrollerId, outerId, hintId, distanciaPx, retrasoMs) {
+        const scroller = document.getElementById(scrollerId);
+        const outer = document.getElementById(outerId);
+        const hint = hintId ? document.getElementById(hintId) : null;
+        if (!scroller || !outer || scroller.dataset.peekInit === '1') return;
+        scroller.dataset.peekInit = '1';
 
         let peekEjecutado = false;
         let animandoPeek = false;
@@ -1032,7 +1066,7 @@
                 outer.classList.remove('scrolled-end');
             }
 
-            if (!animandoPeek && scroller.scrollLeft > 22 && hint) {
+            if (hint && !animandoPeek && scroller.scrollLeft > 22) {
                 hint.classList.add('hint-hidden');
             }
         }
@@ -1058,7 +1092,7 @@
                         !peekEjecutado &&
                         !usuarioToco &&
                         window.innerWidth <= 768 &&
-                        (scroller.scrollWidth - scroller.clientWidth) > 40 &&
+                        (scroller.scrollWidth - scroller.clientWidth) > 28 &&
                         scroller.scrollLeft === 0
                     ) {
                         peekEjecutado = true;
@@ -1067,7 +1101,7 @@
                         timerIda = setTimeout(() => {
                             if (usuarioToco) return;
                             animandoPeek = true;
-                            scroller.scrollTo({ left: 58, behavior: 'smooth' });
+                            scroller.scrollTo({ left: distanciaPx, behavior: 'smooth' });
 
                             timerVuelta = setTimeout(() => {
                                 if (!usuarioToco) {
@@ -1075,7 +1109,7 @@
                                 }
                                 setTimeout(() => { animandoPeek = false; }, 450);
                             }, 620);
-                        }, 350);
+                        }, retrasoMs);
                     }
                 });
             }, { threshold: 0.35 });
@@ -1085,7 +1119,8 @@
     }
 
     window.addEventListener('load', function() {
-        inicializarPeekYSombraPools();
+        configurarPeekYSombra('poolsPresetsBar', 'poolsPresetsOuter', null, 52, 260);
+        configurarPeekYSombra('poolsTableScroll', 'poolsTableOuter', 'poolsMobileHint', 58, 420);
 
         document.querySelectorAll('[data-pool-tt]').forEach(el => {
             const key = el.getAttribute('data-pool-tt');
