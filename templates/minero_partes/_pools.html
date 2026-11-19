@@ -209,7 +209,7 @@
         text-align: right;
     }
 
-    /* Contenedor con Scroll Horizontal Suave (Mantiene formato fila en PC y Celular) */
+    /* Contenedor con Scroll Horizontal Suave */
     .pools-table-scroll {
         width: 100%;
         overflow-x: auto;
@@ -219,7 +219,7 @@
     /* Tabla Profesional de Pools */
     .pools-table-pro {
         width: 100%;
-        min-width: 820px;
+        min-width: 980px;
         border-collapse: collapse;
         text-align: left;
     }
@@ -285,7 +285,7 @@
     }
     .pool-rank-wrap:hover .pool-rank-sub { color: #fff; border-bottom-color: #60a5fa; }
 
-    /* Inputs compactos con botón SVG de copiar integrado */
+    /* Inputs con botón SVG de copiar integrado */
     .input-pool-wrap {
         position: relative;
         display: flex;
@@ -296,10 +296,10 @@
         background: rgba(10, 12, 18, 0.55);
         border: 1px solid var(--border-color);
         color: var(--text-main);
-        padding: 7px 32px 7px 9px;
+        padding: 7px 30px 7px 9px;
         width: 100%;
         font-family: monospace;
-        font-size: 13px;
+        font-size: 12.5px;
         outline: none;
         border-radius: 6px;
         box-sizing: border-box;
@@ -307,7 +307,7 @@
     }
     .input-pool-pro.pass-field {
         padding-right: 8px;
-        width: 68px;
+        width: 64px;
         text-align: center;
     }
     .input-pool-pro:focus {
@@ -330,8 +330,8 @@
         border: 1px solid rgba(59, 130, 246, 0.35);
         color: #60a5fa;
         cursor: pointer;
-        width: 24px;
-        height: 24px;
+        width: 22px;
+        height: 22px;
         border-radius: 5px;
         display: inline-flex;
         align-items: center;
@@ -340,8 +340,8 @@
         padding: 0;
     }
     .btn-copy-inline svg {
-        width: 12px;
-        height: 12px;
+        width: 11px;
+        height: 11px;
         stroke: currentColor;
         fill: none;
         stroke-width: 2;
@@ -393,7 +393,7 @@
 
     /* Contenedores alineados de Aceptados y Rechazados */
     .shares-cell-wrap {
-        min-width: 95px;
+        min-width: 90px;
         display: flex;
         flex-direction: column;
     }
@@ -416,7 +416,7 @@
         white-space: nowrap;
     }
 
-    /* Ajustes específicos para Celular: mantiene la tabla horizontal compacta */
+    /* Ajustes específicos para Celular */
     @media (max-width: 768px) {
         .mobile-scroll-hint {
             display: block;
@@ -434,11 +434,11 @@
         }
         .pools-table-pro th,
         .pools-table-pro td {
-            padding: 8px 7px;
+            padding: 7px 6px;
         }
         .input-pool-pro {
-            font-size: 12.5px;
-            padding: 6px 30px 6px 8px;
+            font-size: 11.5px;
+            padding: 6px 28px 6px 7px;
         }
     }
 </style>
@@ -511,18 +511,18 @@
     <!-- Indicador de deslizamiento horizontal en celular -->
     <div class="mobile-scroll-hint">↔ Desliza la tabla hacia los lados para ver Worker, Pass y Estado</div>
 
-    <!-- Tabla horizontal compacta (igual en PC y Celular) -->
+    <!-- Tabla horizontal compacta (URLs y Workers completos) -->
     <div class="pools-table-scroll">
         <table class="pools-table-pro">
             <thead>
                 <tr>
-                    <th style="width:76px;" data-pool-tt="col_prio">#</th>
-                    <th style="min-width:265px;" data-pool-tt="col_url">Dirección Stratum (Pool URL)</th>
-                    <th style="min-width:170px;" data-pool-tt="col_worker">Worker (Usuario)</th>
-                    <th style="width:76px;" data-pool-tt="col_pass">Pass</th>
-                    <th style="width:88px;" data-pool-tt="col_estado">Estado</th>
-                    <th style="width:105px;" data-pool-tt="col_acc">Aceptados</th>
-                    <th style="width:120px;" data-pool-tt="col_rej">Rechazados</th>
+                    <th style="width:74px;" data-pool-tt="col_prio">#</th>
+                    <th style="min-width:340px;" data-pool-tt="col_url">Dirección Stratum (Pool URL)</th>
+                    <th style="min-width:210px;" data-pool-tt="col_worker">Worker (Usuario)</th>
+                    <th style="width:72px;" data-pool-tt="col_pass">Pass</th>
+                    <th style="width:86px;" data-pool-tt="col_estado">Estado</th>
+                    <th style="width:100px;" data-pool-tt="col_acc">Aceptados</th>
+                    <th style="width:115px;" data-pool-tt="col_rej">Rechazados</th>
                 </tr>
             </thead>
             <tbody>
