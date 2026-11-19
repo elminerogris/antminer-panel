@@ -379,7 +379,7 @@
         <div>
             <div class="info-header-pro">
                 <span class="info-header-title">ℹ️ Identidad y Especificaciones del ASIC</span>
-                <span class="proto-badge-pro static" data-net-tt="hw_identidad" translate="no">Bitmain OEM</span>
+                <span class="proto-badge-pro static" data-net-tt="hw_identidad" translate="no">OEM</span>
             </div>
             <table class="specs-list-pro">
                 <tr>
@@ -392,9 +392,9 @@
                 </tr>
                 <tr>
                     <td data-net-tt="spec_mac">Dirección MAC</td>
-                    <td translate="no">
+                    <td>
                         <div class="spec-copy-row">
-                            <span class="spec-copy-val">{{ extra.mac }}</span>
+                            <span class="spec-copy-val" translate="no">{{ extra.mac }}</span>
                             {% if extra.mac and extra.mac != '-' %}
                             <button type="button" class="btn-copy-pro" onclick="copiarTextoSpec('{{ extra.mac }}', this)" title="Copiar dirección MAC">
                                 <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -406,9 +406,9 @@
                 </tr>
                 <tr>
                     <td data-net-tt="spec_serial">N° de Serie (PSU/HB)</td>
-                    <td translate="no">
+                    <td>
                         <div class="spec-copy-row">
-                            <span class="spec-copy-val">{{ extra.serial }}</span>
+                            <span class="spec-copy-val" translate="no">{{ extra.serial }}</span>
                             {% if extra.serial and extra.serial != '-' %}
                             <button type="button" class="btn-copy-pro" onclick="copiarTextoSpec('{{ extra.serial }}', this)" title="Copiar número de serie">
                                 <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -435,8 +435,8 @@
                 </tr>
             </table>
         </div>
-        <div class="net-footer-bar" style="font-size:0.75em; color:var(--text-muted); font-family:monospace;" translate="no">
-            <span>Uptime: <b style="color:var(--text-main);">{{ ultimo.uptime }}</b></span>
+        <div class="net-footer-bar" style="font-size:0.75em; color:var(--text-muted);">
+            <span>Tiempo activo: <b style="color:var(--text-main); font-family:monospace;" translate="no">{{ ultimo.uptime }}</b></span>
             <button type="button" class="btn-copy-pro" onclick="copiarFichaCompleta(this)" title="Copiar todos los datos técnicos para soporte">
                 <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                 <span>Copiar Ficha</span>
@@ -450,7 +450,7 @@
             <div class="info-header-pro">
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span class="info-header-title">🌐 Configuración de Red LAN</span>
-                    <span class="proto-badge-pro {{ 'dhcp' if es_dhcp else 'static' }}" id="badgeProtoRed" data-net-tt="net_proto_badge" translate="no">
+                    <span class="proto-badge-pro {{ 'dhcp' if es_dhcp else 'static' }}" id="badgeProtoRed" data-net-tt="net_proto_badge">
                         ● Modo {{ 'DHCP' if es_dhcp else 'IP Fija' }}
                     </span>
                 </div>
@@ -480,31 +480,31 @@
                 <div class="ip-conflict-actions" id="ipConflictActions"></div>
             </div>
 
-            <div class="net-form-body" translate="no">
+            <div class="net-form-body">
                 <div class="net-field-group full-row">
-                    <label class="net-field-label" data-net-tt="net_host">Hostname (Nombre en el Router)</label>
-                    <input type="text" id="net_host" value="{{ extra.hostname | default('Antminer') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+                    <label class="net-field-label" data-net-tt="net_host">Nombre del Equipo (Hostname)</label>
+                    <input type="text" id="net_host" value="{{ extra.hostname | default('Antminer') }}" class="input-net-pro" oninput="marcarRedEditada(this)" translate="no">
                 </div>
 
                 <div class="net-field-group">
                     <label class="net-field-label" data-net-tt="net_ip">Dirección IPv4</label>
-                    <input type="text" id="net_ip" value="{{ ip }}" class="input-net-pro" oninput="marcarRedEditada(this); verificarConflictoIp()">
+                    <input type="text" id="net_ip" value="{{ ip }}" class="input-net-pro" oninput="marcarRedEditada(this); verificarConflictoIp()" translate="no">
                 </div>
 
                 <div class="net-field-group">
                     <label class="net-field-label" data-net-tt="net_mask">Máscara de Subred</label>
-                    <input type="text" id="net_mask" value="{{ extra.netmask | default('255.255.255.0') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+                    <input type="text" id="net_mask" value="{{ extra.netmask | default('255.255.255.0') }}" class="input-net-pro" oninput="marcarRedEditada(this)" translate="no">
                 </div>
 
                 <div class="net-field-group">
                     <label class="net-field-label" data-net-tt="net_gw">Puerta de Enlace (Router)</label>
-                    <input type="text" id="net_gw" value="{{ extra.gateway | default('192.168.0.1') }}" class="input-net-pro" oninput="marcarRedEditada(this); verificarConflictoIp()">
+                    <input type="text" id="net_gw" value="{{ extra.gateway | default('192.168.0.1') }}" class="input-net-pro" oninput="marcarRedEditada(this); verificarConflictoIp()" translate="no">
                 </div>
 
                 <div class="net-field-group">
                     <label class="net-field-label" data-net-tt="net_dns">Servidor DNS</label>
-                    <input type="text" id="net_dns" value="{{ extra.dns | default('8.8.8.8') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
-                    <div class="dns-presets">
+                    <input type="text" id="net_dns" value="{{ extra.dns | default('8.8.8.8') }}" class="input-net-pro" oninput="marcarRedEditada(this)" translate="no">
+                    <div class="dns-presets" translate="no">
                         <span class="dns-pill" onclick="aplicarDnsRapido('8.8.8.8')">Google 8.8.8.8</span>
                         <span class="dns-pill" onclick="aplicarDnsRapido('1.1.1.1')">Cloudflare 1.1.1.1</span>
                     </div>
@@ -513,7 +513,7 @@
         </div>
 
         <div class="net-footer-bar">
-            <span style="font-size:0.74em; color:var(--text-muted);" id="estadoRedMsg" translate="no">
+            <span style="font-size:0.74em; color:var(--text-muted);" id="estadoRedMsg">
                 🔒 Evita duplicar IPs en la misma subred
             </span>
             <button type="button" class="btn-save-net-pro" id="btnGuardarRedPro" data-net-tt="btn_guardar_red" onclick="guardarConfiguracionRed()">
@@ -536,7 +536,7 @@
     const INFO_TOOLTIPS_NET = {
         'btn_auto_ip': {
             titulo: '✨ Auto-Configuración Inteligente (1 Clic)',
-            desc: 'Detecta automáticamente la IP de tu router (ej. 192.168.100.1), rellena la máscara y DNS, y fija una IP segura para este Antminer.',
+            desc: 'Detecta automáticamente la IP de tu router (ej. 192.168.100.1), rellena la máscara y DNS, y fija una IP segura para este minero.',
             rango: 'Ideal para principiantes — Sin cálculos manuales'
         },
         'hw_identidad': {
@@ -546,12 +546,12 @@
         },
         'spec_modelo': {
             titulo: '🖥️ Modelo y Algoritmo del Minero',
-            desc: 'Serie comercial detectada por el firmware (S19, S19k Pro, S19 XP, S21, S23 Hydro, Z15 Pro).',
+            desc: 'Serie comercial detectada por el firmware (Antminer S19/S21/S23/L7/Z15, WhatsMiner M30/M50/M60).',
             rango: 'Determina el perfil de eficiencia nominal'
         },
         'spec_fw': {
             titulo: '💿 Versión de Firmware Instalada',
-            desc: 'Fecha de compilación del sistema operativo interno del Antminer.',
+            desc: 'Fecha o versión del sistema operativo interno del equipo.',
             rango: 'Extraído vía CGI / API 4028'
         },
         'spec_mac': {
@@ -566,7 +566,7 @@
         },
         'spec_eficiencia': {
             titulo: '⚡ Eficiencia Energética Real',
-            desc: 'Relación entre los vatios consumidos y los Terahashes producidos en este instante.',
+            desc: 'Relación entre los vatios consumidos y la potencia de minado producida en este instante.',
             rango: 'S21: ~16.5 J/TH | S19k Pro: ~23 J/TH | S19: ~29.5 J/TH'
         },
         'spec_cooling': {
@@ -580,7 +580,7 @@
             rango: 'Static = IP fija permanente'
         },
         'net_host': {
-            titulo: '📛 Hostname del Dispositivo',
+            titulo: '📛 Nombre del Dispositivo (Hostname)',
             desc: 'Nombre de red con el que el minero se identifica ante el router de la granja (sin espacios).',
             rango: 'Ejemplo: Antminer14'
         },
@@ -596,8 +596,8 @@
         },
         'net_mask': {
             titulo: '🛡️ Máscara de Subred (Netmask)',
-            desc: 'Para redes domésticas y granjas de hasta 254 equipos siempre es 255.255.255.0.',
-            rango: 'Estándar /24: 255.255.255.0'
+            desc: 'Para redes domésticas y granjas de hasta 254 equipos siempre se deja este valor estándar.',
+            rango: 'Ejemplo estándar: 255.255.255.0'
         },
         'net_gw': {
             titulo: '🚪 Puerta de Enlace (IP del Router)',
@@ -611,7 +611,7 @@
         },
         'btn_guardar_red': {
             titulo: '💾 Aplicar Configuración de Red en el Minero',
-            desc: 'Envía los parámetros TCP/IP al Antminer a través del Agente local.',
+            desc: 'Envía los parámetros TCP/IP al minero a través del Agente local.',
             rango: 'Si cambias la IP, el minero responderá en la nueva dirección'
         }
     };
@@ -727,7 +727,7 @@
         if (ipVal && (ipVal === gwVal || ipVal.endsWith('.1'))) {
             elIp.classList.add('conflict');
             banner.style.display = 'block';
-            msgDiv.innerHTML = `⛔ <b>Conflicto con el Router:</b> La dirección <code>${ipVal}</code> pertenece a tu router. No puedes asignársela a un Antminer.`;
+            msgDiv.innerHTML = `⛔ <b>Conflicto con el Router:</b> La dirección <code>${ipVal}</code> pertenece a tu router. No puedes asignársela a un minero.`;
             actDiv.innerHTML = `<button type="button" class="btn-fix-ip" onclick="aplicarIpSugerida('${sugerida}')">✨ Usar ${sugerida} (Libre)</button>`;
             return 'router';
         }
