@@ -49,6 +49,21 @@
     .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.35); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
     .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
 
+    /* Píldora discreta solo para monedas distintas a BTC */
+    .coin-alt-pill {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 0.72em;
+        font-family: monospace;
+        font-weight: bold;
+        color: #c084fc;
+        background: rgba(192, 132, 252, 0.14);
+        border: 1px solid rgba(192, 132, 252, 0.38);
+        vertical-align: middle;
+    }
+
     /* Barra de búsqueda y Comando Masivo */
     .fleet-toolbar {
         background: var(--bg-card);
@@ -243,8 +258,8 @@
 </style>
 
 <!-- Portal de Tooltip y Notificación Toast -->
-<div id="fleetSmartTooltip" class="fleet-smart-tooltip" translate="no"></div>
-<div id="fleetToast" class="fleet-toast" translate="no"></div>
+<div id="fleetSmartTooltip" class="fleet-smart-tooltip"></div>
+<div id="fleetToast" class="fleet-toast"></div>
 
 <!-- Modal de Confirmación Universal -->
 <div class="modal-overlay" id="confirmBulkModal">
@@ -344,7 +359,7 @@
 <div class="fleet-toolbar">
     <div class="search-box">
         <span class="search-icon">🔍</span>
-        <input type="text" id="buscadorFlota" class="search-input" placeholder="Buscar por IP, nombre, modelo, worker, MAC..." oninput="aplicarFiltrosTabla()">
+        <input type="text" id="buscadorFlota" class="search-input" placeholder="Buscar por IP, nombre, modelo, moneda, worker, MAC..." oninput="aplicarFiltrosTabla()">
     </div>
     <div class="bulk-bar">
         <span class="sel-badge" id="selBadgeWrap"><span id="contadorSeleccionados">0</span> sel.</span>
@@ -366,7 +381,7 @@
                 <th style="width:32px;"><input type="checkbox" id="checkAllFleet" onclick="seleccionarTodosVisibles(this)"></th>
                 <th onclick="ordenarTabla(1)">Minero / IP ↕</th>
                 <th onclick="ordenarTabla(2)">Modelo / FW ↕</th>
-                <th onclick="ordenarTabla(3)">Estado / Uptime ↕</th>
+                <th onclick="ordenarTabla(3)">Estado / Tiempo activo ↕</th>
                 <th onclick="ordenarTabla(4)">Hashrate (5s / 30m) ↕</th>
                 <th>Placas / Chips</th>
                 <th onclick="ordenarTabla(6)">Temp (Chip / Amb) ↕</th>
@@ -393,7 +408,7 @@
                 data-worker1="{{ m.worker1 }}"
                 data-pool2="{{ m.pool2 }}"
                 data-pool3="{{ m.pool3 }}"
-                data-search="{{ (m.ip ~ ' ' ~ m.nombre ~ ' ' ~ m.modelo ~ ' ' ~ m.mac ~ ' ' ~ m.worker1 ~ ' ' ~ m.pool1)|lower }}">
+                data-search="{{ (m.ip ~ ' ' ~ m.nombre ~ ' ' ~ m.modelo ~ ' ' ~ m.moneda ~ ' ' ~ m.mac ~ ' ' ~ m.worker1 ~ ' ' ~ m.pool1)|lower }}">
                 
                 <td><input type="checkbox" class="cb-minero" value="{{ m.ip }}" onchange="actualizarContadorSeleccion()"></td>
                 
@@ -403,7 +418,12 @@
                 </td>
                 
                 <td translate="no">
-                    <div style="font-weight:bold;">{{ m.modelo }}</div>
+                    <div style="font-weight:bold;">
+                        {{ m.modelo }}
+                        {% if m.online and m.hashrate > 0 and m.moneda and m.moneda != 'BTC' %}
+                            <span class="coin-alt-pill">{{ m.moneda }}</span>
+                        {% endif %}
+                    </div>
                     <div class="sub-txt">{{ m.firmware[:22] }}</div>
                 </td>
                 
