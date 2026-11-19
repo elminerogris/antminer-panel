@@ -8,6 +8,12 @@ from datetime import datetime, timedelta
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.environ.get("SECRET_KEY", "super_secreta_antminer_tools")
 
+try:
+    from flask_compress import Compress
+    Compress(app)
+except ImportError:
+    pass
+
 DB_URL = os.environ.get("DATABASE_URL", "")
 LIMITE_MINEROS_GRATIS = 3
 ultima_limpieza_bd = 0
