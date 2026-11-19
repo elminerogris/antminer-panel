@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Minero Gris">
     <meta name="theme-color" content="#0d0f17">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/logo.png">
     <title>El Minero Gris</title>
     <script>
-        // Aplicar tema guardado antes de renderizar para evitar parpadeo blanco
         (function() {
             try {
                 const savedTheme = localStorage.getItem('emg_theme');
@@ -70,13 +72,11 @@
             top: 0 !important;
         }
 
-        /* Ocultar barra superior de Google Translate */
         .skiptranslate iframe { display: none !important; }
         body { top: 0px !important; }
         #google_translate_element { display: none; }
         a { text-decoration: none; color: inherit; }
 
-        /* Barra delgada de progreso en vivo */
         .live-progress-bar {
             position: fixed;
             top: 0;
@@ -89,7 +89,6 @@
             pointer-events: none;
         }
 
-        /* Banner de sin conexión a internet */
         .net-offline-bar {
             display: none;
             background: rgba(255, 82, 82, 0.16);
@@ -101,13 +100,11 @@
             font-weight: bold;
         }
 
-        /* Scrollbars delgados y modernos */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(148, 153, 176, 0.25); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(59, 130, 246, 0.55); }
 
-        /* SIDEBAR */
         .sidebar {
             width: 232px;
             background: var(--bg-sidebar);
@@ -173,10 +170,7 @@
             border: 1px solid transparent;
             transition: all 0.18s ease;
         }
-        .menu a:hover {
-            background: var(--hover-bg);
-            color: var(--text-main);
-        }
+        .menu a:hover { background: var(--hover-bg); color: var(--text-main); }
         .menu a.active {
             background: var(--active-bg);
             color: var(--accent-blue-light);
@@ -184,7 +178,6 @@
             box-shadow: 0 0 12px rgba(59, 130, 246, 0.18);
         }
 
-        /* Tarjeta de Usuario y Saldo en el pie del Sidebar */
         .sidebar-bottom {
             border-top: 1px solid var(--border-color);
             padding: 14px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
@@ -202,9 +195,7 @@
             gap: 5px;
             transition: 0.2s;
         }
-        .user-wallet-box:hover {
-            border-color: rgba(59, 130, 246, 0.45);
-        }
+        .user-wallet-box:hover { border-color: rgba(59, 130, 246, 0.45); }
         .user-name-row {
             color: var(--text-main);
             font-weight: bold;
@@ -236,11 +227,8 @@
             gap: 8px;
             transition: 0.18s;
         }
-        .btn-logout-pro:hover {
-            background: rgba(255, 82, 82, 0.12);
-        }
+        .btn-logout-pro:hover { background: rgba(255, 82, 82, 0.12); }
 
-        /* TOP BAR Y CONTENIDO */
         .right-container {
             flex: 1;
             display: flex;
@@ -283,19 +271,10 @@
             color: #fff;
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
         }
-        .btn-sync {
-            width: auto;
-            padding: 0 14px;
-            gap: 6px;
-            color: var(--text-main);
-        }
-        .btn-sync:hover {
-            background: rgba(51, 102, 255, 0.16);
-            color: var(--accent-blue-light);
-        }
+        .btn-sync { width: auto; padding: 0 14px; gap: 6px; color: var(--text-main); }
+        .btn-sync:hover { background: rgba(51, 102, 255, 0.16); color: var(--accent-blue-light); }
         .top-lang-select { padding: 0 10px; outline: none; }
 
-        /* Píldora interactiva de En Vivo / Pausa */
         .top-status {
             display: inline-flex;
             align-items: center;
@@ -313,21 +292,10 @@
             user-select: none;
             transition: all 0.2s ease;
         }
-        .top-status:hover {
-            border-color: rgba(0, 230, 118, 0.45);
-        }
-        .top-status.paused {
-            border-color: rgba(255, 179, 0, 0.45);
-        }
-        .status-envivo {
-            color: var(--accent-green);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .top-status.paused .status-envivo {
-            color: #ffb300;
-        }
+        .top-status:hover { border-color: rgba(0, 230, 118, 0.45); }
+        .top-status.paused { border-color: rgba(255, 179, 0, 0.45); }
+        .status-envivo { color: var(--accent-green); display: flex; align-items: center; gap: 6px; }
+        .top-status.paused .status-envivo { color: #ffb300; }
         .dot-pulse {
             width: 8px;
             height: 8px;
@@ -336,10 +304,7 @@
             animation: pulse 1.5s infinite;
             flex-shrink: 0;
         }
-        .top-status.paused .dot-pulse {
-            background: #ffb300;
-            animation: none;
-        }
+        .top-status.paused .dot-pulse { background: #ffb300; animation: none; }
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); }
             70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); }
@@ -354,7 +319,6 @@
             overflow-x: hidden;
         }
 
-        /* ELEMENTOS EXCLUSIVOS DE MÓVIL */
         .btn-menu {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
@@ -387,17 +351,13 @@
         .overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.65);
             z-index: 999;
             backdrop-filter: blur(3px);
         }
         .overlay.active { display: block; }
 
-        /* Toast global del Layout */
         .layout-toast {
             position: fixed;
             bottom: 22px;
@@ -418,13 +378,10 @@
             white-space: nowrap;
         }
 
-        /* ADAPTACIÓN AUTOMÁTICA PARA CELULARES */
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
-                left: 0;
-                top: 0;
-                height: 100%;
+                left: 0; top: 0; height: 100%;
                 transform: translateX(-100%);
                 box-shadow: 8px 0 30px rgba(0, 0, 0, 0.6);
             }
@@ -448,8 +405,6 @@
     <div id="liveProgressBar" class="live-progress-bar"></div>
     <div id="google_translate_element"></div>
     <div id="layoutToast" class="layout-toast" translate="no"></div>
-
-    <!-- Capa oscura al abrir el menú en el celular -->
     <div class="overlay" id="sidebarOverlay" onclick="toggleMenu()"></div>
 
     <aside class="sidebar">
@@ -458,7 +413,6 @@
             <div class="logo-text" translate="no">El Minero <span>Gris</span></div>
         </div>
 
-        <!-- Selector de los 10 idiomas para Celular -->
         <div class="sidebar-mobile-lang">
             <select class="top-lang-select" id="langSelectorMobile" style="width:100%; display:flex;" onchange="cambiarIdioma(this.value)">
                 <option value="es">🌐 Español</option>
@@ -484,6 +438,9 @@
             <div class="menu-section-label" style="margin-top:8px;">Cuenta</div>
             <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a>
             <a href="/ajustes" class="{{ 'active' if active_page == 'ajustes' else '' }}">⚙️ Ajustes</a>
+            {% if session.get('usuario') == 'giovanni' %}
+            <a href="/admin" class="{{ 'active' if active_page == 'admin' else '' }}" style="color:#00e676;">🛡️ Panel Admin</a>
+            {% endif %}
         </nav>
 
         <div class="sidebar-bottom">
@@ -605,11 +562,8 @@
             sincronizarIconoTema();
         }
 
-        // ============================================================
-        // MOTOR DE ACTUALIZACIÓN INTELIGENTE EN VIVO (SMART LIVE)
-        // ============================================================
         const LIVE_INTERVAL_SEC = 20;
-        const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan'];
+        const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan', '/admin'];
         let liveSegundos = LIVE_INTERVAL_SEC;
         let livePausadoUsuario = (localStorage.getItem('emg_live_paused') === '1');
         let ultimaVistaOculta = 0;
@@ -695,7 +649,6 @@
             }
         }, 1000);
 
-        // Si el usuario vuelve de otra pestaña o desbloquea el celular tras >20s, actualiza al instante
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
                 ultimaVistaOculta = Date.now();
@@ -706,7 +659,6 @@
             }
         });
 
-        // Detección de pérdida / recuperación de internet
         window.addEventListener('offline', function() {
             const b = document.getElementById('netOfflineBar');
             if (b) b.style.display = 'block';
@@ -720,7 +672,6 @@
         window.addEventListener('DOMContentLoaded', function() {
             sincronizarIconoTema();
             actualizarUILive();
-            // Restaurar posición exacta del scroll tras la actualización en vivo
             try {
                 const key = 'emg_scroll_' + window.location.pathname;
                 const savedY = sessionStorage.getItem(key);
