@@ -1,4 +1,5 @@
 from flask import Flask, render_template, render_template_string, redirect, request, session, url_for, jsonify, Response, g
+from werkzeug.security import generate_password_hash, check_password_hash
 from jinja2 import TemplateNotFound
 from functools import wraps
 import psycopg2, psycopg2.extras, json, urllib.request, urllib.parse, time, calendar, csv, io, os, secrets, traceback
@@ -9,7 +10,6 @@ app.secret_key = os.environ.get("SECRET_KEY", "super_secreta_antminer_tools")
 
 DB_URL = os.environ.get("DATABASE_URL", "")
 LIMITE_MINEROS_GRATIS = 3
-ultimo_envio_alerta = {}
 ultima_limpieza_bd = 0
 cache_geo_granja = {}
 db_inicializada = False
@@ -43,6 +43,17 @@ def cerrar_conexion_bd(exception=None):
 def generar_api_key():
     return "EMG-" + secrets.token_hex(8).upper()
 
+def es_hash_seguro(pass_str):
+    s = str(pass_str or "")
+    return s.startswith(("scrypt:", "pbkdf2:"))
+
+def verificar_password(stored_pass, input_pass):
+    if not stored_pass or not input_pass:
+        return False
+    if es_hash_seguro(stored_pass):
+        return check_password_hash(stored_pass, input_pass)
+    return stored_pass == input_pass
+
 def es_cuenta_pro(username, plan_str):
     if username == 'giovanni':
         return True
@@ -69,6 +80,16 @@ def nombre_inteligente_minero(ip, nombres_dict, worker1=""):
     if w and w != "-":
         return w.split('.')[-1] if '.' in w else w
     return ip.split('.')[-1]
+
+def alerta_en_enfriamiento(cur, owner, ip, tipo, segundos=1800):
+    cur.execute(
+        "SELECT fecha FROM registro_alertas WHERE owner=%s AND ip=%s AND tipo=%s ORDER BY id DESC LIMIT 1",
+        (owner, ip, tipo)
+    )
+    row = cur.fetchone()
+    if not row or not row.get('fecha'):
+        return False
+    return calcular_segundos_desconectado(row['fecha']) < segundos
 
 def obtener_ubicacion_ip_agente(ip_publica):
     global cache_geo_granja
@@ -136,12 +157,12 @@ def init_db():
         con = psycopg2.connect(DB_URL, connect_timeout=8)
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT UNIQUE, owner TEXT DEFAULT 'giovanni', modelo TEXT, unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia')''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'giovanni', modelo TEXT, unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia')''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 1)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, owner TEXT DEFAULT 'giovanni', nombre TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT, owner TEXT DEFAULT 'giovanni', nombre TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT, owner TEXT DEFAULT 'giovanni', contenido TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS registro_alertas (id SERIAL PRIMARY KEY, owner TEXT, ip TEXT, tipo TEXT, mensaje TEXT, fecha TEXT)''')
 
         columnas_nuevas = [
@@ -178,6 +199,7 @@ def init_db():
             "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS temp_amb INTEGER DEFAULT 0",
             "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS cadenas TEXT",
             "ALTER TABLE nombres_mineros ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE logs_mineros ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS api_key TEXT",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS subnet TEXT DEFAULT '192.168.0'",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tarifa_kwh REAL DEFAULT 0.0",
@@ -191,14 +213,35 @@ def init_db():
             try: c.execute(col_sql)
             except: pass
 
-        c.execute("CREATE INDEX IF NOT EXISTS idx_historial_ip_id ON historial_nube (ip, id DESC)")
-        c.execute("CREATE INDEX IF NOT EXISTS idx_historial_ip_fecha ON historial_nube (ip, fecha)")
+        # Normalizar owners nulos antes de crear índices compuestos (owner, ip)
+        c.execute("UPDATE mineros_activos SET owner='giovanni' WHERE owner IS NULL OR owner=''")
+        c.execute("UPDATE nombres_mineros SET owner='giovanni' WHERE owner IS NULL OR owner=''")
+        c.execute("UPDATE logs_mineros SET owner='giovanni' WHERE owner IS NULL OR owner=''")
+        c.execute("UPDATE historial_nube SET owner='giovanni' WHERE owner IS NULL OR owner=''")
+
+        # Migración segura de clave única simple (ip) -> clave compuesta (owner, ip)
+        migraciones_unique = [
+            "ALTER TABLE mineros_activos DROP CONSTRAINT IF EXISTS mineros_activos_ip_key",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_mineros_owner_ip ON mineros_activos (owner, ip)",
+            "ALTER TABLE nombres_mineros DROP CONSTRAINT IF EXISTS nombres_mineros_ip_key",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_nombres_owner_ip ON nombres_mineros (owner, ip)",
+            "ALTER TABLE logs_mineros DROP CONSTRAINT IF EXISTS logs_mineros_ip_key",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_logs_owner_ip ON logs_mineros (owner, ip)"
+        ]
+        for m_sql in migraciones_unique:
+            try: c.execute(m_sql)
+            except: pass
+
+        c.execute("CREATE INDEX IF NOT EXISTS idx_historial_owner_ip_id ON historial_nube (owner, ip, id DESC)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_historial_owner_ip_fecha ON historial_nube (owner, ip, fecha)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_historial_fecha ON historial_nube (fecha)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_cola_estado_owner ON cola_comandos (estado, owner)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_alertas_owner_ip_tipo ON registro_alertas (owner, ip, tipo, id DESC)")
 
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         if not c.fetchone():
-            c.execute("INSERT INTO usuarios (username, password, plan, api_key) VALUES ('giovanni', 'admin123', 'Pro', %s)", (generar_api_key(),))
+            c.execute("INSERT INTO usuarios (username, password, plan, api_key) VALUES ('giovanni', %s, 'Pro', %s)",
+                      (generate_password_hash('admin123'), generar_api_key()))
         else:
             c.execute("UPDATE usuarios SET plan='Pro' WHERE username='giovanni'")
 
@@ -206,7 +249,6 @@ def init_db():
         for u_row in c.fetchall():
             c.execute("UPDATE usuarios SET api_key=%s WHERE id=%s", (generar_api_key(), u_row[0]))
 
-        c.execute("UPDATE mineros_activos SET owner='giovanni' WHERE owner IS NULL OR owner=''")
         con.close()
         db_inicializada = True
     except Exception as e:
@@ -281,13 +323,10 @@ def index():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    if usr_actual == 'giovanni':
-        cur.execute("SELECT * FROM mineros_activos")
-    else:
-        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
     mineros = sorted(cur.fetchall(), key=ordenar_ip_key)
 
-    cur.execute("SELECT ip, nombre FROM nombres_mineros")
+    cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
 
     datos_red = obtener_datos_red()
@@ -362,37 +401,30 @@ def detalle_minero(ip):
     plan_actual = session.get('plan', 'Gratis')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    if usr_actual == 'giovanni':
-        cur.execute("SELECT * FROM mineros_activos WHERE ip=%s", (ip,))
-    else:
-        cur.execute("SELECT * FROM mineros_activos WHERE ip=%s AND owner=%s", (ip, usr_actual))
+    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s AND ip=%s", (usr_actual, ip))
     m = cur.fetchone()
     if not m: return redirect('/')
 
-    cur.execute("SELECT nombre FROM nombres_mineros WHERE ip=%s", (ip,))
+    cur.execute("SELECT nombre FROM nombres_mineros WHERE owner=%s AND ip=%s", (usr_actual, ip))
     n_row = cur.fetchone()
     nombres_dict = {ip: n_row['nombre']} if n_row and n_row.get('nombre') else {}
 
-    # Lista de IPs ocupadas en la granja para el detector de conflictos de _red_info.html
-    if usr_actual == 'giovanni':
-        cur.execute("SELECT ip FROM mineros_activos WHERE ip != %s", (ip,))
-    else:
-        cur.execute("SELECT ip FROM mineros_activos WHERE ip != %s AND owner=%s", (ip, usr_actual))
+    cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s AND ip != %s", (usr_actual, ip))
     ips_ocupadas = [row['ip'] for row in cur.fetchall()]
 
-    # Plan Gratis: retención de 24h (1440 puntos) | Plan Pro: 30 días completos (44000 puntos)
+    # Plan Gratis: 24h (1440 puntos) | Plan Pro: 30 días completos (44000 puntos)
     limite_hist = 44000 if es_cuenta_pro(usr_actual, plan_actual) else 1440
     cur.execute("""
         SELECT fecha, hashrate, temp_max, temp_amb, errores, cadenas 
         FROM (
             SELECT id, fecha, hashrate, temp_max, temp_amb, errores, cadenas 
             FROM historial_nube 
-            WHERE ip=%s 
+            WHERE owner=%s AND ip=%s 
             ORDER BY id DESC 
             LIMIT %s
         ) sub 
         ORDER BY id ASC
-    """, (ip, limite_hist))
+    """, (usr_actual, ip, limite_hist))
     hist = cur.fetchall()
 
     mod_str = str(m.get('modelo') or 'Antminer')
@@ -519,13 +551,10 @@ def mineros():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    if usr_actual == 'giovanni':
-        cur.execute("SELECT * FROM mineros_activos")
-    else:
-        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
 
-    cur.execute("SELECT ip, nombre FROM nombres_mineros")
+    cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
 
     lista_mineros = []
@@ -611,13 +640,10 @@ def granjas():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    if usr_actual == 'giovanni':
-        cur.execute("SELECT * FROM mineros_activos")
-    else:
-        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
 
-    cur.execute("SELECT ip, nombre FROM nombres_mineros")
+    cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
 
     grupos = {}
@@ -738,8 +764,8 @@ def ajustes():
             p1 = request.form.get('nueva_pass', '')
             p2 = request.form.get('confirm_pass', '')
             if p1 and p1 == p2:
-                cur.execute("UPDATE usuarios SET password=%s WHERE username=%s", (p1, usr_actual))
-                msg = "Contraseña actualizada correctamente."
+                cur.execute("UPDATE usuarios SET password=%s WHERE username=%s", (generate_password_hash(p1), usr_actual))
+                msg = "Contraseña actualizada y cifrada correctamente."
             else:
                 msg = "Las contraseñas no coinciden."
 
@@ -794,12 +820,19 @@ def plan():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        u = request.form.get('username'); p = request.form.get('password')
-        con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT * FROM usuarios WHERE username=%s AND password=%s", (u, p))
+        u = (request.form.get('username') or '').strip()
+        p = request.form.get('password') or ''
+        con = get_db(); con.autocommit = True
+        cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM usuarios WHERE username=%s", (u,))
         usr = cur.fetchone()
-        if usr:
-            session['usuario'] = u; session['plan'] = usr.get('plan', 'Gratis'); session['saldo'] = usr.get('saldo', 0.0)
+        if usr and verificar_password(usr.get('password'), p):
+            # Auto-cifrar contraseñas antiguas en texto plano al iniciar sesión
+            if not es_hash_seguro(usr.get('password')):
+                cur.execute("UPDATE usuarios SET password=%s WHERE id=%s", (generate_password_hash(p), usr['id']))
+            session['usuario'] = u
+            session['plan'] = usr.get('plan', 'Gratis')
+            session['saldo'] = usr.get('saldo', 0.0)
             return redirect('/')
         return render_seguro('login.html', error='Credenciales incorrectas', mode='login')
     return render_seguro('login.html', mode='login')
@@ -807,12 +840,17 @@ def login():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        u = request.form.get('username'); p = request.form.get('password')
+        u = (request.form.get('username') or '').strip()
+        p = request.form.get('password') or ''
+        if not u or not p:
+            return render_seguro('login.html', error='Completa usuario y contraseña', mode='register')
         try:
             con = get_db(); con.autocommit = True; cur = con.cursor()
-            cur.execute("INSERT INTO usuarios (username, password, plan, saldo, api_key) VALUES (%s, %s, 'Gratis', 0.0, %s)", (u, p, generar_api_key()))
+            cur.execute("INSERT INTO usuarios (username, password, plan, saldo, api_key) VALUES (%s, %s, 'Gratis', 0.0, %s)",
+                        (u, generate_password_hash(p), generar_api_key()))
             return render_seguro('login.html', success='Cuenta creada (Plan Gratis: hasta 3 mineros). Ahora inicia sesión.', mode='login')
-        except: return render_seguro('login.html', error='El nombre de usuario ya está en uso', mode='register')
+        except:
+            return render_seguro('login.html', error='El nombre de usuario ya está en uso', mode='register')
     return render_seguro('login.html', mode='register')
 
 @app.route('/logout')
@@ -826,7 +864,7 @@ def guardar_nombre():
     nombre = request.form.get('nombre')
     if ip and nombre:
         con = get_db(); con.autocommit = True; cur = con.cursor()
-        cur.execute("INSERT INTO nombres_mineros (ip, owner, nombre) VALUES (%s, %s, %s) ON CONFLICT (ip) DO UPDATE SET nombre=EXCLUDED.nombre, owner=EXCLUDED.owner", (ip, usr_actual, nombre))
+        cur.execute("INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s) ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre", (usr_actual, ip, nombre))
     return redirect(f'/minero/{ip}')
 
 @app.route('/cmd_bulk', methods=['POST'])
@@ -839,7 +877,6 @@ def cmd_bulk():
     ips = data.get('ips', [])
     ordenes_custom = data.get('ordenes_custom', [])
 
-    # Restricción Plan Gratis: las acciones masivas (>1 minero) son exclusivas del Plan Pro
     total_objetivos = len(ordenes_custom) if ordenes_custom else len(ips)
     if total_objetivos > 1 and not es_cuenta_pro(usr_actual, plan_actual):
         return jsonify({"status": "error", "msg": "Las Acciones Masivas requieren Plan Pro."}), 403
@@ -889,10 +926,7 @@ def exportar_csv():
         return redirect('/plan')
 
     con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    if usr_actual == 'giovanni':
-        cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos")
-    else:
-        cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
     output = io.StringIO(); writer = csv.writer(output)
     writer.writerow(['IP', 'Modelo', 'Hashrate', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
@@ -900,9 +934,11 @@ def exportar_csv():
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition":"attachment;filename=Reporte_El_Minero_Gris.csv"})
 
 @app.route('/api/ver_log/<ip>')
+@login_required
 def ver_log(ip):
+    usr_actual = session.get('usuario', 'giovanni')
     con = get_db(); cur = con.cursor()
-    cur.execute("SELECT contenido FROM logs_mineros WHERE ip=%s", (ip,))
+    cur.execute("SELECT contenido FROM logs_mineros WHERE owner=%s AND ip=%s", (usr_actual, ip))
     log = cur.fetchone()
     return log[0] if log else "Esperando respuesta..."
 
@@ -910,13 +946,23 @@ def ver_log(ip):
 def recibir_logs():
     data = request.get_json(silent=True)
     if data and 'ip' in data and 'log' in data:
-        con = get_db(); con.autocommit = True; cur = con.cursor()
-        cur.execute("INSERT INTO logs_mineros (ip, contenido, fecha) VALUES (%s, %s, %s) ON CONFLICT(ip) DO UPDATE SET contenido=EXCLUDED.contenido, fecha=EXCLUDED.fecha", (data['ip'], data['log'], datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        con = get_db(); con.autocommit = True
+        cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        api_key_recibida = str(data.get('api_key') or '').strip()
+        owner_user = 'giovanni'
+        if api_key_recibida and api_key_recibida != "TU_API_KEY_AQUI":
+            cur.execute("SELECT username FROM usuarios WHERE api_key=%s", (api_key_recibida,))
+            u_row = cur.fetchone()
+            if u_row: owner_user = u_row['username']
+        cur.execute(
+            "INSERT INTO logs_mineros (owner, ip, contenido, fecha) VALUES (%s, %s, %s, %s) ON CONFLICT(owner, ip) DO UPDATE SET contenido=EXCLUDED.contenido, fecha=EXCLUDED.fecha",
+            (owner_user, data['ip'], data['log'], datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+        )
     return "OK", 200
 
 @app.route('/api/recibir_datos', methods=['POST'])
 def recibir_datos():
-    global ultimo_envio_alerta, ultima_limpieza_bd
+    global ultima_limpieza_bd
     datos = request.get_json(silent=True)
     if not datos: return jsonify({"status": "error", "msg": "JSON invalido"}), 400
 
@@ -945,13 +991,11 @@ def recibir_datos():
     plan_owner = (u_cfg.get('plan') or 'Gratis') if u_cfg else 'Gratis'
     es_pro = es_cuenta_pro(owner_user, plan_owner)
 
-    # Obtener IPs ya registradas del dueño para aplicar el límite de 3 mineros en Plan Gratis
     ips_existentes = set()
     if not es_pro:
         cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s", (owner_user,))
         ips_existentes = {row['ip'] for row in cur.fetchall()}
 
-    # Entregar comandos pendientes correspondientes a este propietario
     if owner_user == 'giovanni':
         cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND (owner='giovanni' OR owner IS NULL)")
     else:
@@ -979,7 +1023,6 @@ def recibir_datos():
             ip_m = str(m.get('ip') or '').strip()
             if not ip_m: continue
 
-            # Bloqueo real de 3 máquinas para Plan Gratis (sin borrar las ya existentes)
             if not es_pro and ip_m not in ips_existentes:
                 if len(ips_existentes) >= LIMITE_MINEROS_GRATIS:
                     omitidos_por_plan += 1
@@ -1018,11 +1061,11 @@ def recibir_datos():
             cadenas_json = json.dumps(cadenas_list)
 
             cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
-                            owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, farm_lat=EXCLUDED.farm_lat, farm_lon=EXCLUDED.farm_lon, farm_city=EXCLUDED.farm_city, farm_country=EXCLUDED.farm_country''',
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, ip) DO UPDATE SET 
+                            modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, farm_lat=EXCLUDED.farm_lat, farm_lon=EXCLUDED.farm_lon, farm_city=EXCLUDED.farm_city, farm_country=EXCLUDED.farm_country''',
                         (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country))
 
-            cur.execute("SELECT id, hashrate, temp_max FROM historial_nube WHERE ip=%s AND fecha=%s LIMIT 1", (ip_m, ahora_minuto))
+            cur.execute("SELECT id, hashrate, temp_max FROM historial_nube WHERE owner=%s AND ip=%s AND fecha=%s LIMIT 1", (owner_user, ip_m, ahora_minuto))
             row_min = cur.fetchone()
             if not row_min:
                 cur.execute("INSERT INTO historial_nube (owner, ip, hashrate, temp_max, temp_amb, errores, cadenas, fecha) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
@@ -1036,29 +1079,23 @@ def recibir_datos():
 
             guardados_ok += 1
 
-            # Alertas Automáticas + Auto-Protección de Hardware (Auto-Sleep de Emergencia)
+            # Alertas Automáticas + Auto-Protección (enfriamiento sincronizado en PostgreSQL)
             if alertas_on:
                 umbral_emergencia = max(85, umbral_t + 5)
                 if temp_m >= umbral_emergencia and hr_m > 0:
-                    k_em = f"{owner_user}_{ip_m}_AUTOSLEEP"
-                    if ahora_ts - ultimo_envio_alerta.get(k_em, 0) > 1800:
-                        ultimo_envio_alerta[k_em] = ahora_ts
+                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP', 1800):
                         ordenes.append({"ip": ip_m, "comando": "sleep"})
                         msg_em = f"🛡️ AUTO-PROTECCIÓN: {mod_m} ({ip_m}) alcanzó {temp_m}°C. Puesto en REPOSO (Sleep) automáticamente."
                         cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_em, ahora))
                         enviar_telegram(tg_tok, tg_cid, f"🛡️ <b>AUTO-PROTECCIÓN ACTIVADA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura crítica: <b>{temp_m}°C</b>\nAcción: Puesto en <b>REPOSO (Sleep)</b> para proteger las placas hash.")
                 elif temp_m >= umbral_t:
-                    k_al = f"{owner_user}_{ip_m}_TEMP"
-                    if ahora_ts - ultimo_envio_alerta.get(k_al, 0) > 1800:
-                        ultimo_envio_alerta[k_al] = ahora_ts
+                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP', 1800):
                         msg_al = f"El equipo {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
                         cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_al, ahora))
                         enviar_telegram(tg_tok, tg_cid, f"🔥 <b>ALERTA DE TEMPERATURA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b>\nHashrate: {hr_m} {unid}")
 
                 if umbral_h > 0 and hr_m < umbral_h and temp_m > 5:
-                    k_hr = f"{owner_user}_{ip_m}_LOWHR"
-                    if ahora_ts - ultimo_envio_alerta.get(k_hr, 0) > 1800:
-                        ultimo_envio_alerta[k_hr] = ahora_ts
+                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'HASHRATE', 1800):
                         msg_hr = f"El equipo {mod_m} ({ip_m}) cayó a {hr_m} {unid} (Mínimo configurado: {umbral_h} {unid})."
                         cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE', %s, %s)", (owner_user, ip_m, msg_hr, ahora))
                         enviar_telegram(tg_tok, tg_cid, f"⚠️ <b>CAÍDA DE HASHRATE</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nHashrate actual: <b>{hr_m} {unid}</b> (Umbral: {umbral_h} {unid})\nTemperatura: {temp_m}°C")
