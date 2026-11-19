@@ -206,7 +206,7 @@
         opacity: 0.65;
     }
 
-    /* Aviso discreto de scroll lateral solo en móvil */
+    /* Aviso discreto de scroll lateral solo en móvil (se oculta al deslizar) */
     .mobile-scroll-hint {
         display: none;
         padding: 5px 14px;
@@ -215,6 +215,38 @@
         background: rgba(51, 102, 255, 0.06);
         border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         text-align: right;
+        transition: opacity 0.3s ease, max-height 0.3s ease, padding 0.3s ease;
+        max-height: 36px;
+        overflow: hidden;
+    }
+    .mobile-scroll-hint.hint-hidden {
+        opacity: 0;
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        border-bottom-color: transparent;
+    }
+
+    /* Envoltorio para sombra lateral derecha (Fade-out) en móvil */
+    .pools-table-outer {
+        position: relative;
+        width: 100%;
+    }
+    .pools-table-outer::after {
+        content: "";
+        display: none;
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 38px;
+        pointer-events: none;
+        background: linear-gradient(to right, rgba(13, 15, 23, 0) 0%, var(--bg-card, #11131c) 92%);
+        transition: opacity 0.25s ease;
+        z-index: 4;
+    }
+    .pools-table-outer.scrolled-end::after {
+        opacity: 0;
     }
 
     /* Contenedor con Scroll Horizontal Suave */
@@ -429,6 +461,9 @@
         .mobile-scroll-hint {
             display: block;
         }
+        .pools-table-outer::after {
+            display: block;
+        }
         .pools-presets-bar {
             width: 100%;
             flex-wrap: nowrap;
@@ -524,183 +559,185 @@
     </div>
 
     <!-- Indicador de deslizamiento horizontal en celular -->
-    <div class="mobile-scroll-hint">↔ Desliza la tabla hacia los lados para ver Worker, Pass y Estado</div>
+    <div class="mobile-scroll-hint" id="poolsMobileHint">↔ Desliza la tabla hacia la derecha para ver Worker, Pass y Estado</div>
 
-    <!-- Tabla horizontal compacta (URLs y Workers completos) -->
-    <div class="pools-table-scroll">
-        <table class="pools-table-pro">
-            <thead>
-                <tr>
-                    <th style="width:74px;" data-pool-tt="col_prio">#</th>
-                    <th style="min-width:340px;" data-pool-tt="col_url">Dirección Stratum (Pool URL)</th>
-                    <th style="min-width:210px;" data-pool-tt="col_worker">Worker (Usuario)</th>
-                    <th style="width:72px;" data-pool-tt="col_pass">Pass</th>
-                    <th style="width:86px;" data-pool-tt="col_estado">Estado</th>
-                    <th style="width:100px;" data-pool-tt="col_acc">Aceptados</th>
-                    <th style="width:115px;" data-pool-tt="col_rej">Rechazados</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- POOL 1 (PRIMARIO) -->
-                <tr>
-                    <td>
-                        <div class="pool-rank-wrap" data-pool-tt="prio_1">
-                            <div class="pool-rank-top">
-                                <span class="pool-rank-badge">1</span>
-                                <span class="pool-rank-help-dot">ⓘ</span>
+    <!-- Envoltorio con sombra lateral derecha (Fade-out) + Scroll Horizontal -->
+    <div class="pools-table-outer" id="poolsTableOuter">
+        <div class="pools-table-scroll" id="poolsTableScroll">
+            <table class="pools-table-pro">
+                <thead>
+                    <tr>
+                        <th style="width:74px;" data-pool-tt="col_prio">#</th>
+                        <th style="min-width:340px;" data-pool-tt="col_url">Dirección Stratum (Pool URL)</th>
+                        <th style="min-width:210px;" data-pool-tt="col_worker">Worker (Usuario)</th>
+                        <th style="width:72px;" data-pool-tt="col_pass">Pass</th>
+                        <th style="width:86px;" data-pool-tt="col_estado">Estado</th>
+                        <th style="width:100px;" data-pool-tt="col_acc">Aceptados</th>
+                        <th style="width:115px;" data-pool-tt="col_rej">Rechazados</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- POOL 1 (PRIMARIO) -->
+                    <tr>
+                        <td>
+                            <div class="pool-rank-wrap" data-pool-tt="prio_1">
+                                <div class="pool-rank-top">
+                                    <span class="pool-rank-badge">1</span>
+                                    <span class="pool-rank-help-dot">ⓘ</span>
+                                </div>
+                                <span class="pool-rank-sub">Primario</span>
                             </div>
-                            <span class="pool-rank-sub">Primario</span>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="input-pool-wrap">
-                            <input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:3333" oninput="marcarPoolEditado(this)" translate="no">
-                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_1', this)" title="Copiar URL del Pool 1">
-                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            </button>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="input-pool-wrap">
-                            <input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="sincronizarWorker(this.value); marcarPoolEditado(this)" translate="no">
-                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_1', this)" title="Copiar Worker">
-                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            </button>
-                        </div>
-                    </td>
-                    <td>
-                        <input type="text" id="pass_1" value="{{ extra.pass1 }}" class="input-pool-pro pass-field" placeholder="123" oninput="sincronizarPass(this.value); marcarPoolEditado(this)" translate="no">
-                    </td>
-                    <td translate="no">
-                        <span class="pool-status-pill {{ 'alive' if extra.status1 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status1 == 'Alive' else 'status_dead' }}">
-                            <span class="status-dot-pulse"></span>
-                            {{ extra.status1 }}
-                        </span>
-                    </td>
-                    <td translate="no">
-                        <div class="shares-cell-wrap">
-                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc1) }}</span>
-                            <div class="shares-bar-bg">
-                                <div class="shares-bar-acc" style="width:{{ (100 - pct1) if tot1 > 0 else 0 }}%;"></div>
-                                <div class="shares-bar-rej" style="width:{{ pct1 if tot1 > 0 else 0 }}%;"></div>
+                        </td>
+                        <td>
+                            <div class="input-pool-wrap">
+                                <input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:3333" oninput="marcarPoolEditado(this)" translate="no">
+                                <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_1', this)" title="Copiar URL del Pool 1">
+                                    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                </button>
                             </div>
-                        </div>
-                    </td>
-                    <td translate="no">
-                        <div class="rej-val-group">
-                            <span style="color:{{ '#ff5252' if extra.rej1 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej1) }}</span>
-                            <span style="font-size:0.86em; color:{{ '#ff5252' if pct1 > 1.5 else ('#ffb300' if pct1 > 0.8 else 'var(--text-muted)') }};">({{ "%.2f"|format(pct1) }}%)</span>
-                        </div>
-                    </td>
-                </tr>
+                        </td>
+                        <td>
+                            <div class="input-pool-wrap">
+                                <input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="sincronizarWorker(this.value); marcarPoolEditado(this)" translate="no">
+                                <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_1', this)" title="Copiar Worker">
+                                    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <input type="text" id="pass_1" value="{{ extra.pass1 }}" class="input-pool-pro pass-field" placeholder="123" oninput="sincronizarPass(this.value); marcarPoolEditado(this)" translate="no">
+                        </td>
+                        <td translate="no">
+                            <span class="pool-status-pill {{ 'alive' if extra.status1 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status1 == 'Alive' else 'status_dead' }}">
+                                <span class="status-dot-pulse"></span>
+                                {{ extra.status1 }}
+                            </span>
+                        </td>
+                        <td translate="no">
+                            <div class="shares-cell-wrap">
+                                <span style="color:var(--accent-green); font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc1) }}</span>
+                                <div class="shares-bar-bg">
+                                    <div class="shares-bar-acc" style="width:{{ (100 - pct1) if tot1 > 0 else 0 }}%;"></div>
+                                    <div class="shares-bar-rej" style="width:{{ pct1 if tot1 > 0 else 0 }}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td translate="no">
+                            <div class="rej-val-group">
+                                <span style="color:{{ '#ff5252' if extra.rej1 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej1) }}</span>
+                                <span style="font-size:0.86em; color:{{ '#ff5252' if pct1 > 1.5 else ('#ffb300' if pct1 > 0.8 else 'var(--text-muted)') }};">({{ "%.2f"|format(pct1) }}%)</span>
+                            </div>
+                        </td>
+                    </tr>
 
-                <!-- POOL 2 (RESPALDO 1) -->
-                <tr>
-                    <td>
-                        <div class="pool-rank-wrap" data-pool-tt="prio_2">
-                            <div class="pool-rank-top">
-                                <span class="pool-rank-badge" style="opacity:0.85;">2</span>
-                                <span class="pool-rank-help-dot">ⓘ</span>
+                    <!-- POOL 2 (RESPALDO 1) -->
+                    <tr>
+                        <td>
+                            <div class="pool-rank-wrap" data-pool-tt="prio_2">
+                                <div class="pool-rank-top">
+                                    <span class="pool-rank-badge" style="opacity:0.85;">2</span>
+                                    <span class="pool-rank-help-dot">ⓘ</span>
+                                </div>
+                                <span class="pool-rank-sub">Respaldo 1</span>
                             </div>
-                            <span class="pool-rank-sub">Respaldo 1</span>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="input-pool-wrap">
-                            <input type="text" id="url_2" value="{{ extra.pool2 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:443" oninput="marcarPoolEditado(this)" translate="no">
-                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_2', this)" title="Copiar URL del Pool 2">
-                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            </button>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="input-pool-wrap">
-                            <input type="text" id="user_2" value="{{ extra.worker2 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="marcarPoolEditado(this)" translate="no">
-                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_2', this)" title="Copiar Worker">
-                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            </button>
-                        </div>
-                    </td>
-                    <td>
-                        <input type="text" id="pass_2" value="{{ extra.pass2 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
-                    </td>
-                    <td translate="no">
-                        <span class="pool-status-pill {{ 'alive' if extra.status2 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status2 == 'Alive' else 'status_dead' }}">
-                            <span class="status-dot-pulse"></span>
-                            {{ extra.status2 }}
-                        </span>
-                    </td>
-                    <td translate="no">
-                        <div class="shares-cell-wrap">
-                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc2) }}</span>
-                            <div class="shares-bar-bg">
-                                <div class="shares-bar-acc" style="width:{{ (100 - pct2) if tot2 > 0 else 0 }}%;"></div>
-                                <div class="shares-bar-rej" style="width:{{ pct2 if tot2 > 0 else 0 }}%;"></div>
+                        </td>
+                        <td>
+                            <div class="input-pool-wrap">
+                                <input type="text" id="url_2" value="{{ extra.pool2 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:443" oninput="marcarPoolEditado(this)" translate="no">
+                                <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_2', this)" title="Copiar URL del Pool 2">
+                                    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                </button>
                             </div>
-                        </div>
-                    </td>
-                    <td translate="no">
-                        <div class="rej-val-group">
-                            <span style="color:{{ '#ff5252' if extra.rej2 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej2) }}</span>
-                            <span style="font-size:0.86em; color:{{ '#ff5252' if pct2 > 1.5 else ('#ffb300' if pct2 > 0.8 else 'var(--text-muted)') }};">({{ "%.2f"|format(pct2) }}%)</span>
-                        </div>
-                    </td>
-                </tr>
+                        </td>
+                        <td>
+                            <div class="input-pool-wrap">
+                                <input type="text" id="user_2" value="{{ extra.worker2 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="marcarPoolEditado(this)" translate="no">
+                                <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_2', this)" title="Copiar Worker">
+                                    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <input type="text" id="pass_2" value="{{ extra.pass2 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
+                        </td>
+                        <td translate="no">
+                            <span class="pool-status-pill {{ 'alive' if extra.status2 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status2 == 'Alive' else 'status_dead' }}">
+                                <span class="status-dot-pulse"></span>
+                                {{ extra.status2 }}
+                            </span>
+                        </td>
+                        <td translate="no">
+                            <div class="shares-cell-wrap">
+                                <span style="color:var(--accent-green); font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc2) }}</span>
+                                <div class="shares-bar-bg">
+                                    <div class="shares-bar-acc" style="width:{{ (100 - pct2) if tot2 > 0 else 0 }}%;"></div>
+                                    <div class="shares-bar-rej" style="width:{{ pct2 if tot2 > 0 else 0 }}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td translate="no">
+                            <div class="rej-val-group">
+                                <span style="color:{{ '#ff5252' if extra.rej2 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej2) }}</span>
+                                <span style="font-size:0.86em; color:{{ '#ff5252' if pct2 > 1.5 else ('#ffb300' if pct2 > 0.8 else 'var(--text-muted)') }};">({{ "%.2f"|format(pct2) }}%)</span>
+                            </div>
+                        </td>
+                    </tr>
 
-                <!-- POOL 3 (RESPALDO 2) -->
-                <tr>
-                    <td>
-                        <div class="pool-rank-wrap" data-pool-tt="prio_3">
-                            <div class="pool-rank-top">
-                                <span class="pool-rank-badge" style="opacity:0.7;">3</span>
-                                <span class="pool-rank-help-dot">ⓘ</span>
+                    <!-- POOL 3 (RESPALDO 2) -->
+                    <tr>
+                        <td>
+                            <div class="pool-rank-wrap" data-pool-tt="prio_3">
+                                <div class="pool-rank-top">
+                                    <span class="pool-rank-badge" style="opacity:0.7;">3</span>
+                                    <span class="pool-rank-help-dot">ⓘ</span>
+                                </div>
+                                <span class="pool-rank-sub">Respaldo 2</span>
                             </div>
-                            <span class="pool-rank-sub">Respaldo 2</span>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="input-pool-wrap">
-                            <input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:25" oninput="marcarPoolEditado(this)" translate="no">
-                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_3', this)" title="Copiar URL del Pool 3">
-                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            </button>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="input-pool-wrap">
-                            <input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="marcarPoolEditado(this)" translate="no">
-                            <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_3', this)" title="Copiar Worker">
-                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            </button>
-                        </div>
-                    </td>
-                    <td>
-                        <input type="text" id="pass_3" value="{{ extra.pass3 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
-                    </td>
-                    <td translate="no">
-                        <span class="pool-status-pill {{ 'alive' if extra.status3 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status3 == 'Alive' else 'status_dead' }}">
-                            <span class="status-dot-pulse"></span>
-                            {{ extra.status3 }}
-                        </span>
-                    </td>
-                    <td translate="no">
-                        <div class="shares-cell-wrap">
-                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc3) }}</span>
-                            <div class="shares-bar-bg">
-                                <div class="shares-bar-acc" style="width:{{ (100 - pct3) if tot3 > 0 else 0 }}%;"></div>
-                                <div class="shares-bar-rej" style="width:{{ pct3 if tot3 > 0 else 0 }}%;"></div>
+                        </td>
+                        <td>
+                            <div class="input-pool-wrap">
+                                <input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:25" oninput="marcarPoolEditado(this)" translate="no">
+                                <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_3', this)" title="Copiar URL del Pool 3">
+                                    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                </button>
                             </div>
-                        </div>
-                    </td>
-                    <td translate="no">
-                        <div class="rej-val-group">
-                            <span style="color:{{ '#ff5252' if extra.rej3 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej3) }}</span>
-                            <span style="font-size:0.86em; color:{{ '#ff5252' if pct3 > 1.5 else ('#ffb300' if pct3 > 0.8 else 'var(--text-muted)') }};">({{ "%.2f"|format(pct3) }}%)</span>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+                        </td>
+                        <td>
+                            <div class="input-pool-wrap">
+                                <input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="marcarPoolEditado(this)" translate="no">
+                                <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_3', this)" title="Copiar Worker">
+                                    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <input type="text" id="pass_3" value="{{ extra.pass3 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
+                        </td>
+                        <td translate="no">
+                            <span class="pool-status-pill {{ 'alive' if extra.status3 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status3 == 'Alive' else 'status_dead' }}">
+                                <span class="status-dot-pulse"></span>
+                                {{ extra.status3 }}
+                            </span>
+                        </td>
+                        <td translate="no">
+                            <div class="shares-cell-wrap">
+                                <span style="color:var(--accent-green); font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc3) }}</span>
+                                <div class="shares-bar-bg">
+                                    <div class="shares-bar-acc" style="width:{{ (100 - pct3) if tot3 > 0 else 0 }}%;"></div>
+                                    <div class="shares-bar-rej" style="width:{{ pct3 if tot3 > 0 else 0 }}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td translate="no">
+                            <div class="rej-val-group">
+                                <span style="color:{{ '#ff5252' if extra.rej3 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej3) }}</span>
+                                <span style="font-size:0.86em; color:{{ '#ff5252' if pct3 > 1.5 else ('#ffb300' if pct3 > 0.8 else 'var(--text-muted)') }};">({{ "%.2f"|format(pct3) }}%)</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Botón Guardar debajo de la 3ra Pool (visible solo en celular) -->
@@ -974,7 +1011,82 @@
         }
     }
 
+    // Animación Peek (1 sola vez al bajar en celular) + control de sombra derecha y aviso
+    function inicializarPeekYSombraPools() {
+        const scroller = document.getElementById('poolsTableScroll');
+        const outer = document.getElementById('poolsTableOuter');
+        const hint = document.getElementById('poolsMobileHint');
+        if (!scroller || !outer) return;
+
+        let peekEjecutado = false;
+        let animandoPeek = false;
+        let usuarioToco = false;
+        let timerIda = null;
+        let timerVuelta = null;
+
+        function actualizarEstadoSombra() {
+            const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+            if (maxScroll <= 4 || scroller.scrollLeft >= maxScroll - 8) {
+                outer.classList.add('scrolled-end');
+            } else {
+                outer.classList.remove('scrolled-end');
+            }
+
+            if (!animandoPeek && scroller.scrollLeft > 22 && hint) {
+                hint.classList.add('hint-hidden');
+            }
+        }
+
+        function cancelarPeek() {
+            usuarioToco = true;
+            animandoPeek = false;
+            if (timerIda) clearTimeout(timerIda);
+            if (timerVuelta) clearTimeout(timerVuelta);
+        }
+
+        scroller.addEventListener('touchstart', cancelarPeek, { passive: true });
+        scroller.addEventListener('pointerdown', cancelarPeek, { passive: true });
+        scroller.addEventListener('scroll', actualizarEstadoSombra, { passive: true });
+        window.addEventListener('resize', actualizarEstadoSombra, { passive: true });
+        actualizarEstadoSombra();
+
+        if ('IntersectionObserver' in window) {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (
+                        entry.isIntersecting &&
+                        !peekEjecutado &&
+                        !usuarioToco &&
+                        window.innerWidth <= 768 &&
+                        (scroller.scrollWidth - scroller.clientWidth) > 40 &&
+                        scroller.scrollLeft === 0
+                    ) {
+                        peekEjecutado = true;
+                        observer.disconnect();
+
+                        timerIda = setTimeout(() => {
+                            if (usuarioToco) return;
+                            animandoPeek = true;
+                            scroller.scrollTo({ left: 58, behavior: 'smooth' });
+
+                            timerVuelta = setTimeout(() => {
+                                if (!usuarioToco) {
+                                    scroller.scrollTo({ left: 0, behavior: 'smooth' });
+                                }
+                                setTimeout(() => { animandoPeek = false; }, 450);
+                            }, 620);
+                        }, 350);
+                    }
+                });
+            }, { threshold: 0.35 });
+
+            observer.observe(scroller);
+        }
+    }
+
     window.addEventListener('load', function() {
+        inicializarPeekYSombraPools();
+
         document.querySelectorAll('[data-pool-tt]').forEach(el => {
             const key = el.getAttribute('data-pool-tt');
             const info = INFO_TOOLTIPS_POOLS[key];
