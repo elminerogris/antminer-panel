@@ -1,66 +1,256 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    /* Píldoras de Filtro Rápido Compactas */
-    .filter-pills { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 10px; margin-bottom: 16px; }
-    .pill-card { background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px 15px; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: space-between; }
-    .pill-card:hover { border-color: var(--accent-blue); transform: translateY(-1px); }
-    .pill-card.active { background: rgba(51, 102, 255, 0.12); border-color: var(--accent-blue); }
-    .pill-title { font-size: 0.7em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; letter-spacing: 0.3px; }
-    .pill-count { font-size: 1.3em; font-weight: bold; color: var(--text-main); }
+    /* Píldoras de Filtro Rápido con Efecto Glow */
+    .filter-pills {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .pill-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        padding: 13px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        user-select: none;
+    }
+    .pill-card:hover {
+        border-color: rgba(82, 140, 255, 0.65);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 12px rgba(51, 102, 255, 0.25);
+        transform: translateY(-2px);
+    }
+    .pill-card.active {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.18) 0%, rgba(37, 99, 235, 0.08) 100%);
+        border-color: #3b82f6;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.35);
+    }
+    .pill-title {
+        font-size: 0.72em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        font-weight: bold;
+        letter-spacing: 0.4px;
+    }
+    .pill-count {
+        font-size: 1.4em;
+        font-weight: bold;
+        font-family: monospace;
+        color: var(--text-main);
+    }
 
-    /* Semáforo térmico estilo AntminerTools */
-    .badge-t-ok { background: rgba(0, 230, 118, 0.12); color: #00e676; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.84em; display: inline-block; }
-    .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.84em; display: inline-block; }
-    .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.84em; display: inline-block; }
+    /* Semáforo térmico */
+    .badge-t-ok { background: rgba(0, 230, 118, 0.12); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
+    .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.35); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
+    .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
 
     /* Barra de búsqueda y Comando Masivo */
-    .fleet-toolbar { background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-    .search-box { position: relative; flex: 1; min-width: 240px; }
-    .search-input { width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 9px 14px 9px 34px; border-radius: 6px; font-size: 0.86em; outline: none; box-sizing: border-box; }
-    .search-input:focus { border-color: var(--accent-blue); }
+    .fleet-toolbar {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .search-box { position: relative; flex: 1; min-width: 230px; }
+    .search-input {
+        width: 100%;
+        background: rgba(10, 12, 18, 0.65);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 9px 14px 9px 34px;
+        border-radius: 7px;
+        font-size: 0.86em;
+        outline: none;
+        box-sizing: border-box;
+        transition: all 0.2s ease;
+    }
+    .search-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+    }
     .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85em; }
 
-    .bulk-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .sel-badge { background: rgba(51, 102, 255, 0.15); color: var(--accent-blue); border: 1px solid var(--accent-blue); padding: 6px 12px; border-radius: 6px; font-size: 0.8em; font-weight: bold; }
-    .btn-fleet { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 13px; border-radius: 6px; cursor: pointer; font-size: 0.82em; font-weight: bold; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
-    .btn-fleet:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
-    .btn-fleet.primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
-    .btn-fleet.primary:hover { opacity: 0.9; color: #fff; }
+    .bulk-bar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .sel-badge {
+        background: rgba(51, 102, 255, 0.12);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.45);
+        padding: 6px 11px;
+        border-radius: 7px;
+        font-size: 0.78em;
+        font-weight: bold;
+        font-family: monospace;
+        transition: 0.2s;
+    }
+    .sel-badge.has-sel {
+        background: rgba(51, 102, 255, 0.28);
+        color: #fff;
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
+    }
+
+    .btn-fleet {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 7px 12px;
+        border-radius: 7px;
+        cursor: pointer;
+        font-size: 0.80em;
+        font-weight: bold;
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        user-select: none;
+    }
+    .btn-fleet:hover {
+        color: #fff;
+        border-color: #3b82f6;
+        background: rgba(51, 102, 255, 0.18);
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
+        transform: translateY(-1px);
+    }
+    .btn-fleet.primary {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.35) 0%, rgba(37, 99, 235, 0.22) 100%);
+        border-color: #3b82f6;
+        color: #60a5fa;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+    }
+    .btn-fleet.primary:hover {
+        background: rgba(51, 102, 255, 0.45);
+        color: #fff;
+        box-shadow: 0 0 16px rgba(59, 130, 246, 0.65);
+    }
+    .btn-fleet.glow-gold { color: #facc15; border-color: rgba(250, 204, 21, 0.35); }
+    .btn-fleet.glow-gold:hover { background: rgba(250, 204, 21, 0.2); border-color: #facc15; color: #fff; box-shadow: 0 0 14px rgba(250, 204, 21, 0.5); }
+    .btn-fleet.glow-danger { color: #ff5252; border-color: rgba(255, 82, 82, 0.35); }
+    .btn-fleet.glow-danger:hover { background: rgba(255, 82, 82, 0.22); border-color: #ff5252; color: #fff; box-shadow: 0 0 14px rgba(255, 82, 82, 0.55); }
+    .btn-fleet.dimmed { opacity: 0.45; }
 
     /* Tabla avanzada de Flota */
-    .table-container { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table { width: 100%; min-width: 1050px; border-collapse: collapse; white-space: nowrap; }
-    th { text-align: left; padding: 12px 14px; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; border-bottom: 1px solid var(--border-color); cursor: pointer; user-select: none; }
-    th:hover { color: var(--text-main); }
-    td { padding: 12px 14px; border-bottom: 1px solid var(--border-color); font-size: 0.85em; vertical-align: middle; }
+    .table-container {
+        background: var(--bg-card);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    table { width: 100%; min-width: 1060px; border-collapse: collapse; white-space: nowrap; }
+    th {
+        text-align: left;
+        padding: 12px 14px;
+        color: var(--text-muted);
+        font-size: 0.72em;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        border-bottom: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.015);
+        cursor: pointer;
+        user-select: none;
+        transition: 0.15s;
+    }
+    th:hover { color: #fff; }
+    td { padding: 12px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.85em; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
-    tr:hover { background: var(--hover-bg); }
-    tr.selected-row { background: rgba(51, 102, 255, 0.08); }
+    tbody tr { transition: background 0.15s ease; cursor: pointer; }
+    tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
+    tbody tr.selected-row { background: rgba(51, 102, 255, 0.11) !important; }
 
-    .miner-link { color: var(--accent-blue); font-weight: bold; text-decoration: none; font-size: 1.02em; }
-    .miner-link:hover { text-decoration: underline; }
+    .miner-link { color: #60a5fa; font-weight: bold; text-decoration: none; font-size: 1.03em; }
+    .miner-link:hover { color: #fff; text-decoration: underline; }
     .sub-txt { font-size: 0.78em; color: var(--text-muted); margin-top: 2px; font-family: monospace; }
-    .pool-pill { background: var(--bg-input); border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.82em; max-width: 210px; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: middle; }
+    .pool-pill {
+        background: rgba(10, 12, 18, 0.55);
+        border: 1px solid var(--border-color);
+        padding: 3px 8px;
+        border-radius: 5px;
+        font-family: monospace;
+        font-size: 0.82em;
+        max-width: 215px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: inline-block;
+        vertical-align: middle;
+    }
 
     /* Modales */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(2px); }
-    .modal-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 24px; max-width: 620px; width: 100%; box-shadow: 0 12px 35px rgba(0,0,0,0.6); }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px; }
-    .modal-title { font-size: 1.15em; font-weight: bold; color: var(--text-main); }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.72); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(3px); }
+    .modal-box { background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 10px; padding: 22px; max-width: 650px; width: 100%; box-shadow: 0 14px 40px rgba(0,0,0,0.75); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 14px; }
+    .modal-title { font-size: 1.12em; font-weight: bold; color: var(--text-main); }
     .pool-grid-form { display: grid; grid-template-columns: 35px 1.6fr 1.1fr 75px; gap: 8px; align-items: center; margin-bottom: 10px; }
     @media (max-width: 600px) { .pool-grid-form { grid-template-columns: 1fr; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; } }
-    .input-modal { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 10px; border-radius: 5px; font-family: monospace; font-size: 0.88em; width: 100%; box-sizing: border-box; outline: none; }
-    .input-modal:focus { border-color: var(--accent-blue); }
-    .suffix-box { background: rgba(51, 102, 255, 0.08); border: 1px solid rgba(51, 102, 255, 0.3); padding: 12px; border-radius: 6px; margin: 14px 0; font-size: 0.84em; }
-    .preview-worker { font-family: monospace; color: var(--accent-green); font-weight: bold; margin-top: 6px; }
+    .input-modal { background: rgba(10, 12, 18, 0.75); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 10px; border-radius: 6px; font-family: monospace; font-size: 0.88em; width: 100%; box-sizing: border-box; outline: none; transition: 0.18s; }
+    .input-modal:focus { border-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.35); }
+    .suffix-box { background: rgba(51, 102, 255, 0.08); border: 1px solid rgba(51, 102, 255, 0.3); padding: 12px; border-radius: 7px; margin: 12px 0; font-size: 0.84em; }
+    .preview-worker { font-family: monospace; color: #00e676; font-weight: bold; margin-top: 6px; }
+
+    /* Plantillas rápidas dentro del Modal Masivo */
+    .modal-presets-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; font-size: 0.76em; }
+    .modal-preset-pill { background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); color: var(--text-muted); padding: 3px 9px; border-radius: 14px; font-weight: bold; cursor: pointer; transition: 0.18s; }
+    .modal-preset-pill:hover { color: #fff; border-color: #3b82f6; background: rgba(51,102,255,0.18); box-shadow: 0 0 8px rgba(59,130,246,0.4); }
+
+    /* Portal Tooltip Inteligente Anti-Colisión */
+    .fleet-smart-tooltip {
+        position: fixed;
+        display: none;
+        width: 255px;
+        max-width: calc(100vw - 20px);
+        background: rgba(10, 11, 16, 0.98);
+        border: 1px solid rgba(51, 102, 255, 0.55);
+        border-radius: 7px;
+        padding: 9px 11px;
+        color: #d1d3e0;
+        font-family: sans-serif;
+        font-size: 11.5px;
+        line-height: 1.4;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
+        z-index: 99999;
+        pointer-events: none;
+    }
+    .fleet-tt-title { color: #fff; font-weight: bold; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+
+    /* Notificación Toast Profesional */
+    .fleet-toast {
+        position: fixed;
+        bottom: 22px;
+        right: 22px;
+        background: rgba(10, 12, 18, 0.96);
+        border: 1px solid #00e676;
+        color: #fff;
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-size: 0.86em;
+        font-weight: bold;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 230, 118, 0.3);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        gap: 8px;
+    }
 </style>
+
+<!-- Portal de Tooltip y Notificación Toast -->
+<div id="fleetSmartTooltip" class="fleet-smart-tooltip" translate="no"></div>
+<div id="fleetToast" class="fleet-toast" translate="no"></div>
 
 <!-- Modal de Confirmación Universal -->
 <div class="modal-overlay" id="confirmBulkModal">
-    <div class="modal-box" style="max-width: 380px; text-align: center;">
+    <div class="modal-box" style="max-width: 390px; text-align: center;">
         <div class="modal-title" id="confirmBulkTitle" style="margin-bottom: 10px;">Confirmar acción masiva</div>
-        <div id="confirmBulkText" style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 20px; line-height: 1.4;"></div>
+        <div id="confirmBulkText" style="font-size: 0.9em; color: var(--text-muted); margin-bottom: 22px; line-height: 1.45;"></div>
         <div style="display: flex; gap: 10px;">
             <button type="button" class="btn-fleet" style="flex: 1; justify-content: center;" onclick="cerrarModalConfirm()">Cancelar</button>
             <button type="button" class="btn-fleet primary" style="flex: 1; justify-content: center;" id="btnConfirmBulkExec">Confirmar</button>
@@ -76,6 +266,15 @@
             <button type="button" class="btn-fleet" onclick="cerrarModalPools()">✖</button>
         </div>
 
+        <div class="modal-presets-row">
+            <span style="color:var(--text-muted); font-weight:bold;">⚡ Plantillas BTC:</span>
+            <span class="modal-preset-pill" onclick="aplicarPresetMasivo('viabtc')">ViaBTC</span>
+            <span class="modal-preset-pill" onclick="aplicarPresetMasivo('f2pool')">F2Pool</span>
+            <span class="modal-preset-pill" onclick="aplicarPresetMasivo('braiins')">Braiins</span>
+            <span class="modal-preset-pill" onclick="aplicarPresetMasivo('antpool')">AntPool</span>
+            <span class="modal-preset-pill" onclick="aplicarPresetMasivo('luxor')">Luxor</span>
+        </div>
+
         <div class="suffix-box">
             <div style="font-weight: bold; margin-bottom: 6px; color: var(--text-main);">🧠 Auto-identificador inteligente de Worker:</div>
             <select id="workerSuffixMode" class="input-modal" onchange="actualizarPreviewWorker()">
@@ -87,25 +286,25 @@
             <div class="preview-worker" id="workerPreviewTxt" translate="no">Vista previa: usuario.12</div>
         </div>
 
-        <div class="pool-grid-form" style="font-size: 0.75em; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">
+        <div class="pool-grid-form" style="font-size: 0.73em; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">
             <div>#</div><div>Pool Stratum URL</div><div>Cuenta / Worker Base</div><div>Pass</div>
         </div>
 
         <div class="pool-grid-form">
-            <div style="font-weight:bold;">P1</div>
+            <div style="font-weight:bold; color:#60a5fa;">P1</div>
             <input type="text" id="bp_u1" class="input-modal" placeholder="stratum+tcp://btc.viabtc.io:3333" translate="no">
             <input type="text" id="bp_w1" class="input-modal" placeholder="tu_cuenta" oninput="sincronizarBulkWorkers(this.value)" translate="no">
             <input type="text" id="bp_p1" class="input-modal" value="123" oninput="sincronizarBulkPass(this.value)" translate="no">
         </div>
         <div class="pool-grid-form">
-            <div style="font-weight:bold;">P2</div>
-            <input type="text" id="bp_u2" class="input-modal" placeholder="stratum+tcp://btc.viabtc.io:25" translate="no">
+            <div style="font-weight:bold; color:var(--text-muted);">P2</div>
+            <input type="text" id="bp_u2" class="input-modal" placeholder="stratum+tcp://btc.viabtc.io:443" translate="no">
             <input type="text" id="bp_w2" class="input-modal" placeholder="tu_cuenta" translate="no">
             <input type="text" id="bp_p2" class="input-modal" value="123" translate="no">
         </div>
         <div class="pool-grid-form">
-            <div style="font-weight:bold;">P3</div>
-            <input type="text" id="bp_u3" class="input-modal" placeholder="stratum+tcp://btc.viabtc.io:443" translate="no">
+            <div style="font-weight:bold; color:var(--text-muted);">P3</div>
+            <input type="text" id="bp_u3" class="input-modal" placeholder="stratum+tcp://btc.viabtc.io:25" translate="no">
             <input type="text" id="bp_w3" class="input-modal" placeholder="tu_cuenta" translate="no">
             <input type="text" id="bp_p3" class="input-modal" value="123" translate="no">
         </div>
@@ -119,23 +318,23 @@
 
 <!-- 1. Filtros Rápidos de Diagnóstico -->
 <div class="filter-pills">
-    <div class="pill-card active" id="pill-all" onclick="filtrarEstado('all')">
+    <div class="pill-card active" id="pill-all" data-ftt="pill_all" onclick="filtrarEstado('all')">
         <div><div class="pill-title">Total Flota</div><div style="font-size:0.72em;color:var(--text-muted);">Todos los equipos</div></div>
         <div class="pill-count" translate="no">{{ stats.total }}</div>
     </div>
-    <div class="pill-card" id="pill-online" onclick="filtrarEstado('online')">
+    <div class="pill-card" id="pill-online" data-ftt="pill_online" onclick="filtrarEstado('online')">
         <div><div class="pill-title" style="color:var(--accent-green);">● En Línea</div><div style="font-size:0.72em;color:var(--text-muted);">Minando normal</div></div>
         <div class="pill-count" style="color:var(--accent-green);" translate="no">{{ stats.online }}</div>
     </div>
-    <div class="pill-card" id="pill-offline" onclick="filtrarEstado('offline')">
+    <div class="pill-card" id="pill-offline" data-ftt="pill_offline" onclick="filtrarEstado('offline')">
         <div><div class="pill-title" style="color:var(--accent-red);">● Sin Conexión</div><div style="font-size:0.72em;color:var(--text-muted);">Apagados / Red</div></div>
         <div class="pill-count" style="color:var(--accent-red);" translate="no">{{ stats.offline }}</div>
     </div>
-    <div class="pill-card" id="pill-temp" onclick="filtrarEstado('temp')">
+    <div class="pill-card" id="pill-temp" data-ftt="pill_temp" onclick="filtrarEstado('temp')">
         <div><div class="pill-title" style="color:#ffb300;">🔥 Temp Alta</div><div style="font-size:0.72em;color:var(--text-muted);">Chip ≥ 75°C</div></div>
         <div class="pill-count" style="color:#ffb300;" translate="no">{{ stats.alerta_temp }}</div>
     </div>
-    <div class="pill-card" id="pill-hw" onclick="filtrarEstado('hw')">
+    <div class="pill-card" id="pill-hw" data-ftt="pill_hw" onclick="filtrarEstado('hw')">
         <div><div class="pill-title" style="color:#ff5252;">⚠️ Revisión HW</div><div style="font-size:0.72em;color:var(--text-muted);">Errores / Rejects</div></div>
         <div class="pill-count" style="color:#ff5252;" translate="no">{{ stats.alerta_hw }}</div>
     </div>
@@ -148,13 +347,14 @@
         <input type="text" id="buscadorFlota" class="search-input" placeholder="Buscar por IP, nombre, modelo, worker, MAC..." oninput="aplicarFiltrosTabla()">
     </div>
     <div class="bulk-bar">
-        <span class="sel-badge"><span id="contadorSeleccionados">0</span> seleccionados</span>
-        <button type="button" class="btn-fleet primary" onclick="abrirModalPoolsMasivo()">⛏ Cambiar Pools</button>
-        <button type="button" class="btn-fleet" onclick="confirmarAccionMasiva('restart', '🔄 Reiniciar Mineros', '¿Reiniciar todos los mineros seleccionados?')">🔄 Reiniciar</button>
-        <button type="button" class="btn-fleet" onclick="confirmarAccionMasiva('sleep', '😴 Modo Reposo', '¿Poner en modo Reposo (Sleep) los mineros seleccionados?')">😴 Reposo</button>
-        <button type="button" class="btn-fleet" onclick="confirmarAccionMasiva('normal', '▶ Modo Normal', '¿Reanudar en modo Normal los mineros seleccionados?')">▶ Normal</button>
-        <button type="button" class="btn-fleet" style="color:gold;" onclick="confirmarAccionMasiva('blink', '💡 Localizar con LED', '¿Hacer parpadear el LED en los mineros seleccionados?')">💡 LED</button>
-        <button type="button" class="btn-fleet" style="color:#ff9100;" onclick="confirmarAccionMasiva('reset', '⚠️ Formatear de Fábrica', '¿Estás seguro de formatear a valores de fábrica los mineros seleccionados?')">⚠️ Reset</button>
+        <span class="sel-badge" id="selBadgeWrap"><span id="contadorSeleccionados">0</span> sel.</span>
+        <button type="button" class="btn-fleet primary bulk-action-btn dimmed" data-ftt="btn_pools" onclick="abrirModalPoolsMasivo()">⛏ Pools</button>
+        <button type="button" class="btn-fleet bulk-action-btn dimmed" data-ftt="btn_restart" onclick="confirmarAccionMasiva('restart', '🔄 Reiniciar Mineros', '¿Reiniciar todos los mineros seleccionados?')">🔄 Reiniciar</button>
+        <button type="button" class="btn-fleet bulk-action-btn dimmed" data-ftt="btn_sleep" onclick="confirmarAccionMasiva('sleep', '😴 Modo Reposo', '¿Poner en modo Reposo (Sleep) los mineros seleccionados?')">😴 Reposo</button>
+        <button type="button" class="btn-fleet bulk-action-btn dimmed" data-ftt="btn_normal" onclick="confirmarAccionMasiva('normal', '▶ Modo Normal', '¿Reanudar en modo Normal los mineros seleccionados?')">▶ Normal</button>
+        <button type="button" class="btn-fleet glow-gold bulk-action-btn dimmed" data-ftt="btn_led" onclick="confirmarAccionMasiva('blink', '💡 Localizar con LED', '¿Hacer parpadear el LED en los mineros seleccionados?')">💡 LED</button>
+        <button type="button" class="btn-fleet glow-danger bulk-action-btn dimmed" data-ftt="btn_reset" onclick="confirmarAccionMasiva('reset', '⚠️ Formatear de Fábrica', '¿Estás seguro de formatear a valores de fábrica los mineros seleccionados?')">⚠️ Reset</button>
+        <a href="/exportar_csv" class="btn-fleet" data-ftt="btn_csv">📥 CSV</a>
     </div>
 </div>
 
@@ -172,14 +372,17 @@
                 <th onclick="ordenarTabla(6)">Temp (Chip / Amb) ↕</th>
                 <th>Refrigeración</th>
                 <th>Pool Activa / Worker</th>
-                <th>Rechazo (%)</th>
+                <th onclick="ordenarTabla(9)">Rechazo (%) ↕</th>
             </tr>
         </thead>
         <tbody>
             {% for m in mineros %}
             {% set tm = m.temp_max | int %}
             {% set m_t_cls = 'badge-t-crit' if tm >= 85 else ('badge-t-warn' if tm >= 75 else 'badge-t-ok') %}
+            {% set ip_parts = m.ip.split('.') %}
+            {% set ip_num_sort = (ip_parts[0]|int * 16777216 + ip_parts[1]|int * 65536 + ip_parts[2]|int * 256 + ip_parts[3]|int) if ip_parts|length == 4 else 0 %}
             <tr class="fila-minero"
+                onclick="toggleFilaClick(event, this)"
                 data-ip="{{ m.ip }}"
                 data-octeto="{{ m.ultimo_octeto }}"
                 data-nombre="{{ m.nombre }}"
@@ -194,7 +397,7 @@
                 
                 <td><input type="checkbox" class="cb-minero" value="{{ m.ip }}" onchange="actualizarContadorSeleccion()"></td>
                 
-                <td translate="no">
+                <td data-sort="{{ ip_num_sort }}" translate="no">
                     <a href="/minero/{{ m.ip }}" class="miner-link">{{ m.nombre }}</a>
                     <div class="sub-txt">{{ m.ip }} · {{ m.mac }}</div>
                 </td>
@@ -204,7 +407,7 @@
                     <div class="sub-txt">{{ m.firmware[:22] }}</div>
                 </td>
                 
-                <td>
+                <td data-sort="{{ '1' if m.online else '0' }}">
                     {% if m.online %}
                         <span style="color:var(--accent-green);font-weight:bold;">● Online</span>
                     {% else %}
@@ -215,11 +418,11 @@
                 
                 <td data-sort="{{ m.hashrate }}" translate="no">
                     {% if m.online and m.hashrate > 0 %}
-                        <b style="color:var(--accent-blue);font-size:1.05em;">{{ m.hashrate }}</b>
-                        <span style="color:var(--text-muted);">/ {{ m.hashrate_30m }} {{ m.unidad }}</span>
+                        <b style="color:#3b82f6;font-size:1.05em;font-family:monospace;">{{ m.hashrate }}</b>
+                        <span style="color:var(--text-muted);font-family:monospace;">/ {{ m.hashrate_30m }} {{ m.unidad }}</span>
                         <div class="sub-txt">{{ m.consumo_kw }} kW · {{ m.eficiencia }} {{ m.unidad_efi }}</div>
                     {% else %}
-                        <span style="color:var(--text-muted);">0 {{ m.unidad }}</span>
+                        <span style="color:var(--text-muted);font-family:monospace;">0 {{ m.unidad }}</span>
                     {% endif %}
                 </td>
 
@@ -244,7 +447,7 @@
                 </td>
 
                 <td translate="no">
-                    <div style="font-size:0.85em;color:{{ 'var(--accent-blue)' if 'Hydro' in m.fans else 'var(--text-main)' }};">{{ m.fans }}</div>
+                    <div style="font-size:0.85em;color:{{ '#38bdf8' if 'Hydro' in m.fans else 'var(--text-main)' }};">{{ m.fans }}</div>
                 </td>
 
                 <td translate="no">
@@ -252,9 +455,9 @@
                     <div class="sub-txt" style="color:var(--text-main);font-weight:bold;">👷 {{ m.worker1 }}</div>
                 </td>
 
-                <td translate="no">
-                    <span style="color:var(--accent-green);font-weight:bold;">{{ "{:,}".format(m.acc1) }}</span>
-                    <div class="sub-txt" style="color:{{ 'var(--accent-red)' if m.pct_rej > 1.5 else 'var(--text-muted)' }};">
+                <td data-sort="{{ m.pct_rej }}" translate="no">
+                    <span style="color:var(--accent-green);font-weight:bold;font-family:monospace;">{{ "{:,}".format(m.acc1) }}</span>
+                    <div class="sub-txt" style="color:{{ '#ff5252' if m.pct_rej > 1.5 else 'var(--text-muted)' }};">
                         {{ m.rej1 }} ({{ "%.2f"|format(m.pct_rej) }}%)
                     </div>
                 </td>
@@ -267,6 +470,47 @@
 <script>
     let filtroEstadoActual = 'all';
     let accionMasivaPendiente = null;
+
+    const PLANTILLAS_MASIVAS_BTC = {
+        'viabtc': ['stratum+tcp://btc.viabtc.io:3333', 'stratum+tcp://btc.viabtc.io:443', 'stratum+tcp://btc.viabtc.io:25'],
+        'f2pool': ['stratum+tcp://btc.f2pool.com:1314', 'stratum+tcp://btc.f2pool.com:3333', 'stratum+tcp://btc.f2pool.com:25'],
+        'braiins': ['stratum+tcp://stratum.braiins.com:3333', 'stratum+tcp://us-east.stratum.braiins.com:3333', 'stratum+tcp://stratum.braiins.com:443'],
+        'antpool': ['stratum+tcp://ss.antpool.com:3333', 'stratum+tcp://ss.antpool.com:443', 'stratum+tcp://ss.antpool.com:25'],
+        'luxor': ['stratum+tcp://btc.global.luxor.tech:700', 'stratum+tcp://btc.global.luxor.tech:443', 'stratum+tcp://btc.global.luxor.tech:3333']
+    };
+
+    const FLEET_TOOLTIPS = {
+        'pill_all': { t: '🏭 Flota Completa', d: 'Muestra todos los equipos registrados en tu cuenta sin filtros.' },
+        'pill_online': { t: '🟢 Mineros Activos', d: 'Filtra solo los equipos que respondieron al Agente en los últimos 5 minutos.' },
+        'pill_offline': { t: '🔴 Sin Conexión', d: 'Muestra equipos apagados, sin red LAN o con fallo de fuente.' },
+        'pill_temp': { t: '🔥 Alerta Térmica (≥ 75°C)', d: 'Filtra equipos calientes que requieren revisión de ventilación o limpieza.' },
+        'pill_hw': { t: '⚠️ Revisión de Hardware', d: 'Equipos con más de 50 errores HW o tasa de rechazo superior al 1.5%.' },
+        'btn_pools': { t: '⛏ Cambio Masivo de Pools', d: 'Configura las 3 URLs Stratum y asigna automáticamente el sufijo de cada Worker.' },
+        'btn_restart': { t: '🔄 Reinicio Masivo', d: 'Envía orden de Reboot a todos los mineros marcados.' },
+        'btn_sleep': { t: '😴 Reposo Masivo (Sleep)', d: 'Detiene el minado manteniendo la placa de control encendida (~40W).' },
+        'btn_normal': { t: '▶ Reanudar Minado', d: 'Devuelve los mineros seleccionados a operación normal.' },
+        'btn_led': { t: '💡 Localizador LED', d: 'Hace parpadear el LED físico de los equipos marcados para ubicarlos en el rack.' },
+        'btn_reset': { t: '⚠️ Factory Reset', d: 'Restaura los valores de fábrica de los equipos seleccionados.' },
+        'btn_csv': { t: '📥 Exportar Reporte CSV', d: 'Descarga una hoja de cálculo Excel/CSV con el estado actual de toda tu flota.' }
+    };
+
+    function mostrarToastFlota(mensaje, esError = false) {
+        const el = document.getElementById('fleetToast');
+        if (!el) return;
+        el.style.borderColor = esError ? '#ff5252' : '#00e676';
+        el.innerHTML = (esError ? '⚠️ ' : '✅ ') + mensaje;
+        el.style.display = 'flex';
+        setTimeout(() => { el.style.display = 'none'; }, 3600);
+    }
+
+    function toggleFilaClick(event, fila) {
+        if (event.target.tagName === 'A' || event.target.tagName === 'INPUT') return;
+        const cb = fila.querySelector('.cb-minero');
+        if (cb) {
+            cb.checked = !cb.checked;
+            actualizarContadorSeleccion();
+        }
+    }
 
     function filtrarEstado(estado) {
         filtroEstadoActual = estado;
@@ -322,12 +566,17 @@
     function actualizarContadorSeleccion() {
         let sel = obtenerFilasSeleccionadas();
         document.getElementById('contadorSeleccionados').innerText = sel.length;
+        const badge = document.getElementById('selBadgeWrap');
+        if (badge) badge.classList.toggle('has-sel', sel.length > 0);
+        document.querySelectorAll('.bulk-action-btn').forEach(btn => {
+            btn.classList.toggle('dimmed', sel.length === 0);
+        });
     }
 
     function confirmarAccionMasiva(accion, titulo, texto) {
         let filas = obtenerFilasSeleccionadas();
         if (filas.length === 0) {
-            alert('Selecciona al menos un minero en la tabla marcando su casilla.');
+            mostrarToastFlota('Selecciona al menos un minero en la tabla.', true);
             return;
         }
         accionMasivaPendiente = accion;
@@ -351,13 +600,13 @@
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({accion: acc, ips: ips})
-        }).then(() => alert(`Orden "${acc}" enviada a ${ips.length} minero(s).`));
+        }).then(() => mostrarToastFlota(`Orden "${acc}" enviada a ${ips.length} minero(s).`));
     });
 
     function abrirModalPoolsMasivo() {
         let filas = obtenerFilasSeleccionadas();
         if (filas.length === 0) {
-            alert('Selecciona al menos un minero en la tabla para configurar sus Pools.');
+            mostrarToastFlota('Selecciona al menos un minero para cambiar sus Pools.', true);
             return;
         }
         document.getElementById('countModalPools').innerText = filas.length;
@@ -374,6 +623,14 @@
 
         actualizarPreviewWorker();
         document.getElementById('bulkPoolModal').style.display = 'flex';
+    }
+
+    function aplicarPresetMasivo(nombre) {
+        const urls = PLANTILLAS_MASIVAS_BTC[nombre];
+        if (!urls) return;
+        document.getElementById('bp_u1').value = urls[0];
+        document.getElementById('bp_u2').value = urls[1];
+        document.getElementById('bp_u3').value = urls[2];
     }
 
     function cerrarModalPools() {
@@ -418,21 +675,32 @@
         }
     }
 
+    function normalizarStratumMasivo(u) {
+        let s = (u || '').trim();
+        if (s && !s.includes('://')) s = 'stratum+tcp://' + s;
+        return s;
+    }
+
     function enviarPoolsMasivo() {
         let filas = obtenerFilasSeleccionadas();
         if (filas.length === 0) return;
 
-        let u1 = document.getElementById('bp_u1').value.trim();
+        let u1 = normalizarStratumMasivo(document.getElementById('bp_u1').value);
         let b1 = document.getElementById('bp_w1').value.trim();
         let p1 = document.getElementById('bp_p1').value.trim() || '123';
 
-        let u2 = document.getElementById('bp_u2').value.trim();
+        let u2 = normalizarStratumMasivo(document.getElementById('bp_u2').value);
         let b2 = document.getElementById('bp_w2').value.trim();
         let p2 = document.getElementById('bp_p2').value.trim() || '123';
 
-        let u3 = document.getElementById('bp_u3').value.trim();
+        let u3 = normalizarStratumMasivo(document.getElementById('bp_u3').value);
         let b3 = document.getElementById('bp_w3').value.trim();
         let p3 = document.getElementById('bp_p3').value.trim() || '123';
+
+        if (!u1) {
+            mostrarToastFlota('El Pool #1 no puede estar vacío.', true);
+            return;
+        }
 
         let ordenes_custom = filas.map(fila => {
             let w1 = armarWorkerParaFila(b1, fila);
@@ -449,7 +717,7 @@
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ordenes_custom: ordenes_custom})
-        }).then(() => alert(`Configuración de Pools personalizada enviada a ${ordenes_custom.length} minero(s).`));
+        }).then(() => mostrarToastFlota(`Pools personalizados enviados a ${ordenes_custom.length} minero(s).`));
     }
 
     let ordenAsc = false;
@@ -462,12 +730,38 @@
             let tdB = b.children[colIdx];
             let vA = tdA.getAttribute('data-sort') !== null ? parseFloat(tdA.getAttribute('data-sort')) : tdA.innerText.trim();
             let vB = tdB.getAttribute('data-sort') !== null ? parseFloat(tdB.getAttribute('data-sort')) : tdB.innerText.trim();
-            if (typeof vA === 'number' && typeof vB === 'number') {
+            if (typeof vA === 'number' && typeof vB === 'number' && !isNaN(vA) && !isNaN(vB)) {
                 return ordenAsc ? vA - vB : vB - vA;
             }
             return ordenAsc ? String(vA).localeCompare(String(vB)) : String(vB).localeCompare(String(vA));
         });
         filas.forEach(f => tbody.appendChild(f));
     }
+
+    // Tooltips flotantes anti-colisión para la vista de Flota
+    window.addEventListener('load', function() {
+        const box = document.getElementById('fleetSmartTooltip');
+        if (!box) return;
+        document.querySelectorAll('[data-ftt]').forEach(el => {
+            const info = FLEET_TOOLTIPS[el.getAttribute('data-ftt')];
+            if (!info) return;
+            el.addEventListener('mouseenter', function() {
+                box.innerHTML = `<div class="fleet-tt-title">${info.t}</div><div>${info.d}</div>`;
+                box.style.display = 'block';
+                const r = el.getBoundingClientRect();
+                const bw = box.offsetWidth || 255;
+                const bh = box.offsetHeight || 75;
+                let left = r.left + (r.width / 2) - (bw / 2);
+                left = Math.max(10, Math.min(window.innerWidth - bw - 10, left));
+                let top = r.top - bh - 8;
+                if (top < 10) top = r.bottom + 8;
+                box.style.left = left + 'px';
+                box.style.top = top + 'px';
+            });
+            el.addEventListener('mouseleave', function() {
+                box.style.display = 'none';
+            });
+        });
+    });
 </script>
 {% endblock %}
