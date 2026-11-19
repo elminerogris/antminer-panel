@@ -8,9 +8,10 @@ app = Flask(__name__, template_folder='templates')
 app.secret_key = os.environ.get("SECRET_KEY", "super_secreta_antminer_tools")
 
 DB_URL = os.environ.get("DATABASE_URL", "")
+LIMITE_MINEROS_GRATIS = 3
 ultimo_envio_alerta = {}
 ultima_limpieza_bd = 0
-cache_geo_granja = {}  # {ip_publica: {'lat': ..., 'lon': ..., 'ciudad': ..., 'pais': ..., 'ts': ...}}
+cache_geo_granja = {}
 db_inicializada = False
 
 @app.errorhandler(Exception)
@@ -42,6 +43,11 @@ def cerrar_conexion_bd(exception=None):
 def generar_api_key():
     return "EMG-" + secrets.token_hex(8).upper()
 
+def es_cuenta_pro(username, plan_str):
+    if username == 'giovanni':
+        return True
+    return str(plan_str or '').strip().lower() in ('pro', 'unlimited', 'enterprise')
+
 def a_int_seguro(val, defecto=0):
     try:
         if val is None or val == "": return defecto
@@ -56,7 +62,14 @@ def a_float_seguro(val, defecto=0.0):
     except:
         return defecto
 
-# Detecta la ubicación física de la GRANJA (Ciudad y País) a partir de la IP pública desde donde transmite agente.py
+def nombre_inteligente_minero(ip, nombres_dict, worker1=""):
+    if ip in nombres_dict and nombres_dict[ip]:
+        return nombres_dict[ip]
+    w = str(worker1 or "").strip()
+    if w and w != "-":
+        return w.split('.')[-1] if '.' in w else w
+    return ip.split('.')[-1]
+
 def obtener_ubicacion_ip_agente(ip_publica):
     global cache_geo_granja
     ahora = time.time()
@@ -130,7 +143,7 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT UNIQUE, owner TEXT DEFAULT 'giovanni', nombre TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT UNIQUE, contenido TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS registro_alertas (id SERIAL PRIMARY KEY, owner TEXT, ip TEXT, tipo TEXT, mensaje TEXT, fecha TEXT)''')
-        
+
         columnas_nuevas = [
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS unidad TEXT DEFAULT 'TH/s'",
@@ -185,8 +198,10 @@ def init_db():
 
         c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         if not c.fetchone():
-            c.execute("INSERT INTO usuarios (username, password, api_key) VALUES ('giovanni', 'admin123', %s)", (generar_api_key(),))
-        
+            c.execute("INSERT INTO usuarios (username, password, plan, api_key) VALUES ('giovanni', 'admin123', 'Pro', %s)", (generar_api_key(),))
+        else:
+            c.execute("UPDATE usuarios SET plan='Pro' WHERE username='giovanni'")
+
         c.execute("SELECT id, username FROM usuarios WHERE api_key IS NULL OR api_key = ''")
         for u_row in c.fetchall():
             c.execute("UPDATE usuarios SET api_key=%s WHERE id=%s", (generar_api_key(), u_row[0]))
@@ -274,21 +289,21 @@ def index():
 
     cur.execute("SELECT ip, nombre FROM nombres_mineros")
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
-    
+
     datos_red = obtener_datos_red()
     registros, en_linea, offline = [], 0, 0
     ht, kt, gt, cw, tm, ig = 0.0, 0.0, 0.0, 0.0, 0, 0.0
-    
+
     for m in mineros:
         ip = m['ip']
         mod = m.get('modelo') or 'Antminer'
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
-        nombre_custom = nombres_dict.get(ip, ip.split('.')[-1])
+        nombre_custom = nombre_inteligente_minero(ip, nombres_dict, m.get('worker1'))
         hr = a_float_seguro(m.get('hashrate'), 0.0)
         t = a_int_seguro(m.get('temp_max'), 0)
         c = a_float_seguro(m.get('consumo_w'), 0.0)
-        
+
         segs_desconectado = calcular_segundos_desconectado(m.get('ultima_act'))
         eficiencia_val = round(c / hr, 2) if hr > 0 else 0
         if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
@@ -298,7 +313,7 @@ def index():
             if unidad == 'TH/s': ht += hr
             elif unidad == 'kSol/s': kt += hr
             elif unidad == 'GH/s': gt += hr
-            
+
             cw += c; tm = max(tm, t)
             if unidad == 'TH/s' and datos_red['dificultad_t'] > 0:
                 b = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)
@@ -306,32 +321,32 @@ def index():
                 str_gan = f"-USD {abs(ib):.2f}" if ib < 0 else f"{ib:.2f} USD"
             else:
                 str_gan = "Pool Externa"
-                
+
             registros.append({
                 'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad, 'unidad_efi': unidad_efi,
-                'estado': '<span style="color:var(--accent-green);">● En línea</span>', 
-                'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr, 
-                'hashrate_30m': a_float_seguro(m.get('hashrate_30m'), hr), 
-                'temp_num': t, 'consumo_kw': f"{round(c/1000, 2)} kW", 
+                'estado': '<span style="color:var(--accent-green);">● En línea</span>',
+                'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr,
+                'hashrate_30m': a_float_seguro(m.get('hashrate_30m'), hr),
+                'temp_num': t, 'consumo_kw': f"{round(c/1000, 2)} kW",
                 'eficiencia': eficiencia_val, 'ganancia_neta': str_gan
             })
         else:
             offline += 1
             registros.append({
                 'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad, 'unidad_efi': unidad_efi,
-                'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>', 
-                'tiempo_act': f'hace {int(segs_desconectado // 60)}m', 'hashrate': 0, 'hashrate_30m': 0, 'temp_num': 0, 
+                'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>',
+                'tiempo_act': f'hace {int(segs_desconectado // 60)}m', 'hashrate': 0, 'hashrate_30m': 0, 'temp_num': 0,
                 'consumo_kw': '0.0 kW', 'eficiencia': 0, 'ganancia_neta': "USD 0.00"
             })
-            
+
     flota = {
         'hashrate_total': round(ht, 1),
         'ksol_total': round(kt, 1),
         'ghs_total': round(gt, 1),
-        'consumo_w_total': round(cw, 0), 
-        'consumo_kw': round(cw/1000, 1), 'temp_max': tm, 
+        'consumo_w_total': round(cw, 0),
+        'consumo_kw': round(cw/1000, 1), 'temp_max': tm,
         'precio_btc_raw': datos_red['precio'],
-        'precio_btc': f"{datos_red['precio']:,.2f}", 
+        'precio_btc': f"{datos_red['precio']:,.2f}",
         'dificultad_t': round(datos_red['dificultad_t'], 2),
         'recompensa_bloque': datos_red['recompensa'],
         'red_ehs': datos_red['red_ehs'],
@@ -344,6 +359,7 @@ def index():
 @login_required
 def detalle_minero(ip):
     usr_actual = session.get('usuario', 'giovanni')
+    plan_actual = session.get('plan', 'Gratis')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     if usr_actual == 'giovanni':
@@ -355,8 +371,10 @@ def detalle_minero(ip):
 
     cur.execute("SELECT nombre FROM nombres_mineros WHERE ip=%s", (ip,))
     n_row = cur.fetchone()
+    nombres_dict = {ip: n_row['nombre']} if n_row and n_row.get('nombre') else {}
 
-    # 44000 registros de 1 minuto cubren los 30 días completos (30d * 1440m = 43200 registros)
+    # Plan Gratis: retención de 24h (1440 puntos) | Plan Pro: 30 días completos (44000 puntos)
+    limite_hist = 44000 if es_cuenta_pro(usr_actual, plan_actual) else 1440
     cur.execute("""
         SELECT fecha, hashrate, temp_max, temp_amb, errores, cadenas 
         FROM (
@@ -364,28 +382,28 @@ def detalle_minero(ip):
             FROM historial_nube 
             WHERE ip=%s 
             ORDER BY id DESC 
-            LIMIT 44000
+            LIMIT %s
         ) sub 
         ORDER BY id ASC
-    """, (ip,))
+    """, (ip, limite_hist))
     hist = cur.fetchall()
-    
+
     mod_str = str(m.get('modelo') or 'Antminer')
     unidad_hr = str(m.get('unidad') or ('kSol/s' if 'z15' in mod_str.lower() else 'TH/s'))
     unidad_efi = "J/kSol" if unidad_hr == "kSol/s" else ("J/GH" if unidad_hr == "GH/s" else "J/TH")
-    
-    nombre_minero = n_row['nombre'] if n_row and n_row.get('nombre') else ip.split('.')[-1]
+
+    nombre_minero = nombre_inteligente_minero(ip, nombres_dict, m.get('worker1'))
     hr_val = a_float_seguro(m.get('hashrate'), 0.0)
     hr_30m_val = a_float_seguro(m.get('hashrate_30m'), hr_val)
     t_val = a_int_seguro(m.get('temp_max'), 0)
     t_amb_val = a_int_seguro(m.get('temp_amb'), 0)
     c_val = a_float_seguro(m.get('consumo_w'), 0.0)
     offline = calcular_segundos_desconectado(m.get('ultima_act')) > 300
-    
+
     pool1 = str(m.get('pool1') or ""); worker1 = str(m.get('worker1') or ""); pass1 = str(m.get('pass1') or "123")
     pool2 = str(m.get('pool2') or ""); worker2 = str(m.get('worker2') or ""); pass2 = str(m.get('pass2') or "123")
     pool3 = str(m.get('pool3') or ""); worker3 = str(m.get('worker3') or ""); pass3 = str(m.get('pass3') or "123")
-    
+
     status1 = str(m.get('status1') or ("Alive" if pool1 else "Dead"))
     acc1 = a_int_seguro(m.get('acc1'), 0); rej1 = a_int_seguro(m.get('rej1'), 0)
     status2 = str(m.get('status2') or ("Alive" if pool2 else "Dead"))
@@ -395,7 +413,7 @@ def detalle_minero(ip):
 
     mac = str(m.get('mac') or "-"); serial = str(m.get('serial') or "-")
     fw = str(m.get('firmware') or "Desconocido"); fans = str(m.get('fans') or "0 / 0 RPM")
-    
+
     default_gw = ".".join(ip.split('.')[:3]) + ".1" if '.' in ip else "192.168.0.1"
     hostname = str(m.get('hostname') or f"Antminer{ip.split('.')[-1]}")
     net_proto = str(m.get('net_proto') or "Static")
@@ -403,36 +421,35 @@ def detalle_minero(ip):
     gateway = str(m.get('gateway') or default_gw)
     dns = str(m.get('dns') or "8.8.8.8")
 
-    # Coordenadas físicas de la granja donde está el Antminer (detectadas por la IP del agente.py)
     farm_lat = a_float_seguro(m.get('farm_lat'), -17.7833)
     farm_lon = a_float_seguro(m.get('farm_lon'), -63.1821)
     farm_city = str(m.get('farm_city') or 'Santa Cruz de la Sierra')
     farm_country = str(m.get('farm_country') or 'Bolivia')
-    
+
     raw_uptime = str(m.get('uptime') or "")
     uptime_val = raw_uptime if (raw_uptime and raw_uptime != "0h 0m") else "En línea"
     if offline: uptime_val = "Desconectado"
-    
+
     cadenas_str = m.get('cadenas') or "[]"
     try: cadenas = json.loads(cadenas_str)
     except: cadenas = []
-    if not cadenas: 
+    if not cadenas:
         cadenas = [
-            {"id": 0, "temp_c": t_val, "temp_p": max(0, t_val-5), "chips": 114, "hw": 0, "freq": 0, "hr": round(hr_val/3, 2)}, 
-            {"id": 1, "temp_c": max(0, t_val-1), "temp_p": max(0, t_val-6), "chips": 114, "hw": 0, "freq": 0, "hr": round(hr_val/3, 2)}, 
+            {"id": 0, "temp_c": t_val, "temp_p": max(0, t_val-5), "chips": 114, "hw": 0, "freq": 0, "hr": round(hr_val/3, 2)},
+            {"id": 1, "temp_c": max(0, t_val-1), "temp_p": max(0, t_val-6), "chips": 114, "hw": 0, "freq": 0, "hr": round(hr_val/3, 2)},
             {"id": 2, "temp_c": max(0, t_val-2), "temp_p": max(0, t_val-7), "chips": 114, "hw": 0, "freq": 0, "hr": round(hr_val/3, 2)}
         ]
 
     f_raw, hr_g, tp_g, tamb_g, err_g, cad_g = [], [], [], [], [], []
     prev_err = None
     if hist:
-        for idx, h in enumerate(hist):
+        for h in hist:
             try: dt_actual = datetime.strptime(h['fecha'], "%Y-%m-%d %H:%M:%S")
             except: continue
             ts = calendar.timegm(dt_actual.timetuple())
-            f_raw.append(ts) 
+            f_raw.append(ts)
             val_h = a_float_seguro(h.get('hashrate'), 0.0)
-            
+
             total_err_actual = a_int_seguro(h.get('errores'), 0)
             if prev_err is None:
                 diff_err = 0
@@ -444,10 +461,10 @@ def detalle_minero(ip):
 
             hr_g.append(val_h)
             tp_g.append(a_int_seguro(h.get('temp_max'), 0))
-            
+
             val_amb = a_int_seguro(h.get('temp_amb'), 0)
             tamb_g.append(val_amb if val_amb > 0 else None)
-            
+
             c_hist_item = []
             if h.get('cadenas'):
                 try: c_hist_item = json.loads(h['cadenas'])
@@ -458,12 +475,12 @@ def detalle_minero(ip):
         hr_g = [hr_val]; tp_g = [t_val]
         tamb_g = [t_amb_val if t_amb_val > 0 else None]
         err_g = [0]; cad_g = [cadenas]
-        
+
     dt = {
         'hashrate': hr_val, 'hashrate_30m': hr_30m_val, 'unidad': unidad_hr, 'unidad_efi': unidad_efi,
         'temp_max': t_val, 'temp_amb': t_amb_val,
-        'errores': a_int_seguro(m.get('errores'), 0), 'consumo': f"{round(c_val/1000, 2)} kW", 
-        'fans': fans, 'uptime': uptime_val, 
+        'errores': a_int_seguro(m.get('errores'), 0), 'consumo': f"{round(c_val/1000, 2)} kW",
+        'fans': fans, 'uptime': uptime_val,
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0,
         'farm_lat': farm_lat, 'farm_lon': farm_lon, 'farm_city': farm_city, 'farm_country': farm_country
     }
@@ -474,11 +491,11 @@ def detalle_minero(ip):
         'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas,
         'hostname': hostname, 'net_proto': net_proto, 'netmask': netmask, 'gateway': gateway, 'dns': dns
     }
-    
+
     eficiencia_val = round(c_val / hr_val, 2) if hr_val > 0 else 0
     if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
     disp = {'eficiencia': eficiencia_val}
-    
+
     return render_seguro('minero.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str, ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas), graf_cadenas_hist=json.dumps(cad_g))
 
 # --- VISTA: /mineros -> templates/mineros.html ---
@@ -505,7 +522,7 @@ def mineros():
         mod = m.get('modelo') or 'Antminer'
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
-        nombre = nombres_dict.get(ip, ip.split('.')[-1])
+        nombre = nombre_inteligente_minero(ip, nombres_dict, m.get('worker1'))
         segs = calcular_segundos_desconectado(m.get('ultima_act'))
         es_online = segs < 300
 
@@ -625,7 +642,7 @@ def granjas():
 
         g['mineros'].append({
             'ip': ip,
-            'nombre': nombres_dict.get(ip, ip.split('.')[-1]),
+            'nombre': nombre_inteligente_minero(ip, nombres_dict, m.get('worker1')),
             'modelo': m.get('modelo') or 'Antminer',
             'online': es_online,
             'hashrate': hr,
@@ -655,12 +672,12 @@ def alertas():
             activas = 1 if request.form.get('alertas_activas') == '1' else 0
             cur.execute("UPDATE usuarios SET tg_token=%s, tg_chat_id=%s, umbral_temp=%s, umbral_hr=%s, alertas_activas=%s WHERE username=%s",
                         (tg_token, tg_chat_id, u_temp, u_hr, activas, usr_actual))
-            msg = "Configuración de alertas guardada correctamente."
+            msg = "Configuración de alertas y protección automática guardada."
         elif accion == 'probar_telegram':
             cur.execute("SELECT tg_token, tg_chat_id FROM usuarios WHERE username=%s", (usr_actual,))
             u_cfg = cur.fetchone()
             if u_cfg and u_cfg.get('tg_token') and u_cfg.get('tg_chat_id'):
-                ok = enviar_telegram(u_cfg['tg_token'], u_cfg['tg_chat_id'], f"🟢 <b>El Minero Gris — Conexión Exitosa</b>\nLas alertas en tiempo real para la cuenta <b>{usr_actual}</b> están activas.")
+                ok = enviar_telegram(u_cfg['tg_token'], u_cfg['tg_chat_id'], f"🟢 <b>El Minero Gris — Conexión Exitosa</b>\nLas alertas y auto-protección para <b>{usr_actual}</b> están activas.")
                 msg = "Mensaje de prueba enviado a tu Telegram." if ok else "Error al conectar con Telegram. Verifica tu Token y Chat ID."
             else:
                 msg = "Primero guarda tu Bot Token y Chat ID arriba."
@@ -751,7 +768,14 @@ def descargar_agente():
 @app.route('/plan')
 @login_required
 def plan():
-    return render_seguro('plan.html', active_page='plan', current_plan=session.get('plan', 'Gratis'), saldo=session.get('saldo', 0.0))
+    usr_actual = session.get('usuario', 'giovanni')
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT plan, saldo FROM usuarios WHERE username=%s", (usr_actual,))
+    u = cur.fetchone() or {}
+    session['plan'] = u.get('plan', session.get('plan', 'Gratis'))
+    session['saldo'] = u.get('saldo', session.get('saldo', 0.0))
+    return render_seguro('plan.html', active_page='plan', current_plan=session['plan'], saldo=session['saldo'])
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -773,7 +797,7 @@ def register():
         try:
             con = get_db(); con.autocommit = True; cur = con.cursor()
             cur.execute("INSERT INTO usuarios (username, password, plan, saldo, api_key) VALUES (%s, %s, 'Gratis', 0.0, %s)", (u, p, generar_api_key()))
-            return render_seguro('login.html', success='Cuenta creada con API Key propia. Ahora inicia sesión.', mode='login')
+            return render_seguro('login.html', success='Cuenta creada (Plan Gratis: hasta 3 mineros). Ahora inicia sesión.', mode='login')
         except: return render_seguro('login.html', error='El nombre de usuario ya está en uso', mode='register')
     return render_seguro('login.html', mode='register')
 
@@ -795,12 +819,18 @@ def guardar_nombre():
 @login_required
 def cmd_bulk():
     usr_actual = session.get('usuario', 'giovanni')
+    plan_actual = session.get('plan', 'Gratis')
     data = request.get_json(silent=True) or {}
     accion = data.get('accion')
     ips = data.get('ips', [])
     ordenes_custom = data.get('ordenes_custom', [])
+
+    # Restricción Plan Gratis: las acciones masivas (>1 minero) son exclusivas del Plan Pro
+    total_objetivos = len(ordenes_custom) if ordenes_custom else len(ips)
+    if total_objetivos > 1 and not es_cuenta_pro(usr_actual, plan_actual):
+        return jsonify({"status": "error", "msg": "Las Acciones Masivas requieren Plan Pro."}), 403
+
     ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    
     con = get_db(); con.autocommit = True; cur = con.cursor()
     if ordenes_custom:
         for item in ordenes_custom:
@@ -815,7 +845,7 @@ def cmd_bulk():
 def comando_minero(ip, accion):
     usr_actual = session.get('usuario', 'giovanni')
     cmd_str = ""
-    if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'): 
+    if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'):
         cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
     elif accion == 'set_network':
         host = request.args.get('host', 'Antminer')
@@ -825,12 +855,12 @@ def comando_minero(ip, accion):
         gw = request.args.get('gw', '192.168.0.1')
         dns = request.args.get('dns', '8.8.8.8')
         cmd_str = f"set_network|{host}|{proto}|{nip}|{mask}|{gw}|{dns}"
-    elif accion == 'guardar_pools': 
+    elif accion == 'guardar_pools':
         u1 = request.args.get('u1', ''); w1 = request.args.get('w1', ''); p1 = request.args.get('p1', '123')
         u2 = request.args.get('u2', ''); w2 = request.args.get('w2', ''); p2 = request.args.get('p2', '123')
         u3 = request.args.get('u3', ''); w3 = request.args.get('w3', ''); p3 = request.args.get('p3', '123')
         cmd_str = f"guardar_pools|{u1}|{w1}|{p1}|{u2}|{w2}|{p2}|{u3}|{w3}|{p3}"
-        
+
     if cmd_str:
         con = get_db(); con.autocommit = True; cur = con.cursor()
         cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, %s, 'pendiente', %s)", (usr_actual, ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
@@ -840,6 +870,10 @@ def comando_minero(ip, accion):
 @login_required
 def exportar_csv():
     usr_actual = session.get('usuario', 'giovanni')
+    plan_actual = session.get('plan', 'Gratis')
+    if not es_cuenta_pro(usr_actual, plan_actual):
+        return redirect('/plan')
+
     con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     if usr_actual == 'giovanni':
         cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos")
@@ -871,8 +905,7 @@ def recibir_datos():
     global ultimo_envio_alerta, ultima_limpieza_bd
     datos = request.get_json(silent=True)
     if not datos: return jsonify({"status": "error", "msg": "JSON invalido"}), 400
-    
-    # Detectar la IP pública de la granja desde donde se conecta el agente.py
+
     xff = request.headers.get('X-Forwarded-For', '')
     ip_publica_agente = xff.split(',')[0].strip() if xff else (request.remote_addr or '')
     geo_granja = obtener_ubicacion_ip_agente(ip_publica_agente)
@@ -883,7 +916,7 @@ def recibir_datos():
 
     con = get_db(); con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    
+
     api_key_recibida = str(datos.get('api_key') or '').strip()
     owner_user = 'giovanni'
     u_cfg = None
@@ -894,6 +927,15 @@ def recibir_datos():
     if not u_cfg:
         cur.execute("SELECT * FROM usuarios WHERE username='giovanni'")
         u_cfg = cur.fetchone()
+
+    plan_owner = (u_cfg.get('plan') or 'Gratis') if u_cfg else 'Gratis'
+    es_pro = es_cuenta_pro(owner_user, plan_owner)
+
+    # Obtener IPs ya registradas del dueño para aplicar el límite de 3 mineros en Plan Gratis
+    ips_existentes = set()
+    if not es_pro:
+        cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s", (owner_user,))
+        ips_existentes = {row['ip'] for row in cur.fetchall()}
 
     # Entregar comandos pendientes correspondientes a este propietario
     if owner_user == 'giovanni':
@@ -906,7 +948,6 @@ def recibir_datos():
 
     ahora_dt = datetime.utcnow()
     ahora = ahora_dt.strftime("%Y-%m-%d %H:%M:%S")
-    # Redondeado al minuto exacto (:00) para guardar solo 1 punto por minuto en historial_nube
     ahora_minuto = ahora_dt.strftime("%Y-%m-%d %H:%M:00")
     ahora_ts = time.time()
 
@@ -917,10 +958,20 @@ def recibir_datos():
     tg_cid = (u_cfg.get('tg_chat_id') or '') if u_cfg else ''
 
     guardados_ok = 0
+    omitidos_por_plan = 0
+
     for m in datos.get('mineros', []):
         try:
             ip_m = str(m.get('ip') or '').strip()
             if not ip_m: continue
+
+            # Bloqueo real de 3 máquinas para Plan Gratis (sin borrar las ya existentes)
+            if not es_pro and ip_m not in ips_existentes:
+                if len(ips_existentes) >= LIMITE_MINEROS_GRATIS:
+                    omitidos_por_plan += 1
+                    continue
+                ips_existentes.add(ip_m)
+
             mod_m = str(m.get('modelo') or 'Antminer')
             hr_m = a_float_seguro(m.get('hashrate'), 0.0)
             hr_30 = a_float_seguro(m.get('hashrate_30m'), hr_m)
@@ -929,35 +980,34 @@ def recibir_datos():
             cons_m = a_float_seguro(m.get('consumo'), 0.0)
             err = a_int_seguro(m.get('errores'), 0)
             unid = str(m.get('unidad') or 'TH/s')
-            
+
             mc = str(m.get('mac') or '-')
             sr = str(m.get('serial') or '-')
             fw = str(m.get('firmware') or 'Desconocido')
             fs = str(m.get('fans') or '0 / 0 RPM')
             up = str(m.get('uptime') or 'En línea')
-            
+
             p1 = str(m.get('pool1') or ''); w1 = str(m.get('worker1') or ''); pa1 = str(m.get('pass1') or '123')
             st1 = str(m.get('status1') or 'Alive'); ac1 = a_int_seguro(m.get('acc1'), 0); rj1 = a_int_seguro(m.get('rej1'), 0)
             p2 = str(m.get('pool2') or ''); w2 = str(m.get('worker2') or ''); pa2 = str(m.get('pass2') or '123')
             st2 = str(m.get('status2') or 'Alive'); ac2 = a_int_seguro(m.get('acc2'), 0); rj2 = a_int_seguro(m.get('rej2'), 0)
             p3 = str(m.get('pool3') or ''); w3 = str(m.get('worker3') or ''); pa3 = str(m.get('pass3') or '123')
             st3 = str(m.get('status3') or 'Dead'); ac3 = a_int_seguro(m.get('acc3'), 0); rj3 = a_int_seguro(m.get('rej3'), 0)
-            
+
             host = str(m.get('hostname') or f"Antminer{ip_m.split('.')[-1]}")
             nproto = str(m.get('net_proto') or 'Static')
             nmask = str(m.get('netmask') or '255.255.255.0')
             ngw = str(m.get('gateway') or '192.168.0.1')
             ndns = str(m.get('dns') or '8.8.8.8')
-            
+
             cadenas_list = m.get('cadenas', [])
             cadenas_json = json.dumps(cadenas_list)
-            
+
             cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country) 
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(ip) DO UPDATE SET 
-                            owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, farm_lat=EXCLUDED.farm_lat, farm_lon=EXCLUDED.farm_lon, farm_city=EXCLUDED.farm_city, farm_country=EXCLUDED.farm_country''', 
+                            owner=EXCLUDED.owner, modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, farm_lat=EXCLUDED.farm_lat, farm_lon=EXCLUDED.farm_lon, farm_city=EXCLUDED.farm_city, farm_country=EXCLUDED.farm_country''',
                         (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country))
-            
-            # Garantizar solo 1 registro por minuto en historial_nube
+
             cur.execute("SELECT id, hashrate, temp_max FROM historial_nube WHERE ip=%s AND fecha=%s LIMIT 1", (ip_m, ahora_minuto))
             row_min = cur.fetchone()
             if not row_min:
@@ -972,9 +1022,18 @@ def recibir_datos():
 
             guardados_ok += 1
 
-            # Sistema de Alertas Automáticas (Temperatura Alta + Caída de Hashrate)
+            # Alertas Automáticas + Auto-Protección de Hardware (Auto-Sleep de Emergencia)
             if alertas_on:
-                if temp_m >= umbral_t:
+                umbral_emergencia = max(85, umbral_t + 5)
+                if temp_m >= umbral_emergencia and hr_m > 0:
+                    k_em = f"{owner_user}_{ip_m}_AUTOSLEEP"
+                    if ahora_ts - ultimo_envio_alerta.get(k_em, 0) > 1800:
+                        ultimo_envio_alerta[k_em] = ahora_ts
+                        ordenes.append({"ip": ip_m, "comando": "sleep"})
+                        msg_em = f"🛡️ AUTO-PROTECCIÓN: {mod_m} ({ip_m}) alcanzó {temp_m}°C. Puesto en REPOSO (Sleep) automáticamente."
+                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_em, ahora))
+                        enviar_telegram(tg_tok, tg_cid, f"🛡️ <b>AUTO-PROTECCIÓN ACTIVADA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura crítica: <b>{temp_m}°C</b>\nAcción: Puesto en <b>REPOSO (Sleep)</b> para proteger las placas hash.")
+                elif temp_m >= umbral_t:
                     k_al = f"{owner_user}_{ip_m}_TEMP"
                     if ahora_ts - ultimo_envio_alerta.get(k_al, 0) > 1800:
                         ultimo_envio_alerta[k_al] = ahora_ts
@@ -992,7 +1051,6 @@ def recibir_datos():
         except Exception as err_m:
             print(f"Error guardando minero {m.get('ip')}: {err_m}")
 
-    # Limpieza automática de registros con más de 30 días y comandos viejos (1 vez por hora)
     if ahora_ts - ultima_limpieza_bd > 3600:
         ultima_limpieza_bd = ahora_ts
         try:
@@ -1003,8 +1061,8 @@ def recibir_datos():
             cur.execute("DELETE FROM cola_comandos WHERE estado='enviado' AND fecha < %s", (fecha_limite_cmd,))
         except Exception as err_clean:
             print(f"Error en limpieza automática 30d: {err_clean}")
-    
-    return jsonify({"status": "ok", "guardados": guardados_ok, "ordenes": ordenes}), 200
+
+    return jsonify({"status": "ok", "guardados": guardados_ok, "omitidos_por_plan": omitidos_por_plan, "ordenes": ordenes}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
