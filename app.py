@@ -213,13 +213,11 @@ def init_db():
             try: c.execute(col_sql)
             except: pass
 
-        # Normalizar owners nulos antes de crear índices compuestos (owner, ip)
         c.execute("UPDATE mineros_activos SET owner='giovanni' WHERE owner IS NULL OR owner=''")
         c.execute("UPDATE nombres_mineros SET owner='giovanni' WHERE owner IS NULL OR owner=''")
         c.execute("UPDATE logs_mineros SET owner='giovanni' WHERE owner IS NULL OR owner=''")
         c.execute("UPDATE historial_nube SET owner='giovanni' WHERE owner IS NULL OR owner=''")
 
-        # Migración segura de clave única simple (ip) -> clave compuesta (owner, ip)
         migraciones_unique = [
             "ALTER TABLE mineros_activos DROP CONSTRAINT IF EXISTS mineros_activos_ip_key",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_mineros_owner_ip ON mineros_activos (owner, ip)",
@@ -315,6 +313,65 @@ def ordenar_ip_key(item):
         return tuple(int(p) for p in partes)
     return (999, 999, 999, 999)
 
+# --- VISTA: /admin (Exclusiva para giovanni) ---
+@app.route('/admin', methods=['GET', 'POST'])
+@login_required
+def admin_panel():
+    if session.get('usuario') != 'giovanni':
+        return redirect('/')
+    msg = None
+    con = get_db()
+    con.autocommit = True
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    if request.method == 'POST':
+        accion = request.form.get('accion')
+        uid = a_int_seguro(request.form.get('user_id'), 0)
+        if accion == 'actualizar_usuario' and uid > 0:
+            cur.execute("SELECT username FROM usuarios WHERE id=%s", (uid,))
+            target = cur.fetchone()
+            if target:
+                nuevo_saldo = a_float_seguro(request.form.get('saldo'), 0.0)
+                nuevo_plan = 'Pro' if target['username'] == 'giovanni' else (request.form.get('plan') or 'Gratis')
+                cur.execute("UPDATE usuarios SET plan=%s, saldo=%s WHERE id=%s", (nuevo_plan, nuevo_saldo, uid))
+                if target['username'] == 'giovanni':
+                    session['saldo'] = nuevo_saldo
+                msg = f"Cuenta '{target['username']}' actualizada: Plan {nuevo_plan} | Saldo ${nuevo_saldo:.2f} USDT."
+        elif accion == 'eliminar_usuario' and uid > 0:
+            cur.execute("SELECT username FROM usuarios WHERE id=%s", (uid,))
+            target = cur.fetchone()
+            if target and target['username'] != 'giovanni':
+                cur.execute("DELETE FROM usuarios WHERE id=%s", (uid,))
+                msg = f"Cuenta '{target['username']}' eliminada."
+
+    cur.execute("""
+        SELECT u.id, u.username, u.plan, u.saldo, u.api_key, u.subnet, u.tarifa_kwh,
+               COUNT(m.ip) AS total_mineros
+        FROM usuarios u
+        LEFT JOIN mineros_activos m ON m.owner = u.username
+        GROUP BY u.id
+        ORDER BY u.id ASC
+    """)
+    usuarios = cur.fetchall()
+    stats = {
+        'usuarios': len(usuarios),
+        'pro': sum(1 for u in usuarios if es_cuenta_pro(u['username'], u['plan'])),
+        'mineros': sum(int(u['total_mineros'] or 0) for u in usuarios),
+        'saldo_total': sum(a_float_seguro(u['saldo'], 0.0) for u in usuarios)
+    }
+    return render_seguro('admin.html', active_page='admin', usuarios=usuarios, stats=stats, msg=msg)
+
+# --- API: Sincronizar tarifa eléctrica desde cualquier página ---
+@app.route('/api/guardar_tarifa', methods=['POST'])
+@login_required
+def api_guardar_tarifa():
+    usr_actual = session.get('usuario', 'giovanni')
+    data = request.get_json(silent=True) or {}
+    tarifa = max(0.0, a_float_seguro(data.get('tarifa_kwh'), 0.0))
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    cur.execute("UPDATE usuarios SET tarifa_kwh=%s WHERE username=%s", (tarifa, usr_actual))
+    return jsonify({"status": "ok", "tarifa_kwh": tarifa})
+
 # --- VISTA: / y /resumen -> templates/resumen.html ---
 @app.route('/')
 @app.route('/resumen')
@@ -323,6 +380,13 @@ def index():
     usr_actual = session.get('usuario', 'giovanni')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute("SELECT tarifa_kwh, plan, saldo FROM usuarios WHERE username=%s", (usr_actual,))
+    u_row = cur.fetchone() or {}
+    tarifa_kwh = a_float_seguro(u_row.get('tarifa_kwh'), 0.0)
+    session['plan'] = u_row.get('plan', session.get('plan', 'Gratis'))
+    session['saldo'] = u_row.get('saldo', session.get('saldo', 0.0))
+
     cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
     mineros = sorted(cur.fetchall(), key=ordenar_ip_key)
 
@@ -331,7 +395,7 @@ def index():
 
     datos_red = obtener_datos_red()
     registros, en_linea, offline = [], 0, 0
-    ht, kt, gt, cw, tm, ig = 0.0, 0.0, 0.0, 0.0, 0, 0.0
+    ht, kt, gt, cw, tm, ig, gan_neta_total = 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0
 
     for m in mineros:
         ip = m['ip']
@@ -356,8 +420,12 @@ def index():
             cw += c; tm = max(tm, t)
             if unidad == 'TH/s' and datos_red['dificultad_t'] > 0:
                 b = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)
-                ib = b * datos_red['precio']; ig += ib
-                str_gan = f"-USD {abs(ib):.2f}" if ib < 0 else f"{ib:.2f} USD"
+                ib = b * datos_red['precio']
+                costo_elec = (c / 1000.0) * 24.0 * tarifa_kwh
+                neto = ib - costo_elec
+                ig += ib
+                gan_neta_total += neto
+                str_gan = f"-USD {abs(neto):.2f}" if neto < 0 else f"{neto:.2f} USD"
             else:
                 str_gan = "Pool Externa"
 
@@ -384,12 +452,14 @@ def index():
         'ghs_total': round(gt, 1),
         'consumo_w_total': round(cw, 0),
         'consumo_kw': round(cw/1000, 1), 'temp_max': tm,
+        'tarifa_kwh': tarifa_kwh,
         'precio_btc_raw': datos_red['precio'],
         'precio_btc': f"{datos_red['precio']:,.2f}",
         'dificultad_t': round(datos_red['dificultad_t'], 2),
         'recompensa_bloque': datos_red['recompensa'],
         'red_ehs': datos_red['red_ehs'],
-        'ingreso_dia': f"{ig:.2f}", 'ganancia_dia': f"{ig:.2f} USD"
+        'ingreso_dia': f"{ig:.2f}",
+        'ganancia_dia': f"-USD {abs(gan_neta_total):.2f}" if gan_neta_total < 0 else f"{gan_neta_total:.2f} USD"
     }
     return render_seguro('resumen.html', active_page='resumen', registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota)
 
@@ -412,7 +482,6 @@ def detalle_minero(ip):
     cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s AND ip != %s", (usr_actual, ip))
     ips_ocupadas = [row['ip'] for row in cur.fetchall()]
 
-    # Plan Gratis: 24h (1440 puntos) | Plan Pro: 30 días completos (44000 puntos)
     limite_hist = 44000 if es_cuenta_pro(usr_actual, plan_actual) else 1440
     cur.execute("""
         SELECT fecha, hashrate, temp_max, temp_amb, errores, cadenas 
@@ -597,38 +666,16 @@ def mineros():
             contadores['offline'] += 1
 
         lista_mineros.append({
-            'ip': ip,
-            'ultimo_octeto': ip.split('.')[-1],
-            'nombre': nombre,
-            'modelo': mod,
-            'mac': m.get('mac') or '-',
-            'firmware': m.get('firmware') or '-',
-            'online': es_online,
+            'ip': ip, 'ultimo_octeto': ip.split('.')[-1], 'nombre': nombre, 'modelo': mod,
+            'mac': m.get('mac') or '-', 'firmware': m.get('firmware') or '-', 'online': es_online,
             'uptime': (m.get('uptime') or 'En línea') if es_online else f'Offline ({int(segs // 60)}m)',
-            'hashrate': hr,
-            'hashrate_30m': hr_30m,
-            'unidad': unidad,
-            'unidad_efi': unidad_efi,
-            'eficiencia': efi,
-            'consumo_kw': round(cons_w / 1000.0, 2),
-            'temp_max': t_max,
-            'temp_amb': t_amb,
-            'errores': err_hw,
-            'fans': m.get('fans') or '0 / 0 RPM',
-            'placas_activas': placas_activas,
-            'chips_totales': chips_totales,
-            'pool1': m.get('pool1') or '-',
-            'worker1': m.get('worker1') or '-',
-            'pass1': m.get('pass1') or '123',
-            'pool2': m.get('pool2') or '',
-            'worker2': m.get('worker2') or '',
-            'pass2': m.get('pass2') or '123',
-            'pool3': m.get('pool3') or '',
-            'worker3': m.get('worker3') or '',
-            'pass3': m.get('pass3') or '123',
-            'acc1': acc1,
-            'rej1': rej1,
-            'pct_rej': pct_rej
+            'hashrate': hr, 'hashrate_30m': hr_30m, 'unidad': unidad, 'unidad_efi': unidad_efi,
+            'eficiencia': efi, 'consumo_kw': round(cons_w / 1000.0, 2), 'temp_max': t_max, 'temp_amb': t_amb,
+            'errores': err_hw, 'fans': m.get('fans') or '0 / 0 RPM', 'placas_activas': placas_activas,
+            'chips_totales': chips_totales, 'pool1': m.get('pool1') or '-', 'worker1': m.get('worker1') or '-',
+            'pass1': m.get('pass1') or '123', 'pool2': m.get('pool2') or '', 'worker2': m.get('worker2') or '',
+            'pass2': m.get('pass2') or '123', 'pool3': m.get('pool3') or '', 'worker3': m.get('worker3') or '',
+            'pass3': m.get('pass3') or '123', 'acc1': acc1, 'rej1': rej1, 'pct_rej': pct_rej
         })
 
     return render_seguro('mineros.html', active_page='mineros', mineros=lista_mineros, stats=contadores)
@@ -662,12 +709,9 @@ def granjas():
         if clave not in grupos:
             grupos[clave] = {
                 'id': clave.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('.', '_'),
-                'nombre': f"Granja {ciudad}",
-                'ciudad': ciudad,
-                'subred': subred,
+                'nombre': f"Granja {ciudad}", 'ciudad': ciudad, 'subred': subred,
                 'total': 0, 'online': 0, 'offline': 0,
-                'hashrate': 0.0, 'consumo_kw': 0.0, 'temp_max': 0,
-                'mineros': []
+                'hashrate': 0.0, 'consumo_kw': 0.0, 'temp_max': 0, 'mineros': []
             }
 
         g = grupos[clave]
@@ -681,13 +725,9 @@ def granjas():
             g['offline'] += 1
 
         g['mineros'].append({
-            'ip': ip,
-            'nombre': nombre_inteligente_minero(ip, nombres_dict, m.get('worker1')),
-            'modelo': m.get('modelo') or 'Antminer',
-            'online': es_online,
-            'hashrate': hr,
-            'unidad': m.get('unidad') or 'TH/s',
-            'temp_max': tm
+            'ip': ip, 'nombre': nombre_inteligente_minero(ip, nombres_dict, m.get('worker1')),
+            'modelo': m.get('modelo') or 'Antminer', 'online': es_online,
+            'hashrate': hr, 'unidad': m.get('unidad') or 'TH/s', 'temp_max': tm
         })
 
     return render_seguro('granjas.html', active_page='granjas', granjas=list(grupos.values()))
@@ -728,10 +768,8 @@ def alertas():
     cur.execute("SELECT tg_token, tg_chat_id, umbral_temp, umbral_hr, alertas_activas FROM usuarios WHERE username=%s", (usr_actual,))
     row_u = cur.fetchone() or {}
     cfg = {
-        'tg_token': row_u.get('tg_token') or '',
-        'tg_chat_id': row_u.get('tg_chat_id') or '',
-        'umbral_temp': row_u.get('umbral_temp') or 80,
-        'umbral_hr': row_u.get('umbral_hr') or 50.0,
+        'tg_token': row_u.get('tg_token') or '', 'tg_chat_id': row_u.get('tg_chat_id') or '',
+        'umbral_temp': row_u.get('umbral_temp') or 80, 'umbral_hr': row_u.get('umbral_hr') or 50.0,
         'activas': bool(row_u.get('alertas_activas', 1))
     }
 
@@ -777,10 +815,8 @@ def ajustes():
         u_data['api_key'] = nueva_k
 
     user_info = {
-        'username': usr_actual,
-        'plan': u_data.get('plan', 'Gratis'),
-        'api_key': u_data.get('api_key', ''),
-        'subnet': u_data.get('subnet') or '192.168.0',
+        'username': usr_actual, 'plan': u_data.get('plan', 'Gratis'),
+        'api_key': u_data.get('api_key', ''), 'subnet': u_data.get('subnet') or '192.168.0',
         'tarifa_kwh': u_data.get('tarifa_kwh') or 0.0
     }
     return render_seguro('ajustes.html', active_page='ajustes', user=user_info, msg=msg)
@@ -827,7 +863,6 @@ def login():
         cur.execute("SELECT * FROM usuarios WHERE username=%s", (u,))
         usr = cur.fetchone()
         if usr and verificar_password(usr.get('password'), p):
-            # Auto-cifrar contraseñas antiguas en texto plano al iniciar sesión
             if not es_hash_seguro(usr.get('password')):
                 cur.execute("UPDATE usuarios SET password=%s WHERE id=%s", (generate_password_hash(p), usr['id']))
             session['usuario'] = u
@@ -1079,7 +1114,6 @@ def recibir_datos():
 
             guardados_ok += 1
 
-            # Alertas Automáticas + Auto-Protección (enfriamiento sincronizado en PostgreSQL)
             if alertas_on:
                 umbral_emergencia = max(85, umbral_t + 5)
                 if temp_m >= umbral_emergencia and hr_m > 0:
