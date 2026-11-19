@@ -573,6 +573,68 @@ def mineros():
 
     return render_seguro('mineros.html', active_page='mineros', mineros=lista_mineros, stats=contadores)
 
+# --- VISTA: /granjas -> templates/granjas.html ---
+@app.route('/granjas')
+@login_required
+def granjas():
+    usr_actual = session.get('usuario', 'giovanni')
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    if usr_actual == 'giovanni':
+        cur.execute("SELECT * FROM mineros_activos")
+    else:
+        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    filas = sorted(cur.fetchall(), key=ordenar_ip_key)
+
+    cur.execute("SELECT ip, nombre FROM nombres_mineros")
+    nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
+
+    grupos = {}
+    for m in filas:
+        ip = m['ip']
+        ciudad = str(m.get('farm_city') or 'Santa Cruz de la Sierra')
+        subred = ".".join(ip.split('.')[:3]) + ".x" if '.' in ip else "LAN"
+        clave = f"{ciudad} ({subred})"
+
+        segs = calcular_segundos_desconectado(m.get('ultima_act'))
+        es_online = segs < 300
+        hr = a_float_seguro(m.get('hashrate'), 0.0) if es_online else 0.0
+        cw = a_float_seguro(m.get('consumo_w'), 0.0) if es_online else 0.0
+        tm = a_int_seguro(m.get('temp_max'), 0) if es_online else 0
+
+        if clave not in grupos:
+            grupos[clave] = {
+                'id': clave.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('.', '_'),
+                'nombre': f"Granja {ciudad}",
+                'ciudad': ciudad,
+                'subred': subred,
+                'total': 0, 'online': 0, 'offline': 0,
+                'hashrate': 0.0, 'consumo_kw': 0.0, 'temp_max': 0,
+                'mineros': []
+            }
+
+        g = grupos[clave]
+        g['total'] += 1
+        if es_online:
+            g['online'] += 1
+            g['hashrate'] = round(g['hashrate'] + hr, 2)
+            g['consumo_kw'] = round(g['consumo_kw'] + (cw / 1000.0), 2)
+            g['temp_max'] = max(g['temp_max'], tm)
+        else:
+            g['offline'] += 1
+
+        g['mineros'].append({
+            'ip': ip,
+            'nombre': nombres_dict.get(ip, ip.split('.')[-1]),
+            'modelo': m.get('modelo') or 'Antminer',
+            'online': es_online,
+            'hashrate': hr,
+            'unidad': m.get('unidad') or 'TH/s',
+            'temp_max': tm
+        })
+
+    return render_seguro('granjas.html', active_page='granjas', granjas=list(grupos.values()))
+
 # --- VISTA: /alertas -> templates/alertas.html ---
 @app.route('/alertas', methods=['GET', 'POST'])
 @login_required
@@ -690,11 +752,6 @@ def descargar_agente():
 @login_required
 def plan():
     return render_seguro('plan.html', active_page='plan', current_plan=session.get('plan', 'Gratis'), saldo=session.get('saldo', 0.0))
-
-@app.route('/granjas')
-@login_required
-def granjas():
-    return render_seguro('granjas.html', active_page='granjas', titulo="🏭 Gestión de Granjas")
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
