@@ -145,6 +145,7 @@
     .pools-presets-bar {
         display: flex;
         align-items: center;
+        justify-content: flex-start;
         gap: 6px;
         flex-wrap: wrap;
     }
@@ -197,15 +198,34 @@
         opacity: 0.65;
     }
 
+    /* Aviso discreto de scroll lateral solo en móvil */
+    .mobile-scroll-hint {
+        display: none;
+        padding: 5px 14px;
+        font-size: 0.72em;
+        color: #60a5fa;
+        background: rgba(51, 102, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        text-align: right;
+    }
+
+    /* Contenedor con Scroll Horizontal Suave (Mantiene formato fila en PC y Celular) */
+    .pools-table-scroll {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
     /* Tabla Profesional de Pools */
     .pools-table-pro {
         width: 100%;
+        min-width: 820px;
         border-collapse: collapse;
         text-align: left;
     }
     .pools-table-pro th {
-        padding: 10px 12px;
-        font-size: 0.73em;
+        padding: 9px 10px;
+        font-size: 0.72em;
         text-transform: uppercase;
         letter-spacing: 0.4px;
         color: var(--text-muted);
@@ -213,57 +233,59 @@
         border-bottom: 1px solid var(--border-color);
         cursor: help;
         user-select: none;
+        white-space: nowrap;
     }
     .pools-table-pro th:hover { color: #fff; }
     .pools-table-pro td {
-        padding: 12px;
+        padding: 9px 10px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        font-size: 0.85em;
+        font-size: 0.84em;
         vertical-align: middle;
     }
     .pools-table-pro tr:last-child td { border-bottom: none; }
     .pools-table-pro tbody tr { transition: background 0.15s ease; }
     .pools-table-pro tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
 
-    /* Prioridad interactiva */
+    /* Prioridad compacta */
     .pool-rank-wrap {
         display: inline-flex;
         flex-direction: column;
         align-items: flex-start;
         cursor: help;
-        padding: 4px 6px;
+        padding: 3px 5px;
         border-radius: 6px;
         transition: background 0.18s ease;
         user-select: none;
+        white-space: nowrap;
     }
     .pool-rank-wrap:hover { background: rgba(51, 102, 255, 0.12); }
-    .pool-rank-top { display: flex; align-items: center; gap: 5px; }
+    .pool-rank-top { display: flex; align-items: center; gap: 4px; }
     .pool-rank-badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 24px;
-        height: 24px;
-        border-radius: 6px;
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
         font-weight: bold;
         font-family: monospace;
-        font-size: 0.9em;
+        font-size: 0.88em;
         background: rgba(51, 102, 255, 0.14);
         color: #60a5fa;
         border: 1px solid rgba(51, 102, 255, 0.35);
     }
-    .pool-rank-help-dot { font-size: 0.72em; color: var(--text-muted); opacity: 0.8; }
+    .pool-rank-help-dot { font-size: 0.70em; color: var(--text-muted); opacity: 0.8; }
     .pool-rank-sub {
         display: block;
-        font-size: 0.74em;
+        font-size: 0.72em;
         color: var(--text-muted);
-        margin-top: 3px;
+        margin-top: 2px;
         font-weight: 600;
         border-bottom: 1px dotted rgba(255, 255, 255, 0.25);
     }
     .pool-rank-wrap:hover .pool-rank-sub { color: #fff; border-bottom-color: #60a5fa; }
 
-    /* Inputs con botón SVG de copiar integrado */
+    /* Inputs compactos con botón SVG de copiar integrado */
     .input-pool-wrap {
         position: relative;
         display: flex;
@@ -274,18 +296,18 @@
         background: rgba(10, 12, 18, 0.55);
         border: 1px solid var(--border-color);
         color: var(--text-main);
-        padding: 8px 34px 8px 10px;
+        padding: 7px 32px 7px 9px;
         width: 100%;
         font-family: monospace;
-        font-size: 0.94em;
+        font-size: 13px;
         outline: none;
         border-radius: 6px;
         box-sizing: border-box;
         transition: all 0.18s ease;
     }
     .input-pool-pro.pass-field {
-        padding-right: 10px;
-        width: 78px;
+        padding-right: 8px;
+        width: 68px;
         text-align: center;
     }
     .input-pool-pro:focus {
@@ -303,13 +325,13 @@
     }
     .btn-copy-inline {
         position: absolute;
-        right: 5px;
+        right: 4px;
         background: rgba(51, 102, 255, 0.12);
         border: 1px solid rgba(59, 130, 246, 0.35);
         color: #60a5fa;
         cursor: pointer;
-        width: 26px;
-        height: 26px;
+        width: 24px;
+        height: 24px;
         border-radius: 5px;
         display: inline-flex;
         align-items: center;
@@ -318,8 +340,8 @@
         padding: 0;
     }
     .btn-copy-inline svg {
-        width: 13px;
-        height: 13px;
+        width: 12px;
+        height: 12px;
         stroke: currentColor;
         fill: none;
         stroke-width: 2;
@@ -341,13 +363,14 @@
     .pool-status-pill {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 3px 10px;
+        gap: 5px;
+        padding: 3px 9px;
         border-radius: 20px;
-        font-size: 0.82em;
+        font-size: 0.80em;
         font-weight: bold;
         font-family: monospace;
         cursor: help;
+        white-space: nowrap;
     }
     .pool-status-pill.alive {
         background: rgba(0, 230, 118, 0.12);
@@ -360,8 +383,8 @@
         border: 1px solid rgba(255, 82, 82, 0.35);
     }
     .status-dot-pulse {
-        width: 7px;
-        height: 7px;
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
         display: inline-block;
     }
@@ -370,7 +393,7 @@
 
     /* Contenedores alineados de Aceptados y Rechazados */
     .shares-cell-wrap {
-        min-width: 115px;
+        min-width: 95px;
         display: flex;
         flex-direction: column;
     }
@@ -380,7 +403,7 @@
         background: rgba(255, 255, 255, 0.08);
         border-radius: 3px;
         overflow: hidden;
-        margin-top: 5px;
+        margin-top: 4px;
         display: flex;
     }
     .shares-bar-acc { height: 100%; background: #00e676; }
@@ -388,73 +411,35 @@
     .rej-val-group {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 5px;
         font-family: monospace;
+        white-space: nowrap;
     }
 
-    /* Diseño Responsivo: Tarjetas limpias, anti-zoom iOS y barra deslizable en Celular */
+    /* Ajustes específicos para Celular: mantiene la tabla horizontal compacta */
     @media (max-width: 768px) {
+        .mobile-scroll-hint {
+            display: block;
+        }
         .pools-presets-bar {
             width: 100%;
             flex-wrap: nowrap;
             overflow-x: auto;
-            padding-bottom: 4px;
+            padding: 2px 0 4px 0;
             -webkit-overflow-scrolling: touch;
         }
-        .input-pool-pro {
-            font-size: 16px !important; /* Evita el zoom automático de Safari en iPhone */
-        }
-        .pools-table-pro thead { display: none; }
-        .pools-table-pro,
-        .pools-table-pro tbody,
-        .pools-table-pro tr,
-        .pools-table-pro td {
-            display: block;
+        .btn-guardar-pools {
             width: 100%;
-            box-sizing: border-box;
+            justify-content: center;
         }
-        .pools-table-pro tbody {
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .pools-table-pro tr {
-            padding: 12px 14px;
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            border-radius: 8px;
-            background: rgba(10, 12, 18, 0.35);
-        }
+        .pools-table-pro th,
         .pools-table-pro td {
-            padding: 6px 0;
-            border: none;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
+            padding: 8px 7px;
         }
-        .pools-table-pro td::before {
-            content: attr(data-label);
-            font-size: 0.74em;
-            font-weight: bold;
-            text-transform: uppercase;
-            color: var(--text-muted);
-            min-width: 88px;
-            flex-shrink: 0;
+        .input-pool-pro {
+            font-size: 12.5px;
+            padding: 6px 30px 6px 8px;
         }
-        .pool-rank-wrap {
-            flex-direction: row;
-            align-items: center;
-            gap: 8px;
-            padding: 2px 4px;
-        }
-        .pool-rank-sub { margin-top: 0; }
-        .input-pool-pro.pass-field { width: 100%; text-align: left; }
-        .shares-cell-wrap {
-            align-items: flex-end;
-            min-width: 130px;
-        }
-        .btn-guardar-pools { width: 100%; justify-content: center; }
     }
 </style>
 
@@ -491,7 +476,7 @@
     <div id="poolsBeginnerGuide" class="pools-beginner-guide">
         <b>👋 Guía rápida en 3 pasos:</b><br>
         1. Toca una <b>Plantilla BTC</b> abajo (ej. <i>ViaBTC</i>, <i>NiceHash</i> o <i>F2Pool</i>) para rellenar automáticamente los 3 servidores oficiales.<br>
-        2. En la fila <b>1 (Primario)</b>, escribe tu <b>Worker</b> con el formato <code>TuUsuario.001</code> (en NiceHash usa tu <code>MiningAddress.001</code>).<br>
+        2. En la fila <b>1 (Primario)</b>, escribe tu <b>Worker (Usuario)</b> con el formato <code>TuUsuario.001</code> (en NiceHash usa tu <code>MiningAddress.001</code>).<br>
         3. Presiona <b>💾 Guardar Todos los Pools</b>. Si el servidor #1 falla alguna vez, tu minero cambiará automáticamente al #2 o #3 sin dejar de minar.
     </div>
 
@@ -523,24 +508,27 @@
         </div>
     </div>
 
-    <!-- Tabla responsiva (Tabla en PC / Tarjetas alineadas en Celular) -->
-    <div>
+    <!-- Indicador de deslizamiento horizontal en celular -->
+    <div class="mobile-scroll-hint">↔ Desliza la tabla hacia los lados para ver Worker, Pass y Estado</div>
+
+    <!-- Tabla horizontal compacta (igual en PC y Celular) -->
+    <div class="pools-table-scroll">
         <table class="pools-table-pro">
             <thead>
                 <tr>
-                    <th style="width:95px;" data-pool-tt="col_prio">Prioridad</th>
-                    <th data-pool-tt="col_url">Dirección Stratum (Pool URL)</th>
-                    <th data-pool-tt="col_worker">Worker (Subcuenta.Minero)</th>
-                    <th style="width:90px;" data-pool-tt="col_pass">Pass</th>
-                    <th style="width:105px;" data-pool-tt="col_estado">Estado</th>
-                    <th style="width:130px;" data-pool-tt="col_acc">Aceptados</th>
-                    <th style="width:145px;" data-pool-tt="col_rej">Rechazados (%)</th>
+                    <th style="width:76px;" data-pool-tt="col_prio">#</th>
+                    <th style="min-width:265px;" data-pool-tt="col_url">Dirección Stratum (Pool URL)</th>
+                    <th style="min-width:170px;" data-pool-tt="col_worker">Worker (Usuario)</th>
+                    <th style="width:76px;" data-pool-tt="col_pass">Pass</th>
+                    <th style="width:88px;" data-pool-tt="col_estado">Estado</th>
+                    <th style="width:105px;" data-pool-tt="col_acc">Aceptados</th>
+                    <th style="width:120px;" data-pool-tt="col_rej">Rechazados</th>
                 </tr>
             </thead>
             <tbody>
                 <!-- POOL 1 (PRIMARIO) -->
                 <tr>
-                    <td data-label="Prioridad">
+                    <td>
                         <div class="pool-rank-wrap" data-pool-tt="prio_1">
                             <div class="pool-rank-top">
                                 <span class="pool-rank-badge">1</span>
@@ -549,7 +537,7 @@
                             <span class="pool-rank-sub">Primario</span>
                         </div>
                     </td>
-                    <td data-label="Pool URL">
+                    <td>
                         <div class="input-pool-wrap">
                             <input type="text" id="url_1" value="{{ extra.pool1 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:3333" oninput="marcarPoolEditado(this)" translate="no">
                             <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_1', this)" title="Copiar URL del Pool 1">
@@ -557,7 +545,7 @@
                             </button>
                         </div>
                     </td>
-                    <td data-label="Worker">
+                    <td>
                         <div class="input-pool-wrap">
                             <input type="text" id="user_1" value="{{ extra.worker1 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="sincronizarWorker(this.value); marcarPoolEditado(this)" translate="no">
                             <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_1', this)" title="Copiar Worker">
@@ -565,25 +553,25 @@
                             </button>
                         </div>
                     </td>
-                    <td data-label="Contraseña">
+                    <td>
                         <input type="text" id="pass_1" value="{{ extra.pass1 }}" class="input-pool-pro pass-field" placeholder="123" oninput="sincronizarPass(this.value); marcarPoolEditado(this)" translate="no">
                     </td>
-                    <td data-label="Estado" translate="no">
+                    <td translate="no">
                         <span class="pool-status-pill {{ 'alive' if extra.status1 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status1 == 'Alive' else 'status_dead' }}">
                             <span class="status-dot-pulse"></span>
                             {{ extra.status1 }}
                         </span>
                     </td>
-                    <td data-label="Aceptados" translate="no">
+                    <td translate="no">
                         <div class="shares-cell-wrap">
-                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace; font-size:1.05em;">{{ "{:,}".format(extra.acc1) }}</span>
+                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc1) }}</span>
                             <div class="shares-bar-bg">
                                 <div class="shares-bar-acc" style="width:{{ (100 - pct1) if tot1 > 0 else 0 }}%;"></div>
                                 <div class="shares-bar-rej" style="width:{{ pct1 if tot1 > 0 else 0 }}%;"></div>
                             </div>
                         </div>
                     </td>
-                    <td data-label="Rechazados" translate="no">
+                    <td translate="no">
                         <div class="rej-val-group">
                             <span style="color:{{ '#ff5252' if extra.rej1 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej1) }}</span>
                             <span style="font-size:0.86em; color:{{ '#ff5252' if pct1 > 1.5 else ('#ffb300' if pct1 > 0.8 else 'var(--text-muted)') }};">({{ "%.2f"|format(pct1) }}%)</span>
@@ -593,7 +581,7 @@
 
                 <!-- POOL 2 (RESPALDO 1) -->
                 <tr>
-                    <td data-label="Prioridad">
+                    <td>
                         <div class="pool-rank-wrap" data-pool-tt="prio_2">
                             <div class="pool-rank-top">
                                 <span class="pool-rank-badge" style="opacity:0.85;">2</span>
@@ -602,7 +590,7 @@
                             <span class="pool-rank-sub">Respaldo 1</span>
                         </div>
                     </td>
-                    <td data-label="Pool URL">
+                    <td>
                         <div class="input-pool-wrap">
                             <input type="text" id="url_2" value="{{ extra.pool2 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:443" oninput="marcarPoolEditado(this)" translate="no">
                             <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_2', this)" title="Copiar URL del Pool 2">
@@ -610,7 +598,7 @@
                             </button>
                         </div>
                     </td>
-                    <td data-label="Worker">
+                    <td>
                         <div class="input-pool-wrap">
                             <input type="text" id="user_2" value="{{ extra.worker2 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="marcarPoolEditado(this)" translate="no">
                             <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_2', this)" title="Copiar Worker">
@@ -618,25 +606,25 @@
                             </button>
                         </div>
                     </td>
-                    <td data-label="Contraseña">
+                    <td>
                         <input type="text" id="pass_2" value="{{ extra.pass2 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
                     </td>
-                    <td data-label="Estado" translate="no">
+                    <td translate="no">
                         <span class="pool-status-pill {{ 'alive' if extra.status2 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status2 == 'Alive' else 'status_dead' }}">
                             <span class="status-dot-pulse"></span>
                             {{ extra.status2 }}
                         </span>
                     </td>
-                    <td data-label="Aceptados" translate="no">
+                    <td translate="no">
                         <div class="shares-cell-wrap">
-                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace; font-size:1.05em;">{{ "{:,}".format(extra.acc2) }}</span>
+                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc2) }}</span>
                             <div class="shares-bar-bg">
                                 <div class="shares-bar-acc" style="width:{{ (100 - pct2) if tot2 > 0 else 0 }}%;"></div>
                                 <div class="shares-bar-rej" style="width:{{ pct2 if tot2 > 0 else 0 }}%;"></div>
                             </div>
                         </div>
                     </td>
-                    <td data-label="Rechazados" translate="no">
+                    <td translate="no">
                         <div class="rej-val-group">
                             <span style="color:{{ '#ff5252' if extra.rej2 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej2) }}</span>
                             <span style="font-size:0.86em; color:{{ '#ff5252' if pct2 > 1.5 else ('#ffb300' if pct2 > 0.8 else 'var(--text-muted)') }};">({{ "%.2f"|format(pct2) }}%)</span>
@@ -646,7 +634,7 @@
 
                 <!-- POOL 3 (RESPALDO 2) -->
                 <tr>
-                    <td data-label="Prioridad">
+                    <td>
                         <div class="pool-rank-wrap" data-pool-tt="prio_3">
                             <div class="pool-rank-top">
                                 <span class="pool-rank-badge" style="opacity:0.7;">3</span>
@@ -655,7 +643,7 @@
                             <span class="pool-rank-sub">Respaldo 2</span>
                         </div>
                     </td>
-                    <td data-label="Pool URL">
+                    <td>
                         <div class="input-pool-wrap">
                             <input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:25" oninput="marcarPoolEditado(this)" translate="no">
                             <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_3', this)" title="Copiar URL del Pool 3">
@@ -663,7 +651,7 @@
                             </button>
                         </div>
                     </td>
-                    <td data-label="Worker">
+                    <td>
                         <div class="input-pool-wrap">
                             <input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="marcarPoolEditado(this)" translate="no">
                             <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_3', this)" title="Copiar Worker">
@@ -671,25 +659,25 @@
                             </button>
                         </div>
                     </td>
-                    <td data-label="Contraseña">
+                    <td>
                         <input type="text" id="pass_3" value="{{ extra.pass3 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
                     </td>
-                    <td data-label="Estado" translate="no">
+                    <td translate="no">
                         <span class="pool-status-pill {{ 'alive' if extra.status3 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status3 == 'Alive' else 'status_dead' }}">
                             <span class="status-dot-pulse"></span>
                             {{ extra.status3 }}
                         </span>
                     </td>
-                    <td data-label="Aceptados" translate="no">
+                    <td translate="no">
                         <div class="shares-cell-wrap">
-                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace; font-size:1.05em;">{{ "{:,}".format(extra.acc3) }}</span>
+                            <span style="color:var(--accent-green); font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc3) }}</span>
                             <div class="shares-bar-bg">
                                 <div class="shares-bar-acc" style="width:{{ (100 - pct3) if tot3 > 0 else 0 }}%;"></div>
                                 <div class="shares-bar-rej" style="width:{{ pct3 if tot3 > 0 else 0 }}%;"></div>
                             </div>
                         </div>
                     </td>
-                    <td data-label="Rechazados" translate="no">
+                    <td translate="no">
                         <div class="rej-val-group">
                             <span style="color:{{ '#ff5252' if extra.rej3 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej3) }}</span>
                             <span style="font-size:0.86em; color:{{ '#ff5252' if pct3 > 1.5 else ('#ffb300' if pct3 > 0.8 else 'var(--text-muted)') }};">({{ "%.2f"|format(pct3) }}%)</span>
@@ -777,7 +765,7 @@
             rango: 'Usa distintos puertos (3333, 443, 25) en cada fila'
         },
         'col_worker': {
-            titulo: '👷 Nombre del Worker (TuCuenta.Minero)',
+            titulo: '👷 Worker (Usuario del Pool)',
             desc: 'Es el nombre de tu cuenta en el pool seguido de un punto y un número para identificar esta máquina (ej: MiCuenta.001).',
             rango: 'En NiceHash usa tu MiningAddress.001'
         },
