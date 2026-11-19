@@ -14,10 +14,37 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         background: rgba(255, 255, 255, 0.01);
     }
+    .boards-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
     .boards-title-txt {
         font-weight: bold;
         font-size: 1.05em;
         color: var(--text-main);
+    }
+    .boards-help-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(56, 189, 248, 0.10);
+        border: 1px solid rgba(56, 189, 248, 0.30);
+        color: #7dd3fc;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.72em;
+        font-weight: bold;
+        cursor: help;
+        user-select: none;
+        transition: all 0.2s ease;
+    }
+    .boards-help-btn:hover, .boards-help-btn.btt-active {
+        background: rgba(56, 189, 248, 0.24);
+        border-color: #38bdf8;
+        color: #ffffff;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
     }
     .boards-status-row {
         display: flex;
@@ -36,6 +63,12 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        cursor: help;
+        user-select: none;
+        transition: filter 0.18s ease, transform 0.18s ease;
+    }
+    .boards-temp-pill:hover, .boards-temp-pill.btt-active {
+        filter: brightness(1.15);
     }
     .boards-temp-pill.ok {
         background: rgba(0, 230, 118, 0.12);
@@ -70,6 +103,13 @@
     .thermal-cut-box.active {
         border-color: rgba(0, 230, 118, 0.45);
         box-shadow: 0 0 10px rgba(0, 230, 118, 0.14);
+    }
+    .thermal-cut-lbl {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        cursor: help;
+        user-select: none;
     }
     .thermal-cut-input {
         width: 40px;
@@ -152,6 +192,48 @@
     }
     .boards-subbar b { font-family: monospace; font-size: 1.05em; }
 
+    /* Elementos interactivos con ayuda (i) */
+    .board-tip-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        cursor: help;
+        border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
+        padding-bottom: 1px;
+        user-select: none;
+        transition: color 0.18s ease, border-color 0.18s ease;
+    }
+    .board-tip-item:hover, .board-tip-item.btt-active {
+        color: #ffffff;
+        border-bottom-color: #3b82f6;
+    }
+    .board-info-dot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        color: #9ca3af;
+        font-size: 9px;
+        font-family: serif;
+        font-style: italic;
+        font-weight: bold;
+        text-transform: none;
+        letter-spacing: 0;
+        flex-shrink: 0;
+        transition: 0.15s;
+    }
+    .board-tip-item:hover .board-info-dot,
+    .board-tip-item.btt-active .board-info-dot,
+    .boards-table-pro th:hover .board-info-dot,
+    .boards-table-pro th.btt-active .board-info-dot,
+    .thermal-cut-lbl:hover .board-info-dot {
+        background: rgba(51, 102, 255, 0.45);
+        color: #fff;
+    }
+
     .boards-scroll-hint {
         display: none;
         padding: 5px 14px;
@@ -183,6 +265,19 @@
         background: rgba(255, 255, 255, 0.015);
         border-bottom: 1px solid var(--border-color);
         white-space: nowrap;
+        cursor: help;
+        user-select: none;
+        transition: color 0.15s ease, background 0.15s ease;
+    }
+    .boards-table-pro th:hover,
+    .boards-table-pro th.btt-active {
+        color: #ffffff;
+        background: rgba(51, 102, 255, 0.08);
+    }
+    .boards-th-inner {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
     }
     .boards-table-pro td {
         padding: 10px 12px;
@@ -266,6 +361,63 @@
         margin-right: 6px;
     }
 
+    /* Portal de Tooltip flotante propio para Placas Hash (PC y Celular) */
+    .boards-smart-tooltip {
+        position: fixed;
+        display: none;
+        width: 275px;
+        max-width: calc(100vw - 20px);
+        background: rgba(10, 11, 16, 0.98);
+        border: 1px solid rgba(51, 102, 255, 0.55);
+        border-radius: 7px;
+        padding: 10px 12px;
+        color: #d1d3e0;
+        font-family: sans-serif;
+        font-size: 11.5px;
+        font-weight: normal;
+        line-height: 1.45;
+        white-space: normal;
+        text-align: left;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
+        z-index: 99999;
+        pointer-events: none;
+    }
+    .btt-header {
+        color: #fff;
+        font-weight: bold;
+        font-size: 12px;
+        margin-bottom: 5px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .btt-range {
+        margin-top: 6px;
+        padding: 5px 7px;
+        background: rgba(56, 189, 248, 0.08);
+        border-left: 2px solid #38bdf8;
+        border-radius: 3px;
+        font-family: monospace;
+        font-size: 10.5px;
+        color: #38bdf8;
+    }
+    .btt-arrow {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: rgba(10, 11, 16, 0.98);
+        transform: rotate(45deg);
+    }
+    .btt-arrow.bottom {
+        bottom: -6px;
+        border-right: 1px solid rgba(51, 102, 255, 0.55);
+        border-bottom: 1px solid rgba(51, 102, 255, 0.55);
+    }
+    .btt-arrow.top {
+        top: -6px;
+        border-left: 1px solid rgba(51, 102, 255, 0.55);
+        border-top: 1px solid rgba(51, 102, 255, 0.55);
+    }
+
     @media (max-width: 768px) {
         .boards-header-pro { padding: 11px 12px; }
         .boards-temp-pill { font-size: 0.70em; padding: 3px 8px; }
@@ -306,18 +458,24 @@
 
 <div class="boards-card-pro">
     <div class="boards-header-pro">
-        <span class="boards-title-txt">🌡️ Placas de Hash y Telemetría de Chips</span>
+        <div class="boards-title-wrap">
+            <span class="boards-title-txt">🌡️ Placas de Hash y Telemetría de Chips</span>
+            <span class="boards-help-btn" data-board-tip="guia">? Guía rápida</span>
+        </div>
         <div class="boards-status-row">
             {% if t_max_val >= 82 %}
-                <span class="boards-temp-pill crit">● Temp Crítica (<span translate="no">{{ t_max_val }}°C</span>)</span>
+                <span class="boards-temp-pill crit" data-board-tip="estado_temp">● Temp Crítica (<span translate="no">{{ t_max_val }}°C</span>)</span>
             {% elif t_max_val >= 75 %}
-                <span class="boards-temp-pill warn">● Temp Elevada (<span translate="no">{{ t_max_val }}°C</span>)</span>
+                <span class="boards-temp-pill warn" data-board-tip="estado_temp">● Temp Elevada (<span translate="no">{{ t_max_val }}°C</span>)</span>
             {% else %}
-                <span class="boards-temp-pill ok">● Temp Óptima (<span translate="no">{{ t_max_val }}°C</span>)</span>
+                <span class="boards-temp-pill ok" data-board-tip="estado_temp">● Temp Óptima (<span translate="no">{{ t_max_val }}°C</span>)</span>
             {% endif %}
 
             <div class="thermal-cut-box {{ 'active' if corte_on else '' }}" id="thermalCutBox" data-no-live-patch="1">
-                <span>🛡️ Corte<span class="thermal-cut-lbl-extra"> Térmico</span>:</span>
+                <span class="thermal-cut-lbl" data-board-tip="corte_termico">
+                    <span>🛡️ Corte<span class="thermal-cut-lbl-extra"> Térmico</span>:</span>
+                    <span class="board-info-dot">i</span>
+                </span>
                 <input type="number" id="corteTempInput" class="thermal-cut-input" min="60" max="105" value="{{ corte_val }}" onchange="guardarCorteTermico()" translate="no">
                 <span translate="no">°C</span>
                 <label class="thermal-switch" title="Activar o desactivar apagado automático por temperatura">
@@ -329,10 +487,22 @@
     </div>
 
     <div class="boards-subbar">
-        <span>Chips Activos: <b style="color:#00e676;" translate="no">{{ ns.chips_tot }} ASICs</b></span>
-        <span>Frecuencia Prom: <b style="color:#60a5fa;" translate="no">{{ freq_prom }} MHz</b></span>
-        <span>Disipación (Chip-PCB): <b style="color:#38bdf8;" translate="no">+{{ dt_prom }}°C</b></span>
-        <span>Errores Placas: <b style="color:{{ '#ff5252' if ns.hw_tot > 50 else 'var(--text-main)' }};" translate="no">{{ ns.hw_tot }}</b></span>
+        <span class="board-tip-item" data-board-tip="chips_tot">
+            Chips Activos: <b style="color:#00e676;" translate="no">{{ ns.chips_tot }} ASICs</b>
+            <span class="board-info-dot">i</span>
+        </span>
+        <span class="board-tip-item" data-board-tip="freq_prom">
+            Frecuencia Prom: <b style="color:#60a5fa;" translate="no">{{ freq_prom }} MHz</b>
+            <span class="board-info-dot">i</span>
+        </span>
+        <span class="board-tip-item" data-board-tip="disipacion">
+            Disipación (Chip-PCB): <b style="color:#38bdf8;" translate="no">+{{ dt_prom }}°C</b>
+            <span class="board-info-dot">i</span>
+        </span>
+        <span class="board-tip-item" data-board-tip="errores_tot">
+            Errores Placas: <b style="color:{{ '#ff5252' if ns.hw_tot > 50 else 'var(--text-main)' }};" translate="no">{{ ns.hw_tot }}</b>
+            <span class="board-info-dot">i</span>
+        </span>
     </div>
 
     <div class="boards-scroll-hint">↔ Desliza la tabla hacia los lados para ver Temps, Chips y Errores</div>
@@ -341,13 +511,13 @@
         <table class="boards-table-pro">
             <thead>
                 <tr>
-                    <th>Placa Hash</th>
-                    <th>Hashrate Real</th>
-                    <th>Chips ASIC</th>
-                    <th>Frecuencia</th>
-                    <th>Temp Chip</th>
-                    <th>Temp PCB</th>
-                    <th>ΔT / Errores HW</th>
+                    <th data-board-tip="col_placa"><span class="boards-th-inner">Placa Hash <span class="board-info-dot">i</span></span></th>
+                    <th data-board-tip="col_hr"><span class="boards-th-inner">Hashrate Real <span class="board-info-dot">i</span></span></th>
+                    <th data-board-tip="col_chips"><span class="boards-th-inner">Chips ASIC <span class="board-info-dot">i</span></span></th>
+                    <th data-board-tip="col_freq"><span class="boards-th-inner">Frecuencia <span class="board-info-dot">i</span></span></th>
+                    <th data-board-tip="col_tchip"><span class="boards-th-inner">Temp Chip <span class="board-info-dot">i</span></span></th>
+                    <th data-board-tip="col_tpcb"><span class="boards-th-inner">Temp PCB <span class="board-info-dot">i</span></span></th>
+                    <th data-board-tip="col_dthw"><span class="boards-th-inner">ΔT / Errores HW <span class="board-info-dot">i</span></span></th>
                 </tr>
             </thead>
             <tbody>
@@ -443,4 +613,178 @@
             }
         }).catch(() => {});
     }
+
+    // Sistema de Tooltips claros para principiantes (compatible con actualizaciones en vivo)
+    (function() {
+        if (window.__boardsTooltipsInit) return;
+        window.__boardsTooltipsInit = true;
+
+        const TIPS_PLACAS = {
+            guia: {
+                titulo: '📖 ¿Qué son las Placas de Hash?',
+                desc: 'Tu minero tiene varias placas internas (normalmente 3) que hacen todo el trabajo. Aquí ves la salud de cada una por separado para detectar rápido si alguna se calienta o rinde menos.',
+                rango: 'Pasa el mouse o toca cualquier dato con (i) para ver su explicación'
+            },
+            estado_temp: {
+                titulo: '🌡️ Estado Térmico del Equipo',
+                desc: 'Resume la temperatura más alta entre todas las placas en este momento.',
+                rango: '🟢 < 75°C Óptima | 🟠 75-81°C Elevada | 🔴 ≥ 82°C Crítica'
+            },
+            corte_termico: {
+                titulo: '🛡️ Protección por Corte Térmico',
+                desc: 'Si activas este interruptor, el sistema detendrá el minero automáticamente cuando cualquier chip alcance la temperatura que elijas, evitando daños por sobrecalentamiento.',
+                rango: 'Recomendado: activar entre 82°C y 85°C'
+            },
+            chips_tot: {
+                titulo: '🧩 Chips Activos (ASICs)',
+                desc: 'Cantidad total de chips funcionando en todas las placas. Todos deben estar activos para entregar el 100% de potencia.',
+                rango: 'Si baja este número, alguna placa perdió chips o está apagada'
+            },
+            freq_prom: {
+                titulo: '⚙️ Frecuencia Promedio (MHz)',
+                desc: 'Velocidad de reloj a la que trabajan los chips. Mayor frecuencia da más potencia, pero también genera más calor.',
+                rango: 'Normal: todas las placas deben tener una frecuencia parecida'
+            },
+            disipacion: {
+                titulo: '💨 Disipación Térmica (Chip - PCB)',
+                desc: 'Diferencia de calor entre el chip interno y la entrada de aire de la placa. Indica qué tan bien está saliendo el calor.',
+                rango: 'Óptimo: +10°C a +18°C | > +22°C: revisar polvo o pasta térmica'
+            },
+            errores_tot: {
+                titulo: '⚠️ Errores Totales de Placas (HW)',
+                desc: 'Suma de cálculos fallidos descartados por el equipo. Tener unos pocos es completamente normal.',
+                rango: 'Normal: < 50 | Si sube rápido: bajar calor o revisar placa'
+            },
+            col_placa: {
+                titulo: '🔌 Placa Hash (Cadena)',
+                desc: 'Cada fila representa una placa física dentro del minero. El punto verde indica que está minando; rojo significa detenida.',
+                rango: 'Todas las cadenas deben estar en verde'
+            },
+            col_hr: {
+                titulo: '⚡ Hashrate Real por Placa',
+                desc: 'Potencia que está entregando esa placa en concreto. La barra azul te permite comparar rápido si todas rinden parejo.',
+                rango: 'Ideal: barras casi del mismo largo en todas las placas'
+            },
+            col_chips: {
+                titulo: '🧩 Chips ASIC por Placa',
+                desc: 'Número de chips detectados en esa placa. Si una placa muestra menos chips que las demás, puede necesitar mantenimiento.',
+                rango: 'Todas las placas del mismo equipo deben tener igual cantidad'
+            },
+            col_freq: {
+                titulo: '⚙️ Frecuencia de la Placa',
+                desc: 'Velocidad (MHz) configurada en esa placa. Si el equipo se calienta, suele bajarla automáticamente para protegerse.',
+                rango: 'Estable: valores similares entre todas las cadenas'
+            },
+            col_tchip: {
+                titulo: '🔥 Temperatura del Chip',
+                desc: 'Calor interno en el núcleo de los chips. Es la temperatura más importante que debes vigilar.',
+                rango: '🟢 < 75°C Óptima | 🟠 75-81°C Alerta | 🔴 ≥ 82°C Crítica'
+            },
+            col_tpcb: {
+                titulo: '❄️ Temperatura PCB (Entrada)',
+                desc: 'Temperatura en la placa base por donde entra el aire fresco de los ventiladores.',
+                rango: 'Siempre debe ser más baja que la Temp del Chip'
+            },
+            col_dthw: {
+                titulo: '📊 ΔT y Errores HW',
+                desc: '<b>ΔT:</b> Diferencia entre Chip y PCB (buena refrigeración = +10°C a +18°C).<br><b>HW:</b> Errores de cálculo de esa placa.',
+                rango: 'HW normal: 0 a 20 por placa'
+            }
+        };
+
+        let activeEl = null;
+
+        function getPortal() {
+            let box = document.getElementById('boardsSmartTooltip');
+            if (!box) {
+                box = document.createElement('div');
+                box.id = 'boardsSmartTooltip';
+                box.className = 'boards-smart-tooltip';
+                document.body.appendChild(box);
+            }
+            return box;
+        }
+
+        function showTip(target) {
+            const key = target.getAttribute('data-board-tip');
+            const info = TIPS_PLACAS[key];
+            if (!info) return;
+
+            const box = getPortal();
+            if (activeEl && activeEl !== target) activeEl.classList.remove('btt-active');
+            activeEl = target;
+            target.classList.add('btt-active');
+
+            box.innerHTML = `
+                <div class="btt-header">${info.titulo}</div>
+                <div>${info.desc}</div>
+                ${info.rango ? `<div class="btt-range">${info.rango}</div>` : ''}
+                <div id="bttArrow" class="btt-arrow bottom"></div>
+            `;
+            box.style.display = 'block';
+
+            const rect = target.getBoundingClientRect();
+            const boxW = box.offsetWidth || 275;
+            const boxH = box.offsetHeight || 100;
+            const margin = 10;
+            const vw = window.innerWidth;
+
+            const centerX = rect.left + (rect.width / 2);
+            let left = centerX - (boxW / 2);
+            if (left < margin) left = margin;
+            if (left + boxW > vw - margin) left = vw - boxW - margin;
+
+            let top = rect.top - boxH - 10;
+            const arrow = document.getElementById('bttArrow');
+            if (top < margin) {
+                top = rect.bottom + 10;
+                if (arrow) arrow.className = 'btt-arrow top';
+            } else {
+                if (arrow) arrow.className = 'btt-arrow bottom';
+            }
+
+            if (arrow) {
+                let arrowLeft = centerX - left - 5;
+                arrowLeft = Math.max(12, Math.min(boxW - 22, arrowLeft));
+                arrow.style.left = arrowLeft + 'px';
+            }
+
+            box.style.left = left + 'px';
+            box.style.top = top + 'px';
+        }
+
+        function hideTip() {
+            const box = document.getElementById('boardsSmartTooltip');
+            if (box) box.style.display = 'none';
+            if (activeEl) {
+                activeEl.classList.remove('btt-active');
+                activeEl = null;
+            }
+        }
+
+        document.addEventListener('mouseover', function(e) {
+            const target = e.target.closest('[data-board-tip]');
+            if (target) showTip(target);
+        });
+
+        document.addEventListener('mouseout', function(e) {
+            const target = e.target.closest('[data-board-tip]');
+            if (target && (!e.relatedTarget || !target.contains(e.relatedTarget))) {
+                hideTip();
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('[data-board-tip]');
+            if (target) {
+                e.stopPropagation();
+                if (activeEl === target) hideTip();
+                else showTip(target);
+            } else {
+                hideTip();
+            }
+        });
+
+        window.addEventListener('scroll', hideTip, { passive: true });
+    })();
 </script>
