@@ -157,7 +157,7 @@ def init_db():
         con = psycopg2.connect(DB_URL, connect_timeout=8)
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'giovanni', modelo TEXT, unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia')''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'giovanni', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia')''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 1)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
@@ -167,6 +167,8 @@ def init_db():
 
         columnas_nuevas = [
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS algoritmo TEXT DEFAULT 'SHA-256'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS moneda TEXT DEFAULT 'BTC'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS unidad TEXT DEFAULT 'TH/s'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS hashrate_30m REAL DEFAULT 0.0",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS temp_amb INTEGER DEFAULT 0",
@@ -400,6 +402,8 @@ def index():
     for m in mineros:
         ip = m['ip']
         mod = m.get('modelo') or 'Antminer'
+        algo = m.get('algoritmo') or ('Equihash' if 'z15' in str(mod).lower() else 'SHA-256')
+        mon = m.get('moneda') or ('ZEC' if algo == 'Equihash' else 'BTC')
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
         nombre_custom = nombre_inteligente_minero(ip, nombres_dict, m.get('worker1'))
@@ -413,12 +417,12 @@ def index():
 
         if segs_desconectado < 300:
             en_linea += 1
-            if unidad == 'TH/s': ht += hr
+            if unidad == 'TH/s' and algo == 'SHA-256': ht += hr
             elif unidad == 'kSol/s': kt += hr
             elif unidad == 'GH/s': gt += hr
 
             cw += c; tm = max(tm, t)
-            if unidad == 'TH/s' and datos_red['dificultad_t'] > 0:
+            if unidad == 'TH/s' and algo == 'SHA-256' and datos_red['dificultad_t'] > 0:
                 b = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)
                 ib = b * datos_red['precio']
                 costo_elec = (c / 1000.0) * 24.0 * tarifa_kwh
@@ -427,10 +431,11 @@ def index():
                 gan_neta_total += neto
                 str_gan = f"-USD {abs(neto):.2f}" if neto < 0 else f"{neto:.2f} USD"
             else:
-                str_gan = "Pool Externa"
+                str_gan = f"Pool {mon}"
 
             registros.append({
-                'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad, 'unidad_efi': unidad_efi,
+                'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'algoritmo': algo, 'moneda': mon,
+                'unidad': unidad, 'unidad_efi': unidad_efi,
                 'estado': '<span style="color:var(--accent-green);">● En línea</span>',
                 'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr,
                 'hashrate_30m': a_float_seguro(m.get('hashrate_30m'), hr),
@@ -440,7 +445,8 @@ def index():
         else:
             offline += 1
             registros.append({
-                'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'unidad': unidad, 'unidad_efi': unidad_efi,
+                'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'algoritmo': algo, 'moneda': mon,
+                'unidad': unidad, 'unidad_efi': unidad_efi,
                 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>',
                 'tiempo_act': f'hace {int(segs_desconectado // 60)}m', 'hashrate': 0, 'hashrate_30m': 0, 'temp_num': 0,
                 'consumo_kw': '0.0 kW', 'eficiencia': 0, 'ganancia_neta': "USD 0.00"
@@ -497,6 +503,8 @@ def detalle_minero(ip):
     hist = cur.fetchall()
 
     mod_str = str(m.get('modelo') or 'Antminer')
+    algoritmo_val = str(m.get('algoritmo') or ('Equihash' if 'z15' in mod_str.lower() else 'SHA-256'))
+    moneda_val = str(m.get('moneda') or ('ZEC' if algoritmo_val == 'Equihash' else 'BTC'))
     unidad_hr = str(m.get('unidad') or ('kSol/s' if 'z15' in mod_str.lower() else 'TH/s'))
     unidad_efi = "J/kSol" if unidad_hr == "kSol/s" else ("J/GH" if unidad_hr == "GH/s" else "J/TH")
 
@@ -586,6 +594,7 @@ def detalle_minero(ip):
 
     dt = {
         'hashrate': hr_val, 'hashrate_30m': hr_30m_val, 'unidad': unidad_hr, 'unidad_efi': unidad_efi,
+        'algoritmo': algoritmo_val, 'moneda': moneda_val,
         'temp_max': t_val, 'temp_amb': t_amb_val,
         'errores': a_int_seguro(m.get('errores'), 0), 'consumo': f"{round(c_val/1000, 2)} kW",
         'fans': fans, 'uptime': uptime_val,
@@ -667,6 +676,7 @@ def mineros():
 
         lista_mineros.append({
             'ip': ip, 'ultimo_octeto': ip.split('.')[-1], 'nombre': nombre, 'modelo': mod,
+            'algoritmo': m.get('algoritmo') or 'SHA-256', 'moneda': m.get('moneda') or 'BTC',
             'mac': m.get('mac') or '-', 'firmware': m.get('firmware') or '-', 'online': es_online,
             'uptime': (m.get('uptime') or 'En línea') if es_online else f'Offline ({int(segs // 60)}m)',
             'hashrate': hr, 'hashrate_30m': hr_30m, 'unidad': unidad, 'unidad_efi': unidad_efi,
@@ -961,11 +971,11 @@ def exportar_csv():
         return redirect('/plan')
 
     con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT ip, modelo, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT ip, modelo, algoritmo, moneda, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
     output = io.StringIO(); writer = csv.writer(output)
-    writer.writerow(['IP', 'Modelo', 'Hashrate', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
-    for f in filas: writer.writerow([f['ip'], f['modelo'], f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
+    writer.writerow(['IP', 'Modelo', 'Algoritmo', 'Moneda', 'Hashrate', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
+    for f in filas: writer.writerow([f['ip'], f['modelo'], f.get('algoritmo', 'SHA-256'), f.get('moneda', 'BTC'), f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition":"attachment;filename=Reporte_El_Minero_Gris.csv"})
 
 @app.route('/api/ver_log/<ip>')
@@ -1065,6 +1075,8 @@ def recibir_datos():
                 ips_existentes.add(ip_m)
 
             mod_m = str(m.get('modelo') or 'Antminer')
+            algo_m = str(m.get('algoritmo') or 'SHA-256')
+            mon_m = str(m.get('moneda') or 'BTC')
             hr_m = a_float_seguro(m.get('hashrate'), 0.0)
             hr_30 = a_float_seguro(m.get('hashrate_30m'), hr_m)
             temp_m = a_int_seguro(m.get('temp'), 0)
@@ -1095,10 +1107,10 @@ def recibir_datos():
             cadenas_list = m.get('cadenas', [])
             cadenas_json = json.dumps(cadenas_list)
 
-            cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, ip) DO UPDATE SET 
-                            modelo=EXCLUDED.modelo, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, farm_lat=EXCLUDED.farm_lat, farm_lon=EXCLUDED.farm_lon, farm_city=EXCLUDED.farm_city, farm_country=EXCLUDED.farm_country''',
-                        (ip_m, owner_user, mod_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country))
+            cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, ip) DO UPDATE SET 
+                            modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, farm_lat=EXCLUDED.farm_lat, farm_lon=EXCLUDED.farm_lon, farm_city=EXCLUDED.farm_city, farm_country=EXCLUDED.farm_country''',
+                        (ip_m, owner_user, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country))
 
             cur.execute("SELECT id, hashrate, temp_max FROM historial_nube WHERE owner=%s AND ip=%s AND fecha=%s LIMIT 1", (owner_user, ip_m, ahora_minuto))
             row_min = cur.fetchone()
