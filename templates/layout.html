@@ -38,7 +38,7 @@
             --accent-red: #ff5252;
             --hover-bg: rgba(255, 255, 255, 0.04);
             --active-bg: rgba(51, 102, 255, 0.14);
-            --topbar-bg: rgba(13, 15, 23, 0.90);
+            --topbar-bg: #0d0f17;
         }
         :root[data-theme="light"] {
             --bg-body: #f1f5f9;
@@ -55,7 +55,7 @@
             --accent-red: #ef4444;
             --hover-bg: #f1f5f9;
             --active-bg: rgba(37, 99, 235, 0.10);
-            --topbar-bg: rgba(255, 255, 255, 0.92);
+            --topbar-bg: #ffffff;
         }
 
         * { box-sizing: border-box; }
@@ -77,19 +77,6 @@
         body { top: 0px !important; }
         #google_translate_element { display: none; }
         a { text-decoration: none; color: inherit; }
-
-        .live-progress-bar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 2px;
-            width: 0%;
-            opacity: 0;
-            background: linear-gradient(90deg, #3366ff, #00e676);
-            z-index: 99999;
-            transition: width 0.3s ease, opacity 0.25s ease;
-            pointer-events: none;
-        }
 
         .net-offline-bar {
             display: none;
@@ -241,7 +228,6 @@
         .top-bar {
             min-height: 60px;
             background: var(--topbar-bg);
-            backdrop-filter: blur(8px);
             border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
@@ -292,10 +278,11 @@
             border-radius: 7px;
             cursor: pointer;
             user-select: none;
-            transition: all 0.2s ease;
+            transition: border-color 0.2s ease;
         }
         .top-status:hover { border-color: rgba(0, 230, 118, 0.45); }
         .top-status.paused { border-color: rgba(255, 179, 0, 0.45); }
+        .top-status.syncing { border-color: #38bdf8; }
         .status-envivo { color: var(--accent-green); display: flex; align-items: center; gap: 6px; }
         .top-status.paused .status-envivo { color: #ffb300; }
         .dot-pulse {
@@ -303,15 +290,10 @@
             height: 8px;
             background: var(--accent-green);
             border-radius: 50%;
-            animation: pulse 1.5s infinite;
             flex-shrink: 0;
         }
-        .top-status.paused .dot-pulse { background: #ffb300; animation: none; }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); }
-            70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
-        }
+        .top-status.paused .dot-pulse { background: #ffb300; }
+        .top-status.syncing .dot-pulse { background: #38bdf8; }
 
         .main-content {
             flex: 1;
@@ -358,7 +340,6 @@
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.65);
             z-index: 999;
-            backdrop-filter: blur(3px);
         }
         .overlay.active { display: block; }
 
@@ -374,7 +355,7 @@
             border-radius: 8px;
             font-size: 0.85em;
             font-weight: bold;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(59, 130, 246, 0.35);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
             z-index: 99999;
             display: none;
             align-items: center;
@@ -406,7 +387,6 @@
     </style>
 </head>
 <body>
-    <div id="liveProgressBar" class="live-progress-bar"></div>
     <div id="google_translate_element"></div>
     <div id="layoutToast" class="layout-toast" translate="no"></div>
     <div class="overlay" id="sidebarOverlay" onclick="toggleMenu()"></div>
@@ -571,7 +551,7 @@
         }
 
         // ============================================================
-        // MOTOR EN VIVO QUIRÚRGICO (100% ESTABLE — CERO SALTOS EN MÓVIL)
+        // MOTOR EN VIVO ULTRA-ESTABLE PARA iOS SAFARI (ZERO-REFLOW)
         // ============================================================
         const LIVE_INTERVAL_SEC = 20;
         const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan', '/admin'];
@@ -599,14 +579,14 @@
             return dedoEnPantalla || (Date.now() - ultimoScrollTs) < 3500;
         }
 
-        // Parchea SOLO los textos y barras que cambiaron, sin destruir ningún elemento del DOM
-        function parcharDomSinSaltos(nodoActual, nodoNuevo) {
+        // Solo actualiza nodos de texto y barras de progreso; jamás toca styles de contenedores
+        function parcharSoloValores(nodoActual, nodoNuevo) {
             if (!nodoActual || !nodoNuevo) return;
 
             if (nodoActual.nodeType === 1) {
                 const tag = nodoActual.tagName;
-                if (['SCRIPT', 'STYLE', 'CANVAS', 'INPUT', 'TEXTAREA', 'SELECT', 'SVG', 'IFRAME'].includes(tag)) return;
-                if (nodoActual.classList && (nodoActual.classList.contains('edited') || nodoActual.classList.contains('unsaved-pulse') || nodoActual.classList.contains('copied'))) return;
+                if (['SCRIPT', 'STYLE', 'CANVAS', 'INPUT', 'TEXTAREA', 'SELECT', 'SVG', 'IFRAME', 'BUTTON'].includes(tag)) return;
+                if (nodoActual.classList && (nodoActual.classList.contains('edited') || nodoActual.classList.contains('unsaved-pulse'))) return;
             }
 
             if (nodoActual.nodeType === 3 && nodoNuevo.nodeType === 3) {
@@ -621,28 +601,24 @@
             }
 
             if (nodoActual.nodeType === 1) {
-                // Solo actualizar barras de progreso (width) y colores dinámicos sin tocar paneles desplegables
-                const idsProtegidos = ['poolsBeginnerGuide', 'ipConflictBanner', 'layoutToast', 'netOfflineBar'];
-                if (!nodoActual.id || !idsProtegidos.includes(nodoActual.id)) {
-                    const nuevoStyle = nodoNuevo.getAttribute('style');
-                    if (nuevoStyle !== null && nodoActual.getAttribute('style') !== nuevoStyle) {
-                        nodoActual.setAttribute('style', nuevoStyle);
+                // Solo actualizar ancho en barras de progreso explícitas
+                if (nodoActual.classList && (
+                    nodoActual.classList.contains('mini-bar-fill') ||
+                    nodoActual.classList.contains('shares-bar-acc') ||
+                    nodoActual.classList.contains('shares-bar-rej')
+                )) {
+                    const wNuevo = nodoNuevo.style.width;
+                    if (wNuevo && nodoActual.style.width !== wNuevo) {
+                        nodoActual.style.width = wNuevo;
                     }
-                }
-
-                // Si es una tabla en Resumen/Mineros/Alertas y cambió la cantidad de filas, actualizar solo tbody
-                if (nodoActual.tagName === 'TBODY' && !document.querySelector('canvas')) {
-                    if (nodoActual.children.length !== nodoNuevo.children.length) {
-                        nodoActual.innerHTML = nodoNuevo.innerHTML;
-                        return;
-                    }
+                    return;
                 }
 
                 const hijosAct = nodoActual.childNodes;
                 const hijosNue = nodoNuevo.childNodes;
                 const len = Math.min(hijosAct.length, hijosNue.length);
                 for (let i = 0; i < len; i++) {
-                    parcharDomSinSaltos(hijosAct[i], hijosNue[i]);
+                    parcharSoloValores(hijosAct[i], hijosNue[i]);
                 }
             }
         }
@@ -650,8 +626,8 @@
         async function actualizacionSilenciosaEnVivo() {
             if (actualizandoAhora || !navigator.onLine) return;
             actualizandoAhora = true;
-            const bar = document.getElementById('liveProgressBar');
-            if (bar) { bar.style.opacity = '1'; bar.style.width = '55%'; }
+            const pill = document.getElementById('liveStatusPill');
+            if (pill) pill.classList.add('syncing');
 
             try {
                 const resp = await fetch(window.location.href, {
@@ -665,15 +641,18 @@
                 const actualMain = document.getElementById('mainScrollArea');
 
                 if (nuevoMain && actualMain && !usuarioEstaEditando() && !usuarioEstaInteractuando()) {
-                    parcharDomSinSaltos(actualMain, nuevoMain);
+                    const scrollAntes = actualMain.scrollTop;
+                    requestAnimationFrame(() => {
+                        parcharSoloValores(actualMain, nuevoMain);
+                        if (actualMain.scrollTop !== scrollAntes) {
+                            actualMain.scrollTop = scrollAntes;
+                        }
+                    });
                 }
             } catch (e) {
                 console.log('Sync en vivo omitido:', e);
             } finally {
-                if (bar) {
-                    bar.style.width = '100%';
-                    setTimeout(() => { bar.style.opacity = '0'; bar.style.width = '0%'; }, 280);
-                }
+                if (pill) pill.classList.remove('syncing');
                 actualizandoAhora = false;
             }
         }
