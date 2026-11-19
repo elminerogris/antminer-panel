@@ -9,30 +9,33 @@
     .boards-header-pro {
         padding: 13px 16px;
         display: flex;
-        align-items: center;
-        justify-content: space-between;
+        flex-direction: column;
         gap: 10px;
-        flex-wrap: wrap;
         border-bottom: 1px solid rgba(255, 255, 255, 0.06);
         background: rgba(255, 255, 255, 0.01);
-    }
-    .boards-title-group {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
     }
     .boards-title-txt {
         font-weight: bold;
         font-size: 1.05em;
         color: var(--text-main);
     }
+    .boards-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: nowrap;
+        width: 100%;
+    }
     .boards-temp-pill {
-        font-size: 0.72em;
+        font-size: 0.74em;
         font-weight: bold;
-        font-family: monospace;
-        padding: 2px 9px;
-        border-radius: 12px;
+        padding: 4px 10px;
+        border-radius: 14px;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
     }
     .boards-temp-pill.ok {
         background: rgba(0, 230, 118, 0.12);
@@ -48,6 +51,91 @@
         background: rgba(255, 82, 82, 0.15);
         color: #ff5252;
         border: 1px solid rgba(255, 82, 82, 0.45);
+    }
+
+    /* Control de Corte Térmico (Switch ON/OFF + Input °C) */
+    .thermal-cut-box {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(10, 12, 18, 0.55);
+        border: 1px solid var(--border-color);
+        padding: 3px 8px;
+        border-radius: 14px;
+        font-size: 0.74em;
+        color: var(--text-muted);
+        white-space: nowrap;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .thermal-cut-box.active {
+        border-color: rgba(0, 230, 118, 0.45);
+        box-shadow: 0 0 10px rgba(0, 230, 118, 0.14);
+    }
+    .thermal-cut-input {
+        width: 40px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #ff5252;
+        font-family: monospace;
+        font-weight: bold;
+        font-size: 1.02em;
+        text-align: center;
+        border-radius: 5px;
+        padding: 1px 2px;
+        outline: none;
+        transition: 0.18s;
+    }
+    .thermal-cut-input:focus {
+        border-color: #3b82f6;
+        background: rgba(10, 12, 18, 0.9);
+        color: #fff;
+    }
+    .thermal-cut-box:not(.active) .thermal-cut-input {
+        color: var(--text-muted);
+        opacity: 0.75;
+    }
+
+    /* Interruptor Switch estilo moderno */
+    .thermal-switch {
+        position: relative;
+        display: inline-block;
+        width: 32px;
+        height: 18px;
+        flex-shrink: 0;
+        cursor: pointer;
+    }
+    .thermal-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .thermal-slider {
+        position: absolute;
+        inset: 0;
+        background-color: rgba(148, 153, 176, 0.28);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px;
+        transition: 0.22s;
+    }
+    .thermal-slider:before {
+        position: absolute;
+        content: "";
+        height: 12px;
+        width: 12px;
+        left: 2px;
+        bottom: 2px;
+        background-color: #cbd5e1;
+        border-radius: 50%;
+        transition: 0.22s;
+    }
+    .thermal-switch input:checked + .thermal-slider {
+        background-color: rgba(0, 230, 118, 0.28);
+        border-color: #00e676;
+    }
+    .thermal-switch input:checked + .thermal-slider:before {
+        transform: translateX(14px);
+        background-color: #00e676;
+        box-shadow: 0 0 6px #00e676;
     }
 
     .boards-subbar {
@@ -179,6 +267,11 @@
     }
 
     @media (max-width: 768px) {
+        .boards-header-pro { padding: 11px 12px; }
+        .boards-temp-pill { font-size: 0.70em; padding: 3px 8px; }
+        .thermal-cut-box { font-size: 0.70em; padding: 3px 7px; gap: 5px; }
+        .thermal-cut-lbl-extra { display: none; }
+        .thermal-cut-input { width: 36px; }
         .boards-scroll-hint { display: block; }
         .boards-table-pro th,
         .boards-table-pro td {
@@ -208,29 +301,38 @@
 {% set freq_prom = (ns.freq_sum // ns.freq_cnt) if ns.freq_cnt > 0 else 0 %}
 {% set dt_prom = (ns.dt_sum // ns.dt_cnt) if ns.dt_cnt > 0 else 0 %}
 {% set t_max_val = ultimo.temp_max | int %}
+{% set corte_on = ultimo.corte_activo | default(false) %}
+{% set corte_val = ultimo.corte_temp | default(85) | int %}
 
 <div class="boards-card-pro">
     <div class="boards-header-pro">
-        <div class="boards-title-group">
-            <span class="boards-title-txt">🌡️ Placas de Hash y Telemetría de Chips</span>
+        <span class="boards-title-txt">🌡️ Placas de Hash y Telemetría de Chips</span>
+        <div class="boards-status-row">
             {% if t_max_val >= 82 %}
-                <span class="boards-temp-pill crit" translate="no">● Temp Crítica ({{ t_max_val }}°C)</span>
+                <span class="boards-temp-pill crit">● Temp Crítica (<span translate="no">{{ t_max_val }}°C</span>)</span>
             {% elif t_max_val >= 75 %}
-                <span class="boards-temp-pill warn" translate="no">● Temp Elevada ({{ t_max_val }}°C)</span>
+                <span class="boards-temp-pill warn">● Temp Elevada (<span translate="no">{{ t_max_val }}°C</span>)</span>
             {% else %}
-                <span class="boards-temp-pill ok" translate="no">● Temp Óptima ({{ t_max_val }}°C)</span>
+                <span class="boards-temp-pill ok">● Temp Óptima (<span translate="no">{{ t_max_val }}°C</span>)</span>
             {% endif %}
+
+            <div class="thermal-cut-box {{ 'active' if corte_on else '' }}" id="thermalCutBox" data-no-live-patch="1">
+                <span>🛡️ Corte<span class="thermal-cut-lbl-extra"> Térmico</span>:</span>
+                <input type="number" id="corteTempInput" class="thermal-cut-input" min="60" max="105" value="{{ corte_val }}" onchange="guardarCorteTermico()" translate="no">
+                <span translate="no">°C</span>
+                <label class="thermal-switch" title="Activar o desactivar apagado automático por temperatura">
+                    <input type="checkbox" id="corteActivoSwitch" {{ 'checked' if corte_on else '' }} onchange="guardarCorteTermico()">
+                    <span class="thermal-slider"></span>
+                </label>
+            </div>
         </div>
-        <span style="font-size:0.75em; color:var(--text-muted); font-family:monospace;" translate="no">
-            🛡️ Corte Térmico: <b style="color:#ff5252;">85°C</b>
-        </span>
     </div>
 
-    <div class="boards-subbar" translate="no">
-        <span>Chips Activos: <b style="color:#00e676;">{{ ns.chips_tot }} ASICs</b></span>
-        <span>Frecuencia Prom: <b style="color:#60a5fa;">{{ freq_prom }} MHz</b></span>
-        <span>ΔT Disipación (Chip-PCB): <b style="color:#38bdf8;">+{{ dt_prom }}°C</b></span>
-        <span>Errores Placas: <b style="color:{{ '#ff5252' if ns.hw_tot > 50 else 'var(--text-main)' }};">{{ ns.hw_tot }}</b></span>
+    <div class="boards-subbar">
+        <span>Chips Activos: <b style="color:#00e676;" translate="no">{{ ns.chips_tot }} ASICs</b></span>
+        <span>Frecuencia Prom: <b style="color:#60a5fa;" translate="no">{{ freq_prom }} MHz</b></span>
+        <span>Disipación (Chip-PCB): <b style="color:#38bdf8;" translate="no">+{{ dt_prom }}°C</b></span>
+        <span>Errores Placas: <b style="color:{{ '#ff5252' if ns.hw_tot > 50 else 'var(--text-main)' }};" translate="no">{{ ns.hw_tot }}</b></span>
     </div>
 
     <div class="boards-scroll-hint">↔ Desliza la tabla hacia los lados para ver Temps, Chips y Errores</div>
@@ -248,7 +350,7 @@
                     <th>ΔT / Errores HW</th>
                 </tr>
             </thead>
-            <tbody translate="no">
+            <tbody>
                 {% for c in extra.cadenas %}
                 {% set tc = c.temp_c | int %}
                 {% set tp = c.temp_p | int %}
@@ -261,10 +363,10 @@
                     <td>
                         <span class="chain-id-pill">
                             <span class="chain-dot {{ '' if hr_c > 0 else 'off' }}"></span>
-                            Cadena #{{ c.id }}
+                            Cadena <span translate="no">#{{ c.id }}</span>
                         </span>
                     </td>
-                    <td>
+                    <td translate="no">
                         <div class="mini-bar-wrap">
                             <div class="mini-bar-top">
                                 <b style="color:var(--text-main);">{{ "%.2f"|format(hr_c) }}</b>
@@ -275,16 +377,16 @@
                             </div>
                         </div>
                     </td>
-                    <td>
+                    <td translate="no">
                         <span class="chips-pill">● {{ c.chips }} chips</span>
                     </td>
-                    <td style="font-family:monospace; font-weight:bold; color:var(--text-main);">
+                    <td style="font-family:monospace; font-weight:bold; color:var(--text-main);" translate="no">
                         {{ c.freq }} <span style="color:var(--text-muted); font-weight:normal;">MHz</span>
                     </td>
                     <td>
                         <div class="mini-bar-wrap">
                             <div class="mini-bar-top">
-                                <b style="color:{{ '#ff5252' if tc >= 82 else ('#ffb300' if tc >= 75 else '#60a5fa') }};">{{ tc }}°C</b>
+                                <b style="color:{{ '#ff5252' if tc >= 82 else ('#ffb300' if tc >= 75 else '#60a5fa') }};" translate="no">{{ tc }}°C</b>
                                 <span style="font-size:0.82em; color:{{ '#ff5252' if tc >= 82 else ('#ffb300' if tc >= 75 else '#60a5fa') }};">
                                     {{ 'Crítica' if tc >= 82 else ('Alerta' if tc >= 75 else 'Óptima') }}
                                 </span>
@@ -297,7 +399,7 @@
                     <td>
                         <div class="mini-bar-wrap">
                             <div class="mini-bar-top">
-                                <b style="color:#00e676;">{{ tp }}°C</b>
+                                <b style="color:#00e676;" translate="no">{{ tp }}°C</b>
                                 <span style="font-size:0.82em; color:var(--text-muted);">Entrada</span>
                             </div>
                             <div class="mini-bar-bg">
@@ -305,7 +407,7 @@
                             </div>
                         </div>
                     </td>
-                    <td>
+                    <td translate="no">
                         <span class="delta-pill">ΔT {{ '+' if dt_c >= 0 else '' }}{{ dt_c }}°C</span>
                         <span style="font-family:monospace; color:{{ '#ff5252' if (c.hw | int) > 20 else 'var(--text-muted)' }}; font-weight:bold;">{{ c.hw }} HW</span>
                     </td>
@@ -315,3 +417,30 @@
         </table>
     </div>
 </div>
+
+<script>
+    function guardarCorteTermico() {
+        const sw = document.getElementById('corteActivoSwitch');
+        const inp = document.getElementById('corteTempInput');
+        const box = document.getElementById('thermalCutBox');
+        if (!sw || !inp) return;
+
+        let tempVal = parseInt(inp.value, 10);
+        if (isNaN(tempVal) || tempVal < 60) tempVal = 60;
+        if (tempVal > 105) tempVal = 105;
+        inp.value = tempVal;
+
+        const activo = sw.checked ? 1 : 0;
+        if (box) box.classList.toggle('active', !!activo);
+
+        fetch('/api/guardar_corte_termico', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip: '{{ ip }}', activo: activo, temp: tempVal })
+        }).then(r => {
+            if (r.ok && typeof mostrarLayoutToast === 'function') {
+                mostrarLayoutToast(activo ? `🛡️ Corte Térmico activado en ${tempVal}°C` : '⏸ Corte Térmico desactivado');
+            }
+        }).catch(() => {});
+    }
+</script>
