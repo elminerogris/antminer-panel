@@ -52,6 +52,29 @@
         border: 1px solid rgba(192, 132, 252, 0.35);
     }
 
+    /* Botón Mágico de Auto-Configuración IP Fija */
+    .btn-auto-ip-pro {
+        background: linear-gradient(135deg, rgba(0, 230, 118, 0.18) 0%, rgba(16, 185, 129, 0.10) 100%);
+        border: 1px solid rgba(0, 230, 118, 0.5);
+        color: #00e676;
+        padding: 6px 12px;
+        border-radius: 7px;
+        font-size: 0.76em;
+        font-weight: bold;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+        box-shadow: 0 0 10px rgba(0, 230, 118, 0.18);
+    }
+    .btn-auto-ip-pro:hover {
+        background: rgba(0, 230, 118, 0.28);
+        color: #fff;
+        box-shadow: 0 0 16px rgba(0, 230, 118, 0.45);
+        transform: translateY(-1px);
+    }
+
     /* Lista de Especificaciones Técnicas con Copiado Rápido */
     .specs-list-pro {
         width: 100%;
@@ -61,16 +84,9 @@
         border-bottom: 1px solid rgba(255, 255, 255, 0.045);
         transition: background 0.15s ease;
     }
-    .specs-list-pro tr:last-child {
-        border-bottom: none;
-    }
-    .specs-list-pro tr:hover {
-        background: rgba(255, 255, 255, 0.02);
-    }
-    .specs-list-pro td {
-        padding: 10px 16px;
-        font-size: 0.84em;
-    }
+    .specs-list-pro tr:last-child { border-bottom: none; }
+    .specs-list-pro tr:hover { background: rgba(255, 255, 255, 0.02); }
+    .specs-list-pro td { padding: 10px 16px; font-size: 0.84em; }
     .specs-list-pro td:first-child {
         color: var(--text-muted);
         font-weight: bold;
@@ -78,9 +94,7 @@
         user-select: none;
         width: 38%;
     }
-    .specs-list-pro td:first-child:hover {
-        color: #fff;
-    }
+    .specs-list-pro td:first-child:hover { color: #fff; }
     .specs-list-pro td:last-child {
         text-align: right;
         color: var(--text-main);
@@ -135,10 +149,7 @@
         gap: 6px;
         user-select: none;
     }
-    .btn-proto-opt:hover {
-        color: #fff;
-        background: rgba(255, 255, 255, 0.04);
-    }
+    .btn-proto-opt:hover { color: #fff; background: rgba(255, 255, 255, 0.04); }
     .btn-proto-opt.active-static {
         background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(51, 102, 255, 0.18) 100%);
         color: #38bdf8;
@@ -158,6 +169,49 @@
         line-height: 1.35;
     }
 
+    /* Alerta Inteligente de Conflicto de IP */
+    .ip-conflict-banner {
+        display: none;
+        margin: 0 16px 6px 16px;
+        padding: 11px 13px;
+        border-radius: 7px;
+        background: rgba(255, 82, 82, 0.12);
+        border: 1px solid rgba(255, 82, 82, 0.5);
+        font-size: 0.79em;
+        color: #ffd0d0;
+        line-height: 1.45;
+    }
+    .ip-conflict-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 9px;
+    }
+    .btn-fix-ip {
+        background: rgba(0, 230, 118, 0.2);
+        border: 1px solid #00e676;
+        color: #00e676;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 0.92em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.18s;
+    }
+    .btn-fix-ip:hover { background: #00e676; color: #07120c; }
+    .btn-force-ip {
+        background: rgba(255, 179, 0, 0.12);
+        border: 1px solid rgba(255, 179, 0, 0.5);
+        color: #ffb300;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 0.92em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.18s;
+    }
+    .btn-force-ip:hover { background: rgba(255, 179, 0, 0.28); color: #fff; }
+
     /* Formulario de Red Estática / DHCP */
     .net-form-body {
         padding: 10px 16px 12px 16px;
@@ -165,14 +219,8 @@
         grid-template-columns: repeat(2, 1fr);
         gap: 10px 12px;
     }
-    .net-field-group {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-    .net-field-group.full-row {
-        grid-column: 1 / -1;
-    }
+    .net-field-group { display: flex; flex-direction: column; gap: 4px; }
+    .net-field-group.full-row { grid-column: 1 / -1; }
     .net-field-label {
         font-size: 0.72em;
         color: var(--text-muted);
@@ -181,9 +229,7 @@
         cursor: help;
         user-select: none;
     }
-    .net-field-label:hover {
-        color: #fff;
-    }
+    .net-field-label:hover { color: #fff; }
     .input-net-pro {
         background: rgba(10, 12, 18, 0.55);
         border: 1px solid var(--border-color);
@@ -205,6 +251,10 @@
     .input-net-pro.edited {
         border-color: #38bdf8;
         background: rgba(56, 189, 248, 0.06);
+    }
+    .input-net-pro.conflict {
+        border-color: #ff5252;
+        box-shadow: 0 0 10px rgba(255, 82, 82, 0.4);
     }
     .input-net-pro:disabled {
         opacity: 0.4;
@@ -251,13 +301,8 @@
     }
 
     @media (max-width: 768px) {
-        .net-form-body {
-            grid-template-columns: 1fr;
-        }
-        .btn-save-net-pro {
-            width: 100%;
-            justify-content: center;
-        }
+        .net-form-body { grid-template-columns: 1fr; }
+        .btn-save-net-pro, .btn-auto-ip-pro { width: 100%; justify-content: center; }
     }
 </style>
 
@@ -323,10 +368,15 @@
     <div class="info-card-pro">
         <div>
             <div class="info-header-pro">
-                <span class="info-header-title">🌐 Configuración de Red LAN</span>
-                <span class="proto-badge-pro {{ 'dhcp' if es_dhcp else 'static' }}" id="badgeProtoRed" data-net-tt="net_proto_badge" translate="no">
-                    ● Modo {{ 'DHCP' if es_dhcp else 'IP Fija' }}
-                </span>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span class="info-header-title">🌐 Configuración de Red LAN</span>
+                    <span class="proto-badge-pro {{ 'dhcp' if es_dhcp else 'static' }}" id="badgeProtoRed" data-net-tt="net_proto_badge" translate="no">
+                        ● Modo {{ 'DHCP' if es_dhcp else 'IP Fija' }}
+                    </span>
+                </div>
+                <button type="button" class="btn-auto-ip-pro" data-net-tt="btn_auto_ip" onclick="autoConfigurarIpFija()">
+                    ✨ Auto-Configurar IP Fija
+                </button>
             </div>
 
             <!-- Interruptor Visual Directo: IP Fija vs DHCP -->
@@ -344,6 +394,12 @@
                 <div id="protoHelperHint" class="proto-helper-hint"></div>
             </div>
 
+            <!-- Alerta Inteligente si la IP escrita ya está ocupada -->
+            <div id="ipConflictBanner" class="ip-conflict-banner">
+                <div id="ipConflictMsg"></div>
+                <div class="ip-conflict-actions" id="ipConflictActions"></div>
+            </div>
+
             <div class="net-form-body" translate="no">
                 <div class="net-field-group full-row">
                     <label class="net-field-label" data-net-tt="net_host">Hostname (Nombre en el Router)</label>
@@ -352,7 +408,7 @@
 
                 <div class="net-field-group">
                     <label class="net-field-label" data-net-tt="net_ip">Dirección IPv4</label>
-                    <input type="text" id="net_ip" value="{{ ip }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+                    <input type="text" id="net_ip" value="{{ ip }}" class="input-net-pro" oninput="marcarRedEditada(this); verificarConflictoIp()">
                 </div>
 
                 <div class="net-field-group">
@@ -361,8 +417,8 @@
                 </div>
 
                 <div class="net-field-group">
-                    <label class="net-field-label" data-net-tt="net_gw">Puerta de Enlace (Gateway)</label>
-                    <input type="text" id="net_gw" value="{{ extra.gateway | default('192.168.0.1') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+                    <label class="net-field-label" data-net-tt="net_gw">Puerta de Enlace (Router)</label>
+                    <input type="text" id="net_gw" value="{{ extra.gateway | default('192.168.0.1') }}" class="input-net-pro" oninput="marcarRedEditada(this); verificarConflictoIp()">
                 </div>
 
                 <div class="net-field-group">
@@ -385,7 +441,17 @@
 </div>
 
 <script>
+    const IPS_OCUPADAS_RED = {{ ips_ocupadas | default('[]') | safe }};
+    const IP_ACTUAL_MINERO = "{{ ip }}";
+    const GATEWAY_DETECTADO = "{{ extra.gateway | default('') }}";
+    let permitirIpForzada = false;
+
     const INFO_TOOLTIPS_NET = {
+        'btn_auto_ip': {
+            titulo: '✨ Auto-Configuración Inteligente (1 Clic)',
+            desc: 'Detecta automáticamente la IP de tu router (ej. 192.168.100.1), rellena la máscara y DNS, y fija una IP segura para este Antminer.',
+            rango: 'Ideal para principiantes — Sin cálculos manuales'
+        },
         'hw_identidad': {
             titulo: '🏭 Especificaciones de Fábrica',
             desc: 'Datos físicos extraídos directamente de la tarjeta de control y las placas hash del minero.',
@@ -433,13 +499,13 @@
         },
         'net_proto': {
             titulo: '🔀 IP Fija (Static) vs Automática (DHCP)',
-            desc: 'Toca "IP Fija" para escribir manualmente una IP que nunca cambie, o "Automática (DHCP)" para que el router le asigne una sola.',
+            desc: 'Toca "IP Fija" para que el minero nunca cambie de IP, o "Automática (DHCP)" para que el router le asigne una sola.',
             rango: 'Recomendado para minería: IP Fija (Static)'
         },
         'net_ip': {
             titulo: '📍 Dirección IPv4 Local',
-            desc: 'Dirección IP del minero dentro de tu red LAN. Si la cambias, el agente local la agregará automáticamente.',
-            rango: 'Formato: 192.168.0.XX'
+            desc: 'Dirección IP del minero dentro de tu red LAN. Si escribes una IP ocupada, el sistema te avisará y te sugerirá una libre.',
+            rango: 'Debe estar en la misma red que tu router'
         },
         'net_mask': {
             titulo: '🛡️ Máscara de Subred (Netmask)',
@@ -447,9 +513,9 @@
             rango: 'Estándar /24: 255.255.255.0'
         },
         'net_gw': {
-            titulo: '🚪 Puerta de Enlace (Gateway)',
-            desc: 'Dirección IP de tu router principal que le da salida a internet al minero.',
-            rango: 'Habitual: 192.168.0.1 o 192.168.1.1'
+            titulo: '🚪 Puerta de Enlace (IP del Router)',
+            desc: 'Dirección IP de tu router principal (ej: 192.168.100.1 o 192.168.0.1) que le da salida a internet al minero.',
+            rango: 'Se detecta automáticamente al pulsar Auto-Configurar'
         },
         'net_dns': {
             titulo: '🔎 Servidor DNS Primario',
@@ -462,6 +528,134 @@
             rango: 'Si cambias la IP, el minero responderá en la nueva dirección'
         }
     };
+
+    function obtenerPrefijoSubred(ipStr) {
+        const partes = (ipStr || '').trim().split('.');
+        return (partes.length === 4) ? `${partes[0]}.${partes[1]}.${partes[2]}` : '192.168.0';
+    }
+
+    function buscarSiguienteIpLibre(prefijo, desdeOcteto) {
+        const ocupadas = new Set(IPS_OCUPADAS_RED);
+        const gwActual = (document.getElementById('net_gw')?.value || '').trim();
+        if (gwActual) ocupadas.add(gwActual);
+        ocupadas.add(prefijo + '.1');
+
+        for (let i = Math.max(10, desdeOcteto); i <= 250; i++) {
+            const cand = `${prefijo}.${i}`;
+            if (!ocupadas.has(cand)) return cand;
+        }
+        for (let i = 2; i < 250; i++) {
+            const cand = `${prefijo}.${i}`;
+            if (!ocupadas.has(cand)) return cand;
+        }
+        return `${prefijo}.50`;
+    }
+
+    function autoConfigurarIpFija() {
+        permitirIpForzada = false;
+        seleccionarProtocoloRed('2', true);
+
+        const prefijo = obtenerPrefijoSubred(IP_ACTUAL_MINERO);
+        // Usa el gateway detectado del minero si pertenece a la misma subred; si no, usa .1 automáticamente
+        let routerIp = (GATEWAY_DETECTADO && GATEWAY_DETECTADO.startsWith(prefijo + '.'))
+            ? GATEWAY_DETECTADO
+            : `${prefijo}.1`;
+
+        const ipLibre = !IPS_OCUPADAS_RED.includes(IP_ACTUAL_MINERO) && IP_ACTUAL_MINERO !== routerIp
+            ? IP_ACTUAL_MINERO
+            : buscarSiguienteIpLibre(prefijo, 11);
+
+        const octeto = ipLibre.split('.')[3] || '10';
+        const elHost = document.getElementById('net_host');
+        const elIp = document.getElementById('net_ip');
+        const elMask = document.getElementById('net_mask');
+        const elGw = document.getElementById('net_gw');
+        const elDns = document.getElementById('net_dns');
+        const msg = document.getElementById('estadoRedMsg');
+
+        if (elHost && (!elHost.value || elHost.value === 'Antminer')) elHost.value = `Antminer-${octeto}`;
+        if (elIp) { elIp.value = ipLibre; elIp.classList.add('edited'); }
+        if (elMask) { elMask.value = '255.255.255.0'; elMask.classList.add('edited'); }
+        if (elGw) { elGw.value = routerIp; elGw.classList.add('edited'); }
+        if (elDns) { elDns.value = '8.8.8.8'; elDns.classList.add('edited'); }
+
+        verificarConflictoIp();
+        if (msg) {
+            msg.style.color = '#00e676';
+            msg.innerText = `✨ Router ${routerIp} detectado. ¡Listo para presionar Guardar Red!`;
+        }
+    }
+
+    function verificarConflictoIp() {
+        const proto = document.getElementById('net_proto')?.value || '2';
+        const elIp = document.getElementById('net_ip');
+        const elGw = document.getElementById('net_gw');
+        const banner = document.getElementById('ipConflictBanner');
+        const msgDiv = document.getElementById('ipConflictMsg');
+        const actDiv = document.getElementById('ipConflictActions');
+
+        if (!elIp || !banner || proto === '1') {
+            if (banner) banner.style.display = 'none';
+            if (elIp) elIp.classList.remove('conflict');
+            return false;
+        }
+
+        const ipVal = elIp.value.trim();
+        const gwVal = (elGw?.value || '').trim();
+        const prefijo = obtenerPrefijoSubred(gwVal || IP_ACTUAL_MINERO);
+        const octActual = parseInt(ipVal.split('.')[3] || '11') || 11;
+        const sugerida = buscarSiguienteIpLibre(prefijo, octActual + 1);
+
+        // Caso 1: Escribió la misma IP del Router (.1)
+        if (ipVal && (ipVal === gwVal || ipVal.endsWith('.1'))) {
+            elIp.classList.add('conflict');
+            banner.style.display = 'block';
+            msgDiv.innerHTML = `⛔ <b>Conflicto con el Router:</b> La dirección <code>${ipVal}</code> pertenece a tu router. No puedes asignársela a un Antminer.`;
+            actDiv.innerHTML = `<button type="button" class="btn-fix-ip" onclick="aplicarIpSugerida('${sugerida}')">✨ Usar ${sugerida} (Libre)</button>`;
+            return 'router';
+        }
+
+        // Caso 2: La IP ya la tiene otro Antminer registrado
+        if (IPS_OCUPADAS_RED.includes(ipVal) && !permitirIpForzada) {
+            elIp.classList.add('conflict');
+            banner.style.display = 'block';
+            msgDiv.innerHTML = `⚠️ <b>La IP <code>${ipVal}</code> ya está en uso por otro equipo.</b><br>Lo más seguro es usar una IP libre. Si prefieres quedarte con <code>${ipVal}</code>, tendrás que cambiar el otro equipo o reiniciar el router.`;
+            actDiv.innerHTML = `
+                <button type="button" class="btn-fix-ip" onclick="aplicarIpSugerida('${sugerida}')">✨ Usar ${sugerida} (Recomendado)</button>
+                <button type="button" class="btn-force-ip" onclick="forzarIpOcupada('${ipVal}')">⚠️ Forzar ${ipVal} (Reiniciaré el router)</button>
+            `;
+            return 'occupied';
+        }
+
+        elIp.classList.remove('conflict');
+        banner.style.display = 'none';
+        return false;
+    }
+
+    function aplicarIpSugerida(ipNueva) {
+        permitirIpForzada = false;
+        const elIp = document.getElementById('net_ip');
+        if (elIp) {
+            elIp.value = ipNueva;
+            marcarRedEditada(elIp);
+            verificarConflictoIp();
+        }
+        const msg = document.getElementById('estadoRedMsg');
+        if (msg) {
+            msg.style.color = '#00e676';
+            msg.innerText = `✅ IP libre ${ipNueva} asignada. Presiona Guardar Red.`;
+        }
+    }
+
+    function forzarIpOcupada(ipVal) {
+        permitirIpForzada = true;
+        verificarConflictoIp();
+        const msg = document.getElementById('estadoRedMsg');
+        if (msg) {
+            msg.style.color = '#ffb300';
+            msg.innerText = `⚠️ Modo forzado para ${ipVal}: tras guardar, reinicia tu router para liberar la IP.`;
+        }
+    }
 
     function copiarTextoSpec(txt, elChip) {
         if (!txt || txt === '-') return;
@@ -500,12 +694,12 @@
             if (el) el.disabled = esDhcp;
         });
 
-        if (fueClicUsuario) {
-            marcarRedEditada(null);
-        }
+        verificarConflictoIp();
+        if (fueClicUsuario) marcarRedEditada(null);
     }
 
     function marcarRedEditada(inputEl) {
+        if (inputEl && inputEl.id === 'net_ip') permitirIpForzada = false;
         if (inputEl) inputEl.classList.add('edited');
         const btn = document.getElementById('btnGuardarRedPro');
         const txt = document.getElementById('txtGuardarRed');
@@ -528,14 +722,23 @@
 
         if (proto === '2') {
             if (!validarFormatoIpv4(nip) || !validarFormatoIpv4(mask) || !validarFormatoIpv4(gw)) {
-                alert('⚠️ Verifica que la Dirección IP, Máscara de Subred y Puerta de Enlace tengan un formato IPv4 válido (ej: 192.168.0.15).');
+                alert('⚠️ Verifica que la Dirección IP, Máscara de Subred y Puerta de Enlace tengan un formato IPv4 válido (ej: 192.168.100.15).');
+                return;
+            }
+            const conflicto = verificarConflictoIp();
+            if (conflicto === 'router') {
+                alert('⛔ No puedes usar la misma IP del router. Toca el botón verde para usar una IP libre.');
+                return;
+            }
+            if (conflicto === 'occupied') {
+                alert('⚠️ Esa IP ya está ocupada. Elige la IP libre sugerida o toca "Forzar" en el aviso rojo.');
                 return;
             }
         }
 
         const msgConfirm = (proto === '1')
             ? `¿Cambiar el minero {{ ip }} a modo DHCP automático?`
-            : `¿Aplicar IP Fija [${nip}] con Gateway [${gw}] en el minero {{ ip }}?`;
+            : `¿Aplicar IP Fija [${nip}] con Router [${gw}] en el minero {{ ip }}?`;
 
         if (!confirm(msgConfirm)) return;
 
