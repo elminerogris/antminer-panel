@@ -75,7 +75,7 @@
         transform: translateY(-1px);
     }
 
-    /* Lista de Especificaciones Técnicas con Copiado Rápido */
+    /* Lista de Especificaciones Técnicas */
     .specs-list-pro {
         width: 100%;
         border-collapse: collapse;
@@ -86,13 +86,17 @@
     }
     .specs-list-pro tr:last-child { border-bottom: none; }
     .specs-list-pro tr:hover { background: rgba(255, 255, 255, 0.02); }
-    .specs-list-pro td { padding: 10px 16px; font-size: 0.84em; }
+    .specs-list-pro td {
+        padding: 10px 16px;
+        font-size: 0.84em;
+        vertical-align: middle;
+    }
     .specs-list-pro td:first-child {
         color: var(--text-muted);
         font-weight: bold;
         cursor: help;
         user-select: none;
-        width: 38%;
+        width: 36%;
     }
     .specs-list-pro td:first-child:hover { color: #fff; }
     .specs-list-pro td:last-child {
@@ -102,21 +106,57 @@
         font-size: 0.92em;
     }
 
-    .copyable-spec-chip {
+    /* Contenedor de valor + Botón Profesional de Copiar (SVG + Texto) */
+    .spec-copy-row {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 2px 8px;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: 0.15s;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
     }
-    .copyable-spec-chip:hover {
-        border-color: var(--accent-blue);
+    .spec-copy-val {
+        color: var(--text-main);
+        font-family: monospace;
+        word-break: break-all;
+    }
+    .btn-copy-pro {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
         background: rgba(51, 102, 255, 0.12);
+        border: 1px solid rgba(59, 130, 246, 0.42);
+        color: #60a5fa;
+        padding: 4px 9px;
+        border-radius: 6px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-size: 0.78em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        user-select: none;
+        white-space: nowrap;
+    }
+    .btn-copy-pro svg {
+        width: 13px;
+        height: 13px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+    }
+    .btn-copy-pro:hover {
+        background: rgba(51, 102, 255, 0.25);
+        border-color: #60a5fa;
         color: #fff;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+    }
+    .btn-copy-pro.copied {
+        background: rgba(0, 230, 118, 0.16);
+        border-color: #00e676;
+        color: #00e676;
+        box-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
     }
 
     /* Selector Visual de Protocolo IP (Interruptor de 2 Botones) */
@@ -262,6 +302,31 @@
         background: rgba(10, 12, 18, 0.3);
     }
 
+    /* Píldoras rápidas de DNS */
+    .dns-presets {
+        display: flex;
+        gap: 5px;
+        margin-top: 4px;
+        flex-wrap: wrap;
+    }
+    .dns-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 2px 7px;
+        border-radius: 12px;
+        font-size: 0.70em;
+        font-family: monospace;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .dns-pill:hover {
+        color: #fff;
+        border-color: #3b82f6;
+        background: rgba(51, 102, 255, 0.16);
+    }
+
     .net-footer-bar {
         padding: 10px 16px 14px 16px;
         display: flex;
@@ -323,22 +388,34 @@
                 </tr>
                 <tr>
                     <td data-net-tt="spec_fw">Versión Firmware</td>
-                    <td translate="no" style="max-width:210px; overflow:hidden; text-overflow:ellipsis;" title="{{ extra.firmware }}">{{ extra.firmware }}</td>
+                    <td translate="no" style="word-break:break-word; font-size:0.86em;">{{ extra.firmware }}</td>
                 </tr>
                 <tr>
                     <td data-net-tt="spec_mac">Dirección MAC</td>
                     <td translate="no">
-                        <span class="copyable-spec-chip" onclick="copiarTextoSpec('{{ extra.mac }}', this)" title="Clic para copiar MAC">
-                            {{ extra.mac }} <span style="font-size:0.85em; opacity:0.7;">📋</span>
-                        </span>
+                        <div class="spec-copy-row">
+                            <span class="spec-copy-val">{{ extra.mac }}</span>
+                            {% if extra.mac and extra.mac != '-' %}
+                            <button type="button" class="btn-copy-pro" onclick="copiarTextoSpec('{{ extra.mac }}', this)" title="Copiar dirección MAC">
+                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <span>Copiar</span>
+                            </button>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 <tr>
                     <td data-net-tt="spec_serial">N° de Serie (PSU/HB)</td>
                     <td translate="no">
-                        <span class="copyable-spec-chip" onclick="copiarTextoSpec('{{ extra.serial }}', this)" title="Clic para copiar Serie">
-                            {{ extra.serial }} <span style="font-size:0.85em; opacity:0.7;">📋</span>
-                        </span>
+                        <div class="spec-copy-row">
+                            <span class="spec-copy-val">{{ extra.serial }}</span>
+                            {% if extra.serial and extra.serial != '-' %}
+                            <button type="button" class="btn-copy-pro" onclick="copiarTextoSpec('{{ extra.serial }}', this)" title="Copiar número de serie">
+                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <span>Copiar</span>
+                            </button>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 <tr>
@@ -359,8 +436,11 @@
             </table>
         </div>
         <div class="net-footer-bar" style="font-size:0.75em; color:var(--text-muted); font-family:monospace;" translate="no">
-            <span>Puerto API: <b style="color:#00e676;">TCP 4028 / HTTP 80</b></span>
             <span>Uptime: <b style="color:var(--text-main);">{{ ultimo.uptime }}</b></span>
+            <button type="button" class="btn-copy-pro" onclick="copiarFichaCompleta(this)" title="Copiar todos los datos técnicos para soporte">
+                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copiar Ficha</span>
+            </button>
         </div>
     </div>
 
@@ -424,6 +504,10 @@
                 <div class="net-field-group">
                     <label class="net-field-label" data-net-tt="net_dns">Servidor DNS</label>
                     <input type="text" id="net_dns" value="{{ extra.dns | default('8.8.8.8') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+                    <div class="dns-presets">
+                        <span class="dns-pill" onclick="aplicarDnsRapido('8.8.8.8')">Google 8.8.8.8</span>
+                        <span class="dns-pill" onclick="aplicarDnsRapido('1.1.1.1')">Cloudflare 1.1.1.1</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -446,6 +530,9 @@
     const GATEWAY_DETECTADO = "{{ extra.gateway | default('') }}";
     let permitirIpForzada = false;
 
+    const SVG_COPY_ICON = `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+    const SVG_CHECK_ICON = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
     const INFO_TOOLTIPS_NET = {
         'btn_auto_ip': {
             titulo: '✨ Auto-Configuración Inteligente (1 Clic)',
@@ -455,7 +542,7 @@
         'hw_identidad': {
             titulo: '🏭 Especificaciones de Fábrica',
             desc: 'Datos físicos extraídos directamente de la tarjeta de control y las placas hash del minero.',
-            rango: 'Toca MAC o Serie para copiar al portapapeles'
+            rango: 'Usa los botones Copiar para llevarlos al portapapeles'
         },
         'spec_modelo': {
             titulo: '🖥️ Modelo y Algoritmo del Minero',
@@ -470,12 +557,12 @@
         'spec_mac': {
             titulo: '🏷️ Dirección Física MAC (Ethernet)',
             desc: 'Identificador único de la tarjeta de red del minero. Sirve para reservar su IP en tu router.',
-            rango: 'Haz clic sobre la MAC para copiarla'
+            rango: 'Toca "Copiar" para pegarla en tu router'
         },
         'spec_serial': {
             titulo: '🔢 Número de Serie de Placa / Equipo',
             desc: 'Código de serie grabado en las placas hash para control de garantía e inventario.',
-            rango: 'Haz clic para copiar el número de serie'
+            rango: 'Toca "Copiar" para guardarlo o enviarlo a soporte'
         },
         'spec_eficiencia': {
             titulo: '⚡ Eficiencia Energética Real',
@@ -529,6 +616,38 @@
         }
     };
 
+    function copiarTextoSpec(txt, btnEl) {
+        if (!txt || txt === '-') return;
+        navigator.clipboard.writeText(txt).then(() => {
+            const origHtml = btnEl.innerHTML;
+            btnEl.classList.add('copied');
+            btnEl.innerHTML = `${SVG_CHECK_ICON}<span>Copiado</span>`;
+            setTimeout(() => {
+                btnEl.classList.remove('copied');
+                btnEl.innerHTML = origHtml;
+            }, 1600);
+        });
+    }
+
+    function copiarFichaCompleta(btnEl) {
+        const ficha = [
+            `Modelo: {{ modelo }}`,
+            `IP: {{ ip }}`,
+            `MAC: {{ extra.mac }}`,
+            `Serie: {{ extra.serial }}`,
+            `Firmware: {{ extra.firmware }}`
+        ].join('\n');
+        copiarTextoSpec(ficha, btnEl);
+    }
+
+    function aplicarDnsRapido(dnsVal) {
+        const elDns = document.getElementById('net_dns');
+        if (elDns && !elDns.disabled) {
+            elDns.value = dnsVal;
+            marcarRedEditada(elDns);
+        }
+    }
+
     function obtenerPrefijoSubred(ipStr) {
         const partes = (ipStr || '').trim().split('.');
         return (partes.length === 4) ? `${partes[0]}.${partes[1]}.${partes[2]}` : '192.168.0';
@@ -556,7 +675,6 @@
         seleccionarProtocoloRed('2', true);
 
         const prefijo = obtenerPrefijoSubred(IP_ACTUAL_MINERO);
-        // Usa el gateway detectado del minero si pertenece a la misma subred; si no, usa .1 automáticamente
         let routerIp = (GATEWAY_DETECTADO && GATEWAY_DETECTADO.startsWith(prefijo + '.'))
             ? GATEWAY_DETECTADO
             : `${prefijo}.1`;
@@ -606,7 +724,6 @@
         const octActual = parseInt(ipVal.split('.')[3] || '11') || 11;
         const sugerida = buscarSiguienteIpLibre(prefijo, octActual + 1);
 
-        // Caso 1: Escribió la misma IP del Router (.1)
         if (ipVal && (ipVal === gwVal || ipVal.endsWith('.1'))) {
             elIp.classList.add('conflict');
             banner.style.display = 'block';
@@ -615,7 +732,6 @@
             return 'router';
         }
 
-        // Caso 2: La IP ya la tiene otro Antminer registrado
         if (IPS_OCUPADAS_RED.includes(ipVal) && !permitirIpForzada) {
             elIp.classList.add('conflict');
             banner.style.display = 'block';
@@ -655,15 +771,6 @@
             msg.style.color = '#ffb300';
             msg.innerText = `⚠️ Modo forzado para ${ipVal}: tras guardar, reinicia tu router para liberar la IP.`;
         }
-    }
-
-    function copiarTextoSpec(txt, elChip) {
-        if (!txt || txt === '-') return;
-        navigator.clipboard.writeText(txt).then(() => {
-            const orig = elChip.innerHTML;
-            elChip.innerHTML = `<span style="color:#00e676;">✅ Copiado</span>`;
-            setTimeout(() => { elChip.innerHTML = orig; }, 1300);
-        });
     }
 
     function seleccionarProtocoloRed(valor, fueClicUsuario) {
