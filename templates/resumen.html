@@ -1,50 +1,292 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    .grid-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
-    .card{background:var(--bg-card);padding:14px 16px;border-radius:6px;border:1px solid var(--border-color)}
-    .card h4{margin:0;font-size:0.68em;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px}
-    .card .val{font-size:1.35em;font-weight:bold;margin-top:6px;color:var(--text-main)}
-    .card .sub{font-size:0.75em;color:var(--text-muted);margin-top:4px}
+    /* Grilla Superior de KPIs con Efecto Glow */
+    .grid-top {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+    .kpi-card {
+        background: var(--bg-card);
+        padding: 15px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        position: relative;
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        cursor: help;
+        user-select: none;
+    }
+    .kpi-card:hover {
+        border-color: rgba(82, 140, 255, 0.65);
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 12px rgba(51, 102, 255, 0.22);
+        transform: translateY(-2px);
+    }
+    .kpi-card h4 {
+        margin: 0;
+        font-size: 0.70em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        font-weight: bold;
+    }
+    .kpi-card .val {
+        font-size: 1.4em;
+        font-weight: bold;
+        font-family: monospace;
+        margin-top: 7px;
+        color: var(--text-main);
+    }
+    .kpi-card .sub {
+        font-size: 0.74em;
+        color: var(--text-muted);
+        margin-top: 5px;
+        font-family: monospace;
+    }
+    .kpi-bar-bg {
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 8px;
+    }
+    .kpi-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
 
-    /* Semáforo térmico estilo AntminerTools */
+    @media (max-width: 768px) {
+        .grid-top {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .kpi-card .val {
+            font-size: 1.22em;
+        }
+    }
+
+    /* Semáforo térmico */
     .t-ok { color: #00e676 !important; font-weight: bold; }
     .t-warn { color: #ffb300 !important; font-weight: bold; }
     .t-crit { color: #ff5252 !important; font-weight: bold; }
-    .badge-t-ok { background: rgba(0, 230, 118, 0.12); color: #00e676; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; display: inline-block; }
-    .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; display: inline-block; }
-    .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; display: inline-block; }
+    .badge-t-ok { background: rgba(0, 230, 118, 0.12); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.85em; font-family: monospace; display: inline-block; }
+    .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.35); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.85em; font-family: monospace; display: inline-block; }
+    .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.85em; font-family: monospace; display: inline-block; }
 
-    .calc-bar{background:var(--bg-card);padding:13px 18px;border-radius:8px;border:1px solid var(--border-color);margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px}
-    .calc-group{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-    .calc-input{background:var(--bg-input);border:1px solid var(--border-color);color:var(--text-main);padding:7px 10px;border-radius:6px;width:90px;font-weight:bold;outline:none}
-    
-    .bulk-actions{display:flex;gap:8px;flex-wrap:wrap}
-    .btn-action{background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-main);padding:8px 13px;border-radius:6px;cursor:pointer;font-size:0.82em;font-weight:bold;transition:0.2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-    .btn-action:hover{border-color:var(--accent-blue);color:var(--accent-blue)}
+    /* Barra de Calculadora Eléctrica y Acciones Masivas */
+    .calc-bar {
+        background: var(--bg-card);
+        padding: 13px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+    .calc-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .calc-input {
+        background: rgba(10, 12, 18, 0.7);
+        border: 1px solid var(--border-color);
+        color: #fff;
+        padding: 7px 10px;
+        border-radius: 6px;
+        width: 86px;
+        font-family: monospace;
+        font-weight: bold;
+        font-size: 0.92em;
+        outline: none;
+        transition: 0.18s;
+    }
+    .calc-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+    }
+    .calc-pill-summary {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.80em;
+        color: var(--text-muted);
+    }
 
-    .table-container{background:var(--bg-card);border-radius:8px;border:1px solid var(--border-color);overflow-x:auto;-webkit-overflow-scrolling:touch}
-    table{width:100%;min-width:850px;border-collapse:collapse;white-space:nowrap}
-    th{text-align:left;padding:12px 15px;color:var(--text-muted);font-size:0.72em;text-transform:uppercase;border-bottom:1px solid var(--border-color)}
-    td{padding:13px 15px;border-bottom:1px solid var(--border-color);font-size:0.85em}
-    tr:last-child td{border-bottom:none}
-    tr:hover{background:var(--hover-bg)}
-    .miner-link{color:var(--accent-blue);font-weight:bold;text-decoration:none}
-    .miner-link:hover{text-decoration:underline}
+    .bulk-actions {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex-wrap: wrap;
+    }
+    .sel-badge {
+        background: rgba(51, 102, 255, 0.12);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.45);
+        padding: 6px 10px;
+        border-radius: 7px;
+        font-size: 0.78em;
+        font-weight: bold;
+        font-family: monospace;
+        transition: 0.2s;
+    }
+    .sel-badge.has-sel {
+        background: rgba(51, 102, 255, 0.28);
+        color: #fff;
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
+    }
+    .btn-action {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 7px 12px;
+        border-radius: 7px;
+        cursor: pointer;
+        font-size: 0.80em;
+        font-weight: bold;
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        user-select: none;
+    }
+    .btn-action:hover {
+        border-color: #3b82f6;
+        color: #fff;
+        background: rgba(51, 102, 255, 0.18);
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
+        transform: translateY(-1px);
+    }
+    .btn-action.dimmed {
+        opacity: 0.45;
+    }
+
+    /* Tabla Principal de Resumen */
+    .table-container {
+        background: var(--bg-card);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    table {
+        width: 100%;
+        min-width: 860px;
+        border-collapse: collapse;
+        white-space: nowrap;
+    }
+    th {
+        text-align: left;
+        padding: 12px 15px;
+        color: var(--text-muted);
+        font-size: 0.72em;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        border-bottom: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.015);
+        cursor: pointer;
+        user-select: none;
+        transition: 0.15s;
+    }
+    th:hover { color: #fff; }
+    td {
+        padding: 13px 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.85em;
+        vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tbody tr { transition: background 0.15s ease; cursor: pointer; }
+    tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
+    tbody tr.selected-row { background: rgba(51, 102, 255, 0.11) !important; }
+
+    .miner-link { color: #60a5fa; font-weight: bold; text-decoration: none; font-size: 1.03em; }
+    .miner-link:hover { color: #fff; text-decoration: underline; }
+    .sub-ip { font-size: 0.78em; color: var(--text-muted); font-family: monospace; margin-top: 2px; }
+
+    /* Modal de Confirmación, Tooltip y Toast */
+    .res-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.72); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(3px); }
+    .res-modal-box { background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 22px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 14px 40px rgba(0,0,0,0.75); }
+    .res-smart-tooltip {
+        position: fixed;
+        display: none;
+        width: 250px;
+        max-width: calc(100vw - 20px);
+        background: rgba(10, 11, 16, 0.98);
+        border: 1px solid rgba(51, 102, 255, 0.55);
+        border-radius: 7px;
+        padding: 9px 11px;
+        color: #d1d3e0;
+        font-family: sans-serif;
+        font-size: 11.5px;
+        line-height: 1.4;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
+        z-index: 99999;
+        pointer-events: none;
+    }
+    .res-tt-title { color: #fff; font-weight: bold; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+    .res-toast {
+        position: fixed;
+        bottom: 22px;
+        right: 22px;
+        background: rgba(10, 12, 18, 0.96);
+        border: 1px solid #00e676;
+        color: #fff;
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-size: 0.86em;
+        font-weight: bold;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 230, 118, 0.3);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        gap: 8px;
+    }
 </style>
 
+<!-- Portal de Tooltip, Toast y Modal -->
+<div id="resSmartTooltip" class="res-smart-tooltip" translate="no"></div>
+<div id="resToast" class="res-toast" translate="no"></div>
+
+<div class="res-modal-overlay" id="resConfirmModal">
+    <div class="res-modal-box">
+        <div id="resConfirmTitle" style="font-size:1.1em; font-weight:bold; margin-bottom:10px; color:var(--text-main);">Confirmar acción</div>
+        <div id="resConfirmText" style="font-size:0.88em; color:var(--text-muted); margin-bottom:20px; line-height:1.45;"></div>
+        <div style="display:flex; gap:10px;">
+            <button type="button" class="btn-action" style="flex:1; justify-content:center;" onclick="cerrarResConfirm()">Cancelar</button>
+            <button type="button" class="btn-action" id="btnResConfirmExec" style="flex:1; justify-content:center; background:#3366ff; border-color:#60a5fa; color:#fff;">Confirmar</button>
+        </div>
+    </div>
+</div>
+
 {% set flota_t_cls = 't-crit' if flota.temp_max >= 85 else ('t-warn' if flota.temp_max >= 75 else 't-ok') %}
+{% set pct_online = ((en_linea / totales) * 100) if totales > 0 else 0 %}
+
+<!-- 1. Tarjetas KPI de la Flota -->
 <div class="grid-top">
-    <div class="card">
-        <h4>Estado de Flota</h4>
-        <div class="val" translate="no">{{ en_linea }} <span style="font-size:0.6em;color:var(--text-muted);font-weight:normal;">/ {{ totales }} activos</span></div>
+    <div class="kpi-card" data-rtt="kpi_flota">
+        <h4>🖥️ Estado de Flota</h4>
+        <div class="val" translate="no">{{ en_linea }} <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">/ {{ totales }} activos</span></div>
         <div class="sub"><span style="color:var(--accent-green);">● {{ en_linea }} Online</span> &nbsp;|&nbsp; <span style="color:var(--accent-red);">● {{ offline }} Offline</span></div>
+        <div class="kpi-bar-bg">
+            <div class="kpi-bar-fill" style="width:{{ pct_online }}%; background:{{ '#00e676' if pct_online >= 90 else ('#ffb300' if pct_online >= 50 else '#ff5252') }};"></div>
+        </div>
     </div>
 
-    <div class="card">
-        <h4>Hashrate Activo</h4>
+    <div class="kpi-card" data-rtt="kpi_hr">
+        <h4>⚡ Hashrate Activo</h4>
         {% if flota.hashrate_total > 0 or (flota.ksol_total == 0 and flota.ghs_total == 0) %}
-            <div class="val" style="color:var(--accent-blue);" translate="no">{{ flota.hashrate_total }} <span style="font-size:0.6em;color:var(--text-muted);font-weight:normal;">TH/s</span></div>
+            <div class="val" style="color:#3b82f6;" translate="no">{{ flota.hashrate_total }} <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">TH/s</span></div>
         {% endif %}
         {% if flota.ksol_total > 0 %}
             <div class="val" style="color:var(--accent-green); font-size:1.15em; margin-top:4px;" translate="no">{{ flota.ksol_total }} <span style="font-size:0.65em;">kSol/s</span></div>
@@ -52,97 +294,105 @@
         {% if flota.ghs_total > 0 %}
             <div class="val" style="color:#ffb300; font-size:1.15em; margin-top:4px;" translate="no">{{ flota.ghs_total }} <span style="font-size:0.65em;">GH/s</span></div>
         {% endif %}
-        <div class="sub">Potencia en tiempo real</div>
+        <div class="sub">Potencia total en línea</div>
     </div>
 
-    <div class="card">
-        <h4>Consumo Eléctrico</h4>
-        <div class="val" translate="no">{{ flota.consumo_kw }} <span style="font-size:0.6em;color:var(--text-muted);font-weight:normal;">kW</span></div>
+    <div class="kpi-card" data-rtt="kpi_consumo">
+        <h4>🔌 Consumo Eléctrico</h4>
+        <div class="val" style="color:#c084fc;" translate="no">{{ flota.consumo_kw }} <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">kW</span></div>
         <div class="sub" translate="no">{{ "{:,.0f}".format(flota.consumo_w_total) }} Watts totales</div>
     </div>
 
-    <div class="card">
-        <h4>Temperatura Máx</h4>
+    <div class="kpi-card" data-rtt="kpi_temp">
+        <h4>🌡️ Temperatura Máx</h4>
         <div class="val {{ flota_t_cls }}" translate="no">{{ flota.temp_max }}°C</div>
         <div class="sub">
             {% if flota.temp_max >= 85 %}🔴 Nivel Crítico{% elif flota.temp_max >= 75 %}🟠 Advertencia{% else %}🟢 Sala Normal{% endif %}
         </div>
+        <div class="kpi-bar-bg">
+            <div class="kpi-bar-fill" style="width:{{ flota.temp_max if flota.temp_max <= 100 else 100 }}%; background:{{ '#ff5252' if flota.temp_max >= 85 else ('#ffb300' if flota.temp_max >= 75 else '#00e676') }};"></div>
+        </div>
     </div>
 
-    <div class="card">
-        <h4>Precio BTC / Red</h4>
+    <div class="kpi-card" data-rtt="kpi_btc">
+        <h4>₿ Precio BTC / Red</h4>
         <div class="val" style="color:#ffb300;" translate="no">${{ flota.precio_btc }}</div>
         <div class="sub" translate="no">Dif: {{ flota.dificultad_t }}T | {{ flota.red_ehs }} EH/s</div>
     </div>
 
-    <div class="card">
-        <h4>Ganancia Neta / Día</h4>
+    <div class="kpi-card" data-rtt="kpi_ganancia">
+        <h4>💰 Ganancia Neta / Día</h4>
         <div class="val" id="gananciaNetaCard" style="color:var(--accent-green);" translate="no">${{ flota.ingreso_dia }}</div>
-        <div class="sub" id="subCostoLuz" translate="no">Ingreso Bruto BTC</div>
+        <div class="sub" id="subProyeccionMes" translate="no">Proy. mes: ${{ "%.0f"|format(flota.ingreso_dia|float * 30) }}</div>
     </div>
 </div>
 
+<!-- 2. Calculadora de Rentabilidad y Acciones Masivas -->
 <div class="calc-bar">
     <div class="calc-group">
-        <span style="font-weight:bold;font-size:0.88em;">⚡ Tarifa Eléctrica (USD/kWh):</span>
-        <input type="number" step="0.01" id="tarifaKwh" class="calc-input" value="0.00" oninput="recalcularCostos()">
-        <span style="color:var(--text-muted);font-size:0.82em;" id="resumenLuzDia">Costo eléctrico: $0.00 / día</span>
+        <span style="font-weight:bold;font-size:0.84em; color:var(--text-main);">⚡ Tarifa (USD/kWh):</span>
+        <input type="number" step="0.01" min="0" id="tarifaKwh" class="calc-input" value="0.00" oninput="recalcularCostos()">
+        <span class="calc-pill-summary" id="resumenLuzDia" translate="no">Luz: $0.00/día ($0/mes)</span>
     </div>
     <div class="bulk-actions">
-        <button class="btn-action" onclick="accionMasiva('restart')">🔄 Reiniciar Seleccionados</button>
-        <button class="btn-action" onclick="accionMasiva('sleep')">😴 Reposo</button>
-        <button class="btn-action" onclick="accionMasiva('normal')">▶ Normal</button>
-        <a href="/exportar_csv" class="btn-action">📥 Exportar CSV</a>
+        <span class="sel-badge" id="resSelBadge"><span id="resSelCount">0</span> sel.</span>
+        <button type="button" class="btn-action res-bulk-btn dimmed" onclick="pedirConfirmacionMasiva('restart', '🔄 Reiniciar Seleccionados')">🔄 Reiniciar</button>
+        <button type="button" class="btn-action res-bulk-btn dimmed" onclick="pedirConfirmacionMasiva('sleep', '😴 Modo Reposo (Sleep)')">😴 Reposo</button>
+        <button type="button" class="btn-action res-bulk-btn dimmed" onclick="pedirConfirmacionMasiva('normal', '▶ Modo Normal')">▶ Normal</button>
+        <a href="/exportar_csv" class="btn-action">📥 CSV</a>
     </div>
 </div>
 
+<!-- 3. Tabla de Resumen de Equipos -->
 <div class="table-container">
-    <table>
+    <table id="tablaResumen">
         <thead>
             <tr>
-                <th style="width:30px;"><input type="checkbox" id="checkAll" onclick="toggleTodos(this)"></th>
-                <th>Minero / IP</th>
-                <th>Modelo</th>
-                <th>Estado</th>
-                <th>Hashrate (5s / 30m)</th>
-                <th>Temp Máx</th>
-                <th>Consumo</th>
-                <th>Eficiencia</th>
-                <th>Ingreso Est. / Día</th>
+                <th style="width:32px;"><input type="checkbox" id="checkAll" onclick="toggleTodos(this)"></th>
+                <th onclick="ordenarTablaResumen(1)">Minero / IP ↕</th>
+                <th onclick="ordenarTablaResumen(2)">Modelo ↕</th>
+                <th onclick="ordenarTablaResumen(3)">Estado ↕</th>
+                <th onclick="ordenarTablaResumen(4)">Hashrate (5s / 30m) ↕</th>
+                <th onclick="ordenarTablaResumen(5)">Temp Máx ↕</th>
+                <th onclick="ordenarTablaResumen(6)">Consumo ↕</th>
+                <th onclick="ordenarTablaResumen(7)">Eficiencia ↕</th>
+                <th onclick="ordenarTablaResumen(8)">Ingreso Est. / Día ↕</th>
             </tr>
         </thead>
         <tbody>
             {% for r in registros %}
             {% set t_num = r.temp_num | int %}
             {% set row_t_cls = 'badge-t-crit' if t_num >= 85 else ('badge-t-warn' if t_num >= 75 else 'badge-t-ok') %}
-            <tr>
-                <td><input type="checkbox" class="miner-check" value="{{ r.ip }}"></td>
-                <td>
+            {% set ip_parts = r.ip.split('.') %}
+            {% set ip_num_sort = (ip_parts[0]|int * 16777216 + ip_parts[1]|int * 65536 + ip_parts[2]|int * 256 + ip_parts[3]|int) if ip_parts|length == 4 else 0 %}
+            <tr onclick="toggleFilaResumen(event, this)">
+                <td><input type="checkbox" class="miner-check" value="{{ r.ip }}" onchange="actualizarSeleccionResumen()"></td>
+                <td data-sort="{{ ip_num_sort }}">
                     <a href="/minero/{{ r.ip }}" class="miner-link" translate="no">{{ r.nombre }}</a>
-                    <div style="font-size:0.8em;color:var(--text-muted);" translate="no">{{ r.ip }}</div>
+                    <div class="sub-ip" translate="no">{{ r.ip }}</div>
                 </td>
-                <td translate="no">{{ r.modelo }}</td>
-                <td>
+                <td translate="no" style="font-weight:bold;">{{ r.modelo }}</td>
+                <td data-sort="{{ '1' if 'En línea' in r.estado else '0' }}">
                     {{ r.estado | safe }}
-                    <div style="font-size:0.75em;color:var(--text-muted);">{{ r.tiempo_act }}</div>
+                    <div style="font-size:0.75em;color:var(--text-muted);font-family:monospace;">{{ r.tiempo_act }}</div>
                 </td>
-                <td translate="no">
+                <td data-sort="{{ r.hashrate }}" translate="no" style="font-family:monospace;">
                     {% if r.hashrate > 0 %}
-                        <b style="color:var(--accent-blue);">{{ r.hashrate }}</b> / <span style="color:var(--text-muted);">{{ r.hashrate_30m }} {{ r.unidad | default('TH/s') }}</span>
+                        <b style="color:#3b82f6;font-size:1.05em;">{{ r.hashrate }}</b> <span style="color:var(--text-muted);">/ {{ r.hashrate_30m }} {{ r.unidad | default('TH/s') }}</span>
                     {% else %}
                         <span style="color:var(--text-muted);">0 {{ r.unidad | default('TH/s') }}</span>
                     {% endif %}
                 </td>
-                <td translate="no">
+                <td data-sort="{{ t_num }}" translate="no">
                     {% if t_num > 0 %}
                         <span class="{{ row_t_cls }}">{{ t_num }}°C</span>
                     {% else %}
-                        <span style="color:var(--text-muted);">0°C</span>
+                        <span style="color:var(--text-muted);font-family:monospace;">0°C</span>
                     {% endif %}
                 </td>
-                <td translate="no">{{ r.consumo_kw }}</td>
-                <td translate="no">{{ r.eficiencia }} {{ r.unidad_efi | default('J/TH') }}</td>
-                <td style="font-weight:bold;color:var(--accent-green);" translate="no">{{ r.ganancia_neta }}</td>
+                <td data-sort="{{ r.consumo_kw.replace(' kW','') | float }}" translate="no" style="font-family:monospace;">{{ r.consumo_kw }}</td>
+                <td data-sort="{{ r.eficiencia }}" translate="no" style="font-family:monospace; color:#c084fc;">{{ r.eficiencia }} {{ r.unidad_efi | default('J/TH') }}</td>
+                <td style="font-weight:bold;color:var(--accent-green);font-family:monospace;" translate="no">{{ r.ganancia_neta }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -152,34 +402,155 @@
 <script>
     const ingresoBrutoDia = parseFloat("{{ flota.ingreso_dia }}") || 0;
     const consumoKwTotal = parseFloat("{{ flota.consumo_kw }}") || 0;
+    let accionPendienteResumen = null;
+
+    const RESUMEN_TOOLTIPS = {
+        'kpi_flota': { t: '🖥️ Disponibilidad de Flota', d: 'Cantidad de Antminers transmitiendo en tiempo real frente al total registrado.' },
+        'kpi_hr': { t: '⚡ Potencia Total Combinada', d: 'Suma del hashrate instantáneo de todos los equipos activos en tu granja.' },
+        'kpi_consumo': { t: '🔌 Demanda Eléctrica Total', d: 'Consumo combinado en Kilovatios (kW) de todas las fuentes activas.' },
+        'kpi_temp': { t: '🌡️ Pico Térmico de la Granja', d: 'Temperatura más alta registrada actualmente entre todos tus equipos.' },
+        'kpi_btc': { t: '₿ Cotización BTC y Dificultad', d: 'Precio en vivo (Binance) y dificultad actual de la red Bitcoin (Mempool.space).' },
+        'kpi_ganancia': { t: '💰 Rentabilidad Neta Estimada', d: 'Ingreso diario en BTC menos el costo eléctrico calculado con tu tarifa USD/kWh.' }
+    };
+
+    function mostrarResToast(msg, esError = false) {
+        const el = document.getElementById('resToast');
+        if (!el) return;
+        el.style.borderColor = esError ? '#ff5252' : '#00e676';
+        el.innerHTML = (esError ? '⚠️ ' : '✅ ') + msg;
+        el.style.display = 'flex';
+        setTimeout(() => { el.style.display = 'none'; }, 3500);
+    }
 
     function recalcularCostos() {
-        let tarifa = parseFloat(document.getElementById('tarifaKwh').value) || 0;
+        let valStr = document.getElementById('tarifaKwh').value;
+        let tarifa = parseFloat(valStr) || 0;
+        try { localStorage.setItem('emg_tarifa_kwh', valStr); } catch(e) {}
+
         let costoDia = consumoKwTotal * 24 * tarifa;
+        let costoMes = costoDia * 30;
         let netoDia = ingresoBrutoDia - costoDia;
-        document.getElementById('resumenLuzDia').innerText = `Costo eléctrico: $${costoDia.toFixed(2)} / día`;
+        let netoMes = netoDia * 30;
+
+        document.getElementById('resumenLuzDia').innerText = `Luz: $${costoDia.toFixed(2)}/día ($${costoMes.toFixed(0)}/mes)`;
         let cardEl = document.getElementById('gananciaNetaCard');
         cardEl.innerText = (netoDia < 0 ? '-$' : '$') + Math.abs(netoDia).toFixed(2);
-        cardEl.style.color = netoDia < 0 ? 'var(--accent-red)' : 'var(--accent-green)';
+        cardEl.style.color = netoDia < 0 ? '#ff5252' : '#00e676';
+
+        let subMes = document.getElementById('subProyeccionMes');
+        if (subMes) {
+            subMes.innerText = `Proy. mes: ${netoMes < 0 ? '-$' : '$'}${Math.abs(netoMes).toFixed(0)}`;
+        }
+    }
+
+    function toggleFilaResumen(event, fila) {
+        if (event.target.tagName === 'A' || event.target.tagName === 'INPUT') return;
+        const cb = fila.querySelector('.miner-check');
+        if (cb) {
+            cb.checked = !cb.checked;
+            actualizarSeleccionResumen();
+        }
     }
 
     function toggleTodos(source) {
         document.querySelectorAll('.miner-check').forEach(cb => cb.checked = source.checked);
+        actualizarSeleccionResumen();
     }
 
-    function accionMasiva(accion) {
+    function actualizarSeleccionResumen() {
+        let count = 0;
+        document.querySelectorAll('#tablaResumen tbody tr').forEach(tr => {
+            const cb = tr.querySelector('.miner-check');
+            if (cb && cb.checked) {
+                tr.classList.add('selected-row');
+                count++;
+            } else {
+                tr.classList.remove('selected-row');
+            }
+        });
+        document.getElementById('resSelCount').innerText = count;
+        const badge = document.getElementById('resSelBadge');
+        if (badge) badge.classList.toggle('has-sel', count > 0);
+        document.querySelectorAll('.res-bulk-btn').forEach(b => b.classList.toggle('dimmed', count === 0));
+    }
+
+    function pedirConfirmacionMasiva(accion, titulo) {
         let seleccionados = Array.from(document.querySelectorAll('.miner-check:checked')).map(cb => cb.value);
         if (seleccionados.length === 0) {
-            alert('Selecciona al menos un minero en la tabla.');
+            mostrarResToast('Selecciona al menos un minero en la tabla.', true);
             return;
         }
-        if (confirm(`¿Ejecutar "${accion}" en ${seleccionados.length} minero(s) seleccionado(s)?`)) {
-            fetch('/cmd_bulk', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({accion: accion, ips: seleccionados})
-            }).then(() => alert('Comando masivo enviado a la cola del Agente.'));
-        }
+        accionPendienteResumen = { accion, ips: seleccionados };
+        document.getElementById('resConfirmTitle').innerText = titulo;
+        document.getElementById('resConfirmText').innerText = `¿Enviar la orden "${accion}" a ${seleccionados.length} minero(s) seleccionado(s)?`;
+        document.getElementById('resConfirmModal').style.display = 'flex';
     }
+
+    function cerrarResConfirm() {
+        accionPendienteResumen = null;
+        document.getElementById('resConfirmModal').style.display = 'none';
+    }
+
+    document.getElementById('btnResConfirmExec').addEventListener('click', function() {
+        if (!accionPendienteResumen) return;
+        const { accion, ips } = accionPendienteResumen;
+        cerrarResConfirm();
+        fetch('/cmd_bulk', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({accion: accion, ips: ips})
+        }).then(() => mostrarResToast(`Orden "${accion}" enviada a ${ips.length} minero(s).`));
+    });
+
+    let ordenResAsc = false;
+    function ordenarTablaResumen(colIdx) {
+        let tbody = document.querySelector('#tablaResumen tbody');
+        let filas = Array.from(tbody.querySelectorAll('tr'));
+        ordenResAsc = !ordenResAsc;
+        filas.sort((a, b) => {
+            let tdA = a.children[colIdx];
+            let tdB = b.children[colIdx];
+            let vA = tdA.getAttribute('data-sort') !== null ? parseFloat(tdA.getAttribute('data-sort')) : tdA.innerText.trim();
+            let vB = tdB.getAttribute('data-sort') !== null ? parseFloat(tdB.getAttribute('data-sort')) : tdB.innerText.trim();
+            if (typeof vA === 'number' && typeof vB === 'number' && !isNaN(vA) && !isNaN(vB)) {
+                return ordenResAsc ? vA - vB : vB - vA;
+            }
+            return ordenResAsc ? String(vA).localeCompare(String(vB)) : String(vB).localeCompare(String(vA));
+        });
+        filas.forEach(f => tbody.appendChild(f));
+    }
+
+    window.addEventListener('load', function() {
+        try {
+            let guardada = localStorage.getItem('emg_tarifa_kwh');
+            if (guardada !== null && guardada !== '') {
+                document.getElementById('tarifaKwh').value = guardada;
+                recalcularCostos();
+            }
+        } catch(e) {}
+
+        const box = document.getElementById('resSmartTooltip');
+        if (!box) return;
+        document.querySelectorAll('[data-rtt]').forEach(el => {
+            const info = RESUMEN_TOOLTIPS[el.getAttribute('data-rtt')];
+            if (!info) return;
+            el.addEventListener('mouseenter', function() {
+                box.innerHTML = `<div class="res-tt-title">${info.t}</div><div>${info.d}</div>`;
+                box.style.display = 'block';
+                const r = el.getBoundingClientRect();
+                const bw = box.offsetWidth || 250;
+                const bh = box.offsetHeight || 70;
+                let left = r.left + (r.width / 2) - (bw / 2);
+                left = Math.max(10, Math.min(window.innerWidth - bw - 10, left));
+                let top = r.top - bh - 8;
+                if (top < 10) top = r.bottom + 8;
+                box.style.left = left + 'px';
+                box.style.top = top + 'px';
+            });
+            el.addEventListener('mouseleave', function() {
+                box.style.display = 'none';
+            });
+        });
+    });
 </script>
 {% endblock %}
