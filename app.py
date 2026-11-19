@@ -373,6 +373,13 @@ def detalle_minero(ip):
     n_row = cur.fetchone()
     nombres_dict = {ip: n_row['nombre']} if n_row and n_row.get('nombre') else {}
 
+    # Lista de IPs ocupadas en la granja para el detector de conflictos de _red_info.html
+    if usr_actual == 'giovanni':
+        cur.execute("SELECT ip FROM mineros_activos WHERE ip != %s", (ip,))
+    else:
+        cur.execute("SELECT ip FROM mineros_activos WHERE ip != %s AND owner=%s", (ip, usr_actual))
+    ips_ocupadas = [row['ip'] for row in cur.fetchall()]
+
     # Plan Gratis: retención de 24h (1440 puntos) | Plan Pro: 30 días completos (44000 puntos)
     limite_hist = 44000 if es_cuenta_pro(usr_actual, plan_actual) else 1440
     cur.execute("""
@@ -496,7 +503,14 @@ def detalle_minero(ip):
     if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
     disp = {'eficiencia': eficiencia_val}
 
-    return render_seguro('minero.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str, ultimo=dt, extra=extra, dispositivo=disp, offline=offline, graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g), graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g), graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas), graf_cadenas_hist=json.dumps(cad_g))
+    return render_seguro(
+        'minero.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str,
+        ultimo=dt, extra=extra, dispositivo=disp, offline=offline,
+        graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g),
+        graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g),
+        graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas),
+        graf_cadenas_hist=json.dumps(cad_g), ips_ocupadas=json.dumps(ips_ocupadas)
+    )
 
 # --- VISTA: /mineros -> templates/mineros.html ---
 @app.route('/mineros')
