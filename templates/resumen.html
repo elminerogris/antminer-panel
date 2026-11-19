@@ -76,6 +76,21 @@
     .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.35); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.85em; font-family: monospace; display: inline-block; }
     .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.85em; font-family: monospace; display: inline-block; }
 
+    /* Píldora discreta solo para monedas distintas a BTC */
+    .coin-alt-pill {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 0.72em;
+        font-family: monospace;
+        font-weight: bold;
+        color: #c084fc;
+        background: rgba(192, 132, 252, 0.14);
+        border: 1px solid rgba(192, 132, 252, 0.38);
+        vertical-align: middle;
+    }
+
     /* Barra de Calculadora Eléctrica y Acciones Masivas */
     .calc-bar {
         background: var(--bg-card);
@@ -255,8 +270,8 @@
 </style>
 
 <!-- Portal de Tooltip, Toast y Modal -->
-<div id="resSmartTooltip" class="res-smart-tooltip" translate="no"></div>
-<div id="resToast" class="res-toast" translate="no"></div>
+<div id="resSmartTooltip" class="res-smart-tooltip"></div>
+<div id="resToast" class="res-toast"></div>
 
 <div class="res-modal-overlay" id="resConfirmModal">
     <div class="res-modal-box">
@@ -276,8 +291,8 @@
 <div class="grid-top">
     <div class="kpi-card" data-rtt="kpi_flota">
         <h4>🖥️ Estado de Flota</h4>
-        <div class="val" translate="no">{{ en_linea }} <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">/ {{ totales }} activos</span></div>
-        <div class="sub"><span style="color:var(--accent-green);">● {{ en_linea }} Online</span> &nbsp;|&nbsp; <span style="color:var(--accent-red);">● {{ offline }} Offline</span></div>
+        <div class="val"><span translate="no">{{ en_linea }}</span> <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">/ <span translate="no">{{ totales }}</span> activos</span></div>
+        <div class="sub"><span style="color:var(--accent-green);">● <span translate="no">{{ en_linea }}</span> Online</span> &nbsp;|&nbsp; <span style="color:var(--accent-red);">● <span translate="no">{{ offline }}</span> Offline</span></div>
         <div class="kpi-bar-bg">
             <div class="kpi-bar-fill" style="width:{{ pct_online }}%; background:{{ '#00e676' if pct_online >= 90 else ('#ffb300' if pct_online >= 50 else '#ff5252') }};"></div>
         </div>
@@ -300,7 +315,7 @@
     <div class="kpi-card" data-rtt="kpi_consumo">
         <h4>🔌 Consumo Eléctrico</h4>
         <div class="val" style="color:#c084fc;" translate="no">{{ flota.consumo_kw }} <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">kW</span></div>
-        <div class="sub" translate="no">{{ "{:,.0f}".format(flota.consumo_w_total) }} Watts totales</div>
+        <div class="sub"><span translate="no">{{ "{:,.0f}".format(flota.consumo_w_total) }}</span> Watts totales</div>
     </div>
 
     <div class="kpi-card" data-rtt="kpi_temp">
@@ -323,7 +338,7 @@
     <div class="kpi-card" data-rtt="kpi_ganancia">
         <h4>💰 Ganancia Neta / Día</h4>
         <div class="val" id="gananciaNetaCard" style="color:var(--accent-green);" translate="no">${{ flota.ingreso_dia }}</div>
-        <div class="sub" id="subProyeccionMes" translate="no">Proy. mes: ${{ "%.0f"|format(flota.ingreso_dia|float * 30) }}</div>
+        <div class="sub" id="subProyeccionMes">Proy. mes: <span translate="no">${{ "%.0f"|format(flota.ingreso_dia|float * 30) }}</span></div>
     </div>
 </div>
 
@@ -371,7 +386,12 @@
                     <a href="/minero/{{ r.ip }}" class="miner-link" translate="no">{{ r.nombre }}</a>
                     <div class="sub-ip" translate="no">{{ r.ip }}</div>
                 </td>
-                <td translate="no" style="font-weight:bold;">{{ r.modelo }}</td>
+                <td style="font-weight:bold;">
+                    <span translate="no">{{ r.modelo }}</span>
+                    {% if r.hashrate > 0 and r.moneda and r.moneda != 'BTC' %}
+                        <span class="coin-alt-pill" translate="no">{{ r.moneda }}</span>
+                    {% endif %}
+                </td>
                 <td data-sort="{{ '1' if 'En línea' in r.estado else '0' }}">
                     {{ r.estado | safe }}
                     <div style="font-size:0.75em;color:var(--text-muted);font-family:monospace;">{{ r.tiempo_act }}</div>
@@ -405,7 +425,7 @@
     let accionPendienteResumen = null;
 
     const RESUMEN_TOOLTIPS = {
-        'kpi_flota': { t: '🖥️ Disponibilidad de Flota', d: 'Cantidad de Antminers transmitiendo en tiempo real frente al total registrado.' },
+        'kpi_flota': { t: '🖥️ Disponibilidad de Flota', d: 'Cantidad de mineros transmitiendo en tiempo real frente al total registrado.' },
         'kpi_hr': { t: '⚡ Potencia Total Combinada', d: 'Suma del hashrate instantáneo de todos los equipos activos en tu granja.' },
         'kpi_consumo': { t: '🔌 Demanda Eléctrica Total', d: 'Consumo combinado en Kilovatios (kW) de todas las fuentes activas.' },
         'kpi_temp': { t: '🌡️ Pico Térmico de la Granja', d: 'Temperatura más alta registrada actualmente entre todos tus equipos.' },
