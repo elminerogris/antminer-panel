@@ -1,81 +1,413 @@
-<!DOCTYPE html><html lang="es" data-theme="dark"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>El Minero Gris</title>
-<script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-    :root[data-theme="dark"] { --bg-body: #14151f; --bg-sidebar: #191a24; --bg-card: #1b1d29; --bg-input: #14151f; --border-color: #292a38; --text-main: #fff; --text-muted: #a5a7b5; --text-sub: #8b8d9b; --accent-blue: #3366ff; --accent-green: #00e676; --accent-red: #ff5252; --hover-bg: #202230; --active-bg: #232533; }
-    :root[data-theme="light"] { --bg-body: #f4f5f7; --bg-sidebar: #ffffff; --bg-card: #ffffff; --bg-input: #f4f5f7; --border-color: #e2e8f0; --text-main: #1e293b; --text-muted: #64748b; --text-sub: #94a3b8; --accent-blue: #2563eb; --accent-green: #10b981; --accent-red: #ef4444; --hover-bg: #f8fafc; --active-bg: #f1f5f9; }
-    
-    body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100vh; height: 100dvh; overflow: hidden; top: 0 !important; }
-    .skiptranslate iframe { display: none !important; } body { top: 0px !important; } #google_translate_element { display: none; }
-    a { text-decoration: none; color: inherit; }
-    
-    /* SIDEBAR */
-    .sidebar { width: 220px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; z-index: 1000; transition: transform 0.3s ease; padding-top: env(safe-area-inset-top); box-sizing: border-box; }
-    .logo-container { padding: 20px; font-weight: bold; font-size: 1.1em; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-color); }
-    .logo-img { height: 35px; width: auto; object-fit: contain; }
-    .logo-text span { color: var(--text-muted); font-weight: normal; }
-    .sidebar-mobile-lang { display: none; padding: 12px 20px; border-bottom: 1px solid var(--border-color); }
-    .menu { list-style: none; padding: 15px 0; margin: 0; flex: 1; overflow-y: auto; }
-    .menu a { display: flex; align-items: center; gap: 12px; padding: 12px 20px; font-size: 0.9em; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
-    .menu a:hover { background: var(--hover-bg); color: var(--text-main); }
-    .menu a.active { background: var(--active-bg); color: var(--text-main); border-left: 3px solid var(--accent-blue); }
-    .sidebar-bottom { border-top: 1px solid var(--border-color); padding: 15px 20px; padding-bottom: calc(15px + env(safe-area-inset-bottom)); font-size: 0.85em; display: flex; flex-direction: column; gap: 10px; }
-    
-    /* TOP BAR Y CONTENIDO */
-    .right-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; width: 100%; }
-    .top-bar { min-height: 60px; background: var(--bg-body); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: env(safe-area-inset-top) 20px 0 20px; box-sizing: border-box; }
-    .top-bar-left { display: flex; align-items: center; gap: 15px; }
-    .top-bar-right { display: flex; align-items: center; gap: 10px; }
-    
-    .top-btn, .top-lang-select { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); height: 36px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; justify-content: center; }
-    .top-btn { width: 36px; font-size: 1.1em; color: var(--text-muted); }
-    .btn-sync { width: auto; padding: 0 15px; color: var(--text-main); }
-    .btn-sync:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
-    .top-lang-select { padding: 0 10px; outline: none; }
-    .top-status { display: flex; align-items: center; gap: 15px; font-size: 0.85em; color: var(--text-muted); font-weight: bold; margin-left: 10px; }
-    .status-envivo { color: var(--accent-green); display: flex; align-items: center; gap: 6px; }
-    .dot-pulse { width: 8px; height: 8px; background: var(--accent-green); border-radius: 50%; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); } }
-    .main-content { flex: 1; padding: 20px; padding-bottom: calc(80px + env(safe-area-inset-bottom)); overflow-y: auto; overflow-x: hidden; }
-    
-    /* ELEMENTOS EXCLUSIVOS DE MÓVIL */
-    .btn-menu { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); font-size: 0.95em; font-weight: bold; cursor: pointer; border-radius: 6px; height: 36px; padding: 0 12px; display: none; align-items: center; justify-content: center; transition: 0.2s; white-space: nowrap; }
-    .btn-menu:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
-    .logo-top { display: none; align-items: center; gap: 8px; font-weight: bold; font-size: 1.1em; white-space: nowrap; }
-    .logo-top img { height: 25px; width: auto; }
-    .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999; backdrop-filter: blur(2px); }
-    .overlay.active { display: block; }
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>El Minero Gris</title>
+    <script>
+        // Aplicar tema guardado antes de renderizar para evitar parpadeo blanco
+        (function() {
+            try {
+                const savedTheme = localStorage.getItem('emg_theme');
+                if (savedTheme === 'light' || savedTheme === 'dark') {
+                    document.documentElement.setAttribute('data-theme', savedTheme);
+                }
+            } catch(e) {}
+        })();
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root[data-theme="dark"] {
+            --bg-body: #0d0f17;
+            --bg-sidebar: #12141f;
+            --bg-card: #161926;
+            --bg-input: #0a0c12;
+            --border-color: #25283a;
+            --text-main: #ffffff;
+            --text-muted: #9499b0;
+            --text-sub: #747991;
+            --accent-blue: #3366ff;
+            --accent-blue-light: #60a5fa;
+            --accent-green: #00e676;
+            --accent-red: #ff5252;
+            --hover-bg: rgba(255, 255, 255, 0.04);
+            --active-bg: rgba(51, 102, 255, 0.14);
+            --topbar-bg: rgba(13, 15, 23, 0.88);
+        }
+        :root[data-theme="light"] {
+            --bg-body: #f1f5f9;
+            --bg-sidebar: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --border-color: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --text-sub: #94a3b8;
+            --accent-blue: #2563eb;
+            --accent-blue-light: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --hover-bg: #f1f5f9;
+            --active-bg: rgba(37, 99, 235, 0.10);
+            --topbar-bg: rgba(255, 255, 255, 0.90);
+        }
 
-    /* ADAPTACIÓN AUTOMÁTICA PARA CELULARES */
-    @media (max-width: 768px) {
-        .sidebar { position: fixed; left: 0; top: 0; height: 100%; transform: translateX(-100%); }
-        .sidebar.active { transform: translateX(0); }
-        .btn-menu { display: flex; }
-        .logo-top { display: flex; }
-        .top-lang-select { display: none; }
-        .sidebar-mobile-lang { display: block; }
-        .top-status { display: none; }
-        .btn-sync span { display: none; } /* Oculta el texto "Escanear Red", deja solo el ícono 🔄 para ahorrar espacio */
-        .main-content { padding: 15px 10px; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
-    }
-</style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            top: 0 !important;
+        }
+
+        /* Ocultar barra superior de Google Translate */
+        .skiptranslate iframe { display: none !important; }
+        body { top: 0px !important; }
+        #google_translate_element { display: none; }
+        a { text-decoration: none; color: inherit; }
+
+        /* Scrollbars delgados y modernos */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(148, 153, 176, 0.25); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(59, 130, 246, 0.55); }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 232px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            transition: transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
+            padding-top: env(safe-area-inset-top);
+            flex-shrink: 0;
+        }
+        .logo-container {
+            padding: 18px 18px;
+            font-weight: bold;
+            font-size: 1.12em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .logo-img {
+            height: 34px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 0 6px rgba(51, 102, 255, 0.3));
+        }
+        .logo-text span { color: var(--text-muted); font-weight: normal; }
+
+        .sidebar-mobile-lang {
+            display: none;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .menu {
+            list-style: none;
+            padding: 14px 10px;
+            margin: 0;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .menu-section-label {
+            font-size: 0.68em;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-sub);
+            font-weight: bold;
+            padding: 8px 12px 4px 12px;
+        }
+        .menu a {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 0.88em;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.18s ease;
+        }
+        .menu a:hover {
+            background: var(--hover-bg);
+            color: var(--text-main);
+        }
+        .menu a.active {
+            background: var(--active-bg);
+            color: var(--accent-blue-light);
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.18);
+        }
+
+        /* Tarjeta de Usuario y Saldo en el pie del Sidebar */
+        .sidebar-bottom {
+            border-top: 1px solid var(--border-color);
+            padding: 14px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .user-wallet-box {
+            background: rgba(255, 255, 255, 0.025);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            transition: 0.2s;
+        }
+        .user-wallet-box:hover {
+            border-color: rgba(59, 130, 246, 0.45);
+        }
+        .user-name-row {
+            color: var(--text-main);
+            font-weight: bold;
+            font-size: 0.86em;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .user-balance-row {
+            color: var(--accent-green);
+            font-size: 0.92em;
+            font-weight: bold;
+            font-family: monospace;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .btn-logout-pro {
+            color: var(--accent-red);
+            font-size: 0.82em;
+            font-weight: bold;
+            padding: 7px 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.18s;
+        }
+        .btn-logout-pro:hover {
+            background: rgba(255, 82, 82, 0.12);
+        }
+
+        /* TOP BAR Y CONTENIDO */
+        .right-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            width: 100%;
+        }
+        .top-bar {
+            min-height: 60px;
+            background: var(--topbar-bg);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: env(safe-area-inset-top) 20px 0 20px;
+            z-index: 500;
+        }
+        .top-bar-left { display: flex; align-items: center; gap: 12px; }
+        .top-bar-right { display: flex; align-items: center; gap: 10px; }
+
+        .top-btn, .top-lang-select {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            height: 36px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.83em;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .top-btn { width: 36px; font-size: 1.05em; color: var(--text-muted); }
+        .top-btn:hover, .top-lang-select:hover {
+            border-color: #3b82f6;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+        }
+        .btn-sync {
+            width: auto;
+            padding: 0 14px;
+            gap: 6px;
+            color: var(--text-main);
+        }
+        .btn-sync:hover {
+            background: rgba(51, 102, 255, 0.16);
+            color: var(--accent-blue-light);
+        }
+        .top-lang-select { padding: 0 10px; outline: none; }
+
+        .top-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.82em;
+            color: var(--text-muted);
+            font-weight: bold;
+            font-family: monospace;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 0 12px;
+            height: 36px;
+            border-radius: 7px;
+        }
+        .status-envivo {
+            color: var(--accent-green);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dot-pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            padding-bottom: calc(80px + env(safe-area-inset-bottom));
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* ELEMENTOS EXCLUSIVOS DE MÓVIL */
+        .btn-menu {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            font-size: 0.90em;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 7px;
+            height: 36px;
+            padding: 0 12px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-menu:hover { border-color: var(--accent-blue); color: var(--accent-blue-light); }
+
+        .logo-top {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            font-size: 1.05em;
+            white-space: nowrap;
+        }
+        .logo-top img { height: 24px; width: auto; }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 999;
+            backdrop-filter: blur(3px);
+        }
+        .overlay.active { display: block; }
+
+        /* Toast global del Layout */
+        .layout-toast {
+            position: fixed;
+            bottom: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 12, 18, 0.96);
+            border: 1px solid #3b82f6;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 0.85em;
+            font-weight: bold;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(59, 130, 246, 0.35);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        /* ADAPTACIÓN AUTOMÁTICA PARA CELULARES */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                transform: translateX(-100%);
+                box-shadow: 8px 0 30px rgba(0, 0, 0, 0.6);
+            }
+            .sidebar.active { transform: translateX(0); }
+            .btn-menu { display: flex; }
+            .logo-top { display: flex; }
+            .top-bar { padding: env(safe-area-inset-top) 12px 0 12px; }
+            .top-lang-select { display: none; }
+            .sidebar-mobile-lang { display: block; }
+            .top-status { display: none; }
+            .btn-sync span { display: none; }
+            .btn-sync { width: 36px; padding: 0; }
+            .main-content { padding: 14px 10px; padding-bottom: calc(95px + env(safe-area-inset-bottom)); }
+        }
+    </style>
 </head>
 <body>
     <div id="google_translate_element"></div>
-    
+    <div id="layoutToast" class="layout-toast" translate="no"></div>
+
     <!-- Capa oscura al abrir el menú en el celular -->
     <div class="overlay" id="sidebarOverlay" onclick="toggleMenu()"></div>
-    
-    <div class="sidebar">
-        <!-- Truco del 'onerror': si no existe logo.png, pone el ⛏️ automáticamente -->
+
+    <aside class="sidebar">
         <div class="logo-container">
-            <img src="/static/logo.png" alt="Logo" class="logo-img" onerror="this.outerHTML='<span style=\'font-size:1.5em;\'>⛏️</span>'">
+            <img src="/static/logo.png" alt="Logo" class="logo-img" onerror="this.outerHTML='<span style=\'font-size:1.4em;\'>⛏️</span>'">
             <div class="logo-text" translate="no">El Minero <span>Gris</span></div>
         </div>
-        
-        <!-- Selector de los 10 idiomas para Celular (dentro del menú lateral) -->
+
+        <!-- Selector de los 10 idiomas para Celular -->
         <div class="sidebar-mobile-lang">
             <select class="top-lang-select" id="langSelectorMobile" style="width:100%; display:flex;" onchange="cambiarIdioma(this.value)">
                 <option value="es">🌐 Español</option>
@@ -91,37 +423,46 @@
             </select>
         </div>
 
-        <div class="menu">
+        <nav class="menu">
+            <div class="menu-section-label">Operación</div>
             <a href="/" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
-            <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a>
-            <a href="/granjas" class="{{ 'active' if active_page == 'granjas' else '' }}">🏭 Granjas</a>
             <a href="/mineros" class="{{ 'active' if active_page == 'mineros' else '' }}">⛏️ Mineros</a>
+            <a href="/granjas" class="{{ 'active' if active_page == 'granjas' else '' }}">🏭 Granjas</a>
             <a href="/alertas" class="{{ 'active' if active_page == 'alertas' else '' }}">🔔 Alertas</a>
+
+            <div class="menu-section-label" style="margin-top:8px;">Cuenta</div>
+            <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a>
             <a href="/ajustes" class="{{ 'active' if active_page == 'ajustes' else '' }}">⚙️ Ajustes</a>
-        </div>
+        </nav>
+
         <div class="sidebar-bottom">
-            <div style="color:var(--text-main);font-weight:bold;display:flex;align-items:center;gap:8px;">👤 {{ session['usuario'] }}</div>
-            <div style="color:var(--accent-green); font-size:1em; font-weight:bold;">$ {{ "%.2f"|format(session.get('saldo', 0.0)) }} USDT</div>
-            <a href="/logout" style="color:var(--accent-red);display:flex;align-items:center;gap:8px;">🚪 Cerrar Sesión</a>
+            <a href="/plan" class="user-wallet-box" title="Ir a Billetera y Planes">
+                <div class="user-name-row" translate="no">👤 {{ session['usuario'] }}</div>
+                <div class="user-balance-row" translate="no">
+                    <span>${{ "%.2f"|format(session.get('saldo', 0.0)) }} USDT</span>
+                    <span style="font-size:0.78em; color:var(--accent-blue-light);">+ Recargar</span>
+                </div>
+            </a>
+            <a href="/logout" class="btn-logout-pro">🚪 Cerrar Sesión</a>
         </div>
-    </div>
-    
+    </aside>
+
     <div class="right-container">
-        <div class="top-bar">
-            <!-- Izquierda: Botón Menú + Logo + Escanear -->
+        <header class="top-bar">
             <div class="top-bar-left">
-                <button class="btn-menu" onclick="toggleMenu()">☰ Menú</button>
-                <div class="logo-top">
+                <button type="button" class="btn-menu" onclick="toggleMenu()">☰ Menú</button>
+                <a href="/" class="logo-top">
                     <img src="/static/logo.png" alt="Logo" onerror="this.outerHTML='<span style=\'font-size:1.2em;\'>⛏️</span>'">
                     <span translate="no">El Minero <span style="color:var(--text-muted); font-weight:normal;">Gris</span></span>
-                </div>
-                <button class="top-btn btn-sync" onclick="escanearRed()" id="btnSync">🔄 <span>Escanear Red</span></button>
+                </a>
+                <button type="button" class="top-btn btn-sync" onclick="escanearRed()" id="btnSync" title="Escanear red local en busca de mineros">
+                    🔄 <span>Escanear Red</span>
+                </button>
             </div>
-            
-            <!-- Derecha: Tema, Idioma (10 idiomas), Reloj -->
+
             <div class="top-bar-right">
-                <button class="top-btn" onclick="toggleTheme()" id="themeIcon">☀️</button>
-                <select class="top-lang-select" id="langSelector" onchange="cambiarIdioma(this.value)">
+                <button type="button" class="top-btn" onclick="toggleTheme()" id="themeIcon" title="Cambiar tema claro/oscuro">☀️</button>
+                <select class="top-lang-select" id="langSelector" onchange="cambiarIdioma(this.value)" title="Cambiar idioma">
                     <option value="es">🌐 Español</option>
                     <option value="en">🌐 English</option>
                     <option value="zh-CN">🌐 中文 (Chino)</option>
@@ -138,22 +479,41 @@
                     <span class="status-envivo"><div class="dot-pulse"></div> En vivo</span>
                 </div>
             </div>
-        </div>
-        
-        <div class="main-content">
+        </header>
+
+        <main class="main-content">
             {% block content %}{% endblock %}
-        </div>
+        </main>
     </div>
-    
+
     <script>
-        // Función para abrir/cerrar el menú en el celular
         function toggleMenu() {
             document.querySelector('.sidebar').classList.toggle('active');
             document.getElementById('sidebarOverlay').classList.toggle('active');
         }
 
-        function escanearRed() { let b = document.getElementById('btnSync'); b.innerHTML = '⏳ <span>Escaneando...</span>'; b.style.pointerEvents = 'none'; fetch('/cmd/all/scan').then(() => { setTimeout(() => { window.location.reload(); }, 1500); }); }
-        function googleTranslateElementInit() { new google.translate.TranslateElement({pageLanguage: 'es', autoDisplay: false}, 'google_translate_element'); }
+        function mostrarLayoutToast(msg) {
+            const t = document.getElementById('layoutToast');
+            if (!t) return;
+            t.innerText = msg;
+            t.style.display = 'flex';
+            setTimeout(() => { t.style.display = 'none'; }, 3000);
+        }
+
+        function escanearRed() {
+            let b = document.getElementById('btnSync');
+            b.innerHTML = '⏳ <span>Escaneando...</span>';
+            b.style.pointerEvents = 'none';
+            mostrarLayoutToast('📡 Solicitando escaneo de red al Agente...');
+            fetch('/cmd/all/scan').then(() => {
+                setTimeout(() => { window.location.reload(); }, 1800);
+            });
+        }
+
+        function googleTranslateElementInit() {
+            new google.translate.TranslateElement({pageLanguage: 'es', autoDisplay: false}, 'google_translate_element');
+        }
+
         function cambiarIdioma(lang) {
             let s = document.querySelector(".goog-te-combo");
             if (s) { s.value = lang; s.dispatchEvent(new Event("change")); }
@@ -162,8 +522,31 @@
             if (d) d.value = lang;
             if (m) m.value = lang;
         }
-        function actualizarReloj() { const d = new Date(); document.getElementById('relojTop').innerText = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0'); }
-        setInterval(actualizarReloj, 1000); actualizarReloj();
-        function toggleTheme() { const h = document.documentElement, i = document.getElementById('themeIcon'); if (h.getAttribute('data-theme') === 'dark') { h.setAttribute('data-theme', 'light'); i.innerText = '🌙'; } else { h.setAttribute('data-theme', 'dark'); i.innerText = '☀️'; } }
+
+        function actualizarReloj() {
+            const d = new Date();
+            const el = document.getElementById('relojTop');
+            if (el) el.innerText = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+        }
+        setInterval(actualizarReloj, 1000);
+        actualizarReloj();
+
+        function sincronizarIconoTema() {
+            const h = document.documentElement;
+            const i = document.getElementById('themeIcon');
+            if (!i) return;
+            i.innerText = (h.getAttribute('data-theme') === 'light') ? '🌙' : '☀️';
+        }
+
+        function toggleTheme() {
+            const h = document.documentElement;
+            const next = (h.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
+            h.setAttribute('data-theme', next);
+            try { localStorage.setItem('emg_theme', next); } catch(e) {}
+            sincronizarIconoTema();
+        }
+
+        window.addEventListener('DOMContentLoaded', sincronizarIconoTema);
     </script>
-</body></html>
+</body>
+</html>
