@@ -34,51 +34,93 @@
     }
     .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.06em; }
 
-    /* Botonera de Rangos de Tiempo (6h, 24h, 7d, 30d) estética con efecto Glow */
+    /* Barra flotante dentro del gráfico (arriba a la derecha en PC) */
+    .chart-floating-toolbar {
+        position: absolute;
+        top: 6px;
+        right: 16px;
+        z-index: 25;
+        display: flex;
+        justify-content: flex-end;
+        pointer-events: none;
+    }
+
+    /* Botonera de Rangos de Tiempo (⚡ 3m | 6h, 24h, 7d, 30d | 📷) estilo cápsula glassmorphism */
     .chart-filters {
+        pointer-events: auto;
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        flex-wrap: wrap;
-        background: rgba(10, 12, 18, 0.65);
-        padding: 4px;
+        gap: 3px;
+        background: rgba(13, 15, 23, 0.78);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        padding: 3px 4px;
         border-radius: 9px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
+    .filter-divider {
+        width: 1px;
+        height: 15px;
+        background: rgba(255, 255, 255, 0.12);
+        margin: 0 3px;
+        flex-shrink: 0;
+    }
+
+    /* Indicador de resolución dinámica LOD (3m -> 2m -> 1m) a la izquierda de 6h */
+    .lod-badge {
+        font-size: 0.72em;
+        color: #93c5fd;
+        background: rgba(59, 130, 246, 0.10);
+        border: 1px solid rgba(59, 130, 246, 0.22);
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-weight: bold;
+        cursor: help;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+    .lod-badge:hover, .lod-badge.tt-active {
+        border-color: rgba(96, 165, 250, 0.7);
+        background: rgba(59, 130, 246, 0.22);
+        color: #fff;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+    }
+
     .btn-filter {
-        background: rgba(255, 255, 255, 0.02);
+        background: transparent;
         border: 1px solid transparent;
         color: var(--text-muted);
-        padding: 5px 11px;
+        padding: 4px 9px;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 0.78em;
+        font-size: 0.75em;
         font-weight: bold;
-        letter-spacing: 0.3px;
-        transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+        letter-spacing: 0.2px;
+        white-space: nowrap;
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
         user-select: none;
         position: relative;
     }
     /* Efecto de brillo / alumbrado al pasar el mouse */
     .btn-filter:hover, .btn-filter.tt-active {
         color: #ffffff;
-        background: rgba(51, 102, 255, 0.16);
-        border-color: rgba(82, 140, 255, 0.65);
-        box-shadow: 0 0 12px rgba(51, 102, 255, 0.45), inset 0 0 6px rgba(51, 102, 255, 0.2);
-        text-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
-        transform: translateY(-1px);
+        background: rgba(51, 102, 255, 0.18);
+        border-color: rgba(82, 140, 255, 0.55);
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.35);
+        text-shadow: 0 0 6px rgba(255, 255, 255, 0.45);
     }
     /* Botón de hora activo con iluminación intensa profesional */
     .btn-filter.active {
-        background: linear-gradient(135deg, rgba(51, 102, 255, 0.32) 0%, rgba(37, 99, 235, 0.18) 100%);
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.35) 0%, rgba(37, 99, 235, 0.20) 100%);
         color: #60a5fa;
         border-color: #3b82f6;
-        box-shadow: 0 0 14px rgba(59, 130, 246, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-        text-shadow: 0 0 8px rgba(96, 165, 250, 0.65);
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+        text-shadow: 0 0 6px rgba(96, 165, 250, 0.55);
     }
     .btn-filter:active {
-        transform: translateY(0);
+        transform: scale(0.96);
     }
 
     .btn-reset-zoom {
@@ -86,19 +128,19 @@
         background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(51, 102, 255, 0.22) 100%);
         border: 1px solid #38bdf8;
         color: #38bdf8;
-        padding: 5px 10px;
+        padding: 4px 8px;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 0.78em;
+        font-size: 0.74em;
         font-weight: bold;
-        transition: all 0.22s ease;
+        white-space: nowrap;
+        transition: all 0.2s ease;
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
     }
     .btn-reset-zoom:hover {
         background: rgba(56, 189, 248, 0.35);
         color: #fff;
-        box-shadow: 0 0 15px rgba(56, 189, 248, 0.65);
-        transform: translateY(-1px);
+        box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
     }
 
     /* Leyendas interactivas compactas */
@@ -156,25 +198,6 @@
     .legend-info-icon:hover {
         background: rgba(51, 102, 255, 0.35);
         color: #fff;
-    }
-
-    /* Indicador de resolución dinámica LOD (3m -> 2m -> 1m) */
-    .lod-badge {
-        font-size: 0.70em;
-        color: #a5a7b5;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid var(--border-color);
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-family: monospace;
-        font-weight: normal;
-        cursor: help;
-        transition: 0.2s;
-    }
-    .lod-badge:hover {
-        border-color: var(--accent-blue);
-        color: #fff;
-        box-shadow: 0 0 8px rgba(51, 102, 255, 0.35);
     }
 
     /* Portal Global de Tooltip con anti-colisión de bordes (PC y Celular) */
@@ -245,13 +268,17 @@
 
     /* Contenedor Full-Bleed optimizado con aceleración GPU */
     .chart-edge-container {
-        height: 312px;
         position: relative;
         margin-left: -12px;
         margin-right: -12px;
         touch-action: pan-y;
         -webkit-user-select: none;
         user-select: none;
+    }
+    .chart-canvas-box {
+        height: 312px;
+        position: relative;
+        width: 100%;
     }
 
     /* Tooltip flotante en línea 0 debajo del gráfico (por encima del botón flotante ↑) */
@@ -306,6 +333,44 @@
         font-size: 0.92em;
         display: inline-block;
     }
+
+    /* Adaptación limpia para celulares */
+    @media (max-width: 640px) {
+        .chart-floating-toolbar {
+            position: relative;
+            top: auto;
+            right: auto;
+            padding: 0 12px 6px 12px;
+            justify-content: flex-end;
+            pointer-events: auto;
+        }
+        .chart-filters {
+            max-width: 100%;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            gap: 2px;
+            padding: 3px;
+        }
+        .chart-filters::-webkit-scrollbar {
+            display: none;
+        }
+        .lod-badge {
+            padding: 3px 6px;
+            font-size: 0.68em;
+        }
+        .btn-filter {
+            padding: 4px 7px;
+            font-size: 0.72em;
+        }
+        .btn-reset-zoom {
+            padding: 3px 6px;
+            font-size: 0.70em;
+        }
+        .filter-divider {
+            margin: 0 2px;
+        }
+    }
 </style>
 
 <!-- Portal flotante único en la ventana para que NUNCA se corte con el menú izquierdo ni en celular -->
@@ -316,15 +381,6 @@
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
             <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none; cursor:help;"></span>
-            <span id="lodResolutionBadge" class="lod-badge" translate="no">⚡ 3m</span>
-        </div>
-        <div class="chart-filters">
-            <button class="btn-reset-zoom" id="btnResetZoom" data-filter-key="reset_zoom" onclick="resetearZoomGrafico()">🔍 <span translate="no">100%</span></button>
-            <button class="btn-filter" id="btn-6h" data-filter-key="6h" onclick="updateChart('6h')" translate="no">6 h</button>
-            <button class="btn-filter active" id="btn-24h" data-filter-key="24h" onclick="updateChart('24h')" translate="no">24 h</button>
-            <button class="btn-filter" id="btn-7d" data-filter-key="7d" onclick="updateChart('7d')" translate="no">7 d</button>
-            <button class="btn-filter" id="btn-30d" data-filter-key="30d" onclick="updateChart('30d')" translate="no">30 d</button>
-            <button class="btn-filter" id="btnCamara" data-filter-key="camara" onclick="descargarCapturaGrafico()">📷</button>
         </div>
     </div>
 
@@ -355,8 +411,23 @@
 
     <!-- Gráfico estirado con soporte de Zoom con 2 dedos y Doble Toque para resetear -->
     <div id="chartWrapper" class="chart-edge-container">
-        <canvas id="hashrateChart"></canvas>
-        <div id="customChartTooltip" class="custom-chart-tooltip"></div>
+        <div class="chart-floating-toolbar">
+            <div class="chart-filters">
+                <button class="btn-reset-zoom" id="btnResetZoom" data-filter-key="reset_zoom" onclick="resetearZoomGrafico()">🔍 <span translate="no">100%</span></button>
+                <span id="lodResolutionBadge" class="lod-badge" translate="no">⚡ 3m</span>
+                <span class="filter-divider"></span>
+                <button class="btn-filter" id="btn-6h" data-filter-key="6h" onclick="updateChart('6h')" translate="no">6 h</button>
+                <button class="btn-filter active" id="btn-24h" data-filter-key="24h" onclick="updateChart('24h')" translate="no">24 h</button>
+                <button class="btn-filter" id="btn-7d" data-filter-key="7d" onclick="updateChart('7d')" translate="no">7 d</button>
+                <button class="btn-filter" id="btn-30d" data-filter-key="30d" onclick="updateChart('30d')" translate="no">30 d</button>
+                <span class="filter-divider"></span>
+                <button class="btn-filter" id="btnCamara" data-filter-key="camara" onclick="descargarCapturaGrafico()">📷</button>
+            </div>
+        </div>
+        <div class="chart-canvas-box">
+            <canvas id="hashrateChart"></canvas>
+            <div id="customChartTooltip" class="custom-chart-tooltip"></div>
+        </div>
     </div>
 </div>
 
@@ -677,6 +748,13 @@
         }, { passive: true });
         window.addEventListener('resize', function() {
             rectCanvasCache = null;
+            if (chartInstance && chartInstance.options && chartInstance.options.layout && chartInstance.options.layout.padding) {
+                const nuevoPadTop = window.innerWidth <= 640 ? 6 : 40;
+                if (chartInstance.options.layout.padding.top !== nuevoPadTop) {
+                    chartInstance.options.layout.padding.top = nuevoPadTop;
+                    chartInstance.update('none');
+                }
+            }
         }, { passive: true });
     }
 
@@ -1839,7 +1917,7 @@
                     normalized: true,
                     parsed: false,
                     responsive: true, maintainAspectRatio: false,
-                    layout: { padding: { left: 14, right: 14, top: 6, bottom: 2 } },
+                    layout: { padding: { left: 14, right: 14, top: window.innerWidth <= 640 ? 6 : 40, bottom: 2 } },
                     interaction: { mode: 'index', axis: 'x', intersect: false },
                     plugins: { 
                         legend: { display: false },
