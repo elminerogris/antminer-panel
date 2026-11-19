@@ -102,6 +102,14 @@
         box-shadow: 0 0 18px rgba(56, 189, 248, 0.75);
     }
 
+    /* Contenedor del botón Guardar debajo de la 3ra pool (solo celular) */
+    .pools-mobile-footer {
+        display: none;
+        padding: 12px 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(10, 12, 18, 0.35);
+    }
+
     /* Barra de estadísticas rápidas y plantillas de Pools */
     .pools-subbar {
         display: flex;
@@ -428,9 +436,16 @@
             padding: 2px 0 4px 0;
             -webkit-overflow-scrolling: touch;
         }
-        .btn-guardar-pools {
+        .btn-guardar-pools-desktop {
+            display: none !important;
+        }
+        .pools-mobile-footer {
+            display: block;
+        }
+        .pools-mobile-footer .btn-guardar-pools {
             width: 100%;
             justify-content: center;
+            padding: 10px 14px;
         }
         .pools-table-pro th,
         .pools-table-pro td {
@@ -466,18 +481,18 @@
             </span>
             <button type="button" class="btn-guia-pools" onclick="toggleGuiaPools()">💡 ¿Cómo configurar?</button>
         </div>
-        <button class="btn-guardar-pools" id="btnGuardarPoolsPro" data-pool-tt="btn_guardar" onclick="guardarTodasPools()">
-            <span id="iconoGuardarPools">💾</span>
-            <span id="textoGuardarPools">Guardar Todos los Pools</span>
+        <button class="btn-guardar-pools btn-guardar-pools-desktop" id="btnGuardarPoolsPro" data-pool-tt="btn_guardar" onclick="guardarTodasPools()">
+            <span class="icono-guardar-pools" id="iconoGuardarPools">💾</span>
+            <span class="texto-guardar-pools" id="textoGuardarPools">Guardar Todos los Pools</span>
         </button>
     </div>
 
     <!-- Mini Guía Rápida para Principiantes -->
     <div id="poolsBeginnerGuide" class="pools-beginner-guide">
         <b>👋 Guía rápida en 3 pasos:</b><br>
-        1. Toca una <b>Plantilla BTC</b> abajo (ej. <i>ViaBTC</i>, <i>NiceHash</i> o <i>F2Pool</i>) para rellenar automáticamente los 3 servidores oficiales.<br>
-        2. En la fila <b>1 (Primario)</b>, escribe tu <b>Worker (Usuario)</b> con el formato <code>TuUsuario.001</code> (en NiceHash usa tu <code>MiningAddress.001</code>).<br>
-        3. Presiona <b>💾 Guardar Todos los Pools</b>. Si el servidor #1 falla alguna vez, tu minero cambiará automáticamente al #2 o #3 sin dejar de minar.
+1. Toca una <b>Plantilla BTC</b> abajo (ej. <i>ViaBTC</i>, <i>NiceHash</i> o <i>F2Pool</i>) para rellenar automáticamente los 3 servidores oficiales.<br>
+2. En la fila <b>1 (Primario)</b>, escribe tu <b>Worker (Usuario)</b> con el formato <code>TuUsuario.001</code> (en NiceHash usa tu <code>MiningAddress.001</code>).<br>
+3. Presiona <b>💾 Guardar Todos los Pools</b>. Si el servidor #1 falla alguna vez, tu minero cambiará automáticamente al #2 o #3 sin dejar de minar.
     </div>
 
     <!-- Barra de métricas globales de Shares + Plantillas Rápidas 1-Clic -->
@@ -687,6 +702,14 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Botón Guardar debajo de la 3ra Pool (visible solo en celular) -->
+    <div class="pools-mobile-footer">
+        <button class="btn-guardar-pools" id="btnGuardarPoolsMobile" data-pool-tt="btn_guardar" onclick="guardarTodasPools()">
+            <span class="icono-guardar-pools">💾</span>
+            <span class="texto-guardar-pools">Guardar Todos los Pools</span>
+        </button>
+    </div>
 </div>
 
 <script>
@@ -861,10 +884,8 @@
             inputEl.classList.add('edited');
             inputEl.classList.remove('invalid-url');
         }
-        const btn = document.getElementById('btnGuardarPoolsPro');
-        const txt = document.getElementById('textoGuardarPools');
-        if (btn) btn.classList.add('unsaved-pulse');
-        if (txt) txt.innerText = 'Guardar Cambios Pendientes';
+        document.querySelectorAll('.btn-guardar-pools').forEach(b => b.classList.add('unsaved-pulse'));
+        document.querySelectorAll('.texto-guardar-pools').forEach(t => t.innerText = 'Guardar Cambios Pendientes');
     }
 
     function aplicarPlantillaPool(nombrePreset) {
@@ -933,21 +954,21 @@
         let p3 = encodeURIComponent(document.getElementById('pass_3').value.trim() || '123');
 
         if (confirm('¿Guardar y aplicar la configuración de Pools en el minero?')) {
-            const btn = document.getElementById('btnGuardarPoolsPro');
-            const txt = document.getElementById('textoGuardarPools');
-            const ico = document.getElementById('iconoGuardarPools');
-            if (txt) txt.innerText = 'Enviando al Agente...';
-            if (ico) ico.innerText = '⏳';
+            const btns = document.querySelectorAll('.btn-guardar-pools');
+            const txts = document.querySelectorAll('.texto-guardar-pools');
+            const icos = document.querySelectorAll('.icono-guardar-pools');
+            txts.forEach(t => t.innerText = 'Enviando al Agente...');
+            icos.forEach(i => i.innerText = '⏳');
 
             fetch(`/cmd/{{ ip }}/guardar_pools?u1=${u1}&w1=${w1}&p1=${p1}&u2=${u2}&w2=${w2}&p2=${p2}&u3=${u3}&w3=${w3}&p3=${p3}`)
             .then(() => {
                 document.querySelectorAll('.input-pool-pro.edited').forEach(inp => inp.classList.remove('edited'));
-                if (btn) btn.classList.remove('unsaved-pulse');
-                if (ico) ico.innerText = '✅';
-                if (txt) txt.innerText = '¡Pools en Cola (15-30s)!';
+                btns.forEach(b => b.classList.remove('unsaved-pulse'));
+                icos.forEach(i => i.innerText = '✅');
+                txts.forEach(t => t.innerText = '¡Pools en Cola (15-30s)!');
                 setTimeout(() => {
-                    if (ico) ico.innerText = '💾';
-                    if (txt) txt.innerText = 'Guardar Todos los Pools';
+                    icos.forEach(i => i.innerText = '💾');
+                    txts.forEach(t => t.innerText = 'Guardar Todos los Pools');
                 }, 4000);
             });
         }
