@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0d0f17">
     <title>El Minero Gris</title>
     <script>
         // Aplicar tema guardado antes de renderizar para evitar parpadeo blanco
@@ -33,7 +36,7 @@
             --accent-red: #ff5252;
             --hover-bg: rgba(255, 255, 255, 0.04);
             --active-bg: rgba(51, 102, 255, 0.14);
-            --topbar-bg: rgba(13, 15, 23, 0.88);
+            --topbar-bg: rgba(13, 15, 23, 0.90);
         }
         :root[data-theme="light"] {
             --bg-body: #f1f5f9;
@@ -50,7 +53,7 @@
             --accent-red: #ef4444;
             --hover-bg: #f1f5f9;
             --active-bg: rgba(37, 99, 235, 0.10);
-            --topbar-bg: rgba(255, 255, 255, 0.90);
+            --topbar-bg: rgba(255, 255, 255, 0.92);
         }
 
         * { box-sizing: border-box; }
@@ -72,6 +75,31 @@
         body { top: 0px !important; }
         #google_translate_element { display: none; }
         a { text-decoration: none; color: inherit; }
+
+        /* Barra delgada de progreso en vivo */
+        .live-progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 2px;
+            width: 0%;
+            background: linear-gradient(90deg, #3366ff, #00e676);
+            z-index: 99999;
+            transition: width 0.35s ease;
+            pointer-events: none;
+        }
+
+        /* Banner de sin conexión a internet */
+        .net-offline-bar {
+            display: none;
+            background: rgba(255, 82, 82, 0.16);
+            border-bottom: 1px solid rgba(255, 82, 82, 0.45);
+            color: #ff8a80;
+            text-align: center;
+            padding: 6px 12px;
+            font-size: 0.78em;
+            font-weight: bold;
+        }
 
         /* Scrollbars delgados y modernos */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -230,9 +258,10 @@
             align-items: center;
             padding: env(safe-area-inset-top) 20px 0 20px;
             z-index: 500;
+            gap: 8px;
         }
-        .top-bar-left { display: flex; align-items: center; gap: 12px; }
-        .top-bar-right { display: flex; align-items: center; gap: 10px; }
+        .top-bar-left { display: flex; align-items: center; gap: 10px; }
+        .top-bar-right { display: flex; align-items: center; gap: 8px; }
 
         .top-btn, .top-lang-select {
             background: var(--bg-card);
@@ -266,19 +295,29 @@
         }
         .top-lang-select { padding: 0 10px; outline: none; }
 
+        /* Píldora interactiva de En Vivo / Pausa */
         .top-status {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 12px;
-            font-size: 0.82em;
+            gap: 10px;
+            font-size: 0.80em;
             color: var(--text-muted);
             font-weight: bold;
             font-family: monospace;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
-            padding: 0 12px;
+            padding: 0 11px;
             height: 36px;
             border-radius: 7px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+        .top-status:hover {
+            border-color: rgba(0, 230, 118, 0.45);
+        }
+        .top-status.paused {
+            border-color: rgba(255, 179, 0, 0.45);
         }
         .status-envivo {
             color: var(--accent-green);
@@ -286,12 +325,20 @@
             align-items: center;
             gap: 6px;
         }
+        .top-status.paused .status-envivo {
+            color: #ffb300;
+        }
         .dot-pulse {
             width: 8px;
             height: 8px;
             background: var(--accent-green);
             border-radius: 50%;
             animation: pulse 1.5s infinite;
+            flex-shrink: 0;
+        }
+        .top-status.paused .dot-pulse {
+            background: #ffb300;
+            animation: none;
         }
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); }
@@ -312,16 +359,16 @@
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             color: var(--text-main);
-            font-size: 0.90em;
+            font-size: 0.88em;
             font-weight: bold;
             cursor: pointer;
             border-radius: 7px;
             height: 36px;
-            padding: 0 12px;
+            padding: 0 10px;
             display: none;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 5px;
             transition: 0.2s;
             white-space: nowrap;
         }
@@ -330,12 +377,12 @@
         .logo-top {
             display: none;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
             font-weight: bold;
-            font-size: 1.05em;
+            font-size: 1.0em;
             white-space: nowrap;
         }
-        .logo-top img { height: 24px; width: auto; }
+        .logo-top img { height: 22px; width: auto; }
 
         .overlay {
             display: none;
@@ -384,17 +431,21 @@
             .sidebar.active { transform: translateX(0); }
             .btn-menu { display: flex; }
             .logo-top { display: flex; }
-            .top-bar { padding: env(safe-area-inset-top) 12px 0 12px; }
+            .top-bar { padding: env(safe-area-inset-top) 10px 0 10px; }
             .top-lang-select { display: none; }
             .sidebar-mobile-lang { display: block; }
-            .top-status { display: none; }
+            #relojTop { display: none; }
+            .top-status { padding: 0 8px; gap: 5px; font-size: 0.74em; }
+            .live-txt-label { display: none; }
             .btn-sync span { display: none; }
-            .btn-sync { width: 36px; padding: 0; }
+            .btn-sync { width: 34px; padding: 0; }
+            .top-btn { width: 34px; }
             .main-content { padding: 14px 10px; padding-bottom: calc(95px + env(safe-area-inset-bottom)); }
         }
     </style>
 </head>
 <body>
+    <div id="liveProgressBar" class="live-progress-bar"></div>
     <div id="google_translate_element"></div>
     <div id="layoutToast" class="layout-toast" translate="no"></div>
 
@@ -448,6 +499,10 @@
     </aside>
 
     <div class="right-container">
+        <div id="netOfflineBar" class="net-offline-bar">
+            ⚠️ Sin conexión a internet — El modo En Vivo se reanudará automáticamente al reconectar.
+        </div>
+
         <header class="top-bar">
             <div class="top-bar-left">
                 <button type="button" class="btn-menu" onclick="toggleMenu()">☰ Menú</button>
@@ -474,14 +529,18 @@
                     <option value="fr">🌐 Français</option>
                     <option value="de">🌐 Deutsch</option>
                 </select>
-                <div class="top-status">
+                <div class="top-status" id="liveStatusPill" onclick="toggleAutoLive()" title="Toca para pausar o reanudar la actualización automática">
                     <span id="relojTop" translate="no">00:00</span>
-                    <span class="status-envivo"><div class="dot-pulse"></div> En vivo</span>
+                    <span class="status-envivo" translate="no">
+                        <div class="dot-pulse"></div>
+                        <span class="live-txt-label" id="liveTxtLabel">En vivo</span>
+                        <span id="liveCountdown">(20s)</span>
+                    </span>
                 </div>
             </div>
         </header>
 
-        <main class="main-content">
+        <main class="main-content" id="mainScrollArea">
             {% block content %}{% endblock %}
         </main>
     </div>
@@ -506,7 +565,7 @@
             b.style.pointerEvents = 'none';
             mostrarLayoutToast('📡 Solicitando escaneo de red al Agente...');
             fetch('/cmd/all/scan').then(() => {
-                setTimeout(() => { window.location.reload(); }, 1800);
+                setTimeout(() => { recargarConservandoScroll(); }, 1800);
             });
         }
 
@@ -546,7 +605,132 @@
             sincronizarIconoTema();
         }
 
-        window.addEventListener('DOMContentLoaded', sincronizarIconoTema);
+        // ============================================================
+        // MOTOR DE ACTUALIZACIÓN INTELIGENTE EN VIVO (SMART LIVE)
+        // ============================================================
+        const LIVE_INTERVAL_SEC = 20;
+        const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan'];
+        let liveSegundos = LIVE_INTERVAL_SEC;
+        let livePausadoUsuario = (localStorage.getItem('emg_live_paused') === '1');
+        let ultimaVistaOculta = 0;
+
+        function rutaPermiteLive() {
+            const path = window.location.pathname || '/';
+            return !RUTAS_SIN_AUTORELOAD.some(r => path.startsWith(r));
+        }
+
+        function usuarioEstaEditando() {
+            const active = document.activeElement;
+            if (active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName)) return true;
+            if (document.querySelector('.edited, .unsaved-pulse')) return true;
+            if (document.querySelector('#mainScrollArea input[type="checkbox"]:checked')) return true;
+            return false;
+        }
+
+        function recargarConservandoScroll() {
+            const area = document.getElementById('mainScrollArea');
+            const bar = document.getElementById('liveProgressBar');
+            if (bar) bar.style.width = '100%';
+            try {
+                if (area) sessionStorage.setItem('emg_scroll_' + window.location.pathname, area.scrollTop);
+            } catch(e) {}
+            window.location.reload();
+        }
+
+        function actualizarUILive() {
+            const pill = document.getElementById('liveStatusPill');
+            const lbl = document.getElementById('liveTxtLabel');
+            const cnt = document.getElementById('liveCountdown');
+            if (!pill || !cnt) return;
+
+            if (!rutaPermiteLive()) {
+                pill.classList.add('paused');
+                if (lbl) lbl.innerText = 'Fijo';
+                cnt.innerText = '';
+                return;
+            }
+            if (livePausadoUsuario) {
+                pill.classList.add('paused');
+                if (lbl) lbl.innerText = 'Pausado';
+                cnt.innerText = '⏸';
+            } else if (usuarioEstaEditando()) {
+                pill.classList.add('paused');
+                if (lbl) lbl.innerText = 'Editando';
+                cnt.innerText = '✏️';
+            } else {
+                pill.classList.remove('paused');
+                if (lbl) lbl.innerText = 'En vivo';
+                cnt.innerText = `(${liveSegundos}s)`;
+            }
+        }
+
+        function toggleAutoLive() {
+            if (!rutaPermiteLive()) return;
+            livePausadoUsuario = !livePausadoUsuario;
+            try { localStorage.setItem('emg_live_paused', livePausadoUsuario ? '1' : '0'); } catch(e) {}
+            if (!livePausadoUsuario) {
+                liveSegundos = LIVE_INTERVAL_SEC;
+                mostrarLayoutToast('🟢 Actualización en vivo activada (cada 20s)');
+            } else {
+                mostrarLayoutToast('⏸ Actualización automática pausada');
+            }
+            actualizarUILive();
+        }
+
+        setInterval(function() {
+            if (!rutaPermiteLive() || livePausadoUsuario || document.hidden || !navigator.onLine) {
+                actualizarUILive();
+                return;
+            }
+            if (usuarioEstaEditando()) {
+                actualizarUILive();
+                return;
+            }
+            liveSegundos--;
+            if (liveSegundos <= 0) {
+                liveSegundos = LIVE_INTERVAL_SEC;
+                recargarConservandoScroll();
+            } else {
+                actualizarUILive();
+            }
+        }, 1000);
+
+        // Si el usuario vuelve de otra pestaña o desbloquea el celular tras >20s, actualiza al instante
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                ultimaVistaOculta = Date.now();
+            } else if (ultimaVistaOculta && (Date.now() - ultimaVistaOculta > 20000)) {
+                if (rutaPermiteLive() && !livePausadoUsuario && !usuarioEstaEditando() && navigator.onLine) {
+                    recargarConservandoScroll();
+                }
+            }
+        });
+
+        // Detección de pérdida / recuperación de internet
+        window.addEventListener('offline', function() {
+            const b = document.getElementById('netOfflineBar');
+            if (b) b.style.display = 'block';
+        });
+        window.addEventListener('online', function() {
+            const b = document.getElementById('netOfflineBar');
+            if (b) b.style.display = 'none';
+            mostrarLayoutToast('🟢 Conexión a internet restablecida');
+        });
+
+        window.addEventListener('DOMContentLoaded', function() {
+            sincronizarIconoTema();
+            actualizarUILive();
+            // Restaurar posición exacta del scroll tras la actualización en vivo
+            try {
+                const key = 'emg_scroll_' + window.location.pathname;
+                const savedY = sessionStorage.getItem(key);
+                const area = document.getElementById('mainScrollArea');
+                if (savedY !== null && area) {
+                    area.scrollTop = parseInt(savedY, 10) || 0;
+                    sessionStorage.removeItem(key);
+                }
+            } catch(e) {}
+        });
     </script>
 </body>
 </html>
