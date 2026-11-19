@@ -70,6 +70,7 @@
             height: 100dvh;
             overflow: hidden;
             top: 0 !important;
+            font-variant-numeric: tabular-nums;
         }
 
         .skiptranslate iframe { display: none !important; }
@@ -83,9 +84,10 @@
             left: 0;
             height: 2px;
             width: 0%;
+            opacity: 0;
             background: linear-gradient(90deg, #3366ff, #00e676);
             z-index: 99999;
-            transition: width 0.35s ease;
+            transition: width 0.3s ease, opacity 0.25s ease;
             pointer-events: none;
         }
 
@@ -317,6 +319,8 @@
             padding-bottom: calc(80px + env(safe-area-inset-bottom));
             overflow-y: auto;
             overflow-x: hidden;
+            overflow-anchor: none;
+            -webkit-overflow-scrolling: touch;
         }
 
         .btn-menu {
@@ -522,7 +526,11 @@
             b.style.pointerEvents = 'none';
             mostrarLayoutToast('📡 Solicitando escaneo de red al Agente...');
             fetch('/cmd/all/scan').then(() => {
-                setTimeout(() => { recargarConservandoScroll(); }, 1800);
+                setTimeout(() => {
+                    b.innerHTML = '🔄 <span>Escanear Red</span>';
+                    b.style.pointerEvents = 'auto';
+                    actualizacionSilenciosaEnVivo();
+                }, 1800);
             });
         }
 
@@ -562,11 +570,17 @@
             sincronizarIconoTema();
         }
 
+        // ============================================================
+        // MOTOR EN VIVO QUIRÚRGICO (100% ESTABLE — CERO SALTOS EN MÓVIL)
+        // ============================================================
         const LIVE_INTERVAL_SEC = 20;
         const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan', '/admin'];
         let liveSegundos = LIVE_INTERVAL_SEC;
         let livePausadoUsuario = (localStorage.getItem('emg_live_paused') === '1');
         let ultimaVistaOculta = 0;
+        let ultimoScrollTs = 0;
+        let dedoEnPantalla = false;
+        let actualizandoAhora = false;
 
         function rutaPermiteLive() {
             const path = window.location.pathname || '/';
@@ -581,14 +595,87 @@
             return false;
         }
 
-        function recargarConservandoScroll() {
-            const area = document.getElementById('mainScrollArea');
+        function usuarioEstaInteractuando() {
+            return dedoEnPantalla || (Date.now() - ultimoScrollTs) < 3500;
+        }
+
+        // Parchea SOLO los textos y barras que cambiaron, sin destruir ningún elemento del DOM
+        function parcharDomSinSaltos(nodoActual, nodoNuevo) {
+            if (!nodoActual || !nodoNuevo) return;
+
+            if (nodoActual.nodeType === 1) {
+                const tag = nodoActual.tagName;
+                if (['SCRIPT', 'STYLE', 'CANVAS', 'INPUT', 'TEXTAREA', 'SELECT', 'SVG', 'IFRAME'].includes(tag)) return;
+                if (nodoActual.classList && (nodoActual.classList.contains('edited') || nodoActual.classList.contains('unsaved-pulse') || nodoActual.classList.contains('copied'))) return;
+            }
+
+            if (nodoActual.nodeType === 3 && nodoNuevo.nodeType === 3) {
+                if (nodoActual.nodeValue !== nodoNuevo.nodeValue) {
+                    nodoActual.nodeValue = nodoNuevo.nodeValue;
+                }
+                return;
+            }
+
+            if (nodoActual.nodeType !== nodoNuevo.nodeType || nodoActual.tagName !== nodoNuevo.tagName) {
+                return;
+            }
+
+            if (nodoActual.nodeType === 1) {
+                // Solo actualizar barras de progreso (width) y colores dinámicos sin tocar paneles desplegables
+                const idsProtegidos = ['poolsBeginnerGuide', 'ipConflictBanner', 'layoutToast', 'netOfflineBar'];
+                if (!nodoActual.id || !idsProtegidos.includes(nodoActual.id)) {
+                    const nuevoStyle = nodoNuevo.getAttribute('style');
+                    if (nuevoStyle !== null && nodoActual.getAttribute('style') !== nuevoStyle) {
+                        nodoActual.setAttribute('style', nuevoStyle);
+                    }
+                }
+
+                // Si es una tabla en Resumen/Mineros/Alertas y cambió la cantidad de filas, actualizar solo tbody
+                if (nodoActual.tagName === 'TBODY' && !document.querySelector('canvas')) {
+                    if (nodoActual.children.length !== nodoNuevo.children.length) {
+                        nodoActual.innerHTML = nodoNuevo.innerHTML;
+                        return;
+                    }
+                }
+
+                const hijosAct = nodoActual.childNodes;
+                const hijosNue = nodoNuevo.childNodes;
+                const len = Math.min(hijosAct.length, hijosNue.length);
+                for (let i = 0; i < len; i++) {
+                    parcharDomSinSaltos(hijosAct[i], hijosNue[i]);
+                }
+            }
+        }
+
+        async function actualizacionSilenciosaEnVivo() {
+            if (actualizandoAhora || !navigator.onLine) return;
+            actualizandoAhora = true;
             const bar = document.getElementById('liveProgressBar');
-            if (bar) bar.style.width = '100%';
+            if (bar) { bar.style.opacity = '1'; bar.style.width = '55%'; }
+
             try {
-                if (area) sessionStorage.setItem('emg_scroll_' + window.location.pathname, area.scrollTop);
-            } catch(e) {}
-            window.location.reload();
+                const resp = await fetch(window.location.href, {
+                    headers: { 'X-Requested-With': 'EMG-Live-Sync' },
+                    cache: 'no-store'
+                });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                const html = await resp.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const nuevoMain = doc.getElementById('mainScrollArea');
+                const actualMain = document.getElementById('mainScrollArea');
+
+                if (nuevoMain && actualMain && !usuarioEstaEditando() && !usuarioEstaInteractuando()) {
+                    parcharDomSinSaltos(actualMain, nuevoMain);
+                }
+            } catch (e) {
+                console.log('Sync en vivo omitido:', e);
+            } finally {
+                if (bar) {
+                    bar.style.width = '100%';
+                    setTimeout(() => { bar.style.opacity = '0'; bar.style.width = '0%'; }, 280);
+                }
+                actualizandoAhora = false;
+            }
         }
 
         function actualizarUILive() {
@@ -636,17 +723,16 @@
                 actualizarUILive();
                 return;
             }
-            if (usuarioEstaEditando()) {
+            if (usuarioEstaEditando() || usuarioEstaInteractuando()) {
                 actualizarUILive();
                 return;
             }
             liveSegundos--;
             if (liveSegundos <= 0) {
                 liveSegundos = LIVE_INTERVAL_SEC;
-                recargarConservandoScroll();
-            } else {
-                actualizarUILive();
+                actualizacionSilenciosaEnVivo();
             }
+            actualizarUILive();
         }, 1000);
 
         document.addEventListener('visibilitychange', function() {
@@ -654,7 +740,7 @@
                 ultimaVistaOculta = Date.now();
             } else if (ultimaVistaOculta && (Date.now() - ultimaVistaOculta > 20000)) {
                 if (rutaPermiteLive() && !livePausadoUsuario && !usuarioEstaEditando() && navigator.onLine) {
-                    recargarConservandoScroll();
+                    actualizacionSilenciosaEnVivo();
                 }
             }
         });
@@ -672,15 +758,13 @@
         window.addEventListener('DOMContentLoaded', function() {
             sincronizarIconoTema();
             actualizarUILive();
-            try {
-                const key = 'emg_scroll_' + window.location.pathname;
-                const savedY = sessionStorage.getItem(key);
-                const area = document.getElementById('mainScrollArea');
-                if (savedY !== null && area) {
-                    area.scrollTop = parseInt(savedY, 10) || 0;
-                    sessionStorage.removeItem(key);
-                }
-            } catch(e) {}
+            const area = document.getElementById('mainScrollArea');
+            if (area) {
+                area.addEventListener('scroll', () => { ultimoScrollTs = Date.now(); }, { passive: true });
+                area.addEventListener('touchstart', () => { dedoEnPantalla = true; ultimoScrollTs = Date.now(); }, { passive: true });
+                area.addEventListener('touchmove', () => { dedoEnPantalla = true; ultimoScrollTs = Date.now(); }, { passive: true });
+                area.addEventListener('touchend', () => { dedoEnPantalla = false; ultimoScrollTs = Date.now(); }, { passive: true });
+            }
         });
     </script>
 </body>
