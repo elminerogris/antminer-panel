@@ -1,10 +1,13 @@
 <!-- Librerías oficiales para Zoom con 2 dedos (Pinch-to-Zoom) en celular y mouse -->
 <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<!-- Leaflet para Mapa Interactivo con capas de Google Maps (sin requerir API Key) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <style>
-    /* Botón de Guía Rápida para clientes principiantes */
-    .btn-help-guide {
+    /* Botón de Guía Rápida y selector de Zona Horaria */
+    .btn-help-guide, .btn-tz-toggle {
         display: inline-flex;
         align-items: center;
         gap: 4px;
@@ -15,15 +18,27 @@
         border-radius: 12px;
         font-size: 0.72em;
         font-weight: bold;
-        cursor: help;
+        cursor: pointer;
         user-select: none;
         transition: all 0.2s ease;
+    }
+    .btn-help-guide { cursor: help; }
+    .btn-tz-toggle {
+        background: rgba(168, 85, 247, 0.12);
+        border-color: rgba(168, 85, 247, 0.35);
+        color: #d8b4fe;
     }
     .btn-help-guide:hover, .btn-help-guide.tt-active {
         background: rgba(56, 189, 248, 0.24);
         border-color: #38bdf8;
         color: #ffffff;
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+    }
+    .btn-tz-toggle:hover, .btn-tz-toggle.tt-active {
+        background: rgba(168, 85, 247, 0.28);
+        border-color: #c084fc;
+        color: #ffffff;
+        box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
     }
 
     /* Estadísticas rápidas del periodo */
@@ -148,7 +163,6 @@
         user-select: none;
         position: relative;
     }
-    /* Efecto de brillo / alumbrado al pasar el mouse */
     .btn-filter:hover, .btn-filter.tt-active {
         color: #ffffff;
         background: rgba(51, 102, 255, 0.18);
@@ -156,7 +170,6 @@
         box-shadow: 0 0 10px rgba(51, 102, 255, 0.35);
         text-shadow: 0 0 6px rgba(255, 255, 255, 0.45);
     }
-    /* Botón de hora activo con iluminación intensa profesional */
     .btn-filter.active {
         background: linear-gradient(135deg, rgba(51, 102, 255, 0.35) 0%, rgba(37, 99, 235, 0.20) 100%);
         color: #60a5fa;
@@ -311,27 +324,29 @@
         font-style: italic;
     }
 
-    /* Modal compacto para elegir ubicación real de los Antminers */
+    /* Modal Profesional con Mapa Interactivo estilo Google Maps */
     .farm-loc-modal-bg {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.72);
-        backdrop-filter: blur(4px);
+        background: rgba(0, 0, 0, 0.78);
+        backdrop-filter: blur(5px);
         z-index: 99998;
         display: none;
         align-items: center;
         justify-content: center;
-        padding: 16px;
+        padding: 14px;
     }
     .farm-loc-modal {
         width: 100%;
-        max-width: 380px;
+        max-width: 520px;
+        max-height: 92vh;
+        overflow-y: auto;
         background: #11131c;
-        border: 1px solid rgba(56, 189, 248, 0.4);
-        border-radius: 10px;
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        border-radius: 12px;
         padding: 16px;
         color: #e2e8f0;
-        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.85);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.9);
     }
     .farm-loc-input-row {
         display: flex;
@@ -340,8 +355,8 @@
     }
     .farm-loc-input {
         flex: 1;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.16);
         border-radius: 6px;
         padding: 8px 10px;
         color: #fff;
@@ -350,25 +365,54 @@
     }
     .farm-loc-input:focus { border-color: #38bdf8; }
     .farm-loc-results {
-        margin-top: 10px;
-        max-height: 200px;
+        margin-top: 8px;
+        max-height: 140px;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 4px;
     }
     .farm-loc-item {
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 6px;
-        padding: 8px 10px;
+        padding: 7px 10px;
         cursor: pointer;
-        font-size: 12.5px;
+        font-size: 12px;
         transition: 0.15s;
     }
     .farm-loc-item:hover {
-        background: rgba(56, 189, 248, 0.16);
+        background: rgba(56, 189, 248, 0.18);
         border-color: #38bdf8;
+    }
+    .farm-map-container {
+        width: 100%;
+        height: 250px;
+        border-radius: 8px;
+        margin-top: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        overflow: hidden;
+        background: #0b0d14;
+        z-index: 1;
+    }
+    .farm-loc-selected-bar {
+        margin-top: 10px;
+        padding: 8px 10px;
+        border-radius: 7px;
+        background: rgba(56, 189, 248, 0.08);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .farm-loc-actions {
+        margin-top: 12px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
     }
 
     /* Contenedor Full-Bleed optimizado con aceleración GPU */
@@ -475,27 +519,47 @@
         .filter-divider {
             margin: 0 2px;
         }
+        .farm-map-container {
+            height: 210px;
+        }
     }
 </style>
 
 <!-- Portal flotante único en la ventana para que NUNCA se corte con el menú izquierdo ni en celular -->
 <div id="smartFloatingTooltip" class="smart-floating-tooltip"></div>
 
-<!-- Selector global de ubicación de los Antminers (ej. Alaska, Bolivia, etc.) -->
+<!-- Selector global con Mapa Interactivo (Google Maps tiles) para ubicar los Antminers -->
 <div id="farmLocModalBg" class="farm-loc-modal-bg" onclick="if(event.target===this) cerrarModalUbicacionGranja()">
     <div class="farm-loc-modal">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <b style="font-size:14px;">📍 Ubicación de tus Máquinas</b>
-            <button type="button" onclick="cerrarModalUbicacionGranja()" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:16px;">✕</button>
+            <b style="font-size:14.5px;">🗺️ Ubicación Exacta de tus Máquinas</b>
+            <button type="button" onclick="cerrarModalUbicacionGranja()" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:17px;">✕</button>
         </div>
         <div style="font-size:11.5px; color:#94a3b8; margin-top:4px;">
-            Escribe la ciudad donde están instalados físicamente tus Antminers (sin importar en qué país vivas tú).
+            Busca una ciudad o <b>toca / arrastra el pin en el mapa</b> donde están tus Antminers (aunque tú vivas en otro país).
         </div>
+
         <div class="farm-loc-input-row">
-            <input type="text" id="farmLocSearchInput" class="farm-loc-input" placeholder="Ej: Anchorage, Santa Cruz, Miami..." onkeydown="if(event.key==='Enter') buscarCiudadGranja()">
+            <input type="text" id="farmLocSearchInput" class="farm-loc-input" placeholder="Ej: Anchorage Alaska, Santa Cruz, Miami..." onkeydown="if(event.key==='Enter') buscarCiudadGranja()">
             <button type="button" class="btn-filter active" onclick="buscarCiudadGranja()">Buscar</button>
         </div>
         <div id="farmLocResults" class="farm-loc-results"></div>
+
+        <!-- Mapa Interactivo -->
+        <div id="farmInteractiveMap" class="farm-map-container"></div>
+
+        <div class="farm-loc-selected-bar">
+            <div>
+                <div style="color:#94a3b8; font-size:10.5px;">Ubicación seleccionada:</div>
+                <b id="farmLocPreviewTxt" style="color:#38bdf8;">--</b>
+            </div>
+            <div style="font-family:monospace; font-size:10.5px; color:#94a3b8;" id="farmLocCoordsTxt">0.000, 0.000</div>
+        </div>
+
+        <div class="farm-loc-actions">
+            <button type="button" class="btn-filter" onclick="cerrarModalUbicacionGranja()">Cancelar</button>
+            <button type="button" class="btn-filter active" onclick="confirmarUbicacionMapa()">✅ Guardar Ubicación</button>
+        </div>
     </div>
 </div>
 
@@ -504,6 +568,7 @@
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
             <span id="btnGuiaGrafico" class="btn-help-guide">? Cómo leer</span>
+            <span id="btnToggleTimezone" class="btn-tz-toggle" onclick="alternarZonaHorariaGrafico()">🕒 Hora Granja</span>
             <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none; cursor:pointer;"></span>
         </div>
     </div>
@@ -573,13 +638,25 @@
     const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
 
-    // Ubicación configurable por cliente/granja (prioriza ubicación elegida por usuario o definida por el agente en la granja)
+    // Ubicación configurable por cliente/granja + Zona horaria IANA automática (soporta DST en todo el mundo)
     const TIENE_GRANJA_SERVIDOR = {{ 'true' if ultimo.farm_city is defined and ultimo.farm_city else 'false' }};
     let GRANJA_LAT = {{ ultimo.farm_lat | default(-17.7833) }};
     let GRANJA_LON = {{ ultimo.farm_lon | default(-63.1821) }};
     let GRANJA_CIUDAD = "{{ ultimo.farm_city | default('Santa Cruz de la Sierra') }}";
     let GRANJA_PAIS = "{{ ultimo.farm_country | default('Bolivia') }}";
+    let GRANJA_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    const BROWSER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    let usarHoraGranja = true;
+
     const STORAGE_KEY_LOC = 'emg_farm_loc_{{ ultimo.granja_id | default(ip) }}';
+    let fmtFechaHoraCache = null;
+    let fmtSoloHoraCache = null;
+    let fmtDiaMesCache = null;
+
+    // Variables del Mapa Interactivo
+    let farmMap = null;
+    let farmMarker = null;
+    let tempLocSeleccionada = null;
 
     let chartInstance = null;
     let rangoActual = '24h';
@@ -603,6 +680,37 @@
     let ultimoAnchoTooltipCache = 235;
     let rectCanvasCache = null;
 
+    function reconstruirFormateadoresTiempo() {
+        const tz = usarHoraGranja ? GRANJA_TIMEZONE : BROWSER_TIMEZONE;
+        try {
+            fmtFechaHoraCache = new Intl.DateTimeFormat('es-ES', {
+                timeZone: tz, day: '2-digit', month: '2-digit', year: '2-digit',
+                hour: '2-digit', minute: '2-digit', hour12: false
+            });
+            fmtSoloHoraCache = new Intl.DateTimeFormat('es-ES', {
+                timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false
+            });
+            fmtDiaMesCache = new Intl.DateTimeFormat('es-ES', {
+                timeZone: tz, day: '2-digit', month: '2-digit'
+            });
+        } catch (e) {
+            fmtFechaHoraCache = null;
+            fmtSoloHoraCache = null;
+            fmtDiaMesCache = null;
+        }
+        const btnTz = document.getElementById('btnToggleTimezone');
+        if (btnTz) {
+            btnTz.innerText = usarHoraGranja ? `🕒 Hora Granja` : `🕒 Mi Hora`;
+        }
+    }
+
+    function alternarZonaHorariaGrafico() {
+        usarHoraGranja = !usarHoraGranja;
+        reconstruirFormateadoresTiempo();
+        ultimoTsTooltipRenderizado = null;
+        if (chartInstance) chartInstance.update('none');
+    }
+
     function obtenerCorteTempActual() {
         const inp = document.getElementById('corteTempInput');
         const sw = document.getElementById('corteActivoSwitch');
@@ -612,7 +720,6 @@
         return { temp, activo };
     }
 
-    // Explicaciones claras para clientes principiantes sobre cada curva del gráfico
     function obtenerInfoTooltipCurva(id, isHidden) {
         const estadoTxt = isHidden ? 'Haz clic o toca para volver a mostrar esta línea' : 'Haz clic o toca para ocultar esta línea';
         const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD} (${GRANJA_PAIS})` : GRANJA_CIUDAD;
@@ -645,12 +752,12 @@
             'clima': {
                 titulo: '🌤️ Clima Exterior de la Granja',
                 desc: `Temperatura real afuera en ${ubicacionCompleta}. Te ayuda a ver si el equipo se calentó por el calor del día o por un fallo propio.`,
-                rango: 'Toca la etiqueta de ciudad arriba para cambiar ubicación',
+                rango: 'Toca la etiqueta 📍 arriba para abrir el mapa y cambiar ubicación',
                 accion: estadoTxt
             },
             'sensacion': {
                 titulo: '🥵 Sensación Térmica Exterior',
-                desc: `Combina calor y humedad en ${GRANJA_CIUDAD}. Cuando hay mucha humedad, al aire le cuesta más enfriar los equipos.`,
+                desc: `Combina calor, viento y humedad en ${GRANJA_CIUDAD}. Cuando hay mucha humedad, al aire le cuesta más enfriar los equipos.`,
                 rango: 'Cuidado en días muy húmedos: ≥ 36°C',
                 accion: estadoTxt
             },
@@ -664,7 +771,6 @@
         return dic[id];
     }
 
-    // Explicaciones claras para clientes principiantes sobre las tarjetas y botones de ayuda
     function obtenerInfoTooltipStat(key) {
         const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD}, ${GRANJA_PAIS}` : GRANJA_CIUDAD;
         const txtDias = diasRealesGrabados >= 1 ? ` (${diasRealesGrabados}d guardados)` : (horasRealesGrabadas > 0 ? ` (${horasRealesGrabadas}h guardadas)` : '');
@@ -674,6 +780,11 @@
                 titulo: '📖 Cómo leer este gráfico en 10 segundos',
                 desc: '• <b>Línea Azul (Izquierda):</b> Potencia del minero.<br>• <b>Línea Amarilla (Derecha):</b> Calor de los chips.<br>• <b>Barras Rojas:</b> Errores del equipo.<br>• <b>Zoom:</b> Usa la rueda del mouse o 2 dedos en celular.<br>• <b>Reiniciar vista:</b> Doble clic o doble toque.<br>• <b>Ocultar líneas:</b> Toca las píldoras de colores arriba.',
                 rango: 'Pasa el mouse o toca cualquier dato con (i) para ver qué significa'
+            },
+            'tz_toggle': {
+                titulo: '🕒 Zona Horaria del Gráfico',
+                desc: `Cambia el reloj del eje X entre la <b>hora local donde están tus máquinas</b> (${GRANJA_TIMEZONE}) y <b>tu hora local actual</b> (${BROWSER_TIMEZONE}). Se ajusta solo a cambios de horario de verano.`,
+                rango: 'Útil si vives en un país distinto al de tu granja'
             },
             'prom': {
                 titulo: '⚡ Promedio de Potencia',
@@ -697,8 +808,8 @@
             },
             'clima_hoy': {
                 titulo: '🌤️ Clima Afuera de la Granja',
-                desc: `Temperatura y sensación térmica actuales donde están tus máquinas: ${ubicacionCompleta}.`,
-                rango: 'Haz clic en la etiqueta 📍 arriba para cambiar la ciudad'
+                desc: `Temperatura y sensación térmica actuales donde están tus máquinas: ${ubicacionCompleta} (${GRANJA_TIMEZONE}).`,
+                rango: 'Haz clic en la etiqueta 📍 arriba para abrir el mapa'
             },
             'uptime': {
                 titulo: '🟢 Estabilidad (Tiempo Activo)',
@@ -714,7 +825,6 @@
         return dicStats[key];
     }
 
-    // Descripciones claras para los botones de rango horario (6h, 24h, 7d, 30d, 100%, Cámara)
     function obtenerInfoTooltipFiltro(key) {
         const txtHist = diasRealesGrabados >= 1 ? `Historial guardado: ${diasRealesGrabados} días.` : `Historial guardado: ${horasRealesGrabadas} horas.`;
         const dicFiltros = {
@@ -752,7 +862,6 @@
         return dicFiltros[key];
     }
 
-    // Asegura que el portal del tooltip viva directamente en document.body para evitar cortes por transform/backdrop-filter
     function asegurarPortalTooltipEnBody() {
         const box = document.getElementById('smartFloatingTooltip');
         if (box && box.parentNode !== document.body) {
@@ -761,7 +870,6 @@
         return box;
     }
 
-    // Motor de posicionamiento inteligente (Viewport Collision Detection estilo TradingView/Grafana)
     function mostrarSmartTooltip(targetEl, infoObj) {
         const box = asegurarPortalTooltipEnBody();
         if (!box || !targetEl || !infoObj) return;
@@ -798,13 +906,9 @@
         const arrowEl = document.getElementById('smartTtArrow');
         if (topPos < margenPantalla) {
             topPos = rect.bottom + 10;
-            if (arrowEl) {
-                arrowEl.className = 'smart-tt-arrow top';
-            }
+            if (arrowEl) arrowEl.className = 'smart-tt-arrow top';
         } else {
-            if (arrowEl) {
-                arrowEl.className = 'smart-tt-arrow bottom';
-            }
+            if (arrowEl) arrowEl.className = 'smart-tt-arrow bottom';
         }
 
         if (arrowEl) {
@@ -834,17 +938,20 @@
             btnGuia.addEventListener('mouseenter', function() {
                 mostrarSmartTooltip(btnGuia, obtenerInfoTooltipStat('guia_rapida'));
             });
-            btnGuia.addEventListener('mouseleave', function() {
-                ocultarSmartTooltip();
-            });
+            btnGuia.addEventListener('mouseleave', ocultarSmartTooltip);
             btnGuia.addEventListener('click', function(e) {
                 e.stopPropagation();
-                if (elementoTooltipActivo === btnGuia) {
-                    ocultarSmartTooltip();
-                } else {
-                    mostrarSmartTooltip(btnGuia, obtenerInfoTooltipStat('guia_rapida'));
-                }
+                if (elementoTooltipActivo === btnGuia) ocultarSmartTooltip();
+                else mostrarSmartTooltip(btnGuia, obtenerInfoTooltipStat('guia_rapida'));
             });
+        }
+
+        const btnTz = document.getElementById('btnToggleTimezone');
+        if (btnTz) {
+            btnTz.addEventListener('mouseenter', function() {
+                mostrarSmartTooltip(btnTz, obtenerInfoTooltipStat('tz_toggle'));
+            });
+            btnTz.addEventListener('mouseleave', ocultarSmartTooltip);
         }
 
         document.querySelectorAll('.stat-item[data-stat-key]').forEach(item => {
@@ -852,16 +959,11 @@
             item.addEventListener('mouseenter', function() {
                 mostrarSmartTooltip(item, obtenerInfoTooltipStat(key));
             });
-            item.addEventListener('mouseleave', function() {
-                ocultarSmartTooltip();
-            });
+            item.addEventListener('mouseleave', ocultarSmartTooltip);
             item.addEventListener('click', function(e) {
                 e.stopPropagation();
-                if (elementoTooltipActivo === item) {
-                    ocultarSmartTooltip();
-                } else {
-                    mostrarSmartTooltip(item, obtenerInfoTooltipStat(key));
-                }
+                if (elementoTooltipActivo === item) ocultarSmartTooltip();
+                else mostrarSmartTooltip(item, obtenerInfoTooltipStat(key));
             });
         });
 
@@ -870,9 +972,7 @@
             btn.addEventListener('mouseenter', function() {
                 mostrarSmartTooltip(btn, obtenerInfoTooltipFiltro(key));
             });
-            btn.addEventListener('mouseleave', function() {
-                ocultarSmartTooltip();
-            });
+            btn.addEventListener('mouseleave', ocultarSmartTooltip);
         });
 
         const badgeClima = document.getElementById('climaUbicacionBadge');
@@ -880,9 +980,7 @@
             badgeClima.addEventListener('mouseenter', function() {
                 mostrarSmartTooltip(badgeClima, obtenerInfoTooltipStat('clima_hoy'));
             });
-            badgeClima.addEventListener('mouseleave', function() {
-                ocultarSmartTooltip();
-            });
+            badgeClima.addEventListener('mouseleave', ocultarSmartTooltip);
             badgeClima.addEventListener('click', function(e) {
                 e.stopPropagation();
                 ocultarSmartTooltip();
@@ -895,20 +993,14 @@
             badgeLod.addEventListener('mouseenter', function() {
                 mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info'));
             });
-            badgeLod.addEventListener('mouseleave', function() {
-                ocultarSmartTooltip();
-            });
+            badgeLod.addEventListener('mouseleave', ocultarSmartTooltip);
             badgeLod.addEventListener('click', function(e) {
                 e.stopPropagation();
-                if (elementoTooltipActivo === badgeLod) {
-                    ocultarSmartTooltip();
-                } else {
-                    mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info'));
-                }
+                if (elementoTooltipActivo === badgeLod) ocultarSmartTooltip();
+                else mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info'));
             });
         }
 
-        // Cerrar tooltips al tocar fuera en celular o hacer scroll
         document.addEventListener('click', function(e) {
             ocultarSmartTooltip();
             const canvas = document.getElementById('hashrateChart');
@@ -933,6 +1025,9 @@
     }
 
     function formatearFechaTooltip(d) {
+        if (fmtFechaHoraCache) {
+            return fmtFechaHoraCache.format(d).replace(',', '');
+        }
         let dia = String(d.getDate()).padStart(2, '0');
         let mes = String(d.getMonth() + 1).padStart(2, '0');
         let anio = String(d.getFullYear()).slice(-2);
@@ -941,39 +1036,23 @@
         return `${dia}/${mes}/${anio} ${horas}:${mins}`;
     }
 
-    // En 7d y 30d SIEMPRE muestra dos líneas: Hora arriba ("22:02") y Fecha abajo ("18/11")
     function formatearEtiquetaEjeX(d, rango, spanVisibleSeg) {
-        let horas = String(d.getHours()).padStart(2, '0');
-        let mins = String(d.getMinutes()).padStart(2, '0');
-        let horaStr = `${horas}:${mins}`;
+        let horaStr = fmtSoloHoraCache
+            ? fmtSoloHoraCache.format(d)
+            : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         if (rango === '7d' || rango === '30d' || (spanVisibleSeg && spanVisibleSeg > 86400)) {
-            let dia = String(d.getDate()).padStart(2, '0');
-            let mes = String(d.getMonth() + 1).padStart(2, '0');
-            return [horaStr, `${dia}/${mes}`];
+            let dmStr = fmtDiaMesCache
+                ? fmtDiaMesCache.format(d)
+                : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+            return [horaStr, dmStr];
         }
         return horaStr;
     }
 
     function obtenerPasoExactoMinutos(spanSegundos, maxTicksDeseados) {
         const pasosPermitidos = [
-            60,         // 1 minuto exacto
-            120,        // 2 minutos
-            180,        // 3 minutos
-            300,        // 5 minutos
-            600,        // 10 minutos
-            900,        // 15 minutos
-            1800,       // 30 minutos
-            3600,       // 1 hora
-            7200,       // 2 horas
-            10800,      // 3 horas
-            14400,      // 4 horas
-            21600,      // 6 horas
-            43200,      // 12 horas
-            86400,      // 1 día
-            172800,     // 2 días
-            259200,     // 3 días
-            345600,     // 4 días
-            432000      // 5 días
+            60, 120, 180, 300, 600, 900, 1800, 3600, 7200, 10800,
+            14400, 21600, 43200, 86400, 172800, 259200, 345600, 432000
         ];
         const pasoIdeal = spanSegundos / Math.max(2, maxTicksDeseados);
         for (let i = 0; i < pasosPermitidos.length; i++) {
@@ -982,13 +1061,12 @@
         return 432000;
     }
 
-    // Determina el intervalo de agrupación ideal según el nivel de zoom (3m en 6h/24h -> 2m medio -> 1m cerca; 15m en 7d; 30m en 30d)
     function calcularPasoAgrupacionLOD(spanSegundos) {
-        if (spanSegundos <= 5400) return 60;      // Zoom <= 90 min: 1 minuto exacto (60s)
-        if (spanSegundos <= 18000) return 120;    // Zoom <= 5 horas: 2 minutos (120s)
-        if (spanSegundos <= 90000) return 180;    // Vista 6h y 24h: 3 minutos (180s)
-        if (spanSegundos <= 650000) return 900;   // Vista 7 días: 15 minutos (900s)
-        return 1800;                              // Vista 30 días: 30 minutos (1800s)
+        if (spanSegundos <= 5400) return 60;
+        if (spanSegundos <= 18000) return 120;
+        if (spanSegundos <= 90000) return 180;
+        if (spanSegundos <= 650000) return 900;
+        return 1800;
     }
 
     function actualizarBadgeLOD(pasoSeg) {
@@ -998,19 +1076,14 @@
         let txtRes = mins >= 60 ? `⚡ ${Math.round(mins / 60)}h` : `⚡ ${mins}m`;
         if (rangoActual === '7d' || rangoActual === '30d') {
             const diasMeta = rangoActual === '30d' ? 30 : 7;
-            if (diasRealesGrabados < diasMeta) {
-                txtRes += ` (${diasRealesGrabados}d/${diasMeta}d)`;
-            }
+            if (diasRealesGrabados < diasMeta) txtRes += ` (${diasRealesGrabados}d/${diasMeta}d)`;
         } else if (rangoActual === '6h' || rangoActual === '24h') {
             const horasMeta = rangoActual === '24h' ? 24 : 6;
-            if (horasRealesGrabadas > 0 && horasRealesGrabadas < horasMeta - 0.3) {
-                txtRes += ` (${horasRealesGrabadas}h/${horasMeta}h)`;
-            }
+            if (horasRealesGrabadas > 0 && horasRealesGrabadas < horasMeta - 0.3) txtRes += ` (${horasRealesGrabadas}h/${horasMeta}h)`;
         }
         el.innerText = txtRes;
     }
 
-    // Sincroniza la memoria interna del plugin chartjs-plugin-zoom cuando cambiamos entre 6h, 24h, 7d y 30d
     function fijarEscalaExactaEnChart(chart, minX, maxX) {
         if (!chart) return;
         chart.options.scales.x.min = minX;
@@ -1031,7 +1104,6 @@
         }
     }
 
-    // Encajona estrictamente el eje X dentro de [limiteDatosIzqGlobal, limiteDatosDerGlobal]
     function forzarLimitesSinEspacioVacio(chart) {
         if (!chart || !chart.scales || !chart.scales.x) return;
         const xAxis = chart.scales.x;
@@ -1039,7 +1111,6 @@
         let curMax = xAxis.max;
         let span = curMax - curMin;
         const maxSpanTotal = limiteDatosDerGlobal - limiteDatosIzqGlobal;
-
         if (maxSpanTotal <= 0) return;
 
         if (span >= maxSpanTotal) {
@@ -1061,7 +1132,6 @@
         chart.scales.x.options.max = curMax;
     }
 
-    // Actualiza la resolución LOD (30m/15m -> 3m -> 2m -> 1m) manteniendo SIEMPRE líneas limpias sin puntos
     function actualizarPuntosYResolucionSegunZoom(chart) {
         if (!chart || !chart.scales || !chart.scales.x) return;
         forzarLimitesSinEspacioVacio(chart);
@@ -1085,11 +1155,8 @@
             chart.options.scales.y2.max = Math.max(20, g.maxErrPeriodo * 4);
         }
 
-        // Mantener siempre líneas limpias (pointRadius = 0); el punto solo aparece al pasar el dedo/mouse
         chart.data.datasets.forEach(ds => {
-            if (ds.type === 'line') {
-                ds.pointRadius = 0;
-            }
+            if (ds.type === 'line') ds.pointRadius = 0;
         });
     }
 
@@ -1125,20 +1192,80 @@
                 GRANJA_LON = Number(loc.lon);
                 GRANJA_CIUDAD = loc.city;
                 GRANJA_PAIS = loc.country || '';
+                if (loc.tz) GRANJA_TIMEZONE = loc.tz;
                 return true;
             }
         } catch (e) {}
         return false;
     }
 
+    function actualizarPreviewModalMapa(lat, lon, city, country) {
+        tempLocSeleccionada = { lat: Number(lat), lon: Number(lon), city: city || 'Ubicación personalizada', country: country || '' };
+        const txt = document.getElementById('farmLocPreviewTxt');
+        const coords = document.getElementById('farmLocCoordsTxt');
+        if (txt) txt.innerText = country ? `${tempLocSeleccionada.city}, ${country}` : tempLocSeleccionada.city;
+        if (coords) coords.innerText = `${tempLocSeleccionada.lat.toFixed(4)}, ${tempLocSeleccionada.lon.toFixed(4)}`;
+    }
+
+    async function resolverNombrePorCoordenadas(lat, lon) {
+        actualizarPreviewModalMapa(lat, lon, 'Detectando ciudad...', '');
+        try {
+            const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`);
+            if (r.ok) {
+                const j = await r.json();
+                const city = j.city || j.locality || j.principalSubdivision || 'Ubicación en Mapa';
+                const country = j.countryName || '';
+                actualizarPreviewModalMapa(lat, lon, city, country);
+                return;
+            }
+        } catch (e) {}
+        actualizarPreviewModalMapa(lat, lon, 'Ubicación en Mapa', '');
+    }
+
+    function inicializarMapaUbicacion(lat, lon) {
+        if (typeof L === 'undefined') return;
+        const mapEl = document.getElementById('farmInteractiveMap');
+        if (!mapEl) return;
+
+        if (!farmMap) {
+            farmMap = L.map('farmInteractiveMap', { zoomControl: true }).setView([lat, lon], 11);
+            // Capa de Google Maps (calles + ciudades, sin API Key)
+            L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                maxZoom: 19,
+                attribution: '&copy; Google Maps'
+            }).addTo(farmMap);
+
+            farmMarker = L.marker([lat, lon], { draggable: true }).addTo(farmMap);
+
+            farmMarker.on('dragend', function(e) {
+                const pos = e.target.getLatLng();
+                resolverNombrePorCoordenadas(pos.lat, pos.lng);
+            });
+
+            farmMap.on('click', function(e) {
+                farmMarker.setLatLng(e.latlng);
+                resolverNombrePorCoordenadas(e.latlng.lat, e.latlng.lng);
+            });
+        } else {
+            farmMap.setView([lat, lon], 11);
+            farmMarker.setLatLng([lat, lon]);
+        }
+
+        setTimeout(() => {
+            if (farmMap) farmMap.invalidateSize();
+        }, 160);
+    }
+
     function abrirModalUbicacionGranja() {
         const bg = document.getElementById('farmLocModalBg');
         const inp = document.getElementById('farmLocSearchInput');
+        const resBox = document.getElementById('farmLocResults');
         if (bg) bg.style.display = 'flex';
-        if (inp) {
-            inp.value = GRANJA_CIUDAD || '';
-            inp.focus();
-        }
+        if (resBox) resBox.innerHTML = '';
+        if (inp) inp.value = GRANJA_CIUDAD || '';
+
+        actualizarPreviewModalMapa(GRANJA_LAT, GRANJA_LON, GRANJA_CIUDAD, GRANJA_PAIS);
+        inicializarMapaUbicacion(GRANJA_LAT, GRANJA_LON);
     }
 
     function cerrarModalUbicacionGranja() {
@@ -1157,7 +1284,7 @@
             const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=es&format=json`);
             const data = await r.json();
             if (!data.results || data.results.length === 0) {
-                resBox.innerHTML = '<div style="font-size:12px; color:#ff5252;">No se encontraron resultados. Prueba otro nombre.</div>';
+                resBox.innerHTML = '<div style="font-size:12px; color:#ff5252;">No se encontraron resultados. Prueba otro nombre o toca el mapa.</div>';
                 return;
             }
             resBox.innerHTML = '';
@@ -1167,7 +1294,12 @@
                 const region = item.admin1 ? `, ${item.admin1}` : '';
                 div.innerHTML = `<b>${item.name}</b>${region} <span style="color:#94a3b8;">(${item.country || ''})</span>`;
                 div.onclick = function() {
-                    seleccionarUbicacionGranja(item.latitude, item.longitude, item.name, item.country || '');
+                    actualizarPreviewModalMapa(item.latitude, item.longitude, item.name, item.country || '');
+                    if (farmMap && farmMarker) {
+                        farmMap.setView([item.latitude, item.longitude], 11);
+                        farmMarker.setLatLng([item.latitude, item.longitude]);
+                    }
+                    resBox.innerHTML = '';
                 };
                 resBox.appendChild(div);
             });
@@ -1176,13 +1308,19 @@
         }
     }
 
-    function seleccionarUbicacionGranja(lat, lon, city, country) {
-        GRANJA_LAT = Number(lat);
-        GRANJA_LON = Number(lon);
-        GRANJA_CIUDAD = city;
-        GRANJA_PAIS = country;
+    function confirmarUbicacionMapa() {
+        if (!tempLocSeleccionada) {
+            cerrarModalUbicacionGranja();
+            return;
+        }
+        GRANJA_LAT = tempLocSeleccionada.lat;
+        GRANJA_LON = tempLocSeleccionada.lon;
+        GRANJA_CIUDAD = tempLocSeleccionada.city;
+        GRANJA_PAIS = tempLocSeleccionada.country;
         try {
-            localStorage.setItem(STORAGE_KEY_LOC, JSON.stringify({ lat: GRANJA_LAT, lon: GRANJA_LON, city, country }));
+            localStorage.setItem(STORAGE_KEY_LOC, JSON.stringify({
+                lat: GRANJA_LAT, lon: GRANJA_LON, city: GRANJA_CIUDAD, country: GRANJA_PAIS, tz: GRANJA_TIMEZONE
+            }));
         } catch (e) {}
         cerrarModalUbicacionGranja();
         cargarClimaDeLaGranja();
@@ -1200,6 +1338,7 @@
                     GRANJA_LON = Number(jGeo.longitude);
                     GRANJA_CIUDAD = jGeo.city;
                     GRANJA_PAIS = jGeo.country_name || '';
+                    if (jGeo.timezone) GRANJA_TIMEZONE = jGeo.timezone;
                 }
             }
         } catch (e) {}
@@ -1214,12 +1353,25 @@
             const ciudad = GRANJA_CIUDAD;
             const ahoraTs = Math.floor(Date.now() / 1000);
 
-            // Open-Meteo unificado (sin sobrescritura desfasada de wttr.in)
-            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&past_days=30&forecast_days=1&timeformat=unixtime&timezone=GMT`;
+            // forecast_days=2 + timezone=auto evita cortes nocturnos en América y devuelve la zona horaria IANA exacta (con DST)
+            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&past_days=30&forecast_days=2&timeformat=unixtime&timezone=auto`;
 
             const rMet = await fetch(urlMeteo, { cache: 'no-store' });
             if (!rMet || !rMet.ok) return;
             const jMet = await rMet.json();
+
+            if (jMet.timezone) {
+                GRANJA_TIMEZONE = jMet.timezone;
+                reconstruirFormateadoresTiempo();
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY_LOC);
+                    if (raw) {
+                        const obj = JSON.parse(raw);
+                        obj.tz = GRANJA_TIMEZONE;
+                        localStorage.setItem(STORAGE_KEY_LOC, JSON.stringify(obj));
+                    }
+                } catch (e) {}
+            }
 
             if (jMet.hourly && jMet.hourly.time && jMet.hourly.temperature_2m) {
                 cacheClimaExterior = [];
@@ -1230,7 +1382,7 @@
 
                 for (let i = 0; i < times.length; i++) {
                     const tsHora = Number(times[i]);
-                    if (tsHora <= ahoraTs + 900 && temps[i] !== null && temps[i] !== undefined) {
+                    if (tsHora <= ahoraTs + 1800 && temps[i] !== null && temps[i] !== undefined) {
                         let tReal = Math.round(Number(temps[i]));
                         let hum = (hums[i] !== undefined && hums[i] !== null) ? Number(hums[i]) : 60;
                         let stCalc = calcularSensacionTermicaNOAA(tReal, hum, appTemps[i]);
@@ -1265,7 +1417,7 @@
                     const ultimoClima = cacheClimaExterior[cacheClimaExterior.length - 1];
                     const tMostrar = tempRealHoy !== null ? tempRealHoy : ultimoClima.temp;
                     const sMostrar = sensRealHoy !== null ? sensRealHoy : ultimoClima.sensacion;
-                    badge.innerHTML = `📍 <span translate="no">${ciudad}</span>: <b translate="no">${tMostrar}°C</b> <span style="color:#c084fc;" translate="no">(Sensación ${sMostrar}°C)</span> <span style="opacity:0.75;">✎</span>`;
+                    badge.innerHTML = `📍 <span translate="no">${ciudad}</span>: <b translate="no">${tMostrar}°C</b> <span style="color:#c084fc;" translate="no">(Sensación ${sMostrar}°C)</span> <span style="opacity:0.75;">🗺️</span>`;
                     badge.style.display = 'inline-block';
                     document.getElementById('statClimaHoy').innerHTML = `${tMostrar}°C / <span style="color:#c084fc;">${sMostrar}°C</span>`;
                 }
@@ -1302,7 +1454,6 @@
         };
     }
 
-    // Plugin profesional 1: Sombreado de zona sin historial previo + Línea Promedio + Línea Corte Térmico + Etiquetas de Ejes + Cuadrícula 1m
     const pluginNumerosDentroGrafico = {
         id: 'numerosDentroGrafico',
         beforeDatasetsDraw: function(chart) {
@@ -1379,7 +1530,6 @@
                 }
             }
 
-            // Línea horizontal de Promedio de Hashrate con etiqueta discreta
             if (yAxis && promedioHrOperativoGlobal > 0 && visibilidadCurvas['hr'] !== false) {
                 const yProm = yAxis.getPixelForValue(promedioHrOperativoGlobal);
                 if (yProm >= ca.top + 8 && yProm <= ca.bottom - 8) {
@@ -1403,7 +1553,6 @@
                 }
             }
 
-            // Línea horizontal de Corte Térmico configurada por el usuario con etiqueta clara
             if (y1Axis) {
                 const corteCfg = obtenerCorteTempActual();
                 const yCorte = y1Axis.getPixelForValue(corteCfg.temp);
@@ -1444,7 +1593,6 @@
                         ctx.fillText(txt, ca.left + 5, yPos + offsetY);
                     }
                 });
-                // Encabezado discreto de unidad en eje izquierdo
                 if (ca.top >= 18) {
                     ctx.font = 'bold 9.5px sans-serif';
                     ctx.fillStyle = 'rgba(96, 165, 250, 0.85)';
@@ -1634,9 +1782,7 @@
                 const info = obtenerInfoTooltipCurva(ds.id, !chartInstance.isDatasetVisible(index));
                 mostrarSmartTooltip(btn, info);
             });
-            btn.addEventListener('mouseleave', function() {
-                ocultarSmartTooltip();
-            });
+            btn.addEventListener('mouseleave', ocultarSmartTooltip);
 
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -1644,9 +1790,8 @@
                 const esPantallaTactil = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
                 if (tocoIconoInfo && esPantallaTactil) {
-                    if (elementoTooltipActivo === btn) {
-                        ocultarSmartTooltip();
-                    } else {
+                    if (elementoTooltipActivo === btn) ocultarSmartTooltip();
+                    else {
                         const info = obtenerInfoTooltipCurva(ds.id, !chartInstance.isDatasetVisible(index));
                         mostrarSmartTooltip(btn, info);
                     }
@@ -1732,9 +1877,7 @@
             actualizarRectCache();
             if (e.touches && e.touches.length === 1) {
                 let ahora = Date.now();
-                if (ahora - ultimoToqueTs < 280) {
-                    resetearZoomGrafico();
-                }
+                if (ahora - ultimoToqueTs < 280) resetearZoomGrafico();
                 ultimoToqueTs = ahora;
                 validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
             } else {
@@ -1787,29 +1930,20 @@
             if (hVal > 0 && ambVal === null && i === rawFechas.length - 1 && tempAmbActual > 0) ambVal = tempAmbActual;
 
             let errVal = (rawErr.length > i && rawErr[i] !== null) ? Number(rawErr[i]) : 0;
-            if (hVal === 0 || (i > 0 && Number(rawHr[i - 1] || 0) === 0)) {
-                errVal = 0;
-            }
+            if (hVal === 0 || (i > 0 && Number(rawHr[i - 1] || 0) === 0)) errVal = 0;
 
             let cads = (rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales;
             let tMinVal = hVal > 0 ? extraerTempMinimaPlaca(cads, tVal) : null;
-
             let tsMinuto = Math.floor(tsOriginal / 60) * 60;
 
             if (!porMinuto.has(tsMinuto)) {
                 let objClima = obtenerClimaParaTimestamp(tsMinuto);
                 porMinuto.set(tsMinuto, {
-                    ts: tsMinuto,
-                    hrSum: hVal,
-                    hrCount: 1,
-                    hr: hVal,
-                    temp: tVal,
-                    tempMin: tMinVal,
-                    amb: ambVal,
+                    ts: tsMinuto, hrSum: hVal, hrCount: 1, hr: hVal,
+                    temp: tVal, tempMin: tMinVal, amb: ambVal,
                     clima: objClima ? objClima.temp : null,
                     sensacion: objClima ? objClima.sensacion : null,
-                    err: errVal,
-                    cads: cads
+                    err: errVal, cads: cads
                 });
             } else {
                 let item = porMinuto.get(tsMinuto);
@@ -1861,17 +1995,9 @@
 
                 if (!mapaBuckets.has(bTs)) {
                     mapaBuckets.set(bTs, {
-                        ts: bTs,
-                        hrSum: c.hr > 0 ? c.hr : 0,
-                        hrCount: c.hr > 0 ? 1 : 0,
-                        hr: c.hr,
-                        temp: c.temp,
-                        tempMin: c.tempMin,
-                        amb: c.amb,
-                        clima: c.clima,
-                        sensacion: c.sensacion,
-                        err: c.err,
-                        cads: c.cads
+                        ts: bTs, hrSum: c.hr > 0 ? c.hr : 0, hrCount: c.hr > 0 ? 1 : 0, hr: c.hr,
+                        temp: c.temp, tempMin: c.tempMin, amb: c.amb,
+                        clima: c.clima, sensacion: c.sensacion, err: c.err, cads: c.cads
                     });
                 } else {
                     let b = mapaBuckets.get(bTs);
@@ -2153,9 +2279,7 @@
             }
             actualizarPuntosYResolucionSegunZoom(chartInstance);
             chartInstance.update('none');
-            if (!esActualizacionEnVivo) {
-                construirLeyendasPildora();
-            }
+            if (!esActualizacionEnVivo) construirLeyendasPildora();
         } else {
             chartInstance = new Chart(ctx, { 
                 type: 'line', 
@@ -2175,19 +2299,10 @@
                             external: renderizarTooltipExterno
                         },
                         zoom: {
-                            limits: {
-                                x: { 
-                                    min: limiteIzq,
-                                    max: limiteDer,
-                                    minRange: 300 
-                                }
-                            },
+                            limits: { x: { min: limiteIzq, max: limiteDer, minRange: 300 } },
                             pan: {
-                                enabled: true,
-                                mode: 'x',
-                                onPan: function({chart}) {
-                                    forzarLimitesSinEspacioVacio(chart);
-                                },
+                                enabled: true, mode: 'x',
+                                onPan: function({chart}) { forzarLimitesSinEspacioVacio(chart); },
                                 onPanComplete: function({chart}) {
                                     actualizarPuntosYResolucionSegunZoom(chart);
                                     chart.update('none');
@@ -2195,12 +2310,8 @@
                                 }
                             },
                             zoom: {
-                                wheel: { enabled: true },
-                                pinch: { enabled: true },
-                                mode: 'x',
-                                onZoom: function({chart}) {
-                                    forzarLimitesSinEspacioVacio(chart);
-                                },
+                                wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x',
+                                onZoom: function({chart}) { forzarLimitesSinEspacioVacio(chart); },
                                 onZoomComplete: function({chart}) {
                                     actualizarPuntosYResolucionSegunZoom(chart);
                                     chart.update('none');
@@ -2213,11 +2324,7 @@
                     },
                     scales: { 
                         x: { 
-                            type: 'linear',
-                            bounds: 'ticks',
-                            offset: false,
-                            min: limiteIzq,
-                            max: limiteDer,
+                            type: 'linear', bounds: 'ticks', offset: false, min: limiteIzq, max: limiteDer,
                             grid: { color: 'rgba(255,255,255,0.05)' },
                             afterBuildTicks: function(axis) {
                                 const start = axis.min;
@@ -2231,9 +2338,7 @@
 
                                 const pasoSeg = obtenerPasoExactoMinutos(span, maxTicks);
                                 const margenBordeSeg = pasoSeg * 0.42;
-                                const nuevosTicks = [];
-
-                                nuevosTicks.push({ value: start });
+                                const nuevosTicks = [{ value: start }];
 
                                 const primerTickIntermedio = Math.ceil(start / pasoSeg) * pasoSeg;
                                 for (let t = primerTickIntermedio; t <= end; t += pasoSeg) {
@@ -2241,14 +2346,11 @@
                                         nuevosTicks.push({ value: t });
                                     }
                                 }
-
                                 nuevosTicks.push({ value: end });
-
                                 axis.ticks = nuevosTicks;
                             },
                             ticks: { 
-                                minRotation: 0, maxRotation: 0, autoSkip: false,
-                                align: 'inner',
+                                minRotation: 0, maxRotation: 0, autoSkip: false, align: 'inner',
                                 color: '#8b8d9c', font: { size: 10.5 },
                                 callback: function(value, index, ticksArr) {
                                     const spanVis = (ticksArr && ticksArr.length > 1) ? (ticksArr[ticksArr.length - 1].value - ticksArr[0].value) : 86400;
@@ -2256,17 +2358,8 @@
                                 }
                             }
                         }, 
-                        y: { 
-                            grid: { color: 'rgba(255,255,255,0.05)' }, 
-                            min: 0,
-                            ticks: { display: false }
-                        }, 
-                        y1: { 
-                            position: 'right', 
-                            grid: { drawOnChartArea: false }, 
-                            min: 0, max: 100,
-                            ticks: { display: false, stepSize: 20 }
-                        },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0, ticks: { display: false } }, 
+                        y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100, ticks: { display: false, stepSize: 20 } },
                         y2: { display: false, min: 0, max: topeEjeErrores }
                     } 
                 } 
@@ -2306,15 +2399,14 @@
                 }
             });
 
-            if (huboCambio && chartInstance) {
-                updateChart(rangoActual, true);
-            }
+            if (huboCambio && chartInstance) updateChart(rangoActual, true);
         } catch (e) {}
     }
 
     window.addEventListener('emg:live-update', actualizarGraficoEnVivoJSON);
 
     function iniciarModuloGrafico() {
+        reconstruirFormateadoresTiempo();
         inicializarEventosTooltips();
         updateChart('24h');
         cargarClimaDeLaGranja();
