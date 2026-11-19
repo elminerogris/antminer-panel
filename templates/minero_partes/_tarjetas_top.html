@@ -14,24 +14,25 @@
     }
     .top-miner-left {
         display: flex;
-        align-items: center;
-        gap: 14px;
-        flex-wrap: wrap;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
     }
     .btn-back-pro {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
+        width: 34px;
+        height: 34px;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border-color);
         color: var(--text-main);
         text-decoration: none;
-        font-size: 1.2em;
+        font-size: 1.15em;
         font-weight: bold;
         transition: all 0.2s ease;
+        flex-shrink: 0;
     }
     .btn-back-pro:hover {
         border-color: var(--accent-blue);
@@ -109,7 +110,7 @@
     .miner-sub-meta {
         color: var(--text-muted);
         font-size: 0.82em;
-        margin-top: 4px;
+        margin-top: 2px;
         font-family: monospace;
         display: flex;
         align-items: center;
@@ -119,15 +120,57 @@
     .meta-pill-tag {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 1px 8px;
-        border-radius: 4px;
+        padding: 3px 8px;
+        border-radius: 5px;
         color: #d1d3e0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Botón Profesional SVG de Copiar IP en Cabecera */
+    .btn-copy-ip-top {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(51, 102, 255, 0.14);
+        border: 1px solid rgba(59, 130, 246, 0.45);
+        color: #60a5fa;
+        padding: 2px 7px;
+        border-radius: 5px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-size: 0.84em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        user-select: none;
+    }
+    .btn-copy-ip-top svg {
+        width: 12px;
+        height: 12px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+    }
+    .btn-copy-ip-top:hover {
+        background: rgba(51, 102, 255, 0.28);
+        border-color: #60a5fa;
+        color: #fff;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+    }
+    .btn-copy-ip-top.copied {
+        background: rgba(0, 230, 118, 0.16);
+        border-color: #00e676;
+        color: #00e676;
     }
 
     /* Formulario inline para cambiar el alias del minero */
     .form-edit-name-inline {
         display: none;
-        margin-top: 8px;
+        margin-top: 6px;
         gap: 6px;
         align-items: center;
         flex-wrap: wrap;
@@ -264,6 +307,9 @@
         .top-miner-header {
             padding: 12px;
         }
+        .miner-name-h1 {
+            font-size: 1.3em;
+        }
     }
 </style>
 
@@ -279,33 +325,37 @@
 <!-- Cabecera del Dispositivo -->
 <div class="top-miner-header">
     <div class="top-miner-left">
-        <a href="/" class="btn-back-pro" data-top-tt="btn_volver">←</a>
-        <div>
-            <div class="miner-title-row">
-                <h1 class="miner-name-h1" id="nombreTexto" translate="no">{{ nombre }}</h1>
-                <span class="miner-status-badge {{ 'offline' if offline else 'online' }}" data-top-tt="badge_estado" translate="no">
-                    <span class="miner-pulse-dot"></span>
-                    {{ 'SIN CONEXIÓN' if offline else 'EN LÍNEA' }}
-                </span>
-                <button type="button" class="btn-edit-name-pro" data-top-tt="btn_editar_nombre" onclick="toggleEditarNombrePro()">✏️ Renombrar</button>
-            </div>
-
-            <div class="miner-sub-meta" translate="no">
-                <span class="meta-pill-tag">🖥️ {{ modelo }}</span>
-                <span class="meta-pill-tag" style="cursor:pointer;" onclick="copiarIpCabecera('{{ ip }}', this)" title="Clic para copiar IP">🌐 {{ ip }} 📋</span>
-                <span class="meta-pill-tag">⏱️ Uptime: <b style="color:var(--text-main);">{{ ultimo.uptime }}</b></span>
-                {% if ultimo.farm_city is defined and ultimo.farm_city %}
-                <span class="meta-pill-tag" style="color:#38bdf8; border-color:rgba(56,189,248,0.25);">📍 {{ ultimo.farm_city }}</span>
-                {% endif %}
-            </div>
-
-            <form id="formNombrePro" class="form-edit-name-inline" action="/guardar_nombre" method="POST">
-                <input type="hidden" name="ip" value="{{ ip }}">
-                <input type="text" name="nombre" value="{{ nombre }}" class="input-name-pro" placeholder="Alias del minero..." required>
-                <button type="submit" class="btn-save-name-pro">💾 Guardar</button>
-                <button type="button" class="btn-edit-name-pro" onclick="toggleEditarNombrePro()">Cancelar</button>
-            </form>
+        <div class="miner-title-row">
+            <a href="/" class="btn-back-pro" data-top-tt="btn_volver">←</a>
+            <h1 class="miner-name-h1" id="nombreTexto" translate="no">{{ nombre }}</h1>
+            <span class="miner-status-badge {{ 'offline' if offline else 'online' }}" data-top-tt="badge_estado" translate="no">
+                <span class="miner-pulse-dot"></span>
+                {{ 'SIN CONEXIÓN' if offline else 'EN LÍNEA' }}
+            </span>
+            <button type="button" class="btn-edit-name-pro" data-top-tt="btn_editar_nombre" onclick="toggleEditarNombrePro()">✏️ Renombrar</button>
         </div>
+
+        <div class="miner-sub-meta" translate="no">
+            <span class="meta-pill-tag">🖥️ {{ modelo }}</span>
+            <span class="meta-pill-tag">
+                <span>🌐 {{ ip }}</span>
+                <button type="button" class="btn-copy-ip-top" onclick="copiarIpCabecera('{{ ip }}', this)" title="Copiar dirección IP">
+                    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    <span>Copiar</span>
+                </button>
+            </span>
+            <span class="meta-pill-tag">⏱️ Uptime: <b style="color:var(--text-main);">{{ ultimo.uptime }}</b></span>
+            {% if ultimo.farm_city is defined and ultimo.farm_city %}
+            <span class="meta-pill-tag" style="color:#38bdf8; border-color:rgba(56,189,248,0.25);">📍 {{ ultimo.farm_city }}</span>
+            {% endif %}
+        </div>
+
+        <form id="formNombrePro" class="form-edit-name-inline" action="/guardar_nombre" method="POST">
+            <input type="hidden" name="ip" value="{{ ip }}">
+            <input type="text" name="nombre" value="{{ nombre }}" class="input-name-pro" placeholder="Alias del minero..." required>
+            <button type="submit" class="btn-save-name-pro">💾 Guardar</button>
+            <button type="button" class="btn-edit-name-pro" onclick="toggleEditarNombrePro()">Cancelar</button>
+        </form>
     </div>
 </div>
 
@@ -422,6 +472,8 @@
 </div>
 
 <script>
+    const SVG_TOP_CHECK = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
     const INFO_TOOLTIPS_TOP = {
         'btn_volver': {
             titulo: '← Volver al Resumen General',
@@ -476,11 +528,16 @@
         f.style.display = (f.style.display === 'flex') ? 'none' : 'flex';
     }
 
-    function copiarIpCabecera(ipTxt, elTag) {
+    function copiarIpCabecera(ipTxt, btnEl) {
+        if (!ipTxt) return;
         navigator.clipboard.writeText(ipTxt).then(() => {
-            const orig = elTag.innerHTML;
-            elTag.innerHTML = `✅ ${ipTxt} Copiada`;
-            setTimeout(() => { elTag.innerHTML = orig; }, 1400);
+            const origHtml = btnEl.innerHTML;
+            btnEl.classList.add('copied');
+            btnEl.innerHTML = `${SVG_TOP_CHECK}<span>Copiado</span>`;
+            setTimeout(() => {
+                btnEl.classList.remove('copied');
+                btnEl.innerHTML = origHtml;
+            }, 1500);
         });
     }
 
