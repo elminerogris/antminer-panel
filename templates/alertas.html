@@ -1,117 +1,581 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    .grid-alertas { display: grid; grid-template-columns: 360px 1fr; gap: 20px; margin-bottom: 20px; }
-    @media (max-width: 900px) { .grid-alertas { grid-template-columns: 1fr; } }
-    .card { background: var(--bg-card); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); }
-    .panel-title { font-weight: bold; font-size: 1.08em; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    
-    .form-group { margin-bottom: 13px; }
-    .form-label { display: block; font-size: 0.78em; color: var(--text-muted); font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
-    .form-input { width: 100%; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 9px 12px; border-radius: 6px; font-size: 0.88em; box-sizing: border-box; outline: none; }
-    .form-input:focus { border-color: var(--accent-blue); }
+    /* Encabezado y KPIs de Alertas */
+    .alerts-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-bottom: 18px;
+        padding: 16px 20px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+    .alerts-header h1 {
+        margin: 0;
+        font-size: 1.42em;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .alerts-header p {
+        margin: 4px 0 0 0;
+        font-size: 0.84em;
+        color: var(--text-muted);
+    }
+    .bot-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.78em;
+        font-weight: bold;
+        font-family: monospace;
+    }
+    .bot-status-pill.active {
+        background: rgba(0, 230, 118, 0.12);
+        color: #00e676;
+        border: 1px solid rgba(0, 230, 118, 0.35);
+        box-shadow: 0 0 12px rgba(0, 230, 118, 0.2);
+    }
+    .bot-status-pill.paused {
+        background: rgba(255, 179, 0, 0.14);
+        color: #ffb300;
+        border: 1px solid rgba(255, 179, 0, 0.4);
+    }
+    .bot-status-pill.unconf {
+        background: rgba(255, 82, 82, 0.12);
+        color: #ff5252;
+        border: 1px solid rgba(255, 82, 82, 0.35);
+    }
 
-    .btn-save { background: var(--accent-blue); color: #fff; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.85em; width: 100%; margin-top: 6px; }
-    .btn-test { background: rgba(0, 230, 118, 0.12); color: var(--accent-green); border: 1px solid var(--accent-green); padding: 9px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.84em; width: 100%; margin-top: 8px; }
-    .btn-clear { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 5px; font-size: 0.78em; cursor: pointer; font-weight: bold; }
-    .btn-clear:hover { color: var(--accent-red); border-color: var(--accent-red); }
+    /* Notificación Flash del Servidor */
+    .alert-msg-box {
+        background: linear-gradient(90deg, rgba(51, 102, 255, 0.16) 0%, rgba(51, 102, 255, 0.05) 100%);
+        border: 1px solid rgba(59, 130, 246, 0.5);
+        color: #fff;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 18px;
+        font-size: 0.86em;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.2);
+    }
 
-    .alert-list { display: flex; flex-direction: column; gap: 10px; max-height: 540px; overflow-y: auto; }
-    .alert-item { background: var(--bg-input); border-left: 4px solid var(--accent-red); padding: 12px 15px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .alert-item.warn { border-left-color: #ffb300; }
-    .alert-item.info { border-left-color: var(--accent-blue); }
-    .alert-time { font-family: monospace; font-size: 0.78em; color: var(--text-muted); }
-    .alert-msg-box { background: rgba(51, 102, 255, 0.12); border: 1px solid var(--accent-blue); color: var(--text-main); padding: 11px 15px; border-radius: 6px; margin-bottom: 16px; font-size: 0.86em; }
-    .help-box { background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 10px 12px; border-radius: 6px; font-size: 0.78em; color: var(--text-muted); line-height: 1.45; margin-top: 12px; }
+    /* Grilla Principal */
+    .grid-alertas {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 20px;
+        align-items: start;
+    }
+    @media (max-width: 960px) {
+        .grid-alertas { grid-template-columns: 1fr; }
+    }
+
+    .card-pro {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .card-pro-header {
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.015);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-weight: bold;
+        font-size: 1.02em;
+        color: var(--text-main);
+    }
+    .card-pro-body {
+        padding: 18px;
+    }
+
+    /* Formulario de Telegram */
+    .form-group { margin-bottom: 15px; }
+    .form-label {
+        display: block;
+        font-size: 0.74em;
+        color: var(--text-muted);
+        font-weight: bold;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+    }
+    .input-icon-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .form-input {
+        width: 100%;
+        background: rgba(10, 12, 18, 0.7);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 9px 12px;
+        border-radius: 7px;
+        font-family: monospace;
+        font-size: 0.88em;
+        box-sizing: border-box;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    .form-input.with-btn { padding-right: 36px; }
+    .form-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+    }
+    .btn-eye-token {
+        position: absolute;
+        right: 6px;
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 1em;
+        padding: 4px 6px;
+        border-radius: 4px;
+    }
+    .btn-eye-token:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+
+    /* Píldoras rápidas de temperatura */
+    .temp-presets {
+        display: flex;
+        gap: 5px;
+        margin-top: 6px;
+    }
+    .t-preset-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 2px 7px;
+        border-radius: 12px;
+        font-size: 0.72em;
+        font-family: monospace;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .t-preset-pill:hover {
+        color: #fff;
+        border-color: #ffb300;
+        background: rgba(255, 179, 0, 0.15);
+    }
+
+    /* Interruptor Switch Moderno */
+    .switch-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(10, 12, 18, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        padding: 10px 12px;
+        border-radius: 7px;
+        margin-bottom: 16px;
+    }
+    .switch-label { font-size: 0.84em; font-weight: bold; color: var(--text-main); cursor: pointer; }
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 42px;
+        height: 22px;
+        flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #2c3044;
+        transition: .25s;
+        border-radius: 22px;
+    }
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .25s;
+        border-radius: 50%;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+        background-color: #00e676;
+        box-shadow: 0 0 10px rgba(0, 230, 118, 0.45);
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(20px);
+    }
+
+    /* Botones con Neon Glow */
+    .btn-save-pro {
+        background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
+        color: #fff;
+        border: 1px solid #60a5fa;
+        padding: 10px 15px;
+        border-radius: 7px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 0.86em;
+        width: 100%;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.4);
+        transition: all 0.2s ease;
+    }
+    .btn-save-pro:hover {
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.7);
+        transform: translateY(-1px);
+    }
+    .btn-test-pro {
+        background: rgba(0, 230, 118, 0.1);
+        color: #00e676;
+        border: 1px solid rgba(0, 230, 118, 0.45);
+        padding: 9px 14px;
+        border-radius: 7px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 0.84em;
+        width: 100%;
+        margin-top: 10px;
+        transition: all 0.2s ease;
+    }
+    .btn-test-pro:hover {
+        background: rgba(0, 230, 118, 0.22);
+        color: #fff;
+        box-shadow: 0 0 14px rgba(0, 230, 118, 0.45);
+        transform: translateY(-1px);
+    }
+    .btn-clear-pro {
+        background: rgba(255, 82, 82, 0.08);
+        color: #ff5252;
+        border: 1px solid rgba(255, 82, 82, 0.35);
+        padding: 5px 11px;
+        border-radius: 6px;
+        font-size: 0.76em;
+        cursor: pointer;
+        font-weight: bold;
+        transition: 0.18s;
+    }
+    .btn-clear-pro:hover {
+        background: rgba(255, 82, 82, 0.22);
+        color: #fff;
+        box-shadow: 0 0 10px rgba(255, 82, 82, 0.4);
+    }
+
+    /* Guía rápida desplegable */
+    .help-box-pro {
+        background: rgba(56, 189, 248, 0.06);
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        padding: 12px 14px;
+        border-radius: 7px;
+        font-size: 0.78em;
+        color: #d1d3e0;
+        line-height: 1.5;
+        margin-top: 16px;
+    }
+    .help-box-pro code {
+        background: rgba(0, 0, 0, 0.45);
+        padding: 1px 5px;
+        border-radius: 4px;
+        color: #38bdf8;
+    }
+
+    /* Barra de Filtros y Buscador del Historial */
+    .log-toolbar {
+        padding: 12px 18px;
+        background: rgba(10, 12, 18, 0.45);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .log-filter-pills {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .log-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 4px 10px;
+        border-radius: 16px;
+        font-size: 0.75em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.18s;
+    }
+    .log-pill:hover { color: #fff; border-color: #3b82f6; }
+    .log-pill.active {
+        background: rgba(51, 102, 255, 0.22);
+        color: #60a5fa;
+        border-color: #3b82f6;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+    }
+    .log-search {
+        background: rgba(10, 12, 18, 0.75);
+        border: 1px solid var(--border-color);
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 0.80em;
+        outline: none;
+        min-width: 190px;
+    }
+    .log-search:focus { border-color: #3b82f6; }
+
+    /* Lista de Incidentes */
+    .alert-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 540px;
+        overflow-y: auto;
+        padding: 16px 18px;
+    }
+    .alert-item {
+        background: rgba(10, 12, 18, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-left: 4px solid #ff5252;
+        padding: 12px 15px;
+        border-radius: 7px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        transition: background 0.15s ease;
+    }
+    .alert-item:hover { background: rgba(255, 255, 255, 0.03); }
+    .alert-item.temp { border-left-color: #ffb300; }
+    .alert-item.hashrate { border-left-color: #3b82f6; }
+
+    .alert-type-badge {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-size: 0.75em;
+        font-weight: bold;
+        font-family: monospace;
+        margin-right: 6px;
+    }
+    .alert-type-badge.temp { background: rgba(255, 179, 0, 0.15); color: #ffb300; }
+    .alert-type-badge.hashrate { background: rgba(59, 130, 246, 0.16); color: #60a5fa; }
+    .alert-type-badge.offline { background: rgba(255, 82, 82, 0.16); color: #ff5252; }
+
+    .alert-ip-link {
+        color: #60a5fa;
+        font-weight: bold;
+        font-family: monospace;
+        text-decoration: none;
+    }
+    .alert-ip-link:hover { color: #fff; text-decoration: underline; }
+    .alert-time {
+        font-family: monospace;
+        font-size: 0.78em;
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
 </style>
 
+{% set tiene_bot = (cfg.tg_token and cfg.tg_chat_id) %}
+
+<!-- Encabezado -->
+<div class="alerts-header">
+    <div>
+        <h1>🔔 Centro de Alertas y Telegram</h1>
+        <p>Recibe avisos instantáneos en tu celular ante sobrecalentamiento o caída de rendimiento en tus ASICs.</p>
+    </div>
+    {% if not tiene_bot %}
+        <span class="bot-status-pill unconf">● Bot Sin Configurar</span>
+    {% elif cfg.activas %}
+        <span class="bot-status-pill active">● Bot Activo en Vivo</span>
+    {% else %}
+        <span class="bot-status-pill paused">● Alertas Pausadas</span>
+    {% endif %}
+</div>
+
 {% if msg %}
-<div class="alert-msg-box">🔔 {{ msg }}</div>
+<div class="alert-msg-box"><span>🔔</span><span>{{ msg }}</span></div>
 {% endif %}
 
 <div class="grid-alertas">
     <!-- Columna Izquierda: Configuración de Telegram y Umbrales -->
-    <div class="card">
-        <div class="panel-title">📲 Bot de Alertas Telegram</div>
-        <form action="/alertas" method="POST">
-            <input type="hidden" name="accion" value="guardar_config">
-            
-            <div class="form-group">
-                <label class="form-label">Telegram Bot Token</label>
-                <input type="text" name="tg_token" class="form-input" value="{{ cfg.tg_token }}" placeholder="Ej: 712345678:AAH..." translate="no">
-            </div>
+    <div class="card-pro">
+        <div class="card-pro-header">
+            <span>📲 Configuración Bot Telegram</span>
+        </div>
+        <div class="card-pro-body">
+            <form action="/alertas" method="POST">
+                <input type="hidden" name="accion" value="guardar_config">
 
-            <div class="form-group">
-                <label class="form-label">Telegram Chat ID</label>
-                <input type="text" name="tg_chat_id" class="form-input" value="{{ cfg.tg_chat_id }}" placeholder="Ej: 123456789" translate="no">
-            </div>
-
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                 <div class="form-group">
-                    <label class="form-label">🔥 Alerta Temp (°C)</label>
-                    <input type="number" name="umbral_temp" class="form-input" value="{{ cfg.umbral_temp }}" required>
+                    <label class="form-label">Telegram Bot Token</label>
+                    <div class="input-icon-wrap">
+                        <input type="password" id="tgTokenInput" name="tg_token" class="form-input with-btn" value="{{ cfg.tg_token }}" placeholder="Ej: 712345678:AAH..." translate="no">
+                        <button type="button" class="btn-eye-token" onclick="toggleVisibilidadToken(this)" title="Mostrar / Ocultar Token">👁️</button>
+                    </div>
                 </div>
+
                 <div class="form-group">
-                    <label class="form-label">⚡ Hashrate Mín (TH/s)</label>
-                    <input type="number" step="0.5" name="umbral_hr" class="form-input" value="{{ cfg.umbral_hr }}" required>
+                    <label class="form-label">Telegram Chat ID</label>
+                    <input type="text" name="tg_chat_id" class="form-input" value="{{ cfg.tg_chat_id }}" placeholder="Ej: 123456789" translate="no">
                 </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">🔥 Alerta Temp (°C)</label>
+                        <input type="number" id="inputUmbralTemp" name="umbral_temp" class="form-input" value="{{ cfg.umbral_temp }}" min="40" max="100" required>
+                        <div class="temp-presets">
+                            <span class="t-preset-pill" onclick="setTempPreset(75)">75°</span>
+                            <span class="t-preset-pill" onclick="setTempPreset(80)">80°</span>
+                            <span class="t-preset-pill" onclick="setTempPreset(85)">85°</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">⚡ Hashrate Mín (TH/s)</label>
+                        <input type="number" step="0.5" name="umbral_hr" class="form-input" value="{{ cfg.umbral_hr }}" min="0" required>
+                    </div>
+                </div>
+
+                <div class="switch-row">
+                    <label for="chkAlertas" class="switch-label">Notificaciones Automáticas</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" name="alertas_activas" id="chkAlertas" value="1" {{ 'checked' if cfg.activas else '' }}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn-save-pro">💾 Guardar Configuración</button>
+            </form>
+
+            <form action="/alertas" method="POST">
+                <input type="hidden" name="accion" value="probar_telegram">
+                <button type="submit" class="btn-test-pro">🚀 Enviar Mensaje de Prueba a Telegram</button>
+            </form>
+
+            <div class="help-box-pro">
+                <div style="font-weight:bold; color:#38bdf8; margin-bottom:5px;">💡 ¿Cómo conectarlo en 1 minuto?</div>
+                1. En Telegram busca <b>@BotFather</b>, envíale <code>/newbot</code> y copia el <b>Token</b>.<br>
+                2. Abre tu nuevo bot y presiona <b>Iniciar</b>.<br>
+                3. Busca <b>@userinfobot</b>, dale a Iniciar y copia tu <b>Id (Chat ID)</b>.
             </div>
-
-            <div class="form-group" style="display:flex; align-items:center; gap:8px; margin-top:4px;">
-                <input type="checkbox" name="alertas_activas" id="chkAlertas" value="1" {{ 'checked' if cfg.activas else '' }}>
-                <label for="chkAlertas" style="font-size:0.86em; font-weight:bold; cursor:pointer;">Activar notificaciones automáticas</label>
-            </div>
-
-            <button type="submit" class="btn-save">💾 Guardar Configuración</button>
-        </form>
-
-        <form action="/alertas" method="POST">
-            <input type="hidden" name="accion" value="probar_telegram">
-            <button type="submit" class="btn-test">🚀 Enviar Mensaje de Prueba a Telegram</button>
-        </form>
-
-        <div class="help-box">
-            <b>¿Cómo obtener tu Token y Chat ID en 1 minuto?</b><br>
-            1. En Telegram busca a <b>@BotFather</b>, envíale <code>/newbot</code> y copia el <b>Token</b>.<br>
-            2. Abre tu nuevo bot y dale a <b>Iniciar</b>.<br>
-            3. Busca a <b>@userinfobot</b>, dale a Iniciar y te dará tu número de <b>Id (Chat ID)</b>.
         </div>
     </div>
 
     <!-- Columna Derecha: Historial en Vivo de Incidentes -->
-    <div class="card">
-        <div class="panel-title">
-            <span>🚨 Registro de Incidentes Recientes ({{ historial|length }})</span>
+    <div class="card-pro">
+        <div class="card-pro-header">
+            <span>🚨 Registro de Incidentes (<span id="countAlertasVisibles">{{ historial|length }}</span>)</span>
             {% if historial %}
-            <form action="/alertas" method="POST" style="margin:0;">
+            <form action="/alertas" method="POST" style="margin:0;" onsubmit="return confirm('¿Deseas vaciar todo el historial de incidentes?');">
                 <input type="hidden" name="accion" value="limpiar_historial">
-                <button type="submit" class="btn-clear">🗑️ Limpiar Historial</button>
+                <button type="submit" class="btn-clear-pro">🗑️ Limpiar Historial</button>
             </form>
             {% endif %}
         </div>
 
         {% if historial %}
-        <div class="alert-list">
+        <div class="log-toolbar">
+            <div class="log-filter-pills">
+                <span class="log-pill active" id="fp-ALL" onclick="filtrarAlertas('ALL')">Todos</span>
+                <span class="log-pill" id="fp-TEMP" onclick="filtrarAlertas('TEMP')">🔥 Temp</span>
+                <span class="log-pill" id="fp-HASHRATE" onclick="filtrarAlertas('HASHRATE')">⚡ Hashrate</span>
+                <span class="log-pill" id="fp-OFFLINE" onclick="filtrarAlertas('OFFLINE')">⛔ Offline</span>
+            </div>
+            <input type="text" id="buscadorAlertas" class="log-search" placeholder="🔍 Filtrar por IP o mensaje..." oninput="aplicarFiltroAlertas()">
+        </div>
+
+        <div class="alert-list" id="listaAlertas">
             {% for a in historial %}
-            <div class="alert-item {{ 'warn' if a.tipo == 'TEMP' else ('info' if a.tipo == 'HASHRATE' else '') }}">
-                <div>
-                    <div style="font-weight:bold; font-size:0.92em;" translate="no">
-                        {% if a.tipo == 'TEMP' %}🔥 Temperatura Crítica{% elif a.tipo == 'OFFLINE' %}⛔ Minero Desconectado{% else %}⚠️ Caída de Rendimiento{% endif %}
-                        — <a href="/minero/{{ a.ip }}" style="color:var(--accent-blue); text-decoration:none;">{{ a.ip }}</a>
+            {% set tipo_cls = 'temp' if a.tipo == 'TEMP' else ('hashrate' if a.tipo == 'HASHRATE' else 'offline') %}
+            <div class="alert-item {{ tipo_cls }}" data-tipo="{{ a.tipo }}" data-search="{{ (a.ip ~ ' ' ~ a.mensaje ~ ' ' ~ a.tipo)|lower }}">
+                <div style="flex:1; min-width:220px;">
+                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;" translate="no">
+                        <span class="alert-type-badge {{ tipo_cls }}">
+                            {% if a.tipo == 'TEMP' %}🔥 TEMP{% elif a.tipo == 'HASHRATE' %}⚡ HASHRATE{% else %}⛔ OFFLINE{% endif %}
+                        </span>
+                        <a href="/minero/{{ a.ip }}" class="alert-ip-link">{{ a.ip }}</a>
                     </div>
-                    <div style="font-size:0.84em; color:var(--text-sub); margin-top:4px;">{{ a.mensaje }}</div>
+                    <div style="font-size:0.84em; color:#d1d3e0; margin-top:5px; line-height:1.4;">{{ a.mensaje }}</div>
                 </div>
-                <div class="alert-time" translate="no">{{ a.fecha }}</div>
+                <div class="alert-time" translate="no">🕒 {{ a.fecha }}</div>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <div style="text-align:center; padding:60px 20px; color:var(--text-muted);">
-            <div style="font-size:2.2em; margin-bottom:10px;">✅</div>
-            <div style="font-weight:bold; color:var(--text-main);">Sin incidentes registrados</div>
-            <div style="font-size:0.85em; margin-top:5px;">Todos tus mineros operan dentro de los parámetros seguros.</div>
+        <div style="text-align:center; padding:65px 20px; color:var(--text-muted);">
+            <div style="font-size:2.4em; margin-bottom:10px;">✅</div>
+            <div style="font-weight:bold; color:var(--text-main); font-size:1.05em;">Sin incidentes registrados</div>
+            <div style="font-size:0.85em; margin-top:6px;">Todos tus mineros operan dentro de los parámetros seguros.</div>
         </div>
         {% endif %}
     </div>
 </div>
+
+<script>
+    let filtroAlertaTipo = 'ALL';
+
+    function toggleVisibilidadToken(btn) {
+        const inp = document.getElementById('tgTokenInput');
+        if (!inp) return;
+        if (inp.type === 'password') {
+            inp.type = 'text';
+            btn.innerText = '🙈';
+        } else {
+            inp.type = 'password';
+            btn.innerText = '👁️';
+        }
+    }
+
+    function setTempPreset(val) {
+        const inp = document.getElementById('inputUmbralTemp');
+        if (inp) inp.value = val;
+    }
+
+    function filtrarAlertas(tipo) {
+        filtroAlertaTipo = tipo;
+        document.querySelectorAll('.log-pill').forEach(p => p.classList.remove('active'));
+        const pill = document.getElementById('fp-' + tipo);
+        if (pill) pill.classList.add('active');
+        aplicarFiltroAlertas();
+    }
+
+    function aplicarFiltroAlertas() {
+        const q = (document.getElementById('buscadorAlertas')?.value || '').toLowerCase().trim();
+        let visibles = 0;
+        document.querySelectorAll('.alert-item').forEach(item => {
+            const t = item.getAttribute('data-tipo') || '';
+            const txt = item.getAttribute('data-search') || '';
+            const pasaTipo = (filtroAlertaTipo === 'ALL' || t === filtroAlertaTipo);
+            const pasaTexto = (!q || txt.includes(q));
+            if (pasaTipo && pasaTexto) {
+                item.style.display = 'flex';
+                visibles++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        const cnt = document.getElementById('countAlertasVisibles');
+        if (cnt) cnt.innerText = visibles;
+    }
+</script>
 {% endblock %}
