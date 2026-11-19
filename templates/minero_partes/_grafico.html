@@ -3,6 +3,29 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 
 <style>
+    /* Botón de Guía Rápida para clientes principiantes */
+    .btn-help-guide {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(56, 189, 248, 0.10);
+        border: 1px solid rgba(56, 189, 248, 0.30);
+        color: #7dd3fc;
+        padding: 2px 9px;
+        border-radius: 12px;
+        font-size: 0.72em;
+        font-weight: bold;
+        cursor: help;
+        user-select: none;
+        transition: all 0.2s ease;
+    }
+    .btn-help-guide:hover, .btn-help-guide.tt-active {
+        background: rgba(56, 189, 248, 0.24);
+        border-color: #38bdf8;
+        color: #ffffff;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+    }
+
     /* Estadísticas rápidas del periodo */
     .chart-stats-bar {
         display: flex;
@@ -33,6 +56,28 @@
         text-shadow: 0 0 8px rgba(51, 102, 255, 0.45);
     }
     .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.06em; }
+    .stat-info-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.07);
+        color: #8b8d9c;
+        font-size: 9px;
+        font-family: serif;
+        font-style: italic;
+        font-weight: bold;
+        margin-left: 1px;
+        flex-shrink: 0;
+        transition: 0.15s;
+    }
+    .stat-item:hover .stat-info-icon,
+    .stat-item.tt-active .stat-info-icon {
+        background: rgba(51, 102, 255, 0.4);
+        color: #fff;
+    }
 
     /* Barra flotante dentro del gráfico (arriba a la derecha en PC) */
     .chart-floating-toolbar {
@@ -204,7 +249,7 @@
     .smart-floating-tooltip {
         position: fixed;
         display: none;
-        width: 265px;
+        width: 280px;
         max-width: calc(100vw - 20px);
         background: rgba(10, 11, 16, 0.98);
         border: 1px solid rgba(51, 102, 255, 0.55);
@@ -214,7 +259,7 @@
         font-family: sans-serif;
         font-size: 11.5px;
         font-weight: normal;
-        line-height: 1.42;
+        line-height: 1.45;
         white-space: normal;
         text-align: left;
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
@@ -251,7 +296,7 @@
     }
     .pill-tt-range {
         margin-top: 6px;
-        padding: 4px 7px;
+        padding: 5px 7px;
         background: rgba(56, 189, 248, 0.08);
         border-left: 2px solid #38bdf8;
         border-radius: 3px;
@@ -264,6 +309,66 @@
         font-size: 10px;
         color: #8b8d9c;
         font-style: italic;
+    }
+
+    /* Modal compacto para elegir ubicación real de los Antminers */
+    .farm-loc-modal-bg {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.72);
+        backdrop-filter: blur(4px);
+        z-index: 99998;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+    }
+    .farm-loc-modal {
+        width: 100%;
+        max-width: 380px;
+        background: #11131c;
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        border-radius: 10px;
+        padding: 16px;
+        color: #e2e8f0;
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.85);
+    }
+    .farm-loc-input-row {
+        display: flex;
+        gap: 6px;
+        margin-top: 10px;
+    }
+    .farm-loc-input {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        padding: 8px 10px;
+        color: #fff;
+        font-size: 13px;
+        outline: none;
+    }
+    .farm-loc-input:focus { border-color: #38bdf8; }
+    .farm-loc-results {
+        margin-top: 10px;
+        max-height: 200px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    .farm-loc-item {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 8px 10px;
+        cursor: pointer;
+        font-size: 12.5px;
+        transition: 0.15s;
+    }
+    .farm-loc-item:hover {
+        background: rgba(56, 189, 248, 0.16);
+        border-color: #38bdf8;
     }
 
     /* Contenedor Full-Bleed optimizado con aceleración GPU */
@@ -376,11 +481,30 @@
 <!-- Portal flotante único en la ventana para que NUNCA se corte con el menú izquierdo ni en celular -->
 <div id="smartFloatingTooltip" class="smart-floating-tooltip"></div>
 
+<!-- Selector global de ubicación de los Antminers (ej. Alaska, Bolivia, etc.) -->
+<div id="farmLocModalBg" class="farm-loc-modal-bg" onclick="if(event.target===this) cerrarModalUbicacionGranja()">
+    <div class="farm-loc-modal">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <b style="font-size:14px;">📍 Ubicación de tus Máquinas</b>
+            <button type="button" onclick="cerrarModalUbicacionGranja()" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:16px;">✕</button>
+        </div>
+        <div style="font-size:11.5px; color:#94a3b8; margin-top:4px;">
+            Escribe la ciudad donde están instalados físicamente tus Antminers (sin importar en qué país vivas tú).
+        </div>
+        <div class="farm-loc-input-row">
+            <input type="text" id="farmLocSearchInput" class="farm-loc-input" placeholder="Ej: Anchorage, Santa Cruz, Miami..." onkeydown="if(event.key==='Enter') buscarCiudadGranja()">
+            <button type="button" class="btn-filter active" onclick="buscarCiudadGranja()">Buscar</button>
+        </div>
+        <div id="farmLocResults" class="farm-loc-results"></div>
+    </div>
+</div>
+
 <div class="card" data-no-live-patch="1" style="position: relative; overflow: visible; z-index: 20; padding-left: 16px; padding-right: 16px;">
     <div class="panel-title" style="margin-bottom: 10px;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
-            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none; cursor:help;"></span>
+            <span id="btnGuiaGrafico" class="btn-help-guide">? Cómo leer</span>
+            <span id="climaUbicacionBadge" style="font-size:0.72em; color:#38bdf8; font-weight:normal; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:2px 9px; border-radius:12px; display:none; cursor:pointer;"></span>
         </div>
     </div>
 
@@ -388,21 +512,27 @@
     <div class="chart-stats-bar">
         <div class="stat-item" data-stat-key="prom">
             Prom: <b id="statProm" style="color:var(--accent-blue);" translate="no">0.00</b>
+            <span class="stat-info-icon">i</span>
         </div>
         <div class="stat-item" data-stat-key="max">
             Máx: <b id="statMax" translate="no">0.00</b>
+            <span class="stat-info-icon">i</span>
         </div>
         <div class="stat-item" data-stat-key="min">
             Mín: <b id="statMin" translate="no">0.00</b>
+            <span class="stat-info-icon">i</span>
         </div>
         <div class="stat-item" data-stat-key="temp_pico">
             Temp Máx/Mín: <b id="statTempPico" style="color:#ffb300;" translate="no">0°/0°C</b>
+            <span class="stat-info-icon">i</span>
         </div>
         <div class="stat-item" data-stat-key="clima_hoy">
             Clima Granja / Sensación: <b id="statClimaHoy" style="color:#38bdf8;" translate="no">--° / --°C</b>
+            <span class="stat-info-icon">i</span>
         </div>
         <div class="stat-item" data-stat-key="uptime">
             Estabilidad: <b id="statUptime" style="color:var(--accent-green);" translate="no">100%</b>
+            <span class="stat-info-icon">i</span>
         </div>
     </div>
 
@@ -443,12 +573,13 @@
     const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
 
-    // Ubicación configurable por cliente/granja (si el servidor no define una fija, se autodetecta el país/ciudad real)
+    // Ubicación configurable por cliente/granja (prioriza ubicación elegida por usuario o definida por el agente en la granja)
     const TIENE_GRANJA_SERVIDOR = {{ 'true' if ultimo.farm_city is defined and ultimo.farm_city else 'false' }};
     let GRANJA_LAT = {{ ultimo.farm_lat | default(-17.7833) }};
     let GRANJA_LON = {{ ultimo.farm_lon | default(-63.1821) }};
     let GRANJA_CIUDAD = "{{ ultimo.farm_city | default('Santa Cruz de la Sierra') }}";
     let GRANJA_PAIS = "{{ ultimo.farm_country | default('Bolivia') }}";
+    const STORAGE_KEY_LOC = 'emg_farm_loc_{{ ultimo.granja_id | default(ip) }}';
 
     let chartInstance = null;
     let rangoActual = '24h';
@@ -457,6 +588,7 @@
     let cacheClimaExterior = [];
     let visibilidadCurvas = {};
     let elementoTooltipActivo = null;
+    let tooltipsInicializados = false;
 
     // Variables de caché y nivel de detalle dinámico (LOD: 3m -> 2m -> 1m) para fluidez 60fps en móvil
     let crudosPorMinutoCache = [];
@@ -480,143 +612,158 @@
         return { temp, activo };
     }
 
-    // Genera dinámicamente las descripciones profesionales con la ciudad/país actualizados del cliente
+    // Explicaciones claras para clientes principiantes sobre cada curva del gráfico
     function obtenerInfoTooltipCurva(id, isHidden) {
-        const estadoTxt = isHidden ? 'Toque el botón para mostrar curva' : 'Toque el botón para ocultar curva';
+        const estadoTxt = isHidden ? 'Haz clic o toca para volver a mostrar esta línea' : 'Haz clic o toca para ocultar esta línea';
         const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD} (${GRANJA_PAIS})` : GRANJA_CIUDAD;
         const corteCfg = obtenerCorteTempActual();
         const dic = {
             'hr': {
                 titulo: '⚡ Hashrate (Potencia de Minado)',
-                desc: `Velocidad de cálculo (${algoritmoMinero}) entregada por las placas hash del equipo. Incluye línea guía punteada del promedio operativo.`,
-                rango: 'Estable: línea continua cerca del promedio',
+                desc: `Es la fuerza con la que trabaja tu minero (${algoritmoMinero}). Mientras más alta y pareja sea la línea azul, más estable está produciendo.`,
+                rango: 'Bueno: línea recta cerca del promedio | Malo: caídas a 0',
                 accion: estadoTxt
             },
             'tmax': {
-                titulo: '🌡️ Temperatura Máxima (Chips ASIC)',
-                desc: 'Punto más caliente en los sensores internos de los chips. Define la protección térmica y la vida útil del silicio.',
-                rango: `🟢 < 75°C Normal | 🟠 75-${corteCfg.temp - 1}°C Alerta | 🔴 Corte: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`,
+                titulo: '🌡️ Temperatura Máxima (Chips)',
+                desc: 'Muestra qué tan calientes están los chips internos del equipo. Es el dato más importante para cuidar su vida útil.',
+                rango: `🟢 < 75°C Normal | 🟠 75-${corteCfg.temp - 1}°C Calor | 🔴 Corte: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`,
                 accion: estadoTxt
             },
             'tmin': {
-                titulo: '❄️ Temperatura Mínima (Placa PCB)',
-                desc: 'Temperatura en la zona de entrada de aire de la placa base (PCB). La diferencia entre Chip y PCB refleja la transferencia térmica.',
-                rango: 'Diferencial óptimo (Chip - PCB): 10°C a 18°C',
+                titulo: '❄️ Temperatura Mínima (Entrada de Placa)',
+                desc: 'Temperatura en la parte más fresca de la placa. Compararla con la máxima te dice si el aire está circulando bien por dentro.',
+                rango: 'Ideal: entre 10°C y 18°C por debajo de la Temp Máx',
                 accion: estadoTxt
             },
             'tamb': {
-                titulo: '🍃 Temperatura Entrada / Ambiente',
-                desc: 'Temperatura del flujo de aire fresco medida en los sensores frontales de admisión del minero.',
-                rango: 'Recomendado en sala fría: 15°C a 35°C',
+                titulo: '🍃 Aire de Entrada (Ambiente)',
+                desc: 'Temperatura del aire que absorbe el minero por los ventiladores frontales.',
+                rango: 'Recomendado en la sala: 15°C a 35°C',
                 accion: estadoTxt
             },
             'clima': {
                 titulo: '🌤️ Clima Exterior de la Granja',
-                desc: `Temperatura meteorológica real en ${ubicacionCompleta}. Se adapta automáticamente a la ciudad o país donde esté instalada la granja del cliente.`,
-                rango: 'Fuente: Estación METAR local + Satélite Open-Meteo',
+                desc: `Temperatura real afuera en ${ubicacionCompleta}. Te ayuda a ver si el equipo se calentó por el calor del día o por un fallo propio.`,
+                rango: 'Toca la etiqueta de ciudad arriba para cambiar ubicación',
                 accion: estadoTxt
             },
             'sensacion': {
-                titulo: '🥵 Sensación Térmica (Índice NOAA)',
-                desc: `Impacto térmico real en ${GRANJA_CIUDAD} combinando temperatura y humedad relativa. El aire húmedo reduce la capacidad de enfriamiento.`,
-                rango: 'Alerta de calor húmedo en granja: ≥ 36°C',
+                titulo: '🥵 Sensación Térmica Exterior',
+                desc: `Combina calor y humedad en ${GRANJA_CIUDAD}. Cuando hay mucha humedad, al aire le cuesta más enfriar los equipos.`,
+                rango: 'Cuidado en días muy húmedos: ≥ 36°C',
                 accion: estadoTxt
             },
             'err': {
-                titulo: '⚠️ Errores de Hardware (HW Errors)',
-                desc: 'Cálculos corruptos descartados por los chips ASIC en el intervalo. Picos altos indican ruido eléctrico, temperatura alta o chip degradado.',
-                rango: 'Normal: 0 a 5 /min | Revisar placa: > 30 /min',
+                titulo: '⚠️ Errores de Hardware (Barras Rojas)',
+                desc: 'Pequeños fallos de cálculo que descarta el equipo. Tener unos pocos es normal; muchas barras altas seguidas indican calor excesivo o placa por revisar.',
+                rango: 'Normal: 0 a 5 /min | Revisar equipo: > 30 /min',
                 accion: estadoTxt
             }
         };
         return dic[id];
     }
 
+    // Explicaciones claras para clientes principiantes sobre las tarjetas y botones de ayuda
     function obtenerInfoTooltipStat(key) {
         const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD}, ${GRANJA_PAIS}` : GRANJA_CIUDAD;
-        const txtDias = diasRealesGrabados >= 1 ? ` (${diasRealesGrabados}d grabados en BD)` : (horasRealesGrabadas > 0 ? ` (${horasRealesGrabadas}h grabadas en BD)` : '');
+        const txtDias = diasRealesGrabados >= 1 ? ` (${diasRealesGrabados}d guardados)` : (horasRealesGrabadas > 0 ? ` (${horasRealesGrabadas}h guardadas)` : '');
         const corteCfg = obtenerCorteTempActual();
         const dicStats = {
+            'guia_rapida': {
+                titulo: '📖 Cómo leer este gráfico en 10 segundos',
+                desc: '• <b>Línea Azul (Izquierda):</b> Potencia del minero.<br>• <b>Línea Amarilla (Derecha):</b> Calor de los chips.<br>• <b>Barras Rojas:</b> Errores del equipo.<br>• <b>Zoom:</b> Usa la rueda del mouse o 2 dedos en celular.<br>• <b>Reiniciar vista:</b> Doble clic o doble toque.<br>• <b>Ocultar líneas:</b> Toca las píldoras de colores arriba.',
+                rango: 'Pasa el mouse o toca cualquier dato con (i) para ver qué significa'
+            },
             'prom': {
-                titulo: '⚡ Hashrate Promedio Operativo',
-                desc: 'Media real de potencia de minado durante el periodo seleccionado (excluye desconexiones o reinicios). Se dibuja como línea guía tenue en el gráfico.',
-                rango: 'Ideal: ≥ 98% del hashrate nominal del modelo'
+                titulo: '⚡ Promedio de Potencia',
+                desc: 'Velocidad media real a la que trabajó el minero en el periodo elegido (sin contar momentos apagados). Se marca con la línea azul punteada.',
+                rango: 'Ideal: mantenerse cerca de la potencia de fábrica del equipo'
             },
             'max': {
-                titulo: '🚀 Pico Máximo de Hashrate',
-                desc: 'Potencia máxima sostenida registrada dentro de esta ventana de tiempo.',
-                rango: 'Muestra la capacidad tope alcanzada por los chips'
+                titulo: '🚀 Potencia Máxima Alcanzada',
+                desc: 'El punto más alto de rendimiento que logró el minero en este periodo.',
+                rango: 'Sirve para comprobar que todas las placas llegan a su tope'
             },
             'min': {
-                titulo: '📉 Hashrate Mínimo Operativo (Estable)',
-                desc: 'Lectura operativa más baja con el equipo en régimen normal (filtra los primeros segundos de arranque tras reinicio).',
-                rango: 'Alerta si cae > 15% respecto al promedio'
+                titulo: '📉 Potencia Mínima en Marcha',
+                desc: 'El punto más bajo registrado mientras el equipo estaba minando normalmente (ignora los primeros segundos al encender).',
+                rango: 'Revisar si baja más de un 15% respecto al promedio'
             },
             'temp_pico': {
-                titulo: '🌡️ Rango Térmico (Máx Chip / Mín PCB)',
-                desc: 'Temperatura más alta alcanzada por los chips ASIC y más baja en placa PCB en el periodo.',
-                rango: `Óptimo: 60°C a 75°C | Corte Térmico: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`
+                titulo: '🌡️ Calor Máximo y Mínimo',
+                desc: 'Muestra la temperatura más caliente que alcanzaron los chips y la más fresca registrada en las placas durante este periodo.',
+                rango: `Saludable: 60°C a 75°C | Corte automático: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`
             },
             'clima_hoy': {
-                titulo: '🌤️ Meteorología Exterior de la Granja',
-                desc: `Temperatura actual y sensación térmica real por humedad (NOAA) en la ubicación de la granja: ${ubicacionCompleta}.`,
-                rango: 'Actualización satelital automática según ubicación'
+                titulo: '🌤️ Clima Afuera de la Granja',
+                desc: `Temperatura y sensación térmica actuales donde están tus máquinas: ${ubicacionCompleta}.`,
+                rango: 'Haz clic en la etiqueta 📍 arriba para cambiar la ciudad'
             },
             'uptime': {
-                titulo: '🟢 Estabilidad y Disponibilidad (Uptime)',
-                desc: 'Porcentaje del tiempo registrado en que el minero estuvo entregando hashrate continuo sin cortes ni caídas.',
-                rango: 'Estándar profesional Tier-1: > 99.0%'
+                titulo: '🟢 Estabilidad (Tiempo Activo)',
+                desc: 'Porcentaje del tiempo que el minero estuvo trabajando sin cortes ni caídas.',
+                rango: 'Excelente: > 99% | Si baja, revisa luz o internet'
             },
             'lod_info': {
-                titulo: '⚡ Resolución Dinámica Inteligente (LOD)',
-                desc: 'Para máxima limpieza visual y fluidez táctil, el gráfico adapta el intervalo según el rango o zoom: 30m/15m en vistas largas, 3m en vista diaria, y 2m → 1m al acercar.',
-                rango: 'Acercar zoom (rueda o 2 dedos) para ver 1m exacto' + txtDias
+                titulo: '⚡ Nivel de Detalle del Gráfico',
+                desc: 'Indica cada cuántos minutos se agrupa cada punto para que el gráfico sea rápido y limpio. Al hacer zoom se acerca automáticamente hasta mostrar minuto a minuto (1m).',
+                rango: 'Haz zoom (rueda o 2 dedos) para ver cada 1m' + txtDias
             }
         };
         return dicStats[key];
     }
 
-    // Descripciones profesionales para los botones de rango horario (6h, 24h, 7d, 30d, 100%, Cámara)
+    // Descripciones claras para los botones de rango horario (6h, 24h, 7d, 30d, 100%, Cámara)
     function obtenerInfoTooltipFiltro(key) {
-        const txtHist = diasRealesGrabados >= 1 ? `Historial actual en BD: ${diasRealesGrabados} días.` : `Historial actual en BD: ${horasRealesGrabadas} horas.`;
+        const txtHist = diasRealesGrabados >= 1 ? `Historial guardado: ${diasRealesGrabados} días.` : `Historial guardado: ${horasRealesGrabadas} horas.`;
         const dicFiltros = {
             '6h': {
-                titulo: '⏱️ Ventana Exacta de 6 Horas',
-                desc: 'Muestra las últimas 6 horas completas. Si la máquina lleva solo 3 horas conectada, ocupará exactamente la mitad derecha del gráfico.',
-                rango: `Resolución base: 3 min (Zoom a 2m y 1m) | ${txtHist}`
+                titulo: '⏱️ Últimas 6 Horas',
+                desc: 'Ideal para revisar cambios recientes, reinicios o ajustes que acabas de hacer.',
+                rango: `Detalle cada 3 min (con zoom llega a 1 min) | ${txtHist}`
             },
             '24h': {
-                titulo: '🕒 Ciclo Diario Completo (24 Horas)',
-                desc: 'Muestra las 24 horas completas en proporción real para comparar el calor del día frente a la noche.',
-                rango: `Resolución base: 3 min (Zoom a 2m y 1m) | ${txtHist}`
+                titulo: '🕒 Últimas 24 Horas (Día Completo)',
+                desc: 'Vista recomendada para comparar cómo trabaja tu minero con el calor del día frente a la noche.',
+                rango: `Detalle cada 3 min (con zoom llega a 1 min) | ${txtHist}`
             },
             '7d': {
-                titulo: '📅 Escala Semanal Completa (7 Días)',
-                desc: 'Muestra los 7 días calendario completos con Hora y Fecha en el eje X. Los días anteriores a la conexión del minero quedan vacíos a la izquierda.',
-                rango: `Resolución base: 15 min | ${txtHist}`
+                titulo: '📅 Últimos 7 Días (Semana)',
+                desc: 'Muestra la estabilidad de toda la semana con hora y fecha. Los días previos a conectar el equipo aparecen vacíos a la izquierda.',
+                rango: `Detalle cada 15 min | ${txtHist}`
             },
             '30d': {
-                titulo: '🗓️ Escala Mensual Completa (30 Días)',
-                desc: 'Escala calendario de 30 días reales con Hora y Fecha. Si llevas pocos días minando, ocuparán solo su fracción proporcional a la derecha.',
-                rango: `Resolución base: 30 min | ${txtHist}`
+                titulo: '🗓️ Últimos 30 Días (Mes)',
+                desc: 'Resumen mensual completo para detectar desgaste gradual, suciedad o tendencias de calor.',
+                rango: `Detalle cada 30 min | ${txtHist}`
             },
             'reset_zoom': {
-                titulo: '🔍 Restaurar Vista (Zoom 100%)',
-                desc: 'Devuelve el gráfico a la escala completa del periodo seleccionado y recalibra la resolución automática de puntos.',
-                rango: 'Atajo rápido: Doble clic o doble toque en el gráfico'
+                titulo: '🔍 Volver al Tamaño Normal (100%)',
+                desc: 'Quita el acercamiento actual y vuelve a mostrar todo el periodo seleccionado.',
+                rango: 'Atajo rápido: doble clic o doble toque sobre el gráfico'
             },
             'camara': {
-                titulo: '📷 Captura Profesional HD (PNG)',
-                desc: 'Descarga una imagen de alta resolución del gráfico actual con fondo oscuro sólido lista para enviar por WhatsApp o reportes técnicos.',
-                rango: 'Formato: PNG con marcas de escala integradas'
+                titulo: '📷 Guardar Foto del Gráfico',
+                desc: 'Descarga una imagen limpia (PNG) lista para compartir por WhatsApp o enviar a soporte técnico.',
+                rango: 'Se guarda automáticamente en tus descargas'
             }
         };
         return dicFiltros[key];
     }
 
+    // Asegura que el portal del tooltip viva directamente en document.body para evitar cortes por transform/backdrop-filter
+    function asegurarPortalTooltipEnBody() {
+        const box = document.getElementById('smartFloatingTooltip');
+        if (box && box.parentNode !== document.body) {
+            document.body.appendChild(box);
+        }
+        return box;
+    }
+
     // Motor de posicionamiento inteligente (Viewport Collision Detection estilo TradingView/Grafana)
     function mostrarSmartTooltip(targetEl, infoObj) {
-        const box = document.getElementById('smartFloatingTooltip');
+        const box = asegurarPortalTooltipEnBody();
         if (!box || !targetEl || !infoObj) return;
 
         elementoTooltipActivo = targetEl;
@@ -637,7 +784,7 @@
         box.style.display = 'block';
 
         const rect = targetEl.getBoundingClientRect();
-        const boxW = box.offsetWidth || 265;
+        const boxW = box.offsetWidth || 280;
         const boxH = box.offsetHeight || 110;
         const margenPantalla = 10;
         const vw = window.innerWidth;
@@ -678,6 +825,28 @@
     }
 
     function inicializarEventosTooltips() {
+        if (tooltipsInicializados) return;
+        tooltipsInicializados = true;
+        asegurarPortalTooltipEnBody();
+
+        const btnGuia = document.getElementById('btnGuiaGrafico');
+        if (btnGuia) {
+            btnGuia.addEventListener('mouseenter', function() {
+                mostrarSmartTooltip(btnGuia, obtenerInfoTooltipStat('guia_rapida'));
+            });
+            btnGuia.addEventListener('mouseleave', function() {
+                ocultarSmartTooltip();
+            });
+            btnGuia.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (elementoTooltipActivo === btnGuia) {
+                    ocultarSmartTooltip();
+                } else {
+                    mostrarSmartTooltip(btnGuia, obtenerInfoTooltipStat('guia_rapida'));
+                }
+            });
+        }
+
         document.querySelectorAll('.stat-item[data-stat-key]').forEach(item => {
             const key = item.getAttribute('data-stat-key');
             item.addEventListener('mouseenter', function() {
@@ -716,7 +885,8 @@
             });
             badgeClima.addEventListener('click', function(e) {
                 e.stopPropagation();
-                mostrarSmartTooltip(badgeClima, obtenerInfoTooltipStat('clima_hoy'));
+                ocultarSmartTooltip();
+                abrirModalUbicacionGranja();
             });
         }
 
@@ -730,7 +900,11 @@
             });
             badgeLod.addEventListener('click', function(e) {
                 e.stopPropagation();
-                mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info'));
+                if (elementoTooltipActivo === badgeLod) {
+                    ocultarSmartTooltip();
+                } else {
+                    mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info'));
+                }
             });
         }
 
@@ -941,7 +1115,81 @@
         return Math.round(tempC);
     }
 
+    function cargarUbicacionGuardadaLocal() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_LOC);
+            if (!raw) return false;
+            const loc = JSON.parse(raw);
+            if (loc && loc.lat !== undefined && loc.lon !== undefined && loc.city) {
+                GRANJA_LAT = Number(loc.lat);
+                GRANJA_LON = Number(loc.lon);
+                GRANJA_CIUDAD = loc.city;
+                GRANJA_PAIS = loc.country || '';
+                return true;
+            }
+        } catch (e) {}
+        return false;
+    }
+
+    function abrirModalUbicacionGranja() {
+        const bg = document.getElementById('farmLocModalBg');
+        const inp = document.getElementById('farmLocSearchInput');
+        if (bg) bg.style.display = 'flex';
+        if (inp) {
+            inp.value = GRANJA_CIUDAD || '';
+            inp.focus();
+        }
+    }
+
+    function cerrarModalUbicacionGranja() {
+        const bg = document.getElementById('farmLocModalBg');
+        if (bg) bg.style.display = 'none';
+    }
+
+    async function buscarCiudadGranja() {
+        const inp = document.getElementById('farmLocSearchInput');
+        const resBox = document.getElementById('farmLocResults');
+        const q = (inp ? inp.value : '').trim();
+        if (q.length < 2 || !resBox) return;
+
+        resBox.innerHTML = '<div style="font-size:12px; color:#94a3b8;">Buscando ciudades...</div>';
+        try {
+            const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=es&format=json`);
+            const data = await r.json();
+            if (!data.results || data.results.length === 0) {
+                resBox.innerHTML = '<div style="font-size:12px; color:#ff5252;">No se encontraron resultados. Prueba otro nombre.</div>';
+                return;
+            }
+            resBox.innerHTML = '';
+            data.results.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'farm-loc-item';
+                const region = item.admin1 ? `, ${item.admin1}` : '';
+                div.innerHTML = `<b>${item.name}</b>${region} <span style="color:#94a3b8;">(${item.country || ''})</span>`;
+                div.onclick = function() {
+                    seleccionarUbicacionGranja(item.latitude, item.longitude, item.name, item.country || '');
+                };
+                resBox.appendChild(div);
+            });
+        } catch (e) {
+            resBox.innerHTML = '<div style="font-size:12px; color:#ff5252;">Error al buscar. Revisa tu conexión.</div>';
+        }
+    }
+
+    function seleccionarUbicacionGranja(lat, lon, city, country) {
+        GRANJA_LAT = Number(lat);
+        GRANJA_LON = Number(lon);
+        GRANJA_CIUDAD = city;
+        GRANJA_PAIS = country;
+        try {
+            localStorage.setItem(STORAGE_KEY_LOC, JSON.stringify({ lat: GRANJA_LAT, lon: GRANJA_LON, city, country }));
+        } catch (e) {}
+        cerrarModalUbicacionGranja();
+        cargarClimaDeLaGranja();
+    }
+
     async function autodetectarUbicacionClienteSiFalta() {
+        if (cargarUbicacionGuardadaLocal()) return;
         if (TIENE_GRANJA_SERVIDOR) return;
         try {
             const rGeo = await fetch('https://ipapi.co/json/');
@@ -966,26 +1214,10 @@
             const ciudad = GRANJA_CIUDAD;
             const ahoraTs = Math.floor(Date.now() / 1000);
 
-            let tempMetarVivo = null;
-            let humMetarVivo = null;
-
-            const promesaMetar = fetch(`https://wttr.in/${lat},${lon}?format=j1`)
-                .then(r => r.ok ? r.json() : null)
-                .then(jW => {
-                    if (jW && jW.current_condition && jW.current_condition[0]) {
-                        const cc = jW.current_condition[0];
-                        let tM = Number(cc.temp_C);
-                        let hM = Number(cc.humidity);
-                        if (!isNaN(tM) && tM >= -50 && tM <= 55) {
-                            tempMetarVivo = tM;
-                            humMetarVivo = (!isNaN(hM) && hM > 0) ? hM : 60;
-                        }
-                    }
-                }).catch(() => {});
-
+            // Open-Meteo unificado (sin sobrescritura desfasada de wttr.in)
             const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&past_days=30&forecast_days=1&timeformat=unixtime&timezone=GMT`;
 
-            const [_, rMet] = await Promise.all([promesaMetar, fetch(urlMeteo)]);
+            const rMet = await fetch(urlMeteo, { cache: 'no-store' });
             if (!rMet || !rMet.ok) return;
             const jMet = await rMet.json();
 
@@ -996,38 +1228,28 @@
                 const appTemps = jMet.hourly.apparent_temperature || [];
                 const hums = jMet.hourly.relative_humidity_2m || [];
 
-                let tempSateliteActual = (jMet.current && jMet.current.temperature_2m !== undefined) ? Number(jMet.current.temperature_2m) : null;
-                let humSateliteActual = (jMet.current && jMet.current.relative_humidity_2m !== undefined) ? Number(jMet.current.relative_humidity_2m) : 60;
-
-                let tempRealHoy = (tempMetarVivo !== null) ? Math.round(tempMetarVivo) : (tempSateliteActual !== null ? Math.round(tempSateliteActual) : null);
-                let humRealHoy = (humMetarVivo !== null) ? humMetarVivo : humSateliteActual;
-                let offsetCalibracion = (tempRealHoy !== null && tempSateliteActual !== null) ? (tempRealHoy - tempSateliteActual) : 0;
-                if (offsetCalibracion > 4) offsetCalibracion = 4;
-                if (offsetCalibracion < -4) offsetCalibracion = -4;
-
                 for (let i = 0; i < times.length; i++) {
                     const tsHora = Number(times[i]);
                     if (tsHora <= ahoraTs + 900 && temps[i] !== null && temps[i] !== undefined) {
-                        let tBase = Number(temps[i]);
-                        let horasAtras = (ahoraTs - tsHora) / 3600;
-                        let factorCal = (horasAtras >= 0 && horasAtras <= 6) ? (1 - (horasAtras / 6)) : 0;
-                        let tCalibrada = Math.round(tBase + (offsetCalibracion * factorCal));
-
+                        let tReal = Math.round(Number(temps[i]));
                         let hum = (hums[i] !== undefined && hums[i] !== null) ? Number(hums[i]) : 60;
-                        let stCalc = calcularSensacionTermicaNOAA(tCalibrada, hum, appTemps[i]);
+                        let stCalc = calcularSensacionTermicaNOAA(tReal, hum, appTemps[i]);
 
                         cacheClimaExterior.push({
                             ts: tsHora,
-                            temp: tCalibrada,
+                            temp: tReal,
                             sensacion: stCalc
                         });
                     }
                 }
 
+                let tempRealHoy = null;
                 let sensRealHoy = null;
-                if (tempRealHoy !== null) {
-                    let appCur = (jMet.current && jMet.current.apparent_temperature !== undefined) ? Number(jMet.current.apparent_temperature) : tempRealHoy;
-                    sensRealHoy = calcularSensacionTermicaNOAA(tempRealHoy, humRealHoy, appCur);
+                if (jMet.current && jMet.current.temperature_2m !== undefined) {
+                    tempRealHoy = Math.round(Number(jMet.current.temperature_2m));
+                    let humCur = (jMet.current.relative_humidity_2m !== undefined) ? Number(jMet.current.relative_humidity_2m) : 60;
+                    let appCur = (jMet.current.apparent_temperature !== undefined) ? Number(jMet.current.apparent_temperature) : tempRealHoy;
+                    sensRealHoy = calcularSensacionTermicaNOAA(tempRealHoy, humCur, appCur);
 
                     cacheClimaExterior.push({
                         ts: Math.floor(ahoraTs / 60) * 60,
@@ -1043,7 +1265,7 @@
                     const ultimoClima = cacheClimaExterior[cacheClimaExterior.length - 1];
                     const tMostrar = tempRealHoy !== null ? tempRealHoy : ultimoClima.temp;
                     const sMostrar = sensRealHoy !== null ? sensRealHoy : ultimoClima.sensacion;
-                    badge.innerHTML = `🏭 Granja (<span translate="no">${ciudad}</span>): <b translate="no">${tMostrar}°C</b> <span style="color:#c084fc;" translate="no">(Sensación ${sMostrar}°C)</span>`;
+                    badge.innerHTML = `📍 <span translate="no">${ciudad}</span>: <b translate="no">${tMostrar}°C</b> <span style="color:#c084fc;" translate="no">(Sensación ${sMostrar}°C)</span> <span style="opacity:0.75;">✎</span>`;
                     badge.style.display = 'inline-block';
                     document.getElementById('statClimaHoy').innerHTML = `${tMostrar}°C / <span style="color:#c084fc;">${sMostrar}°C</span>`;
                 }
@@ -1080,7 +1302,7 @@
         };
     }
 
-    // Plugin profesional 1: Sombreado de zona sin historial previo + Línea Promedio + Línea Corte Térmico + Cuadrícula 1m
+    // Plugin profesional 1: Sombreado de zona sin historial previo + Línea Promedio + Línea Corte Térmico + Etiquetas de Ejes + Cuadrícula 1m
     const pluginNumerosDentroGrafico = {
         id: 'numerosDentroGrafico',
         beforeDatasetsDraw: function(chart) {
@@ -1157,6 +1379,7 @@
                 }
             }
 
+            // Línea horizontal de Promedio de Hashrate con etiqueta discreta
             if (yAxis && promedioHrOperativoGlobal > 0 && visibilidadCurvas['hr'] !== false) {
                 const yProm = yAxis.getPixelForValue(promedioHrOperativoGlobal);
                 if (yProm >= ca.top + 8 && yProm <= ca.bottom - 8) {
@@ -1165,13 +1388,22 @@
                     ctx.moveTo(ca.left, yProm);
                     ctx.lineTo(ca.right, yProm);
                     ctx.lineWidth = 1;
-                    ctx.strokeStyle = 'rgba(96, 165, 250, 0.35)';
+                    ctx.strokeStyle = 'rgba(96, 165, 250, 0.42)';
                     ctx.stroke();
                     ctx.setLineDash([]);
+
+                    ctx.font = 'bold 9.5px sans-serif';
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = 'rgba(96, 165, 250, 0.90)';
+                    const lblProm = `Prom ${promedioHrOperativoGlobal.toFixed(1)} ${unidadMinero}`;
+                    ctx.strokeText(lblProm, ca.left + 44, yProm - 4);
+                    ctx.fillText(lblProm, ca.left + 44, yProm - 4);
                 }
             }
 
-            // Línea horizontal de Corte Térmico configurada por el usuario
+            // Línea horizontal de Corte Térmico configurada por el usuario con etiqueta clara
             if (y1Axis) {
                 const corteCfg = obtenerCorteTempActual();
                 const yCorte = y1Axis.getPixelForValue(corteCfg.temp);
@@ -1181,9 +1413,18 @@
                     ctx.moveTo(ca.left, yCorte);
                     ctx.lineTo(ca.right, yCorte);
                     ctx.lineWidth = corteCfg.activo ? 1.3 : 1;
-                    ctx.strokeStyle = corteCfg.activo ? 'rgba(255, 82, 82, 0.55)' : 'rgba(255, 82, 82, 0.22)';
+                    ctx.strokeStyle = corteCfg.activo ? 'rgba(255, 82, 82, 0.58)' : 'rgba(255, 82, 82, 0.24)';
                     ctx.stroke();
                     ctx.setLineDash([]);
+
+                    ctx.font = 'bold 9.5px sans-serif';
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
+                    ctx.textAlign = 'right';
+                    ctx.fillStyle = corteCfg.activo ? 'rgba(255, 110, 110, 0.92)' : 'rgba(255, 110, 110, 0.50)';
+                    const lblCorte = `Corte ${corteCfg.temp}°C${corteCfg.activo ? '' : ' (OFF)'}`;
+                    ctx.strokeText(lblCorte, ca.right - 34, yCorte - 4);
+                    ctx.fillText(lblCorte, ca.right - 34, yCorte - 4);
                 }
             }
 
@@ -1203,9 +1444,17 @@
                         ctx.fillText(txt, ca.left + 5, yPos + offsetY);
                     }
                 });
+                // Encabezado discreto de unidad en eje izquierdo
+                if (ca.top >= 18) {
+                    ctx.font = 'bold 9.5px sans-serif';
+                    ctx.fillStyle = 'rgba(96, 165, 250, 0.85)';
+                    ctx.strokeText(`⚡ ${unidadMinero}`, ca.left + 4, ca.top - 7);
+                    ctx.fillText(`⚡ ${unidadMinero}`, ca.left + 4, ca.top - 7);
+                }
             }
 
             if (y1Axis && y1Axis.ticks) {
+                ctx.font = 'bold 10.5px sans-serif';
                 ctx.textAlign = 'right';
                 ctx.fillStyle = 'rgba(255, 179, 0, 0.85)';
                 y1Axis.ticks.forEach((t, idx) => {
@@ -2065,9 +2314,15 @@
 
     window.addEventListener('emg:live-update', actualizarGraficoEnVivoJSON);
 
-    window.addEventListener('load', function() {
+    function iniciarModuloGrafico() {
         inicializarEventosTooltips();
         updateChart('24h');
         cargarClimaDeLaGranja();
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', iniciarModuloGrafico);
+    } else {
+        iniciarModuloGrafico();
+    }
 </script>
