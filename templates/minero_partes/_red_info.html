@@ -105,9 +105,62 @@
         color: #fff;
     }
 
+    /* Selector Visual de Protocolo IP (Interruptor de 2 Botones) */
+    .proto-switch-section {
+        padding: 12px 16px 6px 16px;
+    }
+    .proto-segmented-wrap {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        background: rgba(10, 12, 18, 0.75);
+        padding: 4px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin-top: 5px;
+    }
+    .btn-proto-opt {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        padding: 9px 10px;
+        border-radius: 6px;
+        font-size: 0.80em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        user-select: none;
+    }
+    .btn-proto-opt:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .btn-proto-opt.active-static {
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(51, 102, 255, 0.18) 100%);
+        color: #38bdf8;
+        border-color: rgba(56, 189, 248, 0.55);
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    }
+    .btn-proto-opt.active-dhcp {
+        background: linear-gradient(135deg, rgba(192, 132, 252, 0.22) 0%, rgba(147, 51, 234, 0.18) 100%);
+        color: #c084fc;
+        border-color: rgba(192, 132, 252, 0.55);
+        box-shadow: 0 0 12px rgba(192, 132, 252, 0.25);
+    }
+    .proto-helper-hint {
+        font-size: 0.74em;
+        color: var(--text-muted);
+        margin-top: 6px;
+        line-height: 1.35;
+    }
+
     /* Formulario de Red Estática / DHCP */
     .net-form-body {
-        padding: 12px 16px;
+        padding: 10px 16px 12px 16px;
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 10px 12px;
@@ -116,6 +169,9 @@
         display: flex;
         flex-direction: column;
         gap: 4px;
+    }
+    .net-field-group.full-row {
+        grid-column: 1 / -1;
     }
     .net-field-label {
         font-size: 0.72em;
@@ -132,7 +188,7 @@
         background: rgba(10, 12, 18, 0.55);
         border: 1px solid var(--border-color);
         color: var(--text-main);
-        padding: 7px 9px;
+        padding: 8px 10px;
         border-radius: 6px;
         font-family: monospace;
         font-size: 0.88em;
@@ -151,8 +207,9 @@
         background: rgba(56, 189, 248, 0.06);
     }
     .input-net-pro:disabled {
-        opacity: 0.45;
+        opacity: 0.4;
         cursor: not-allowed;
+        background: rgba(10, 12, 18, 0.3);
     }
 
     .net-footer-bar {
@@ -168,10 +225,10 @@
         background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%);
         border: 1px solid rgba(82, 140, 255, 0.65);
         color: #60a5fa;
-        padding: 7px 14px;
+        padding: 8px 15px;
         border-radius: 7px;
         cursor: pointer;
-        font-size: 0.80em;
+        font-size: 0.82em;
         font-weight: bold;
         display: inline-flex;
         align-items: center;
@@ -268,22 +325,29 @@
             <div class="info-header-pro">
                 <span class="info-header-title">🌐 Configuración de Red LAN</span>
                 <span class="proto-badge-pro {{ 'dhcp' if es_dhcp else 'static' }}" id="badgeProtoRed" data-net-tt="net_proto_badge" translate="no">
-                    ● Modo {{ 'DHCP' if es_dhcp else 'IP Estática' }}
+                    ● Modo {{ 'DHCP' if es_dhcp else 'IP Fija' }}
                 </span>
             </div>
 
-            <div class="net-form-body" translate="no">
-                <div class="net-field-group">
-                    <label class="net-field-label" data-net-tt="net_host">Hostname (Nombre Red)</label>
-                    <input type="text" id="net_host" value="{{ extra.hostname | default('Antminer') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
+            <!-- Interruptor Visual Directo: IP Fija vs DHCP -->
+            <div class="proto-switch-section">
+                <label class="net-field-label" data-net-tt="net_proto">Protocolo IP (Toca para cambiar)</label>
+                <input type="hidden" id="net_proto" value="{{ '1' if es_dhcp else '2' }}">
+                <div class="proto-segmented-wrap">
+                    <button type="button" id="btnProtoStatic" class="btn-proto-opt {{ '' if es_dhcp else 'active-static' }}" onclick="seleccionarProtocoloRed('2', true)">
+                        📌 IP Fija (Static)
+                    </button>
+                    <button type="button" id="btnProtoDhcp" class="btn-proto-opt {{ 'active-dhcp' if es_dhcp else '' }}" onclick="seleccionarProtocoloRed('1', true)">
+                        🔄 Automática (DHCP)
+                    </button>
                 </div>
+                <div id="protoHelperHint" class="proto-helper-hint"></div>
+            </div>
 
-                <div class="net-field-group">
-                    <label class="net-field-label" data-net-tt="net_proto">Protocolo IP</label>
-                    <select id="net_proto" class="input-net-pro" onchange="cambiarModoProtocoloRed(); marcarRedEditada(this)">
-                        <option value="2" {{ 'selected' if not es_dhcp else '' }}>Static (IP Fija Recomendada)</option>
-                        <option value="1" {{ 'selected' if es_dhcp else '' }}>DHCP (Automática por Router)</option>
-                    </select>
+            <div class="net-form-body" translate="no">
+                <div class="net-field-group full-row">
+                    <label class="net-field-label" data-net-tt="net_host">Hostname (Nombre en el Router)</label>
+                    <input type="text" id="net_host" value="{{ extra.hostname | default('Antminer') }}" class="input-net-pro" oninput="marcarRedEditada(this)">
                 </div>
 
                 <div class="net-field-group">
@@ -324,7 +388,7 @@
     const INFO_TOOLTIPS_NET = {
         'hw_identidad': {
             titulo: '🏭 Especificaciones de Fábrica',
-            desc: 'Datos físicos extraídos directamente de la EEPROM de la tarjeta de control y las placas hash del minero.',
+            desc: 'Datos físicos extraídos directamente de la tarjeta de control y las placas hash del minero.',
             rango: 'Toca MAC o Serie para copiar al portapapeles'
         },
         'spec_modelo': {
@@ -334,17 +398,17 @@
         },
         'spec_fw': {
             titulo: '💿 Versión de Firmware Instalada',
-            desc: 'Fecha de compilación del sistema operativo interno del Antminer. Firmwares recientes mejoran la estabilidad de los chips.',
+            desc: 'Fecha de compilación del sistema operativo interno del Antminer.',
             rango: 'Extraído vía CGI / API 4028'
         },
         'spec_mac': {
             titulo: '🏷️ Dirección Física MAC (Ethernet)',
-            desc: 'Identificador único de la tarjeta de red del minero. Sirve para reservar su IP en el router MikroTik/Ubiquiti de la granja.',
+            desc: 'Identificador único de la tarjeta de red del minero. Sirve para reservar su IP en tu router.',
             rango: 'Haz clic sobre la MAC para copiarla'
         },
         'spec_serial': {
             titulo: '🔢 Número de Serie de Placa / Equipo',
-            desc: 'Código de serie grabado en las placas hash para control de garantía y trazabilidad de inventario.',
+            desc: 'Código de serie grabado en las placas hash para control de garantía e inventario.',
             rango: 'Haz clic para copiar el número de serie'
         },
         'spec_eficiencia': {
@@ -354,48 +418,48 @@
         },
         'spec_cooling': {
             titulo: '🌀 Estado de Ventiladores / Agua',
-            desc: 'Muestra las revoluciones de cada turbina de enfriamiento o la temperatura del líquido refrigerante en sistemas Hydro.',
+            desc: 'Muestra las revoluciones de cada turbina de enfriamiento o la temperatura del líquido en sistemas Hydro.',
             rango: 'Falla de un ventilador detiene el minado por seguridad'
         },
         'net_proto_badge': {
             titulo: '🌐 Protocolo de Asignación IP',
-            desc: 'En granjas profesionales se recomienda IP Estática (Static) para que los mineros nunca cambien de posición tras un corte de luz.',
+            desc: 'En granjas profesionales se recomienda IP Fija (Static) para que el minero nunca cambie de dirección tras un corte de luz.',
             rango: 'Static = IP fija permanente'
         },
         'net_host': {
             titulo: '📛 Hostname del Dispositivo',
-            desc: 'Nombre de red con el que el minero se identifica ante el router de la granja (sin espacios ni caracteres especiales).',
+            desc: 'Nombre de red con el que el minero se identifica ante el router de la granja (sin espacios).',
             rango: 'Ejemplo: Antminer14'
         },
         'net_proto': {
-            titulo: '🔀 Selector Static vs DHCP',
-            desc: 'Elige Static para fijar manualmente la IP, máscara y puerta de enlace, o DHCP para que el router le asigne una automática.',
-            rango: 'Recomendado: Static'
+            titulo: '🔀 IP Fija (Static) vs Automática (DHCP)',
+            desc: 'Toca "IP Fija" para escribir manualmente una IP que nunca cambie, o "Automática (DHCP)" para que el router le asigne una sola.',
+            rango: 'Recomendado para minería: IP Fija (Static)'
         },
         'net_ip': {
             titulo: '📍 Dirección IPv4 Local',
-            desc: 'Dirección IP del minero dentro de tu red LAN. Si la cambias a una nueva IP, el agente local la agregará automáticamente a su lista.',
+            desc: 'Dirección IP del minero dentro de tu red LAN. Si la cambias, el agente local la agregará automáticamente.',
             rango: 'Formato: 192.168.0.XX'
         },
         'net_mask': {
             titulo: '🛡️ Máscara de Subred (Netmask)',
-            desc: 'Define el tamaño de la red local de la granja. Para redes de hasta 254 equipos siempre es 255.255.255.0.',
+            desc: 'Para redes domésticas y granjas de hasta 254 equipos siempre es 255.255.255.0.',
             rango: 'Estándar /24: 255.255.255.0'
         },
         'net_gw': {
             titulo: '🚪 Puerta de Enlace (Gateway)',
-            desc: 'Dirección IP del router principal que le da salida a internet al minero para conectarse a los pools.',
+            desc: 'Dirección IP de tu router principal que le da salida a internet al minero.',
             rango: 'Habitual: 192.168.0.1 o 192.168.1.1'
         },
         'net_dns': {
             titulo: '🔎 Servidor DNS Primario',
-            desc: 'Encargado de traducir los dominios de los pools (ej: btc.viabtc.io) a su dirección IP real.',
+            desc: 'Traduce los dominios de los pools (ej: btc.viabtc.io) a su dirección IP real.',
             rango: 'Recomendados: 8.8.8.8 (Google) o 1.1.1.1 (Cloudflare)'
         },
         'btn_guardar_red': {
             titulo: '💾 Aplicar Configuración de Red en el Minero',
-            desc: 'Envía los parámetros TCP/IP a set_network_conf.cgi del Antminer a través del Agente local.',
-            rango: 'Si cambias la IP, el minero pasará a responder en la nueva dirección'
+            desc: 'Envía los parámetros TCP/IP al Antminer a través del Agente local.',
+            rango: 'Si cambias la IP, el minero responderá en la nueva dirección'
         }
     };
 
@@ -408,18 +472,36 @@
         });
     }
 
-    function cambiarModoProtocoloRed() {
-        const proto = document.getElementById('net_proto').value;
-        const esDhcp = (proto === '1');
-        const campos = ['net_ip', 'net_mask', 'net_gw', 'net_dns'];
-        campos.forEach(id => {
+    function seleccionarProtocoloRed(valor, fueClicUsuario) {
+        const inpProto = document.getElementById('net_proto');
+        if (inpProto) inpProto.value = valor;
+
+        const esDhcp = (valor === '1');
+        const btnStatic = document.getElementById('btnProtoStatic');
+        const btnDhcp = document.getElementById('btnProtoDhcp');
+        const hint = document.getElementById('protoHelperHint');
+        const badge = document.getElementById('badgeProtoRed');
+
+        if (btnStatic) btnStatic.className = 'btn-proto-opt' + (esDhcp ? '' : ' active-static');
+        if (btnDhcp) btnDhcp.className = 'btn-proto-opt' + (esDhcp ? ' active-dhcp' : '');
+
+        if (badge) {
+            badge.className = 'proto-badge-pro ' + (esDhcp ? 'dhcp' : 'static');
+            badge.innerText = esDhcp ? '● Modo DHCP' : '● Modo IP Fija';
+        }
+        if (hint) {
+            hint.innerHTML = esDhcp
+                ? '🔄 <b>Modo Automático:</b> Tu router asignará la IP, máscara y DNS automáticamente (los campos de abajo quedan bloqueados).'
+                : '📌 <b>Recomendado:</b> El minero conservará siempre esta misma IP fija aunque se corte la luz o se reinicie el router.';
+        }
+
+        ['net_ip', 'net_mask', 'net_gw', 'net_dns'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.disabled = esDhcp;
         });
-        const badge = document.getElementById('badgeProtoRed');
-        if (badge) {
-            badge.className = 'proto-badge-pro ' + (esDhcp ? 'dhcp' : 'static');
-            badge.innerText = esDhcp ? '● Modo DHCP' : '● Modo IP Estática';
+
+        if (fueClicUsuario) {
+            marcarRedEditada(null);
         }
     }
 
@@ -453,7 +535,7 @@
 
         const msgConfirm = (proto === '1')
             ? `¿Cambiar el minero {{ ip }} a modo DHCP automático?`
-            : `¿Aplicar IP Estática [${nip}] con Gateway [${gw}] en el minero {{ ip }}?`;
+            : `¿Aplicar IP Fija [${nip}] con Gateway [${gw}] en el minero {{ ip }}?`;
 
         if (!confirm(msgConfirm)) return;
 
@@ -484,7 +566,9 @@
     }
 
     window.addEventListener('load', function() {
-        cambiarModoProtocoloRed();
+        const valorInicial = document.getElementById('net_proto')?.value || '2';
+        seleccionarProtocoloRed(valorInicial, false);
+
         document.querySelectorAll('[data-net-tt]').forEach(el => {
             const key = el.getAttribute('data-net-tt');
             const info = INFO_TOOLTIPS_NET[key];
