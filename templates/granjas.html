@@ -1,1 +1,572 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    /* Encabezado de Gestión de Granjas */
+    .farms-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-bottom: 18px;
+        padding: 16px 20px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+    .farms-header h1 {
+        margin: 0;
+        font-size: 1.42em;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .farms-header p {
+        margin: 4px 0 0 0;
+        font-size: 0.84em;
+        color: var(--text-muted);
+    }
+    .btn-new-farm {
+        background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
+        color: #fff;
+        border: 1px solid #60a5fa;
+        padding: 9px 16px;
+        border-radius: 7px;
+        font-weight: bold;
+        font-size: 0.85em;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.45);
+        transition: all 0.2s ease;
+    }
+    .btn-new-farm:hover {
+        box-shadow: 0 0 22px rgba(59, 130, 246, 0.75);
+        transform: translateY(-1px);
+    }
 
+    /* Grilla de Tarjetas de Granjas */
+    .farms-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        gap: 20px;
+    }
+    @media (max-width: 500px) {
+        .farms-grid { grid-template-columns: 1fr; }
+    }
+
+    .farm-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.22s ease;
+    }
+    .farm-card:hover {
+        border-color: rgba(82, 140, 255, 0.55);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Cabecera de cada Granja */
+    .farm-card-top {
+        padding: 16px 18px;
+        background: rgba(255, 255, 255, 0.015);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+    }
+    .farm-name {
+        font-size: 1.15em;
+        font-weight: bold;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .farm-meta {
+        font-size: 0.78em;
+        color: var(--text-muted);
+        font-family: monospace;
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .farm-pill-status {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.74em;
+        font-weight: bold;
+        font-family: monospace;
+        white-space: nowrap;
+    }
+    .farm-pill-status.ok { background: rgba(0, 230, 118, 0.12); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.35); }
+    .farm-pill-status.warn { background: rgba(255, 179, 0, 0.14); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.4); }
+    .farm-pill-status.crit { background: rgba(255, 82, 82, 0.15); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); }
+
+    /* KPIs internos de la Granja */
+    .farm-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        padding: 14px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    @media (max-width: 520px) {
+        .farm-kpis { grid-template-columns: repeat(2, 1fr); }
+    }
+    .fk-item {
+        background: rgba(10, 12, 18, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+        padding: 8px 10px;
+    }
+    .fk-label { font-size: 0.68em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
+    .fk-val { font-size: 1.08em; font-weight: bold; font-family: monospace; margin-top: 3px; color: var(--text-main); }
+
+    /* Medidor de Carga del Transformador (Power Capacity) */
+    .power-gauge-box {
+        padding: 12px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .power-gauge-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.78em;
+        margin-bottom: 6px;
+    }
+    .power-bar-bg {
+        width: 100%;
+        height: 7px;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .power-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.35s ease;
+    }
+    .btn-edit-cap {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        font-size: 0.85em;
+        padding: 2px 7px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .btn-edit-cap:hover { color: #fff; border-color: #3b82f6; }
+
+    /* Mapa Térmico Visual de Rack (Live Grid) */
+    .rack-map-box {
+        padding: 12px 18px;
+        flex: 1;
+    }
+    .rack-map-title {
+        font-size: 0.75em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        font-weight: bold;
+        margin-bottom: 9px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .rack-tiles-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+        gap: 7px;
+    }
+    .rack-tile {
+        padding: 7px 6px;
+        border-radius: 6px;
+        text-align: center;
+        font-family: monospace;
+        font-size: 0.76em;
+        border: 1px solid transparent;
+        text-decoration: none;
+        transition: all 0.18s ease;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .rack-tile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+    .rack-tile.ok { background: rgba(0, 230, 118, 0.10); border-color: rgba(0, 230, 118, 0.35); color: #00e676; }
+    .rack-tile.warn { background: rgba(255, 179, 0, 0.14); border-color: rgba(255, 179, 0, 0.45); color: #ffb300; }
+    .rack-tile.crit { background: rgba(255, 82, 82, 0.16); border-color: rgba(255, 82, 82, 0.5); color: #ff5252; }
+    .rack-tile.off { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.12); color: var(--text-muted); opacity: 0.7; }
+    .rack-tile-name { font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Botonera de Acciones Rápidas de Granja (1-Clic) */
+    .farm-actions-bar {
+        padding: 12px 18px;
+        background: rgba(10, 12, 18, 0.5);
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 7px;
+        flex-wrap: wrap;
+    }
+    .btn-farm-cmd {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 6px 11px;
+        border-radius: 6px;
+        font-size: 0.78em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        flex: 1 1 auto;
+        text-align: center;
+    }
+    .btn-farm-cmd:hover { border-color: #3b82f6; background: rgba(51, 102, 255, 0.18); color: #fff; }
+    .btn-farm-cmd.eco { color: #00e676; border-color: rgba(0, 230, 118, 0.35); }
+    .btn-farm-cmd.eco:hover { background: rgba(0, 230, 118, 0.2); border-color: #00e676; color: #fff; }
+    .btn-farm-cmd.sleep { color: #ffb300; border-color: rgba(255, 179, 0, 0.35); }
+    .btn-farm-cmd.sleep:hover { background: rgba(255, 179, 0, 0.2); border-color: #ffb300; color: #fff; }
+    .btn-farm-cmd.reboot { color: #ff5252; border-color: rgba(255, 82, 82, 0.35); }
+    .btn-farm-cmd.reboot:hover { background: rgba(255, 82, 82, 0.22); border-color: #ff5252; color: #fff; }
+
+    /* Modal para Crear / Editar Granja */
+    .farm-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.72);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+        backdrop-filter: blur(3px);
+    }
+    .farm-modal-box {
+        background: var(--bg-card);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        border-radius: 10px;
+        padding: 22px;
+        max-width: 440px;
+        width: 100%;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.75);
+    }
+    .fm-group { margin-bottom: 14px; }
+    .fm-group label { display: block; font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
+    .fm-input {
+        width: 100%;
+        background: rgba(10, 12, 18, 0.75);
+        border: 1px solid var(--border-color);
+        color: #fff;
+        padding: 9px 11px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        outline: none;
+    }
+    .fm-input:focus { border-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.35); }
+
+    .farm-toast {
+        position: fixed;
+        bottom: 22px;
+        right: 22px;
+        background: rgba(10, 12, 18, 0.96);
+        border: 1px solid #00e676;
+        color: #fff;
+        padding: 12px 18px;
+        border-radius: 8px;
+        font-size: 0.85em;
+        font-weight: bold;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+        z-index: 9999;
+        display: none;
+    }
+</style>
+
+<div id="farmToast" class="farm-toast" translate="no"></div>
+
+<!-- Modal: Nueva Granja / Configurar Capacidad -->
+<div class="farm-modal-overlay" id="farmModal">
+    <div class="farm-modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px; margin-bottom:16px;">
+            <span style="font-weight:bold; font-size:1.1em;" id="farmModalTitle">🏭 Nueva Granja / Sede</span>
+            <button type="button" class="btn-edit-cap" onclick="cerrarFarmModal()">✖</button>
+        </div>
+        <input type="hidden" id="fm_id">
+        <div class="fm-group">
+            <label>Nombre de la Granja / Galpón</label>
+            <input type="text" id="fm_nombre" class="fm-input" placeholder="Ej: Galpón Norte - Santa Cruz">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="fm-group">
+                <label>Capacidad Transformador (kW)</label>
+                <input type="number" id="fm_cap_kw" class="fm-input" value="50" min="1">
+            </div>
+            <div class="fm-group">
+                <label>Tarifa Eléctrica (USD/kWh)</label>
+                <input type="number" step="0.01" id="fm_tarifa" class="fm-input" value="0.06" min="0">
+            </div>
+        </div>
+        <div class="fm-group">
+            <label>Subred / Notas del Técnico</label>
+            <input type="text" id="fm_notas" class="fm-input" placeholder="Ej: 192.168.1.x · Transformador 75 kVA">
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+            <button type="button" class="btn-farm-cmd" style="flex:0 0 auto; padding:8px 14px;" onclick="cerrarFarmModal()">Cancelar</button>
+            <button type="button" class="btn-new-farm" onclick="guardarConfigGranja()">💾 Guardar Sede</button>
+        </div>
+    </div>
+</div>
+
+<!-- Encabezado -->
+<div class="farms-header">
+    <div>
+        <h1>🏭 Gestión de Granjas y Sedes</h1>
+        <p>Supervisa la carga eléctrica de tus transformadores, el mapa térmico por rack y ejecuta controles por sede.</p>
+    </div>
+    <button type="button" class="btn-new-farm" onclick="abrirNuevaGranjaModal()">＋ Nueva Granja</button>
+</div>
+
+<!-- Grilla de Granjas Activas (Detectadas automáticamente + Personalizadas) -->
+<div class="farms-grid" id="farmsGridContainer">
+    {% for g in granjas %}
+    {% set ips_lista = g.mineros | map(attribute='ip') | list %}
+    <div class="farm-card" data-farm-id="{{ g.id }}" data-consumo-kw="{{ g.consumo_kw }}">
+        <div class="farm-card-top">
+            <div>
+                <div class="farm-name">
+                    <span>🏭</span>
+                    <span class="farm-name-label" translate="no">{{ g.nombre }}</span>
+                </div>
+                <div class="farm-meta" translate="no">
+                    <span>📍 {{ g.ciudad }}</span>
+                    <span>·</span>
+                    <span>🌐 {{ g.subred }}</span>
+                </div>
+            </div>
+            {% if g.offline > 0 or g.temp_max >= 85 %}
+                <span class="farm-pill-status crit">⚠️ Atención ({{ g.online }}/{{ g.total }})</span>
+            {% elif g.temp_max >= 75 %}
+                <span class="farm-pill-status warn">🔥 Caliente ({{ g.temp_max }}°C)</span>
+            {% else %}
+                <span class="farm-pill-status ok">● Óptima ({{ g.online }}/{{ g.total }})</span>
+            {% endif %}
+        </div>
+
+        <!-- KPIs de la Sede -->
+        <div class="farm-kpis" translate="no">
+            <div class="fk-item">
+                <div class="fk-label">Hashrate</div>
+                <div class="fk-val" style="color:#3b82f6;">{{ g.hashrate }} <span style="font-size:0.68em;color:var(--text-muted);">TH/s</span></div>
+            </div>
+            <div class="fk-item">
+                <div class="fk-label">Consumo</div>
+                <div class="fk-val" style="color:#c084fc;">{{ g.consumo_kw }} <span style="font-size:0.68em;color:var(--text-muted);">kW</span></div>
+            </div>
+            <div class="fk-item">
+                <div class="fk-label">Temp Pico</div>
+                <div class="fk-val" style="color:{{ '#ff5252' if g.temp_max >= 85 else ('#ffb300' if g.temp_max >= 75 else '#00e676') }};">{{ g.temp_max }}°C</div>
+            </div>
+            <div class="fk-item">
+                <div class="fk-label">Costo Luz/Día</div>
+                <div class="fk-val farm-cost-day" style="color:#38bdf8;">$0.00</div>
+            </div>
+        </div>
+
+        <!-- Medidor de Carga del Transformador -->
+        <div class="power-gauge-box" translate="no">
+            <div class="power-gauge-header">
+                <span style="color:var(--text-muted); font-weight:bold;">⚡ Carga Eléctrica: <b class="farm-cap-txt" style="color:var(--text-main);">{{ g.consumo_kw }} / 50 kW (0%)</b></span>
+                <button type="button" class="btn-edit-cap" onclick="editarCapacidadGranja('{{ g.id }}', '{{ g.nombre }}')">⚙️ Ajustar kW</button>
+            </div>
+            <div class="power-bar-bg">
+                <div class="power-bar-fill farm-cap-bar" style="width: 10%; background: #00e676;"></div>
+            </div>
+        </div>
+
+        <!-- Mapa Térmico Visual de Rack (Live Grid) -->
+        <div class="rack-map-box">
+            <div class="rack-map-title">
+                <span>🗺️ Mapa Térmico de Equipos ({{ g.total }})</span>
+                <span style="font-weight:normal; font-size:0.9em;">Clic para abrir minero</span>
+            </div>
+            <div class="rack-tiles-grid" translate="no">
+                {% for m in g.mineros %}
+                {% set tile_cls = 'off' if not m.online else ('crit' if m.temp_max >= 85 else ('warn' if m.temp_max >= 75 else 'ok')) %}
+                <a href="/minero/{{ m.ip }}" class="rack-tile {{ tile_cls }}" title="{{ m.nombre }} ({{ m.ip }}) - {{ m.hashrate }} {{ m.unidad }} - {{ m.temp_max }}°C">
+                    <span class="rack-tile-name">{{ m.nombre }}</span>
+                    <span>{{ (m.temp_max ~ '°C') if m.online else 'OFF' }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Acciones Rápidas por Granja -->
+        <div class="farm-actions-bar">
+            <button type="button" class="btn-farm-cmd eco" onclick='comandoGranja("profile|low", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>❄️ Modo Eco</button>
+            <button type="button" class="btn-farm-cmd sleep" onclick='comandoGranja("sleep", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>😴 Reposo</button>
+            <button type="button" class="btn-farm-cmd" onclick='comandoGranja("normal", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>▶ Normal</button>
+            <button type="button" class="btn-farm-cmd reboot" onclick='comandoGranja("restart", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>🔄 Reiniciar</button>
+        </div>
+    </div>
+    {% else %}
+    <div class="farm-card" style="padding:36px; text-align:center;">
+        <div style="font-size:2.4em; margin-bottom:10px;">🏭</div>
+        <h3 style="margin:0 0 8px 0;">Aún no hay granjas activas detectadas</h3>
+        <p style="color:var(--text-muted); font-size:0.88em; margin-bottom:18px;">
+            En cuanto tu <code>agente.py</code> transmita datos, tus sedes aparecerán automáticamente aquí, o puedes registrar una granja manualmente.
+        </p>
+        <div>
+            <button type="button" class="btn-new-farm" onclick="abrirNuevaGranjaModal()">＋ Crear Primera Granja</button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+    function mostrarFarmToast(msg) {
+        const t = document.getElementById('farmToast');
+        if (!t) return;
+        t.innerText = '✅ ' + msg;
+        t.style.display = 'block';
+        setTimeout(() => { t.style.display = 'none'; }, 3500);
+    }
+
+    function obtenerConfigGranjas() {
+        try { return JSON.parse(localStorage.getItem('emg_granjas_cfg') || '{}'); }
+        catch(e) { return {}; }
+    }
+
+    function guardarConfigGranjasStorage(obj) {
+        try { localStorage.setItem('emg_granjas_cfg', JSON.stringify(obj)); } catch(e) {}
+    }
+
+    function aplicarDatosLocalesGranjas() {
+        const cfg = obtenerConfigGranjas();
+        document.querySelectorAll('.farm-card[data-farm-id]').forEach(card => {
+            const id = card.getAttribute('data-farm-id');
+            const kw = parseFloat(card.getAttribute('data-consumo-kw') || '0');
+            const c = cfg[id] || { cap_kw: 50, tarifa: 0.06 };
+
+            if (c.nombre) {
+                const lbl = card.querySelector('.farm-name-label');
+                if (lbl) lbl.innerText = c.nombre;
+            }
+
+            const cap = Math.max(1, parseFloat(c.cap_kw || 50));
+            const tarifa = parseFloat(c.tarifa || 0.06);
+            const pct = Math.min(100, Math.round((kw / cap) * 100));
+            const costoDia = kw * 24 * tarifa;
+
+            const txtCap = card.querySelector('.farm-cap-txt');
+            const barCap = card.querySelector('.farm-cap-bar');
+            const txtCost = card.querySelector('.farm-cost-day');
+
+            if (txtCap) txtCap.innerText = `${kw.toFixed(1)} / ${cap} kW (${pct}%)`;
+            if (barCap) {
+                barCap.style.width = pct + '%';
+                barCap.style.background = pct >= 85 ? '#ff5252' : (pct >= 70 ? '#ffb300' : '#00e676');
+            }
+            if (txtCost) txtCost.innerText = `$${costoDia.toFixed(2)}`;
+        });
+    }
+
+    function editarCapacidadGranja(id, nombreActual) {
+        const cfg = obtenerConfigGranjas()[id] || {};
+        document.getElementById('farmModalTitle').innerText = '⚙️ Configurar Sede';
+        document.getElementById('fm_id').value = id;
+        document.getElementById('fm_nombre').value = cfg.nombre || nombreActual;
+        document.getElementById('fm_cap_kw').value = cfg.cap_kw || 50;
+        document.getElementById('fm_tarifa').value = cfg.tarifa !== undefined ? cfg.tarifa : 0.06;
+        document.getElementById('fm_notas').value = cfg.notas || '';
+        document.getElementById('farmModal').style.display = 'flex';
+    }
+
+    function abrirNuevaGranjaModal() {
+        document.getElementById('farmModalTitle').innerText = '🏭 Nueva Granja / Sede';
+        document.getElementById('fm_id').value = 'custom_' + Date.now();
+        document.getElementById('fm_nombre').value = '';
+        document.getElementById('fm_cap_kw').value = 50;
+        document.getElementById('fm_tarifa').value = 0.06;
+        document.getElementById('fm_notas').value = '';
+        document.getElementById('farmModal').style.display = 'flex';
+    }
+
+    function cerrarFarmModal() {
+        document.getElementById('farmModal').style.display = 'none';
+    }
+
+    function guardarConfigGranja() {
+        const id = document.getElementById('fm_id').value;
+        const nombre = document.getElementById('fm_nombre').value.trim();
+        const cap_kw = parseFloat(document.getElementById('fm_cap_kw').value) || 50;
+        const tarifa = parseFloat(document.getElementById('fm_tarifa').value) || 0;
+        const notas = document.getElementById('fm_notas').value.trim();
+
+        if (!nombre) return;
+        const cfg = obtenerConfigGranjas();
+        cfg[id] = { nombre, cap_kw, tarifa, notas };
+        guardarConfigGranjasStorage(cfg);
+
+        // Si es una sede nueva creada manualmente, renderizar su tarjeta al instante
+        if (id.startsWith('custom_') && !document.querySelector(`.farm-card[data-farm-id="${id}"]`)) {
+            const grid = document.getElementById('farmsGridContainer');
+            const div = document.createElement('div');
+            div.className = 'farm-card';
+            div.setAttribute('data-farm-id', id);
+            div.setAttribute('data-consumo-kw', '0');
+            div.innerHTML = `
+                <div class="farm-card-top">
+                    <div>
+                        <div class="farm-name"><span>🏭</span><span class="farm-name-label">${nombre}</span></div>
+                        <div class="farm-meta"><span>📝 ${notas || 'Sede lista para conectar agente.py'}</span></div>
+                    </div>
+                    <span class="farm-pill-status ok">● Lista (0/0)</span>
+                </div>
+                <div class="power-gauge-box">
+                    <div class="power-gauge-header">
+                        <span style="color:var(--text-muted); font-weight:bold;">⚡ Carga Eléctrica: <b class="farm-cap-txt" style="color:var(--text-main);">0.0 / ${cap_kw} kW (0%)</b></span>
+                        <button type="button" class="btn-edit-cap" onclick="editarCapacidadGranja('${id}', '${nombre}')">⚙️ Ajustar kW</button>
+                    </div>
+                    <div class="power-bar-bg"><div class="power-bar-fill farm-cap-bar" style="width:0%; background:#00e676;"></div></div>
+                </div>
+                <div class="rack-map-box" style="color:var(--text-muted); font-size:0.84em;">
+                    Descarga tu <b>agente.py</b> desde <a href="/ajustes" style="color:#60a5fa; text-decoration:underline;">Ajustes</a> e instálalo en esta sede para vincular sus mineros.
+                </div>
+            `;
+            grid.appendChild(div);
+        }
+
+        cerrarFarmModal();
+        aplicarDatosLocalesGranjas();
+        mostrarFarmToast(`Configuración guardada para "${nombre}".`);
+    }
+
+    function comandoGranja(accion, ips, nombreGranja) {
+        if (!ips || ips.length === 0) return;
+        if (!confirm(`¿Ejecutar "${accion}" en los ${ips.length} mineros de ${nombreGranja}?`)) return;
+
+        fetch('/cmd_bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accion: accion, ips: ips })
+        }).then(() => {
+            mostrarFarmToast(`Orden "${accion}" enviada a ${ips.length} equipos de ${nombreGranja}.`);
+        });
+    }
+
+    window.addEventListener('load', aplicarDatosLocalesGranjas);
+</script>
+{% endblock %}
