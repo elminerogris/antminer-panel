@@ -42,8 +42,35 @@
         font-family: monospace;
         cursor: help;
     }
+    .btn-guia-pools {
+        background: rgba(56, 189, 248, 0.1);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        color: #38bdf8;
+        padding: 3px 9px;
+        border-radius: 12px;
+        font-size: 0.72em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.18s;
+    }
+    .btn-guia-pools:hover {
+        background: rgba(56, 189, 248, 0.22);
+        color: #fff;
+    }
 
-    /* Botón Guardar con efecto Neon Glow idéntico al gráfico */
+    /* Mini Guía desplegable para Principiantes */
+    .pools-beginner-guide {
+        display: none;
+        padding: 12px 16px;
+        background: linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, rgba(51, 102, 255, 0.04) 100%);
+        border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+        font-size: 0.80em;
+        color: #d1d3e0;
+        line-height: 1.5;
+    }
+    .pools-beginner-guide b { color: #fff; }
+
+    /* Botón Guardar con efecto Neon Glow */
     .btn-guardar-pools {
         background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%);
         border: 1px solid rgba(82, 140, 255, 0.65);
@@ -66,7 +93,6 @@
         background: rgba(51, 102, 255, 0.35);
         border-color: #60a5fa;
         box-shadow: 0 0 16px rgba(59, 130, 246, 0.65), inset 0 0 8px rgba(51, 102, 255, 0.3);
-        text-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
         transform: translateY(-1px);
     }
     .btn-guardar-pools.unsaved-pulse {
@@ -127,6 +153,7 @@
         color: var(--text-muted);
         font-size: 0.92em;
         margin-right: 2px;
+        cursor: help;
     }
     .preset-pill {
         background: rgba(255, 255, 255, 0.03);
@@ -204,7 +231,25 @@
         background: rgba(255, 255, 255, 0.02);
     }
 
-    /* Prioridad (#1 Primario, #2 Backup, #3 Failover) */
+    /* Prioridad interactiva con indicador visual de ayuda */
+    .pool-rank-wrap {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        cursor: help;
+        padding: 4px 6px;
+        border-radius: 6px;
+        transition: background 0.18s ease;
+        user-select: none;
+    }
+    .pool-rank-wrap:hover {
+        background: rgba(51, 102, 255, 0.12);
+    }
+    .pool-rank-top {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
     .pool-rank-badge {
         display: inline-flex;
         align-items: center;
@@ -219,12 +264,22 @@
         color: #60a5fa;
         border: 1px solid rgba(51, 102, 255, 0.35);
     }
+    .pool-rank-help-dot {
+        font-size: 0.70em;
+        color: var(--text-muted);
+        opacity: 0.75;
+    }
     .pool-rank-sub {
         display: block;
-        font-size: 0.72em;
+        font-size: 0.74em;
         color: var(--text-muted);
-        margin-top: 2px;
-        font-weight: normal;
+        margin-top: 3px;
+        font-weight: 600;
+        border-bottom: 1px dotted rgba(255, 255, 255, 0.25);
+    }
+    .pool-rank-wrap:hover .pool-rank-sub {
+        color: #fff;
+        border-bottom-color: #60a5fa;
     }
 
     /* Inputs con botón de copiar integrado y resaltado de edición */
@@ -294,6 +349,7 @@
         font-size: 0.82em;
         font-weight: bold;
         font-family: monospace;
+        cursor: help;
     }
     .pool-status-pill.alive {
         background: rgba(0, 230, 118, 0.12);
@@ -342,7 +398,7 @@
         background: #ff5252;
     }
 
-    /* Diseño Responsivo: Tarjetas apiladas en Celular (Zero-Scroll Horizontal) */
+    /* Diseño Responsivo: Tarjetas apiladas en Celular */
     @media (max-width: 768px) {
         .pools-table-pro thead {
             display: none;
@@ -377,13 +433,17 @@
             min-width: 92px;
             flex-shrink: 0;
         }
+        .pool-rank-wrap {
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+        }
+        .pool-rank-sub {
+            margin-top: 0;
+        }
         .input-pool-pro.pass-field {
             width: 100%;
             text-align: left;
-        }
-        .pool-rank-sub {
-            display: inline;
-            margin-left: 6px;
         }
         .btn-guardar-pools {
             width: 100%;
@@ -413,11 +473,20 @@
             <span class="pools-active-badge" data-pool-tt="pool_activo" translate="no">
                 ● Activo: {{ extra.pool1.split('//')[-1].split(':')[0] if extra.pool1 else 'Sin configurar' }}
             </span>
+            <button type="button" class="btn-guia-pools" onclick="toggleGuiaPools()">💡 ¿Cómo configurar?</button>
         </div>
         <button class="btn-guardar-pools" id="btnGuardarPoolsPro" data-pool-tt="btn_guardar" onclick="guardarTodasPools()">
             <span id="iconoGuardarPools">💾</span>
             <span id="textoGuardarPools">Guardar Todos los Pools</span>
         </button>
+    </div>
+
+    <!-- Mini Guía Rápida para Principiantes -->
+    <div id="poolsBeginnerGuide" class="pools-beginner-guide">
+        <b>👋 Guía rápida en 3 pasos:</b><br>
+        1. Toca una <b>Plantilla BTC</b> abajo (ej. <i>ViaBTC</i> o <i>F2Pool</i>) para rellenar automáticamente los 3 servidores oficiales.<br>
+        2. En la fila <b>1 (Primario)</b>, escribe tu <b>Worker</b> con el formato <code>TuUsuario.001</code> (se copiará solo a las filas 2 y 3).<br>
+        3. Presiona <b>💾 Guardar Todos los Pools</b>. Si el servidor #1 falla alguna vez, tu minero cambiará automáticamente al #2 o #3 sin dejar de minar.
     </div>
 
     <!-- Barra de métricas globales de Shares + Plantillas Rápidas 1-Clic -->
@@ -452,8 +521,8 @@
         <table class="pools-table-pro">
             <thead>
                 <tr>
-                    <th style="width:75px;" data-pool-tt="col_prio">Prioridad</th>
-                    <th data-pool-tt="col_url"> dirección Stratum (Pool URL)</th>
+                    <th style="width:95px;" data-pool-tt="col_prio">Prioridad</th>
+                    <th data-pool-tt="col_url">Dirección Stratum (Pool URL)</th>
                     <th data-pool-tt="col_worker">Worker (Subcuenta.Minero)</th>
                     <th style="width:90px;" data-pool-tt="col_pass">Pass</th>
                     <th style="width:105px;" data-pool-tt="col_estado">Estado</th>
@@ -465,8 +534,11 @@
                 <!-- POOL 1 (PRIMARIO) -->
                 <tr>
                     <td data-label="Prioridad">
-                        <div>
-                            <span class="pool-rank-badge">1</span>
+                        <div class="pool-rank-wrap" data-pool-tt="prio_1">
+                            <div class="pool-rank-top">
+                                <span class="pool-rank-badge">1</span>
+                                <span class="pool-rank-help-dot">ⓘ</span>
+                            </div>
                             <span class="pool-rank-sub">Primario</span>
                         </div>
                     </td>
@@ -486,7 +558,7 @@
                         <input type="text" id="pass_1" value="{{ extra.pass1 }}" class="input-pool-pro pass-field" placeholder="123" oninput="sincronizarPass(this.value); marcarPoolEditado(this)" translate="no">
                     </td>
                     <td data-label="Estado" translate="no">
-                        <span class="pool-status-pill {{ 'alive' if extra.status1 == 'Alive' else 'dead' }}">
+                        <span class="pool-status-pill {{ 'alive' if extra.status1 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status1 == 'Alive' else 'status_dead' }}">
                             <span class="status-dot-pulse"></span>
                             {{ extra.status1 }}
                         </span>
@@ -506,11 +578,14 @@
                     </td>
                 </tr>
 
-                <!-- POOL 2 (RESPALDO / FAILOVER 1) -->
+                <!-- POOL 2 (RESPALDO 1) -->
                 <tr>
                     <td data-label="Prioridad">
-                        <div>
-                            <span class="pool-rank-badge" style="opacity:0.85;">2</span>
+                        <div class="pool-rank-wrap" data-pool-tt="prio_2">
+                            <div class="pool-rank-top">
+                                <span class="pool-rank-badge" style="opacity:0.85;">2</span>
+                                <span class="pool-rank-help-dot">ⓘ</span>
+                            </div>
                             <span class="pool-rank-sub">Respaldo 1</span>
                         </div>
                     </td>
@@ -530,7 +605,7 @@
                         <input type="text" id="pass_2" value="{{ extra.pass2 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
                     </td>
                     <td data-label="Estado" translate="no">
-                        <span class="pool-status-pill {{ 'alive' if extra.status2 == 'Alive' else 'dead' }}">
+                        <span class="pool-status-pill {{ 'alive' if extra.status2 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status2 == 'Alive' else 'status_dead' }}">
                             <span class="status-dot-pulse"></span>
                             {{ extra.status2 }}
                         </span>
@@ -550,11 +625,14 @@
                     </td>
                 </tr>
 
-                <!-- POOL 3 (EMERGENCIA / FAILOVER 2) -->
+                <!-- POOL 3 (RESPALDO 2) -->
                 <tr>
                     <td data-label="Prioridad">
-                        <div>
-                            <span class="pool-rank-badge" style="opacity:0.7;">3</span>
+                        <div class="pool-rank-wrap" data-pool-tt="prio_3">
+                            <div class="pool-rank-top">
+                                <span class="pool-rank-badge" style="opacity:0.7;">3</span>
+                                <span class="pool-rank-help-dot">ⓘ</span>
+                            </div>
                             <span class="pool-rank-sub">Respaldo 2</span>
                         </div>
                     </td>
@@ -574,7 +652,7 @@
                         <input type="text" id="pass_3" value="{{ extra.pass3 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
                     </td>
                     <td data-label="Estado" translate="no">
-                        <span class="pool-status-pill {{ 'alive' if extra.status3 == 'Alive' else 'dead' }}">
+                        <span class="pool-status-pill {{ 'alive' if extra.status3 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status3 == 'Alive' else 'status_dead' }}">
                             <span class="status-dot-pulse"></span>
                             {{ extra.status3 }}
                         </span>
@@ -602,74 +680,99 @@
     let autoSyncWorkersActivo = true;
 
     const INFO_TOOLTIPS_POOLS = {
+        'prio_1': {
+            titulo: '🥇 Pool #1 — Primario (Principal)',
+            desc: 'Es el servidor principal donde trabaja tu minero todo el día y donde se envían tus ganancias. Si este pool se cae o pierde conexión, el minero pasará automáticamente al Pool #2 (Respaldo 1) para no detenerse ni perder dinero.',
+            rango: '🔄 Al recuperarse el #1, el minero vuelve solo aquí'
+        },
+        'prio_2': {
+            titulo: '🥈 Pool #2 — Respaldo 1 (Plan B)',
+            desc: 'Queda en espera y solo se activa de forma automática si el Pool #1 deja de funcionar. Te recomendamos poner el mismo pool pero en otro puerto (ej: puerto 443) por si tu internet bloquea el puerto principal.',
+            rango: '🛡️ Si también falla el #2, saltará al Pool #3'
+        },
+        'prio_3': {
+            titulo: '🥉 Pool #3 — Respaldo 2 (Emergencia)',
+            desc: 'Es tu última línea de defensa. Solo entra en acción si fallan tanto el Pool #1 como el #2. Puedes usar un tercer puerto (ej: 25) o incluso otro pool distinto para asegurar minería 24/7.',
+            rango: '✅ Garantiza que el equipo nunca quede parado'
+        },
+        'status_alive': {
+            titulo: '🟢 Estado: Alive (Conectado)',
+            desc: 'Significa que el minero logró comunicarse correctamente con este servidor y está listo para enviar trabajo o ya se encuentra minando en él.',
+            rango: 'Conexión saludable con el pool'
+        },
+        'status_dead': {
+            titulo: '🔴 Estado: Dead (Sin conexión)',
+            desc: 'El minero no recibe respuesta de este servidor. Es totalmente normal si dejaste esta fila vacía; si es tu Pool #1, revisa que la URL esté bien escrita o que tengas internet.',
+            rango: 'Verifica la dirección Stratum y el puerto'
+        },
         'pool_activo': {
             titulo: '⛏ Servidor Stratum Primario',
             desc: 'Dominio del pool principal al que el Antminer está enviando su potencia de minado actualmente.',
             rango: 'Failover automático si el Pool 1 cae'
         },
         'btn_guardar': {
-            titulo: '💾 Aplicar Pools en Caliente',
-            desc: 'Envía las 3 direcciones Stratum, Workers y contraseñas al agente local para escribirlas en cgminer.conf del minero.',
+            titulo: '💾 Aplicar Pools en el Minero',
+            desc: 'Envía las 3 direcciones, Workers y contraseñas al agente local para guardarlas dentro del minero.',
             rango: 'Tiempo de aplicación: 15 a 30 segundos'
         },
         'stat_acc': {
             titulo: '✅ Shares Aceptados Totales',
-            desc: 'Paquetes de trabajo válidos enviados por el minero y acreditados para pago en el pool desde el último reinicio.',
-            rango: 'A mayor cantidad y continuidad, mayor pago'
+            desc: 'Trabajos válidos que resolvió tu minero y que el pool ya acreditó para tu pago desde el último reinicio.',
+            rango: 'A mayor cantidad, mayor pago acumulado'
         },
         'stat_rej': {
-            titulo: '⚠️ Shares Rechazados (Stale / Duplicados)',
-            desc: 'Trabajos enviados tarde por latencia de internet (Stale) o descartados por el pool. Si supera el 2%, revisa tu conexión o cambia al puerto 443.',
+            titulo: '⚠️ Shares Rechazados (Tarde / Duplicados)',
+            desc: 'Trabajos que llegaron tarde por lentitud de internet. Si supera el 2%, revisa tu conexión o prueba cambiar al puerto 443.',
             rango: '🟢 < 1.0% Óptimo | 🟠 1-2% Latencia | 🔴 > 2% Revisar Red'
         },
         'stat_eficiencia': {
             titulo: '📡 Calidad de Enlace Stratum',
-            desc: 'Porcentaje de efectividad de red entre tu granja y el servidor del pool de minería.',
+            desc: 'Porcentaje de efectividad entre tu granja y el servidor del pool de minería.',
             rango: 'Estándar profesional: ≥ 99.0%'
         },
         'sync_toggle': {
             titulo: '🔗 Auto-Sincronización de Worker',
-            desc: 'Cuando está en ON, al escribir tu usuario en el Pool 1 se copia automáticamente en los Pools 2 y 3 para evitar errores de tipeo.',
-            rango: 'Toque para activar o desactivar si usas cuentas distintas'
+            desc: 'Cuando está en ON, al escribir tu usuario en el Pool 1 se copia automáticamente en los Pools 2 y 3 para ahorrarte trabajo y evitar errores.',
+            rango: 'Toca para desactivar si usas cuentas distintas'
         },
         'presets_info': {
             titulo: '⚡ Plantillas Oficiales Anti-Caídas',
-            desc: 'Autocompleta los 3 puertos recomendados del pool elegido (3333 principal, 443 anti-firewall y 25 respaldo) manteniendo el nombre de tu Worker.',
-            rango: '1 clic para rellenar y luego presiona Guardar'
+            desc: 'Rellena con 1 clic los 3 puertos oficiales recomendados del pool (3333 principal, 443 respaldo y 25 emergencia) sin borrar tu Worker.',
+            rango: 'Elige tu pool y luego presiona Guardar'
         },
         'col_prio': {
             titulo: '🔢 Orden de Prioridad (Failover)',
-            desc: 'El minero trabaja siempre en el Pool #1. Solo salta al #2 o #3 si el servidor principal se desconecta.',
-            rango: '#1 Principal -> #2 Respaldo -> #3 Emergencia'
+            desc: 'El minero trabaja siempre en el #1. Solo pasa al #2 o #3 si el principal se desconecta. Pasa el mouse sobre cada número abajo para ver más.',
+            rango: '#1 Primario → #2 Respaldo 1 → #3 Respaldo 2'
         },
         'col_url': {
-            titulo: '🌐 Dirección del Servidor Stratum',
-            desc: 'URL y puerto TCP/SSL del pool de minería. Ejemplo: stratum+tcp://btc.viabtc.io:3333',
+            titulo: '🌐 Dirección del Servidor (Pool URL)',
+            desc: 'Dirección y puerto del pool donde quieres minar. Ejemplo: stratum+tcp://btc.viabtc.io:3333',
             rango: 'Usa distintos puertos (3333, 443, 25) en cada fila'
         },
         'col_worker': {
-            titulo: '👷 Nombre del Worker (Subcuenta.ID)',
-            desc: 'Identificador de tu cuenta en el pool seguido de un punto y el número de máquina (ej: ElMineroGris.002).',
-            rango: 'Formato estándar: UsuarioPool.NombreMaquina'
+            titulo: '👷 Nombre del Worker (TuCuenta.Minero)',
+            desc: 'Es el nombre de tu cuenta en el pool seguido de un punto y un número para identificar esta máquina (ej: MiCuenta.001).',
+            rango: 'Formato estándar: UsuarioPool.NumeroMaquina'
         },
         'col_pass': {
             titulo: '🔑 Contraseña del Pool',
-            desc: 'Contraseña del worker en el pool (por estándar todos los pools usan "123" o "x", no es la clave de tu cuenta web).',
+            desc: 'Por estándar casi todos los pools usan "123" o "x". NO pongas aquí la contraseña real de tu cuenta web ni de tu correo.',
             rango: 'Estándar: 123 o x'
         },
         'col_estado': {
-            titulo: '📶 Estado de Conexión con el Pool',
-            desc: 'Alive indica que el servidor del pool responde al ping Stratum del minero; Dead indica URL vacía o servidor inalcanzable.',
+            titulo: '📶 Estado de Conexión',
+            desc: 'Alive indica que el servidor responde bien; Dead indica que está vacío o no logra conectarse.',
             rango: '🟢 Alive = Conectado | 🔴 Dead = Sin enlace'
         },
         'col_acc': {
             titulo: '📈 Trabajos Aceptados por Pool',
-            desc: 'Cantidad de shares acreditados específicamente en esa fila y barra visual de proporción válida.',
-            rango: 'El Pool #1 concentra casi el 100% en operación normal'
+            desc: 'Cantidad de trabajos válidos acreditados en esa fila y barra verde de efectividad.',
+            rango: 'En operación normal casi todos están en el Pool #1'
         },
         'col_rej': {
             titulo: '📉 Trabajos Rechazados por Pool',
-            desc: 'Cantidad y porcentaje de shares rechazados en ese pool específico.',
+            desc: 'Cantidad y porcentaje de trabajos rechazados en ese pool específico.',
             rango: 'Ideal: 0.00% a 0.80%'
         }
     };
@@ -701,6 +804,12 @@
             'stratum+tcp://btc.global.luxor.tech:3333'
         ]
     };
+
+    function toggleGuiaPools() {
+        const g = document.getElementById('poolsBeginnerGuide');
+        if (!g) return;
+        g.style.display = (g.style.display === 'block') ? 'none' : 'block';
+    }
 
     function alternarAutoSyncWorker() {
         autoSyncWorkersActivo = !autoSyncWorkersActivo;
@@ -766,7 +875,7 @@
     }
 
     function normalizarUrlStratum(urlRaw) {
-        let u = (urlRaw || '').trim();
+        let u = (urlRaw || '').replace(/\s+/g, '').trim();
         if (!u) return '';
         if (!u.includes('://')) {
             u = 'stratum+tcp://' + u;
@@ -791,13 +900,13 @@
         }
 
         let u1 = encodeURIComponent(elU1.value);
-        let w1 = encodeURIComponent(document.getElementById('user_1').value.trim());
+        let w1 = encodeURIComponent(document.getElementById('user_1').value.replace(/\s+/g, '').trim());
         let p1 = encodeURIComponent(document.getElementById('pass_1').value.trim() || '123');
         let u2 = encodeURIComponent(elU2.value);
-        let w2 = encodeURIComponent(document.getElementById('user_2').value.trim());
+        let w2 = encodeURIComponent(document.getElementById('user_2').value.replace(/\s+/g, '').trim());
         let p2 = encodeURIComponent(document.getElementById('pass_2').value.trim() || '123');
         let u3 = encodeURIComponent(elU3.value);
-        let w3 = encodeURIComponent(document.getElementById('user_3').value.trim());
+        let w3 = encodeURIComponent(document.getElementById('user_3').value.replace(/\s+/g, '').trim());
         let p3 = encodeURIComponent(document.getElementById('pass_3').value.trim() || '123');
 
         if (confirm('¿Guardar y aplicar la configuración de Pools en el minero?')) {
@@ -821,7 +930,7 @@
         }
     }
 
-    // Conectar tooltips flotantes inteligentes con el mismo portal anti-colisión de _grafico.html
+    // Conectar tooltips flotantes inteligentes con el portal anti-colisión de _grafico.html
     window.addEventListener('load', function() {
         document.querySelectorAll('[data-pool-tt]').forEach(el => {
             const key = el.getAttribute('data-pool-tt');
