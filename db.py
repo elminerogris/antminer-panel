@@ -153,27 +153,46 @@ def init_db():
         c.execute("UPDATE logs_mineros SET owner='Admin' WHERE owner IS NULL OR owner=''")
         c.execute("UPDATE historial_nube SET owner='Admin' WHERE owner IS NULL OR owner=''")
 
-        # Migración automática y segura de 'giovanni' -> 'Admin'
-        c.execute("SELECT id FROM usuarios WHERE LOWER(username)='giovanni'")
-        row_old_adm = c.fetchone()
-        c.execute("SELECT id FROM usuarios WHERE LOWER(username)='admin'")
-        row_new_adm = c.fetchone()
-        if row_old_adm and not row_new_adm:
-            c.execute("UPDATE usuarios SET username='Admin', plan='Pro', suspendido=0 WHERE id=%s", (row_old_adm[0],))
+        # Borrar índice viejo primero para evitar choques al migrar
+        for drop_sql in [
+            "ALTER TABLE mineros_activos DROP CONSTRAINT IF EXISTS mineros_activos_ip_key",
+            "DROP INDEX IF EXISTS idx_mineros_owner_ip"
+        ]:
+            try: c.execute(drop_sql)
+            except: pass
+
+        # Migración segura de 'giovanni' -> 'Admin' eliminando duplicados antes
+        try:
+            c.execute("SELECT id FROM usuarios WHERE LOWER(username)='giovanni'")
+            row_old_adm = c.fetchone()
+            c.execute("SELECT id FROM usuarios WHERE LOWER(username)='admin'")
+            row_new_adm = c.fetchone()
+            if row_old_adm and not row_new_adm:
+                c.execute("UPDATE usuarios SET username='Admin', plan='Pro', suspendido=0 WHERE id=%s", (row_old_adm[0],))
+        except:
+            pass
+
+        for tbl_u in ('mineros_activos', 'nombres_mineros', 'logs_mineros'):
+            try:
+                c.execute(f"DELETE FROM {tbl_u} WHERE LOWER(owner)='giovanni' AND ip IN (SELECT ip FROM {tbl_u} WHERE owner='Admin')")
+            except:
+                pass
+
         for tbl, col in [
             ('mineros_activos', 'owner'), ('nombres_mineros', 'owner'),
             ('logs_mineros', 'owner'), ('historial_nube', 'owner'),
             ('cola_comandos', 'owner'), ('registro_alertas', 'owner'),
             ('movimientos_saldo', 'username')
         ]:
-            c.execute(f"UPDATE {tbl} SET {col}='Admin' WHERE LOWER({col})='giovanni'")
+            try:
+                c.execute(f"UPDATE {tbl} SET {col}='Admin' WHERE LOWER({col})='giovanni'")
+            except:
+                pass
 
         hoy_str = datetime.utcnow().strftime("%Y-%m-%d")
         c.execute("UPDATE usuarios SET fecha_registro=%s WHERE fecha_registro IS NULL OR fecha_registro=''", (hoy_str,))
 
         migraciones_unique = [
-            "ALTER TABLE mineros_activos DROP CONSTRAINT IF EXISTS mineros_activos_ip_key",
-            "DROP INDEX IF EXISTS idx_mineros_owner_ip",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_mineros_owner_agent_ip ON mineros_activos (owner, agent_id, ip)",
             "ALTER TABLE nombres_mineros DROP CONSTRAINT IF EXISTS nombres_mineros_ip_key",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_nombres_owner_ip ON nombres_mineros (owner, ip)",
