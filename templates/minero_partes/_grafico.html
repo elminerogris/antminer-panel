@@ -41,7 +41,7 @@
         box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
     }
 
-    /* Botón Profesional de Ubicación / GPS (inconfundible para principiantes) */
+    /* Botón Profesional de Ubicación / GPS */
     .farm-gps-btn {
         display: none;
         align-items: center;
@@ -151,7 +151,7 @@
         pointer-events: none;
     }
 
-    /* Botonera de Rangos de Tiempo (⚡ 3m | 6h, 24h, 7d, 30d | 📷) estilo cápsula glassmorphism */
+    /* Botonera de Rangos de Tiempo */
     .chart-filters {
         pointer-events: auto;
         display: inline-flex;
@@ -173,7 +173,6 @@
         flex-shrink: 0;
     }
 
-    /* Indicador de resolución dinámica LOD (3m -> 2m -> 1m) a la izquierda de 6h */
     .lod-badge {
         font-size: 0.72em;
         color: #93c5fd;
@@ -280,7 +279,6 @@
     .legend-pill.off .legend-label-txt { text-decoration: line-through; }
     .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
     
-    /* Botón de información (i) estilo Grafana/Datadog para tacto en celular y hover en PC */
     .legend-info-icon {
         display: inline-flex;
         align-items: center;
@@ -304,7 +302,7 @@
         color: #fff;
     }
 
-    /* Portal Global de Tooltip con anti-colisión de bordes (PC y Celular) */
+    /* Portal Global de Tooltip con anti-colisión de bordes */
     .smart-floating-tooltip {
         position: fixed;
         display: none;
@@ -476,7 +474,7 @@
         width: 100%;
     }
 
-    /* Tooltip flotante en línea 0 debajo del gráfico (por encima del botón flotante ↑) */
+    /* Tooltip flotante en línea 0 debajo del gráfico */
     .custom-chart-tooltip {
         --arrow-x: 50%;
         position: absolute;
@@ -529,7 +527,6 @@
         display: inline-block;
     }
 
-    /* Adaptación limpia para celulares */
     @media (max-width: 640px) {
         .chart-floating-toolbar {
             position: relative;
@@ -547,38 +544,20 @@
             gap: 2px;
             padding: 3px;
         }
-        .chart-filters::-webkit-scrollbar {
-            display: none;
-        }
-        .lod-badge {
-            padding: 3px 6px;
-            font-size: 0.68em;
-        }
-        .btn-filter {
-            padding: 4px 7px;
-            font-size: 0.72em;
-        }
-        .btn-reset-zoom {
-            padding: 3px 6px;
-            font-size: 0.70em;
-        }
-        .filter-divider {
-            margin: 0 2px;
-        }
-        .farm-map-container {
-            height: 210px;
-        }
-        .farm-gps-btn {
-            font-size: 0.70em;
-            padding: 3px 4px 3px 8px;
-        }
+        .chart-filters::-webkit-scrollbar { display: none; }
+        .lod-badge { padding: 3px 6px; font-size: 0.68em; }
+        .btn-filter { padding: 4px 7px; font-size: 0.72em; }
+        .btn-reset-zoom { padding: 3px 6px; font-size: 0.70em; }
+        .filter-divider { margin: 0 2px; }
+        .farm-map-container { height: 210px; }
+        .farm-gps-btn { font-size: 0.70em; padding: 3px 4px 3px 8px; }
     }
 </style>
 
-<!-- Portal flotante único en la ventana para que NUNCA se corte con el menú izquierdo ni en celular -->
+<!-- Portal flotante único en la ventana -->
 <div id="smartFloatingTooltip" class="smart-floating-tooltip"></div>
 
-<!-- Selector global con Mapa Interactivo (Google Maps tiles) para ubicar los Antminers -->
+<!-- Selector global con Mapa Interactivo (Google Maps tiles) para ubicar los mineros -->
 <div id="farmLocModalBg" class="farm-loc-modal-bg" onclick="if(event.target===this) cerrarModalUbicacionGranja()">
     <div class="farm-loc-modal">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -586,11 +565,11 @@
             <button type="button" onclick="cerrarModalUbicacionGranja()" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:17px;">✕</button>
         </div>
         <div style="font-size:11.5px; color:#94a3b8; margin-top:4px;">
-            Busca una ciudad, usa <b>Mi GPS</b> o <b>toca / arrastra el pin en el mapa</b> donde están instalados tus Antminers.
+            Busca una ciudad, usa <b>Mi GPS</b> o <b>toca / arrastra el pin en el mapa</b> donde están instalados tus mineros.
         </div>
 
         <div class="farm-loc-input-row">
-            <input type="text" id="farmLocSearchInput" class="farm-loc-input" placeholder="Ej: Anchorage Alaska, Santa Cruz, Miami..." onkeydown="if(event.key==='Enter') buscarCiudadGranja()">
+            <input type="text" id="farmLocSearchInput" class="farm-loc-input" placeholder="Ej: Santa Cruz, Miami, Asunción..." onkeydown="if(event.key==='Enter') buscarCiudadGranja()">
             <button type="button" class="btn-filter active" onclick="buscarCiudadGranja()">Buscar</button>
             <button type="button" class="btn-filter" onclick="usarMiGpsActual()" title="Usar GPS de este dispositivo">🎯 Mi GPS</button>
         </div>
@@ -624,7 +603,7 @@
         </div>
     </div>
 
-    <!-- Barra de métricas dinámicas con soporte táctil y mouse anti-recorte -->
+    <!-- Barra de métricas dinámicas -->
     <div class="chart-stats-bar">
         <div class="stat-item" data-stat-key="prom">
             Prom: <b id="statProm" style="color:var(--accent-blue);" translate="no">0.00</b>
@@ -689,7 +668,6 @@
     const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
 
-    // Ubicación configurable por cliente/granja + Zona horaria IANA automática (soporta DST en todo el mundo)
     const TIENE_GRANJA_SERVIDOR = {{ 'true' if ultimo.farm_city is defined and ultimo.farm_city else 'false' }};
     let GRANJA_LAT = {{ ultimo.farm_lat | default(-17.7833) }};
     let GRANJA_LON = {{ ultimo.farm_lon | default(-63.1821) }};
@@ -704,7 +682,6 @@
     let fmtSoloHoraCache = null;
     let fmtDiaMesCache = null;
 
-    // Variables del Mapa Interactivo
     let farmMap = null;
     let farmMarker = null;
     let tempLocSeleccionada = null;
@@ -718,7 +695,6 @@
     let elementoTooltipActivo = null;
     let tooltipsInicializados = false;
 
-    // Variables de caché y nivel de detalle dinámico (LOD: 3m -> 2m -> 1m) para fluidez 60fps en móvil
     let crudosPorMinutoCache = [];
     let pasoAgrupacionActualSeg = 180;
     let limiteDatosIzqGlobal = 0;
@@ -803,7 +779,7 @@
             'clima': {
                 titulo: '🌤️ Clima Exterior de la Granja',
                 desc: `Temperatura real afuera en ${ubicacionCompleta}. Te ayuda a ver si el equipo se calentó por el calor del día o por un fallo propio.`,
-                rango: 'Toca el botón "Editar GPS" arriba para cambiar ubicación en el mapa',
+                rango: 'Usa el botón "Editar GPS" arriba si quieres cambiar la ubicación',
                 accion: estadoTxt
             },
             'sensacion': {
@@ -837,6 +813,11 @@
                 desc: `Cambia el reloj del eje X entre la <b>hora local donde están tus máquinas</b> (${GRANJA_TIMEZONE}) y <b>tu hora local actual</b> (${BROWSER_TIMEZONE}). Se ajusta solo a cambios de horario de verano.`,
                 rango: 'Útil si vives en un país distinto al de tu granja'
             },
+            'gps_btn': {
+                titulo: '📍 Ubicación GPS de la Granja',
+                desc: `Ubicación configurada actualmente: <b>${ubicacionCompleta}</b> (${GRANJA_TIMEZONE}).`,
+                rango: 'Haz clic para abrir el mapa y ajustar el punto GPS exacto'
+            },
             'prom': {
                 titulo: '⚡ Promedio de Potencia',
                 desc: 'Velocidad media real a la que trabajó el minero en el periodo elegido (sin contar momentos apagados). Se marca con la línea azul punteada.',
@@ -858,9 +839,9 @@
                 rango: `Saludable: 60°C a 75°C | Corte automático: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`
             },
             'clima_hoy': {
-                titulo: '📍 Ubicación GPS y Clima de tus Máquinas',
-                desc: `Temperatura y sensación térmica actuales en ${ubicacionCompleta} (${GRANJA_TIMEZONE}).`,
-                rango: 'Haz clic para abrir el mapa y cambiar el GPS de la granja'
+                titulo: '🌤️ Clima Exterior y Sensación Térmica',
+                desc: `Temperatura ambiente exterior y sensación térmica por humedad actuales en <b>${ubicacionCompleta}</b>.`,
+                rango: 'Se actualiza según la ubicación elegida en "Editar GPS" arriba'
             },
             'uptime': {
                 titulo: '🟢 Estabilidad (Tiempo Activo)',
@@ -1029,7 +1010,7 @@
         const badgeClima = document.getElementById('climaUbicacionBadge');
         if (badgeClima) {
             badgeClima.addEventListener('mouseenter', function() {
-                mostrarSmartTooltip(badgeClima, obtenerInfoTooltipStat('clima_hoy'));
+                mostrarSmartTooltip(badgeClima, obtenerInfoTooltipStat('gps_btn'));
             });
             badgeClima.addEventListener('mouseleave', ocultarSmartTooltip);
         }
@@ -1046,6 +1027,12 @@
                 else mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info'));
             });
         }
+
+        // Redibujar la línea de Corte Térmico al instante si el usuario cambia el switch o la temperatura
+        const inpCorte = document.getElementById('corteTempInput');
+        const swCorte = document.getElementById('corteActivoSwitch');
+        if (inpCorte) inpCorte.addEventListener('change', () => { if (chartInstance) chartInstance.update('none'); });
+        if (swCorte) swCorte.addEventListener('change', () => { if (chartInstance) chartInstance.update('none'); });
 
         document.addEventListener('click', function(e) {
             ocultarSmartTooltip();
@@ -1211,14 +1198,14 @@
             let T = (tempC * 9 / 5) + 32;
             let R = humedadPct;
             let HI = -42.379
-                     + 2.04901523 * T
-                     + 10.14333127 * R
-                     - 0.22475541 * T * R
-                     - 0.00683783 * T * T
-                     - 0.05481717 * R * R
-                     + 0.00122874 * T * T * R
-                     + 0.00085282 * T * R * R
-                     - 0.00000199 * T * T * R * R;
+                + 2.04901523 * T
+                + 10.14333127 * R
+                - 0.22475541 * T * R
+                - 0.00683783 * T * T
+                - 0.05481717 * R * R
+                + 0.00122874 * T * T * R
+                + 0.00085282 * T * R * R
+                - 0.00000199 * T * T * R * R;
             let hiC = (HI - 32) * 5 / 9;
             return Math.round(Math.max(tempC, hiC));
         }
@@ -1392,6 +1379,13 @@
                 lat: GRANJA_LAT, lon: GRANJA_LON, city: GRANJA_CIUDAD, country: GRANJA_PAIS, tz: GRANJA_TIMEZONE
             }));
         } catch (e) {}
+
+        fetch('/api/guardar_gps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat: GRANJA_LAT, lon: GRANJA_LON, ciudad: GRANJA_CIUDAD, pais: GRANJA_PAIS })
+        }).catch(() => {});
+
         cerrarModalUbicacionGranja();
         cargarClimaDeLaGranja();
     }
@@ -1423,7 +1417,6 @@
             const ciudad = GRANJA_CIUDAD;
             const ahoraTs = Math.floor(Date.now() / 1000);
 
-            // forecast_days=2 + timezone=auto evita cortes nocturnos en América y devuelve la zona horaria IANA exacta (con DST)
             const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&past_days=30&forecast_days=2&timeformat=unixtime&timezone=auto`;
 
             const rMet = await fetch(urlMeteo, { cache: 'no-store' });
@@ -1681,7 +1674,7 @@
                 y1Axis.ticks.forEach((t, idx) => {
                     const yPos = y1Axis.getPixelForTick(idx);
                     if (yPos >= ca.top - 2 && yPos <= ca.bottom + 2) {
-                        const offsetY = (idx === 0) ? -5 : (idx === yAxis.ticks.length - 1 ? 10 : -4);
+                        const offsetY = (idx === 0) ? -5 : (idx === y1Axis.ticks.length - 1 ? 10 : -4);
                         const txt = t.value + '°';
                         ctx.strokeText(txt, ca.right - 5, yPos + offsetY);
                         ctx.fillText(txt, ca.right - 5, yPos + offsetY);
