@@ -23,17 +23,30 @@ cache_geo_granja = {}
 cache_clima_coord = {}
 db_inicializada = False
 
+def es_super_admin():
+    return str(session.get('usuario') or '').lower() == 'admin' or str(session.get('admin_real') or '').lower() == 'admin'
+
 @app.errorhandler(Exception)
 def manejar_error_global(e):
     tb = traceback.format_exc()
-    html_error = f"""
-    <div style="background:#0f111a;color:#fff;font-family:monospace;padding:30px;min-height:100vh;">
-        <h2 style="color:#ff5252;">⚠️ Diagnóstico Técnico de El Minero Gris</h2>
-        <p style="color:#a5a7b5;">Detalle técnico detectado en el servidor:</p>
-        <pre style="background:#000;color:#00e676;padding:20px;border-radius:8px;border:1px solid #333;overflow-x:auto;">{tb}</pre>
-        <a href="/" style="display:inline-block;margin-top:15px;background:#3366ff;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-family:sans-serif;font-weight:bold;">🔄 Reintentar / Ir al Inicio</a>
-    </div>
-    """
+    print(f"[ERROR 500]: {tb}")
+    if es_super_admin():
+        html_error = f"""
+        <div style="background:#0f111a;color:#fff;font-family:monospace;padding:30px;min-height:100vh;">
+            <h2 style="color:#ff5252;">⚠️ Diagnóstico Técnico de El Minero Gris (Admin)</h2>
+            <p style="color:#a5a7b5;">Detalle técnico detectado en el servidor:</p>
+            <pre style="background:#000;color:#00e676;padding:20px;border-radius:8px;border:1px solid #333;overflow-x:auto;">{tb}</pre>
+            <a href="/" style="display:inline-block;margin-top:15px;background:#3366ff;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-family:sans-serif;font-weight:bold;">🔄 Reintentar / Ir al Inicio</a>
+        </div>
+        """
+    else:
+        html_error = """
+        <div style="background:#0f111a;color:#fff;font-family:sans-serif;padding:40px;min-height:100vh;text-align:center;">
+            <h2 style="color:#ff5252;">⚠️ Ocurrió un inconveniente temporal</h2>
+            <p style="color:#a5a7b5;">Estamos trabajando para restablecer el servicio. Intenta recargar en unos segundos.</p>
+            <a href="/" style="display:inline-block;margin-top:15px;background:#3366ff;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:bold;">🔄 Volver al Inicio</a>
+        </div>
+        """
     return html_error, 500
 
 def get_db():
@@ -106,7 +119,6 @@ def evaluar_plan_usuario(cur, u_row):
         dias_rest = calcular_dias_pro_restantes(pro_hasta)
         if dias_rest is not None and dias_rest > 0:
             return True, lim_cfg, dias_rest
-        # Venció el Pro temporal: regresar automáticamente a Gratis
         try:
             cur.execute("UPDATE usuarios SET plan='Gratis', pro_hasta='', limite_mineros=0 WHERE username=%s", (uname,))
         except:
@@ -116,9 +128,6 @@ def evaluar_plan_usuario(cur, u_row):
     if plan_str.strip().lower() in ('pro', 'unlimited', 'enterprise'):
         return True, lim_cfg, None
     return False, LIMITE_MINEROS_GRATIS, None
-
-def es_super_admin():
-    return str(session.get('usuario') or '').lower() == 'admin' or str(session.get('admin_real') or '').lower() == 'admin'
 
 def a_int_seguro(val, defecto=0):
     try:
@@ -434,6 +443,20 @@ except Exception as e: print(f"Error init_db: {e}")
 def asegurar_bd():
     if not db_inicializada:
         init_db()
+    # Actualizar ultima_conexion cada 5 minutos para sesiones activas
+    if 'usuario' in session and DB_URL and not request.path.startswith('/static/'):
+        ahora_ts = time.time()
+        if ahora_ts - a_float_seguro(session.get('last_seen_ts'), 0) > 300:
+            session['last_seen_ts'] = ahora_ts
+            try:
+                con = get_db()
+                con.autocommit = True
+                cur = con.cursor()
+                usr_real = session.get('admin_real') or session.get('usuario')
+                cur.execute("UPDATE usuarios SET ultima_conexion=%s WHERE username=%s",
+                            (datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), usr_real))
+            except:
+                pass
 
 @app.context_processor
 def inyectar_globales():
@@ -591,11 +614,18 @@ def admin_panel():
         elif accion == 'limpiar_bd_manual':
             dias = max(1, min(30, a_int_seguro(request.form.get('dias_retencion'), 30)))
             fecha_lim = (datetime.utcnow() - timedelta(days=dias)).strftime("%Y-%m-%d %H:%M:%S")
+            fecha_lim_48h = (datetime.utcnow() - timedelta(hours=48)).strftime("%Y-%m-%d %H:%M:%S")
             cur.execute("DELETE FROM historial_nube WHERE fecha < %s", (fecha_lim,))
             borrados_h = cur.rowcount
+            cur.execute("UPDATE historial_nube SET cadenas=NULL WHERE fecha < %s AND cadenas IS NOT NULL", (fecha_lim_48h,))
             cur.execute("DELETE FROM registro_alertas WHERE fecha < %s", (fecha_lim,))
             cur.execute("DELETE FROM cola_comandos WHERE estado='enviado' AND fecha < %s", (fecha_lim,))
-            msg = f"Limpieza completada: {borrados_h:,} registros antiguos (> {dias} días) eliminados de historial_nube."
+            # Eliminar mineros y datos huérfanos de usuarios que ya no existen
+            cur.execute("DELETE FROM mineros_activos WHERE owner NOT IN (SELECT username FROM usuarios)")
+            huerfanos = cur.rowcount
+            for tbl in ('nombres_mineros', 'logs_mineros', 'historial_nube', 'cola_comandos', 'registro_alertas'):
+                cur.execute(f"DELETE FROM {tbl} WHERE owner NOT IN (SELECT username FROM usuarios)")
+            msg = f"Limpieza completada: {borrados_h:,} filas antiguas (> {dias}d) y {huerfanos} minero(s) huérfano(s) eliminados."
         elif accion == 'editar_usuario_completo':
             uid = a_int_seguro(request.form.get('user_id'), 0)
             cur.execute("SELECT * FROM usuarios WHERE id=%s", (uid,))
@@ -691,11 +721,24 @@ def admin_panel():
             cur.execute("SELECT username FROM usuarios WHERE id=%s", (uid,))
             target = cur.fetchone()
             if target and target['username'].lower() != 'admin':
+                uname_del = target['username']
+                for tbl, col in [
+                    ('mineros_activos', 'owner'), ('nombres_mineros', 'owner'),
+                    ('logs_mineros', 'owner'), ('historial_nube', 'owner'),
+                    ('cola_comandos', 'owner'), ('registro_alertas', 'owner'),
+                    ('movimientos_saldo', 'username')
+                ]:
+                    cur.execute(f"DELETE FROM {tbl} WHERE {col}=%s", (uname_del,))
                 cur.execute("DELETE FROM usuarios WHERE id=%s", (uid,))
-                msg = f"Cuenta '{target['username']}' eliminada."
+                msg = f"Cuenta '{uname_del}' y todos sus datos asociados eliminados."
 
-    # 1. Todos los mineros para estadísticas globales, mapa mundial y minado por cliente
-    cur.execute("SELECT owner, ip, hashrate, temp_max, unidad, algoritmo, ultima_act, farm_lat, farm_lon, farm_city, farm_country, wd_cuarentena FROM mineros_activos")
+    # 1. Todos los mineros de usuarios existentes para estadísticas globales y mapa
+    cur.execute("""
+        SELECT m.owner, m.ip, m.modelo, m.hashrate, m.temp_max, m.unidad, m.algoritmo,
+               m.ultima_act, m.farm_lat, m.farm_lon, m.farm_city, m.farm_country, m.wd_cuarentena
+        FROM mineros_activos m
+        INNER JOIN usuarios u ON u.username = m.owner
+    """)
     todos_mineros = cur.fetchall()
     datos_red = obtener_datos_red()
 
@@ -738,7 +781,8 @@ def admin_panel():
                 'owner': ow, 'ciudad': ciudad, 'pais': str(m.get('farm_country') or ''),
                 'subred': subred, 'lat': a_float_seguro(m.get('farm_lat'), -17.7833),
                 'lon': a_float_seguro(m.get('farm_lon'), -63.1821),
-                'total': 0, 'online': 0, 'offline': 0, 'hashrate': 0.0, 'temp_max': 0, 'cuarentena': 0
+                'total': 0, 'online': 0, 'offline': 0, 'hashrate': 0.0, 'temp_max': 0, 'cuarentena': 0,
+                'asics': []
             }
         gd = mapa_granjas_dict[g_key]
         gd['total'] += 1
@@ -750,6 +794,14 @@ def admin_panel():
             gd['offline'] += 1
         if a_int_seguro(m.get('wd_cuarentena'), 0) == 1:
             gd['cuarentena'] += 1
+        gd['asics'].append({
+            'ip': m.get('ip'),
+            'modelo': m.get('modelo') or 'Antminer',
+            'online': es_on,
+            'hr': round(hr, 1),
+            'unidad': unid,
+            'temp': tm
+        })
 
     mapa_granjas = []
     for gd in mapa_granjas_dict.values():
@@ -1737,6 +1789,7 @@ def login():
             session['usuario'] = usr['username']
             session['plan'] = usr.get('plan', 'Gratis')
             session['saldo'] = usr.get('saldo', 0.0)
+            session['last_seen_ts'] = time.time()
             return redirect('/')
         return render_seguro('login.html', error='Credenciales incorrectas', mode='login')
     return render_seguro('login.html', mode='login')
@@ -1856,21 +1909,23 @@ def ver_log(ip):
 @app.route('/api/recibir_logs', methods=['POST'])
 def recibir_logs():
     data = request.get_json(silent=True)
-    if data and 'ip' in data and 'log' in data:
-        con = get_db(); con.autocommit = True
-        cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        api_key_recibida = str(data.get('api_key') or '').strip()
-        owner_user = 'Admin'
-        if api_key_recibida and api_key_recibida != "TU_API_KEY_AQUI":
-            cur.execute("SELECT username FROM usuarios WHERE api_key=%s", (api_key_recibida,))
-            u_row = cur.fetchone()
-            if not u_row:
-                return jsonify({"status": "error", "msg": "API Key inválida"}), 401
-            owner_user = u_row['username']
-        cur.execute(
-            "INSERT INTO logs_mineros (owner, ip, contenido, fecha) VALUES (%s, %s, %s, %s) ON CONFLICT(owner, ip) DO UPDATE SET contenido=EXCLUDED.contenido, fecha=EXCLUDED.fecha",
-            (owner_user, data['ip'], data['log'], datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
-        )
+    if not data or 'ip' not in data or 'log' not in data:
+        return jsonify({"status": "error", "msg": "Datos incompletos"}), 400
+    api_key_recibida = str(data.get('api_key') or '').strip()
+    if not api_key_recibida or api_key_recibida == "TU_API_KEY_AQUI":
+        return jsonify({"status": "error", "msg": "API Key requerida"}), 401
+
+    con = get_db(); con.autocommit = True
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT username FROM usuarios WHERE api_key=%s", (api_key_recibida,))
+    u_row = cur.fetchone()
+    if not u_row:
+        return jsonify({"status": "error", "msg": "API Key inválida"}), 401
+
+    cur.execute(
+        "INSERT INTO logs_mineros (owner, ip, contenido, fecha) VALUES (%s, %s, %s, %s) ON CONFLICT(owner, ip) DO UPDATE SET contenido=EXCLUDED.contenido, fecha=EXCLUDED.fecha",
+        (u_row['username'], data['ip'], data['log'], datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+    )
     return "OK", 200
 
 @app.route('/api/recibir_datos', methods=['POST'])
@@ -1878,6 +1933,10 @@ def recibir_datos():
     global ultima_limpieza_bd
     datos = request.get_json(silent=True)
     if not datos: return jsonify({"status": "error", "msg": "JSON invalido"}), 400
+
+    api_key_recibida = str(datos.get('api_key') or '').strip()
+    if not api_key_recibida or api_key_recibida == "TU_API_KEY_AQUI":
+        return jsonify({"status": "error", "msg": "API Key requerida. Configura tu API Key en agente.py"}), 401
 
     xff = request.headers.get('X-Forwarded-For', '')
     ip_publica_agente = xff.split(',')[0].strip() if xff else (request.remote_addr or '')
@@ -1890,19 +1949,14 @@ def recibir_datos():
     con = get_db(); con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    api_key_recibida = str(datos.get('api_key') or '').strip()
-    owner_user = 'Admin'
-    u_cfg = None
-    if api_key_recibida and api_key_recibida != "TU_API_KEY_AQUI":
-        cur.execute("SELECT * FROM usuarios WHERE api_key=%s", (api_key_recibida,))
-        u_cfg = cur.fetchone()
-        if not u_cfg:
-            return jsonify({"status": "error", "msg": "API Key inválida"}), 401
-        owner_user = u_cfg['username']
-    else:
-        cur.execute("SELECT * FROM usuarios WHERE LOWER(username)='admin'")
-        u_cfg = cur.fetchone()
+    cur.execute("SELECT * FROM usuarios WHERE api_key=%s", (api_key_recibida,))
+    u_cfg = cur.fetchone()
+    if not u_cfg:
+        return jsonify({"status": "error", "msg": "API Key inválida"}), 401
+    if a_int_seguro(u_cfg.get('suspendido'), 0) == 1:
+        return jsonify({"status": "error", "msg": "Cuenta suspendida"}), 403
 
+    owner_user = u_cfg['username']
     es_pro, limite_efectivo, _ = evaluar_plan_usuario(cur, u_cfg)
 
     cur.execute("""
@@ -1928,44 +1982,44 @@ def recibir_datos():
     ahora_minuto = ahora_dt.strftime("%Y-%m-%d %H:%M:00")
     ahora_ts = time.time()
 
-    umbral_t = a_int_seguro(u_cfg.get('umbral_temp'), 80) if u_cfg else 80
-    umbral_h = a_float_seguro(u_cfg.get('umbral_hr'), 50.0) if u_cfg else 50.0
-    alertas_on = bool(a_int_seguro(u_cfg.get('alertas_activas'), 0) == 1) if u_cfg else False
-    tg_tok = (u_cfg.get('tg_token') or '') if u_cfg else ''
-    tg_cid = (u_cfg.get('tg_chat_id') or '') if u_cfg else ''
+    umbral_t = a_int_seguro(u_cfg.get('umbral_temp'), 80)
+    umbral_h = a_float_seguro(u_cfg.get('umbral_hr'), 50.0)
+    alertas_on = bool(a_int_seguro(u_cfg.get('alertas_activas'), 0) == 1)
+    tg_tok = (u_cfg.get('tg_token') or '')
+    tg_cid = (u_cfg.get('tg_chat_id') or '')
 
-    wd_activo = bool(a_int_seguro(u_cfg.get('wd_activo'), 0) == 1) if u_cfg else False
-    wd_alcance = (u_cfg.get('wd_alcance') or 'all') if u_cfg else 'all'
-    try: wd_granjas_list = json.loads((u_cfg.get('wd_granjas') or '[]')) if u_cfg else []
+    wd_activo = bool(a_int_seguro(u_cfg.get('wd_activo'), 0) == 1)
+    wd_alcance = (u_cfg.get('wd_alcance') or 'all')
+    try: wd_granjas_list = json.loads((u_cfg.get('wd_granjas') or '[]'))
     except: wd_granjas_list = []
-    try: wd_mineros_list = json.loads((u_cfg.get('wd_mineros') or '[]')) if u_cfg else []
+    try: wd_mineros_list = json.loads((u_cfg.get('wd_mineros') or '[]'))
     except: wd_mineros_list = []
 
-    wd_zero_hr = bool(a_int_seguro(u_cfg.get('wd_zero_hr'), 0) == 1) if u_cfg else False
-    wd_cold_on = bool(a_int_seguro(u_cfg.get('wd_cold_on'), 0) == 1) if u_cfg else False
-    wd_cold_temp = a_int_seguro(u_cfg.get('wd_cold_temp'), 31) if u_cfg else 31
-    wd_amb_cold_on = bool(a_int_seguro(u_cfg.get('wd_amb_cold_on'), 0) == 1) if u_cfg else False
-    wd_amb_cold_temp = a_int_seguro(u_cfg.get('wd_amb_cold_temp'), 18) if u_cfg else 18
-    wd_dead_board = bool(a_int_seguro(u_cfg.get('wd_dead_board'), 0) == 1) if u_cfg else False
-    wd_gracia_seg = max(60, a_int_seguro(u_cfg.get('wd_gracia_min'), 5) * 60) if u_cfg else 300
-    wd_cooldown_seg = max(300, a_int_seguro(u_cfg.get('wd_cooldown_min'), 30) * 60) if u_cfg else 1800
-    wd_cuarentena_on = bool(a_int_seguro(u_cfg.get('wd_cuarentena_on'), 0) == 1) if u_cfg else False
-    wd_max_reinicios = max(1, a_int_seguro(u_cfg.get('wd_max_reinicios'), 3)) if u_cfg else 3
+    wd_zero_hr = bool(a_int_seguro(u_cfg.get('wd_zero_hr'), 0) == 1)
+    wd_cold_on = bool(a_int_seguro(u_cfg.get('wd_cold_on'), 0) == 1)
+    wd_cold_temp = a_int_seguro(u_cfg.get('wd_cold_temp'), 31)
+    wd_amb_cold_on = bool(a_int_seguro(u_cfg.get('wd_amb_cold_on'), 0) == 1)
+    wd_amb_cold_temp = a_int_seguro(u_cfg.get('wd_amb_cold_temp'), 18)
+    wd_dead_board = bool(a_int_seguro(u_cfg.get('wd_dead_board'), 0) == 1)
+    wd_gracia_seg = max(60, a_int_seguro(u_cfg.get('wd_gracia_min'), 5) * 60)
+    wd_cooldown_seg = max(300, a_int_seguro(u_cfg.get('wd_cooldown_min'), 30) * 60)
+    wd_cuarentena_on = bool(a_int_seguro(u_cfg.get('wd_cuarentena_on'), 0) == 1)
+    wd_max_reinicios = max(1, a_int_seguro(u_cfg.get('wd_max_reinicios'), 3))
 
-    prot_activo = bool(a_int_seguro(u_cfg.get('prot_activo'), 0) == 1) if u_cfg else False
-    prot_temp_on = bool(a_int_seguro(u_cfg.get('prot_temp_on'), 0) == 1) if u_cfg else False
-    prot_temp_val = a_int_seguro(u_cfg.get('prot_temp_val'), 85) if u_cfg else 85
-    prot_temp_accion = (u_cfg.get('prot_temp_accion') or 'sleep') if u_cfg else 'sleep'
-    prot_clima_on = bool(a_int_seguro(u_cfg.get('prot_clima_on'), 0) == 1) if u_cfg else False
-    prot_clima_val = a_int_seguro(u_cfg.get('prot_clima_val'), 38) if u_cfg else 38
-    prot_clima_accion = (u_cfg.get('prot_clima_accion') or 'sleep') if u_cfg else 'sleep'
-    prot_net_on = bool(a_int_seguro(u_cfg.get('prot_net_on'), 0) == 1) if u_cfg else False
-    prot_net_rej_pct = a_float_seguro(u_cfg.get('prot_net_rej_pct'), 5.0) if u_cfg else 5.0
-    prot_net_accion = (u_cfg.get('prot_net_accion') or 'sleep') if u_cfg else 'sleep'
-    prot_fan_on = bool(a_int_seguro(u_cfg.get('prot_fan_on'), 0) == 1) if u_cfg else False
-    prot_fan_accion = (u_cfg.get('prot_fan_accion') or 'sleep') if u_cfg else 'sleep'
-    prot_wakeup_on = bool(a_int_seguro(u_cfg.get('prot_wakeup_on'), 0) == 1) if u_cfg else False
-    prot_wakeup_seg = max(300, a_int_seguro(u_cfg.get('prot_wakeup_min'), 30) * 60) if u_cfg else 1800
+    prot_activo = bool(a_int_seguro(u_cfg.get('prot_activo'), 0) == 1)
+    prot_temp_on = bool(a_int_seguro(u_cfg.get('prot_temp_on'), 0) == 1)
+    prot_temp_val = a_int_seguro(u_cfg.get('prot_temp_val'), 85)
+    prot_temp_accion = (u_cfg.get('prot_temp_accion') or 'sleep')
+    prot_clima_on = bool(a_int_seguro(u_cfg.get('prot_clima_on'), 0) == 1)
+    prot_clima_val = a_int_seguro(u_cfg.get('prot_clima_val'), 38)
+    prot_clima_accion = (u_cfg.get('prot_clima_accion') or 'sleep')
+    prot_net_on = bool(a_int_seguro(u_cfg.get('prot_net_on'), 0) == 1)
+    prot_net_rej_pct = a_float_seguro(u_cfg.get('prot_net_rej_pct'), 5.0)
+    prot_net_accion = (u_cfg.get('prot_net_accion') or 'sleep')
+    prot_fan_on = bool(a_int_seguro(u_cfg.get('prot_fan_on'), 0) == 1)
+    prot_fan_accion = (u_cfg.get('prot_fan_accion') or 'sleep')
+    prot_wakeup_on = bool(a_int_seguro(u_cfg.get('prot_wakeup_on'), 0) == 1)
+    prot_wakeup_seg = max(300, a_int_seguro(u_cfg.get('prot_wakeup_min'), 30) * 60)
 
     guardados_ok = 0
     omitidos_por_plan = 0
@@ -2203,8 +2257,10 @@ def recibir_datos():
         ultima_limpieza_bd = ahora_ts
         try:
             fecha_limite_30d = (ahora_dt - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+            fecha_limite_48h = (ahora_dt - timedelta(hours=48)).strftime("%Y-%m-%d %H:%M:%S")
             fecha_limite_cmd = (ahora_dt - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
             cur.execute("DELETE FROM historial_nube WHERE fecha < %s", (fecha_limite_30d,))
+            cur.execute("UPDATE historial_nube SET cadenas=NULL WHERE fecha < %s AND cadenas IS NOT NULL", (fecha_limite_48h,))
             cur.execute("DELETE FROM registro_alertas WHERE fecha < %s", (fecha_limite_30d,))
             cur.execute("DELETE FROM cola_comandos WHERE estado='enviado' AND fecha < %s", (fecha_limite_cmd,))
         except Exception as err_clean:
