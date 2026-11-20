@@ -371,6 +371,7 @@
         <button type="button" class="btn-fleet bulk-action-btn dimmed" data-ftt="btn_normal" onclick="confirmarAccionMasiva('normal', '▶ Modo Normal', '¿Reanudar en modo Normal los mineros seleccionados?')">▶ Normal</button>
         <button type="button" class="btn-fleet glow-gold bulk-action-btn dimmed" data-ftt="btn_led" onclick="confirmarAccionMasiva('blink', '💡 Localizar con LED', '¿Hacer parpadear el LED en los mineros seleccionados?')">💡 LED</button>
         <button type="button" class="btn-fleet glow-danger bulk-action-btn dimmed" data-ftt="btn_reset" onclick="confirmarAccionMasiva('reset', '⚠️ Formatear de Fábrica', '¿Estás seguro de formatear a valores de fábrica los mineros seleccionados?')">⚠️ Reset</button>
+        <button type="button" class="btn-fleet glow-danger bulk-action-btn dimmed" data-ftt="btn_delete" onclick="confirmarAccionMasiva('eliminar', '🗑️ Eliminar del Panel', '¿Quitar los mineros seleccionados del panel? Esto libera cupo si cambiaron de IP o fueron desconectados.')">🗑️ Eliminar</button>
         <button type="button" class="btn-fleet glow-cyan" data-ftt="btn_scan" onclick="escanearRedLocal(this)">🔍 + Buscar Mineros</button>
         <a href="/exportar_csv" class="btn-fleet" data-ftt="btn_csv">📥 CSV</a>
     </div>
@@ -514,6 +515,7 @@
         'btn_normal': { t: '▶ Reanudar Minado', d: 'Devuelve los mineros seleccionados a operación normal.' },
         'btn_led': { t: '💡 Localizador LED', d: 'Hace parpadear el LED físico de los equipos marcados para ubicarlos en el rack.' },
         'btn_reset': { t: '⚠️ Factory Reset', d: 'Restaura los valores de fábrica de los equipos seleccionados.' },
+        'btn_delete': { t: '🗑️ Eliminar del Panel', d: 'Borra los equipos seleccionados del panel (ideal para quitar mineros offline o liberar cupo en Plan Gratis).' },
         'btn_scan': { t: '🔍 Buscar Mineros en la Red', d: 'Ordena al Agente escanear tu red local para detectar máquinas nuevas o cambios de IP.' },
         'btn_csv': { t: '📥 Exportar Reporte CSV', d: 'Descarga una hoja de cálculo Excel/CSV con el estado actual de toda tu flota.' }
     };
@@ -620,11 +622,36 @@
         let acc = accionMasivaPendiente;
         cerrarModalConfirm();
 
+        if (acc === 'eliminar') {
+            fetch('/api/eliminar_mineros', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ips: ips})
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'ok') {
+                    mostrarToastFlota(`${d.eliminados} minero(s) eliminado(s) del panel.`);
+                    setTimeout(() => location.reload(), 900);
+                } else {
+                    mostrarToastFlota('No se pudieron eliminar los mineros.', true);
+                }
+            })
+            .catch(() => mostrarToastFlota('Error de conexión al eliminar.', true));
+            return;
+        }
+
         fetch('/cmd_bulk', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({accion: acc, ips: ips})
-        }).then(() => mostrarToastFlota(`Orden "${acc}" enviada a ${ips.length} minero(s).`));
+        }).then(r => {
+            if (r.status === 403) {
+                mostrarToastFlota('Las acciones masivas requieren Plan Pro.', true);
+            } else {
+                mostrarToastFlota(`Orden "${acc}" enviada a ${ips.length} minero(s).`);
+            }
+        });
     });
 
     function abrirModalPoolsMasivo() {
@@ -741,7 +768,13 @@
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ordenes_custom: ordenes_custom})
-        }).then(() => mostrarToastFlota(`Pools personalizados enviados a ${ordenes_custom.length} minero(s).`));
+        }).then(r => {
+            if (r.status === 403) {
+                mostrarToastFlota('Las acciones masivas requieren Plan Pro.', true);
+            } else {
+                mostrarToastFlota(`Pools personalizados enviados a ${ordenes_custom.length} minero(s).`);
+            }
+        });
     }
 
     let ordenAsc = false;
