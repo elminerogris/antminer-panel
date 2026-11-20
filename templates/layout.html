@@ -230,7 +230,7 @@
             padding: 14px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
         .user-wallet-box {
             background: rgba(255, 255, 255, 0.025);
@@ -241,6 +241,7 @@
             flex-direction: column;
             gap: 5px;
             transition: 0.2s;
+            position: relative;
         }
         .user-wallet-box:hover { border-color: rgba(59, 130, 246, 0.45); }
         .user-name-row {
@@ -262,6 +263,55 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+        }
+        .promo-credit-pill {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            margin-top: 2px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(255, 179, 0, 0.12);
+            border: 1px solid rgba(255, 179, 0, 0.35);
+            color: #ffd54f;
+            font-size: 0.74em;
+            font-family: monospace;
+            font-weight: bold;
+            cursor: help;
+        }
+        .promo-tooltip-box {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            width: 220px;
+            background: rgba(10, 12, 18, 0.98);
+            border: 1px solid rgba(255, 179, 0, 0.55);
+            color: #e2e8f0;
+            padding: 9px 10px;
+            border-radius: 7px;
+            font-family: sans-serif;
+            font-size: 11px;
+            font-weight: normal;
+            line-height: 1.4;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.85);
+            z-index: 99999;
+        }
+        .promo-credit-pill:hover .promo-tooltip-box,
+        .promo-credit-pill.show-tt .promo-tooltip-box {
+            display: block;
+        }
+        .pro-days-chip {
+            font-size: 0.72em;
+            font-family: monospace;
+            color: #d8b4fe;
+            background: rgba(168, 85, 247, 0.14);
+            border: 1px solid rgba(168, 85, 247, 0.35);
+            padding: 3px 7px;
+            border-radius: 6px;
+            text-align: center;
         }
         .btn-logout-pro {
             color: var(--accent-red);
@@ -492,13 +542,33 @@
         </nav>
 
         <div class="sidebar-bottom">
-            <a href="/plan" class="user-wallet-box" title="Ir a Billetera y Planes">
-                <div class="user-name-row" translate="no">👤 {{ session['usuario'] }}</div>
-                <div class="user-balance-row" translate="no">
-                    <span>${{ "%.2f"|format(session.get('saldo', 0.0)) }} USDT</span>
-                    <span style="font-size:0.78em; color:var(--accent-blue-light);">+ Recargar</span>
+            <div class="user-wallet-box">
+                <a href="/plan" title="Ir a Billetera y Planes">
+                    <div class="user-name-row" translate="no">👤 {{ session['usuario'] }}</div>
+                    <div class="user-balance-row" translate="no" style="margin-top:4px;">
+                        <span>${{ "%.2f"|format(session.get('saldo', 0.0)) }} USDT</span>
+                        <span style="font-size:0.78em; color:var(--accent-blue-light);">+ Recargar</span>
+                    </div>
+                </a>
+
+                {% if saldo_bonus_actual and saldo_bonus_actual > 0 %}
+                <div class="promo-credit-pill" onclick="this.classList.toggle('show-tt')">
+                    <span translate="no">🎁 Promo: ${{ "%.2f"|format(saldo_bonus_actual) }}</span>
+                    <span>ⓘ</span>
+                    <div class="promo-tooltip-box">
+                        <b style="color:#ffd54f;">🎁 Crédito Promocional</b><br>
+                        Saldo de cortesía otorgado por El Minero Gris. Se descuenta automáticamente al activar o renovar tu Plan Pro.<br>
+                        <span style="color:#ff8a80;">⚠️ No reembolsable, ni transferible a otras cuentas ni retirable en efectivo/USDT.</span>
+                    </div>
                 </div>
-            </a>
+                {% endif %}
+
+                {% if pro_dias_restantes is not none and pro_dias_restantes > 0 %}
+                <div class="pro-days-chip" translate="no">
+                    🎁 Pro: {{ pro_dias_restantes }}d · {{ (limite_efectivo ~ ' ASICs') if limite_efectivo > 0 else 'Ilimitado' }}
+                </div>
+                {% endif %}
+            </div>
             <a href="/logout" class="btn-logout-pro">🚪 Cerrar Sesión</a>
         </div>
     </aside>
@@ -511,10 +581,10 @@
         </div>
         {% endif %}
 
-        {% if not es_pro_actual and mineros_omitidos > 0 %}
+        {% if mineros_omitidos > 0 and (not es_pro_actual or limite_efectivo > 0) %}
         <div class="plan-limit-bar">
-            <span>⚠️ <b>Plan Gratis ({{ limite_gratis }}/{{ limite_gratis }} activos):</b> Detectamos <b>{{ mineros_omitidos }}</b> equipo(s) adicional(es) en tu red que no se están monitoreando.</span>
-            <a href="/plan" class="plan-upgrade-btn">🚀 Actualizar a Pro</a>
+            <span>⚠️ <b>Límite de Plan ({{ limite_efectivo }}/{{ limite_efectivo }} activos):</b> Detectamos <b>{{ mineros_omitidos }}</b> equipo(s) adicional(es) en tu red que no se están monitoreando.</span>
+            <a href="/plan" class="plan-upgrade-btn">🚀 Ampliar a Pro</a>
         </div>
         {% endif %}
 
