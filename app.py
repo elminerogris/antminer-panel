@@ -16,6 +16,8 @@ except ImportError:
 
 DB_URL = os.environ.get("DATABASE_URL", "")
 LIMITE_MINEROS_GRATIS = 3
+APK_VERSION_CODE = 1
+APK_VERSION_NAME = "1.0"
 ultima_limpieza_bd = 0
 cache_geo_granja = {}
 db_inicializada = False
@@ -888,7 +890,15 @@ def ajustes():
     }
     return render_seguro('ajustes.html', active_page='ajustes', user=user_info, msg=msg)
 
-# --- LOGIN PARA EL APK ANDROID + AUTO-ACTUALIZACIÓN Y DESCARGA 1-CLIC ---
+# --- LOGIN Y VERIFICADOR DE ACTUALIZACIONES PARA EL APK ANDROID ---
+@app.route('/api/agente/apk_version')
+def api_agente_apk_version():
+    return jsonify({
+        "version_code": APK_VERSION_CODE,
+        "version_name": APK_VERSION_NAME,
+        "apk_url": "https://antminer-panel.onrender.com/static/ElMineroGris-Agente.apk"
+    }), 200
+
 @app.route('/api/agente/login', methods=['POST'])
 def api_agente_login():
     data = request.get_json(silent=True) or {}
