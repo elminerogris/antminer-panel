@@ -81,6 +81,11 @@ def a_float_seguro(val, defecto=0.0):
     except:
         return defecto
 
+def clave_granja_minero(ip, ciudad):
+    c = str(ciudad or 'Santa Cruz de la Sierra').strip()
+    sub = ".".join(str(ip).split('.')[:3]) + ".x" if '.' in str(ip) else "LAN"
+    return f"{c} ({sub})"
+
 def nombre_inteligente_minero(ip, nombres_dict, worker1=""):
     if ip in nombres_dict and nombres_dict[ip]:
         return nombres_dict[ip]
@@ -165,8 +170,8 @@ def init_db():
         con = psycopg2.connect(DB_URL, connect_timeout=8)
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'giovanni', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia', gps_manual INTEGER DEFAULT 0, corte_activo INTEGER DEFAULT 0, corte_temp INTEGER DEFAULT 85)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 1)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'giovanni', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia', gps_manual INTEGER DEFAULT 0, corte_activo INTEGER DEFAULT 0, corte_temp INTEGER DEFAULT 85, watchdog_activo INTEGER DEFAULT 1, wd_fallo_desde TEXT DEFAULT '', wd_motivo_fallo TEXT DEFAULT '', wd_ultimo_reinicio TEXT DEFAULT '', wd_reinicios_seguidos INTEGER DEFAULT 0, wd_cuarentena INTEGER DEFAULT 0, placas_normales INTEGER DEFAULT 0)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 1, wd_activo INTEGER DEFAULT 0, wd_alcance TEXT DEFAULT 'all', wd_granjas TEXT DEFAULT '[]', wd_mineros TEXT DEFAULT '[]', wd_zero_hr INTEGER DEFAULT 1, wd_cold_on INTEGER DEFAULT 1, wd_cold_temp INTEGER DEFAULT 31, wd_dead_board INTEGER DEFAULT 1, wd_gracia_min INTEGER DEFAULT 5, wd_cooldown_min INTEGER DEFAULT 30, wd_cuarentena_on INTEGER DEFAULT 1, wd_max_reinicios INTEGER DEFAULT 3)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT, owner TEXT DEFAULT 'giovanni', nombre TEXT)''')
@@ -206,6 +211,13 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS gps_manual INTEGER DEFAULT 0",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS corte_activo INTEGER DEFAULT 0",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS corte_temp INTEGER DEFAULT 85",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS watchdog_activo INTEGER DEFAULT 1",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS wd_fallo_desde TEXT DEFAULT ''",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS wd_motivo_fallo TEXT DEFAULT ''",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS wd_ultimo_reinicio TEXT DEFAULT ''",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS wd_reinicios_seguidos INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS wd_cuarentena INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS placas_normales INTEGER DEFAULT 0",
             "ALTER TABLE cola_comandos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
             "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
             "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS errores INTEGER DEFAULT 0",
@@ -220,7 +232,19 @@ def init_db():
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tg_chat_id TEXT DEFAULT ''",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS umbral_temp INTEGER DEFAULT 80",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS umbral_hr REAL DEFAULT 50.0",
-            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS alertas_activas INTEGER DEFAULT 1"
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS alertas_activas INTEGER DEFAULT 1",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_activo INTEGER DEFAULT 0",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_alcance TEXT DEFAULT 'all'",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_granjas TEXT DEFAULT '[]'",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_mineros TEXT DEFAULT '[]'",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_zero_hr INTEGER DEFAULT 1",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_cold_on INTEGER DEFAULT 1",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_cold_temp INTEGER DEFAULT 31",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_dead_board INTEGER DEFAULT 1",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_gracia_min INTEGER DEFAULT 5",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_cooldown_min INTEGER DEFAULT 30",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_cuarentena_on INTEGER DEFAULT 1",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_max_reinicios INTEGER DEFAULT 3"
         ]
         for col_sql in columnas_nuevas:
             try: c.execute(col_sql)
@@ -409,6 +433,20 @@ def api_guardar_corte_termico():
     con = get_db(); con.autocommit = True; cur = con.cursor()
     cur.execute("UPDATE mineros_activos SET corte_activo=%s, corte_temp=%s WHERE owner=%s AND ip=%s", (activo, temp, usr_actual, ip))
     return jsonify({"status": "ok", "activo": activo, "temp": temp})
+
+# --- API: Activar / Excluir Watchdog individual en un minero ---
+@app.route('/api/guardar_watchdog_minero', methods=['POST'])
+@login_required
+def api_guardar_watchdog_minero():
+    usr_actual = session.get('usuario', 'giovanni')
+    data = request.get_json(silent=True) or {}
+    ip = str(data.get('ip') or '').strip()
+    activo = 1 if a_int_seguro(data.get('activo'), 1) == 1 else 0
+    if not ip:
+        return jsonify({"status": "error"}), 400
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    cur.execute("UPDATE mineros_activos SET watchdog_activo=%s, wd_fallo_desde='' WHERE owner=%s AND ip=%s", (activo, usr_actual, ip))
+    return jsonify({"status": "ok", "activo": activo})
 
 # --- API: Guardar GPS manual de la granja sin que se sobrescriba ---
 @app.route('/api/guardar_gps', methods=['POST'])
@@ -599,6 +637,8 @@ def detalle_minero(ip):
 
     corte_activo = bool(a_int_seguro(m.get('corte_activo'), 0) == 1)
     corte_temp = a_int_seguro(m.get('corte_temp'), 85)
+    watchdog_activo = bool(a_int_seguro(m.get('watchdog_activo'), 1) == 1)
+    wd_cuarentena = bool(a_int_seguro(m.get('wd_cuarentena'), 0) == 1)
 
     raw_uptime = str(m.get('uptime') or "")
     uptime_val = raw_uptime if (raw_uptime and raw_uptime != "0h 0m") else "En línea"
@@ -655,6 +695,7 @@ def detalle_minero(ip):
         'algoritmo': algoritmo_val, 'moneda': moneda_val,
         'temp_max': t_val, 'temp_amb': t_amb_val,
         'corte_activo': corte_activo, 'corte_temp': corte_temp,
+        'watchdog_activo': watchdog_activo, 'wd_cuarentena': wd_cuarentena,
         'errores': a_int_seguro(m.get('errores'), 0), 'consumo': f"{round(c_val/1000, 2)} kW",
         'fans': fans, 'uptime': uptime_val,
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0,
@@ -767,7 +808,7 @@ def granjas():
         ip = m['ip']
         ciudad = str(m.get('farm_city') or 'Santa Cruz de la Sierra')
         subred = ".".join(ip.split('.')[:3]) + ".x" if '.' in ip else "LAN"
-        clave = f"{ciudad} ({subred})"
+        clave = clave_granja_minero(ip, ciudad)
 
         segs = calcular_segundos_desconectado(m.get('ultima_act'))
         es_online = segs < 300
@@ -778,6 +819,7 @@ def granjas():
         if clave not in grupos:
             grupos[clave] = {
                 'id': clave.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('.', '_'),
+                'clave': clave,
                 'nombre': f"Granja {ciudad}", 'ciudad': ciudad, 'subred': subred,
                 'total': 0, 'online': 0, 'offline': 0,
                 'hashrate': 0.0, 'consumo_kw': 0.0, 'temp_max': 0, 'mineros': []
@@ -821,12 +863,49 @@ def alertas():
             activas = 1 if request.form.get('alertas_activas') == '1' else 0
             cur.execute("UPDATE usuarios SET tg_token=%s, tg_chat_id=%s, umbral_temp=%s, umbral_hr=%s, alertas_activas=%s WHERE username=%s",
                         (tg_token, tg_chat_id, u_temp, u_hr, activas, usr_actual))
-            msg = "Configuración de alertas y protección automática guardada."
+            msg = "Configuración de Telegram y umbrales de alerta guardada."
+        elif accion == 'guardar_watchdog':
+            wd_activo = 1 if request.form.get('wd_activo') == '1' else 0
+            wd_alcance = request.form.get('wd_alcance', 'all')
+            if wd_alcance not in ('all', 'farms', 'miners'):
+                wd_alcance = 'all'
+            wd_granjas = json.dumps(request.form.getlist('wd_granjas'))
+            wd_mineros = json.dumps(request.form.getlist('wd_mineros'))
+            wd_zero_hr = 1 if request.form.get('wd_zero_hr') == '1' else 0
+            wd_cold_on = 1 if request.form.get('wd_cold_on') == '1' else 0
+            wd_cold_temp = max(15, min(60, a_int_seguro(request.form.get('wd_cold_temp'), 31)))
+            wd_dead_board = 1 if request.form.get('wd_dead_board') == '1' else 0
+            wd_gracia_min = max(1, min(60, a_int_seguro(request.form.get('wd_gracia_min'), 5)))
+            wd_cooldown_min = max(5, min(180, a_int_seguro(request.form.get('wd_cooldown_min'), 30)))
+            wd_cuarentena_on = 1 if request.form.get('wd_cuarentena_on') == '1' else 0
+            wd_max_reinicios = max(1, min(10, a_int_seguro(request.form.get('wd_max_reinicios'), 3)))
+
+            cur.execute("""
+                UPDATE usuarios
+                SET wd_activo=%s, wd_alcance=%s, wd_granjas=%s, wd_mineros=%s,
+                    wd_zero_hr=%s, wd_cold_on=%s, wd_cold_temp=%s, wd_dead_board=%s,
+                    wd_gracia_min=%s, wd_cooldown_min=%s, wd_cuarentena_on=%s, wd_max_reinicios=%s
+                WHERE username=%s
+            """, (wd_activo, wd_alcance, wd_granjas, wd_mineros, wd_zero_hr, wd_cold_on, wd_cold_temp,
+                  wd_dead_board, wd_gracia_min, wd_cooldown_min, wd_cuarentena_on, wd_max_reinicios, usr_actual))
+            msg = "Reglas del Watchdog (Auto-Reinicio Inteligente) guardadas correctamente."
+        elif accion == 'liberar_cuarentena':
+            ip_lib = (request.form.get('ip') or '').strip()
+            if ip_lib:
+                ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                cur.execute("""
+                    UPDATE mineros_activos
+                    SET wd_cuarentena=0, wd_reinicios_seguidos=0, wd_fallo_desde='', wd_motivo_fallo=''
+                    WHERE owner=%s AND ip=%s
+                """, (usr_actual, ip_lib))
+                cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, 'normal', 'pendiente', %s)",
+                            (usr_actual, ip_lib, ahora))
+                msg = f"Minero {ip_lib} liberado de cuarentena. Se envió orden de despertar (Normal)."
         elif accion == 'probar_telegram':
             cur.execute("SELECT tg_token, tg_chat_id FROM usuarios WHERE username=%s", (usr_actual,))
             u_cfg = cur.fetchone()
             if u_cfg and u_cfg.get('tg_token') and u_cfg.get('tg_chat_id'):
-                ok = enviar_telegram(u_cfg['tg_token'], u_cfg['tg_chat_id'], f"🟢 <b>El Minero Gris — Conexión Exitosa</b>\nLas alertas y auto-protección para <b>{usr_actual}</b> están activas.")
+                ok = enviar_telegram(u_cfg['tg_token'], u_cfg['tg_chat_id'], f"🟢 <b>El Minero Gris — Conexión Exitosa</b>\nLas alertas y el Watchdog para <b>{usr_actual}</b> están activos.")
                 msg = "Mensaje de prueba enviado a tu Telegram." if ok else "Error al conectar con Telegram. Verifica tu Token y Chat ID."
             else:
                 msg = "Primero guarda tu Bot Token y Chat ID arriba."
@@ -834,17 +913,76 @@ def alertas():
             cur.execute("DELETE FROM registro_alertas WHERE owner=%s", (usr_actual,))
             msg = "Historial de incidentes limpiado."
 
-    cur.execute("SELECT tg_token, tg_chat_id, umbral_temp, umbral_hr, alertas_activas FROM usuarios WHERE username=%s", (usr_actual,))
+    cur.execute("""
+        SELECT tg_token, tg_chat_id, umbral_temp, umbral_hr, alertas_activas,
+               wd_activo, wd_alcance, wd_granjas, wd_mineros, wd_zero_hr, wd_cold_on,
+               wd_cold_temp, wd_dead_board, wd_gracia_min, wd_cooldown_min,
+               wd_cuarentena_on, wd_max_reinicios
+        FROM usuarios WHERE username=%s
+    """, (usr_actual,))
     row_u = cur.fetchone() or {}
     cfg = {
         'tg_token': row_u.get('tg_token') or '', 'tg_chat_id': row_u.get('tg_chat_id') or '',
-        'umbral_temp': row_u.get('umbral_temp') or 80, 'umbral_hr': row_u.get('umbral_hr') or 50.0,
-        'activas': bool(row_u.get('alertas_activas', 1))
+        'umbral_temp': a_int_seguro(row_u.get('umbral_temp'), 80),
+        'umbral_hr': a_float_seguro(row_u.get('umbral_hr'), 50.0),
+        'activas': bool(a_int_seguro(row_u.get('alertas_activas'), 1) == 1)
     }
+
+    try: wd_granjas_sel = json.loads(row_u.get('wd_granjas') or '[]')
+    except: wd_granjas_sel = []
+    try: wd_mineros_sel = json.loads(row_u.get('wd_mineros') or '[]')
+    except: wd_mineros_sel = []
+
+    wd = {
+        'activo': bool(a_int_seguro(row_u.get('wd_activo'), 0) == 1),
+        'alcance': row_u.get('wd_alcance') or 'all',
+        'granjas_sel': wd_granjas_sel,
+        'mineros_sel': wd_mineros_sel,
+        'zero_hr': bool(a_int_seguro(row_u.get('wd_zero_hr'), 1) == 1),
+        'cold_on': bool(a_int_seguro(row_u.get('wd_cold_on'), 1) == 1),
+        'cold_temp': a_int_seguro(row_u.get('wd_cold_temp'), 31),
+        'dead_board': bool(a_int_seguro(row_u.get('wd_dead_board'), 1) == 1),
+        'gracia_min': a_int_seguro(row_u.get('wd_gracia_min'), 5),
+        'cooldown_min': a_int_seguro(row_u.get('wd_cooldown_min'), 30),
+        'cuarentena_on': bool(a_int_seguro(row_u.get('wd_cuarentena_on'), 1) == 1),
+        'max_reinicios': a_int_seguro(row_u.get('wd_max_reinicios'), 3)
+    }
+
+    cur.execute("SELECT ip, modelo, worker1, farm_city, watchdog_activo, wd_cuarentena, wd_reinicios_seguidos, wd_motivo_fallo FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    filas_m = sorted(cur.fetchall(), key=ordenar_ip_key)
+    cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
+    nombres_dict = {r['ip']: r['nombre'] for r in cur.fetchall()}
+
+    granjas_map = {}
+    mineros_disp = []
+    en_cuarentena = []
+    for fm in filas_m:
+        ip_m = fm['ip']
+        clave_g = clave_granja_minero(ip_m, fm.get('farm_city'))
+        granjas_map[clave_g] = granjas_map.get(clave_g, 0) + 1
+        item_m = {
+            'ip': ip_m,
+            'nombre': nombre_inteligente_minero(ip_m, nombres_dict, fm.get('worker1')),
+            'modelo': fm.get('modelo') or 'Antminer',
+            'granja': clave_g,
+            'watchdog_activo': bool(a_int_seguro(fm.get('watchdog_activo'), 1) == 1),
+            'cuarentena': bool(a_int_seguro(fm.get('wd_cuarentena'), 0) == 1),
+            'reinicios': a_int_seguro(fm.get('wd_reinicios_seguidos'), 0),
+            'motivo': fm.get('wd_motivo_fallo') or ''
+        }
+        mineros_disp.append(item_m)
+        if item_m['cuarentena']:
+            en_cuarentena.append(item_m)
+
+    granjas_disp = [{'clave': k, 'total': v} for k, v in granjas_map.items()]
 
     cur.execute("SELECT * FROM registro_alertas WHERE owner=%s ORDER BY id DESC LIMIT 100", (usr_actual,))
     historial = cur.fetchall()
-    return render_seguro('alertas.html', active_page='alertas', cfg=cfg, historial=historial, msg=msg)
+    return render_seguro(
+        'alertas.html', active_page='alertas', cfg=cfg, wd=wd,
+        granjas_disp=granjas_disp, mineros_disp=mineros_disp,
+        en_cuarentena=en_cuarentena, historial=historial, msg=msg
+    )
 
 # --- VISTA: /ajustes -> templates/ajustes.html ---
 @app.route('/ajustes', methods=['GET', 'POST'])
@@ -1209,10 +1347,14 @@ def recibir_datos():
     plan_owner = (u_cfg.get('plan') or 'Gratis') if u_cfg else 'Gratis'
     es_pro = es_cuenta_pro(owner_user, plan_owner)
 
-    cur.execute("SELECT ip, corte_activo, corte_temp FROM mineros_activos WHERE owner=%s", (owner_user,))
+    cur.execute("""
+        SELECT ip, corte_activo, corte_temp, watchdog_activo, wd_fallo_desde, wd_motivo_fallo,
+               wd_ultimo_reinicio, wd_reinicios_seguidos, wd_cuarentena, placas_normales, farm_city, gps_manual
+        FROM mineros_activos WHERE owner=%s
+    """, (owner_user,))
     rows_exist = cur.fetchall()
     ips_existentes = {row['ip'] for row in rows_exist}
-    cortes_dict = {row['ip']: (a_int_seguro(row.get('corte_activo'), 0), a_int_seguro(row.get('corte_temp'), 85)) for row in rows_exist}
+    estado_prev_dict = {row['ip']: row for row in rows_exist}
 
     if owner_user == 'giovanni':
         cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND (owner='giovanni' OR owner IS NULL)")
@@ -1229,9 +1371,25 @@ def recibir_datos():
 
     umbral_t = a_int_seguro(u_cfg.get('umbral_temp'), 80) if u_cfg else 80
     umbral_h = a_float_seguro(u_cfg.get('umbral_hr'), 50.0) if u_cfg else 50.0
-    alertas_on = bool(u_cfg.get('alertas_activas', 1)) if u_cfg else True
+    alertas_on = bool(a_int_seguro(u_cfg.get('alertas_activas'), 1) == 1) if u_cfg else True
     tg_tok = (u_cfg.get('tg_token') or '') if u_cfg else ''
     tg_cid = (u_cfg.get('tg_chat_id') or '') if u_cfg else ''
+
+    # Configuración del Watchdog
+    wd_activo = bool(a_int_seguro(u_cfg.get('wd_activo'), 0) == 1) if u_cfg else False
+    wd_alcance = (u_cfg.get('wd_alcance') or 'all') if u_cfg else 'all'
+    try: wd_granjas_list = json.loads((u_cfg.get('wd_granjas') or '[]')) if u_cfg else []
+    except: wd_granjas_list = []
+    try: wd_mineros_list = json.loads((u_cfg.get('wd_mineros') or '[]')) if u_cfg else []
+    except: wd_mineros_list = []
+    wd_zero_hr = bool(a_int_seguro(u_cfg.get('wd_zero_hr'), 1) == 1) if u_cfg else True
+    wd_cold_on = bool(a_int_seguro(u_cfg.get('wd_cold_on'), 1) == 1) if u_cfg else True
+    wd_cold_temp = a_int_seguro(u_cfg.get('wd_cold_temp'), 31) if u_cfg else 31
+    wd_dead_board = bool(a_int_seguro(u_cfg.get('wd_dead_board'), 1) == 1) if u_cfg else True
+    wd_gracia_seg = max(60, a_int_seguro(u_cfg.get('wd_gracia_min'), 5) * 60) if u_cfg else 300
+    wd_cooldown_seg = max(300, a_int_seguro(u_cfg.get('wd_cooldown_min'), 30) * 60) if u_cfg else 1800
+    wd_cuarentena_on = bool(a_int_seguro(u_cfg.get('wd_cuarentena_on'), 1) == 1) if u_cfg else True
+    wd_max_reinicios = max(1, a_int_seguro(u_cfg.get('wd_max_reinicios'), 3)) if u_cfg else 3
 
     guardados_ok = 0
     omitidos_por_plan = 0
@@ -1278,6 +1436,8 @@ def recibir_datos():
             ndns = str(m.get('dns') or '8.8.8.8')
 
             cadenas_list = m.get('cadenas', [])
+            if not isinstance(cadenas_list, list):
+                cadenas_list = []
             cadenas_json = json.dumps(cadenas_list)
 
             cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country) 
@@ -1303,14 +1463,92 @@ def recibir_datos():
 
             guardados_ok += 1
 
-            corte_on_m, corte_temp_m = cortes_dict.get(ip_m, (0, 85))
+            prev_m = estado_prev_dict.get(ip_m) or {}
+            corte_on_m = a_int_seguro(prev_m.get('corte_activo'), 0)
+            corte_temp_m = a_int_seguro(prev_m.get('corte_temp'), 85)
+            corte_disparado = False
+
             if corte_on_m == 1 and temp_m >= corte_temp_m and hr_m > 0:
                 if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'CORTE_TERMICO', 1800):
+                    corte_disparado = True
                     ordenes.append({"ip": ip_m, "comando": "sleep"})
                     msg_em = f"🛡️ CORTE TÉRMICO: {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {corte_temp_m}°C). Puesto en REPOSO (Sleep)."
                     cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'CORTE_TERMICO', %s, %s)", (owner_user, ip_m, msg_em, ahora))
                     if alertas_on:
                         enviar_telegram(tg_tok, tg_cid, f"🛡️ <b>CORTE TÉRMICO ACTIVADO</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b> (Límite: {corte_temp_m}°C)\nAcción: Puesto en <b>REPOSO (Sleep)</b>.")
+
+            # === MOTOR WATCHDOG (AUTO-REINICIO INTELIGENTE) ===
+            placas_con_hr = sum(1 for ch in cadenas_list if isinstance(ch, dict) and a_float_seguro(ch.get('hr'), 0.0) > 0.0)
+            placas_normales = a_int_seguro(prev_m.get('placas_normales'), 0)
+            if hr_m > 0 and placas_con_hr > placas_normales:
+                placas_normales = placas_con_hr
+                cur.execute("UPDATE mineros_activos SET placas_normales=%s WHERE owner=%s AND ip=%s", (placas_normales, owner_user, ip_m))
+
+            ciudad_efectiva = prev_m.get('farm_city') if a_int_seguro(prev_m.get('gps_manual'), 0) == 1 else f_city
+            clave_g_m = clave_granja_minero(ip_m, ciudad_efectiva)
+
+            wd_permitido_minero = a_int_seguro(prev_m.get('watchdog_activo'), 1) == 1
+            aplica_alcance = (
+                wd_alcance == 'all'
+                or (wd_alcance == 'farms' and clave_g_m in wd_granjas_list)
+                or (wd_alcance == 'miners' and ip_m in wd_mineros_list)
+            )
+
+            fallo_wd = None
+            if wd_zero_hr and hr_m <= 0.01:
+                fallo_wd = f"0 {unid} (Hashrate en cero)"
+            elif wd_cold_on and temp_m > 0 and temp_m <= wd_cold_temp:
+                fallo_wd = f"Minero frío ({temp_m}°C ≤ {wd_cold_temp}°C)"
+            elif wd_dead_board and placas_normales >= 2 and hr_m > 0 and placas_con_hr < placas_normales:
+                fallo_wd = f"Placa caída ({placas_con_hr}/{placas_normales} placas activas)"
+
+            wd_fallo_desde = str(prev_m.get('wd_fallo_desde') or '').strip()
+            wd_ultimo_reinicio = str(prev_m.get('wd_ultimo_reinicio') or '').strip()
+            wd_reinicios = a_int_seguro(prev_m.get('wd_reinicios_seguidos'), 0)
+            wd_cuarentena = a_int_seguro(prev_m.get('wd_cuarentena'), 0)
+
+            if fallo_wd is None:
+                # Minero sano: limpiar contadores de fallo y cuarentena automáticamente
+                if wd_fallo_desde or wd_reinicios > 0 or wd_cuarentena == 1:
+                    cur.execute("""
+                        UPDATE mineros_activos
+                        SET wd_fallo_desde='', wd_motivo_fallo='', wd_reinicios_seguidos=0, wd_cuarentena=0
+                        WHERE owner=%s AND ip=%s
+                    """, (owner_user, ip_m))
+            elif wd_activo and wd_permitido_minero and aplica_alcance and not corte_disparado and wd_cuarentena == 0:
+                if not wd_fallo_desde:
+                    cur.execute("UPDATE mineros_activos SET wd_fallo_desde=%s, wd_motivo_fallo=%s WHERE owner=%s AND ip=%s",
+                                (ahora, fallo_wd, owner_user, ip_m))
+                else:
+                    segs_fallo = calcular_segundos_desconectado(wd_fallo_desde)
+                    if segs_fallo >= wd_gracia_seg:
+                        segs_desde_reb = calcular_segundos_desconectado(wd_ultimo_reinicio) if wd_ultimo_reinicio else 999999
+                        if segs_desde_reb >= wd_cooldown_seg:
+                            if wd_cuarentena_on and wd_reinicios >= wd_max_reinicios:
+                                ordenes.append({"ip": ip_m, "comando": "sleep"})
+                                cur.execute("""
+                                    UPDATE mineros_activos
+                                    SET wd_cuarentena=1, wd_ultimo_reinicio=%s, wd_motivo_fallo=%s
+                                    WHERE owner=%s AND ip=%s
+                                """, (ahora, fallo_wd, owner_user, ip_m))
+                                msg_q = f"🔒 CUARENTENA: {mod_m} ({ip_m}) falló tras {wd_reinicios} reinicios ({fallo_wd}). Puesto en SLEEP."
+                                cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'WATCHDOG_CUARENTENA', %s, %s)",
+                                            (owner_user, ip_m, msg_q, ahora))
+                                if alertas_on:
+                                    enviar_telegram(tg_tok, tg_cid, f"🔒 <b>WATCHDOG: MINERO EN CUARENTENA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nMotivo: <b>{fallo_wd}</b>\nReinicios fallidos: {wd_reinicios}/{wd_max_reinicios}\nAcción: Puesto en <b>REPOSO (Sleep)</b>. Requiere revisión física.")
+                            else:
+                                nuevos_reb = wd_reinicios + 1
+                                ordenes.append({"ip": ip_m, "comando": "restart"})
+                                cur.execute("""
+                                    UPDATE mineros_activos
+                                    SET wd_ultimo_reinicio=%s, wd_reinicios_seguidos=%s, wd_fallo_desde='', wd_motivo_fallo=%s
+                                    WHERE owner=%s AND ip=%s
+                                """, (ahora, nuevos_reb, fallo_wd, owner_user, ip_m))
+                                msg_r = f"🔄 AUTO-REINICIO ({nuevos_reb}/{wd_max_reinicios}): {mod_m} ({ip_m}) por {fallo_wd}."
+                                cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'WATCHDOG_REBOOT', %s, %s)",
+                                            (owner_user, ip_m, msg_r, ahora))
+                                if alertas_on:
+                                    enviar_telegram(tg_tok, tg_cid, f"🔄 <b>WATCHDOG: AUTO-REINICIO</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nMotivo: <b>{fallo_wd}</b>\nIntento: {nuevos_reb} de {wd_max_reinicios}")
 
             if alertas_on:
                 if temp_m >= umbral_t:
