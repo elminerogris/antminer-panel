@@ -2,7 +2,7 @@ from flask import Flask, render_template, render_template_string, redirect, requ
 from werkzeug.security import generate_password_hash, check_password_hash
 from jinja2 import TemplateNotFound
 from functools import wraps
-import psycopg2, psycopg2.extras, json, urllib.request, urllib.parse, time, calendar, csv, io, os, secrets, traceback
+import psycopg2, psycopg2.extras, json, urllib.request, urllib.parse, time, calendar, csv, io, os, secrets, traceback, hashlib, zipfile
 from datetime import datetime, timedelta
 
 app = Flask(__name__, template_folder='templates')
@@ -324,6 +324,15 @@ def ordenar_ip_key(item):
     if len(partes) == 4 and all(p.isdigit() for p in partes):
         return tuple(int(p) for p in partes)
     return (999, 999, 999, 999)
+
+def obtener_codigo_agente_configurado(api_k, sub):
+    with open('agente.py', 'r', encoding='utf-8') as f:
+        codigo_base = f.read()
+    version_hash = hashlib.sha256(codigo_base.encode('utf-8')).hexdigest()[:12]
+    codigo = codigo_base.replace('API_KEY = "TU_API_KEY_AQUI"', f'API_KEY = "{api_k}"')
+    codigo = codigo.replace('SUBNET = "192.168.0"', f'SUBNET = "{sub}"')
+    codigo = codigo.replace('VERSION_AGENTE = "LOCAL"', f'VERSION_AGENTE = "{version_hash}"')
+    return codigo, version_hash
 
 # --- VISTA: /admin (Exclusiva para giovanni) ---
 @app.route('/admin', methods=['GET', 'POST'])
@@ -879,6 +888,37 @@ def ajustes():
     }
     return render_seguro('ajustes.html', active_page='ajustes', user=user_info, msg=msg)
 
+# --- AUTO-ACTUALIZACIÓN Y DESCARGA 1-CLIC DEL AGENTE (.ZIP) ---
+@app.route('/api/agente/version')
+def api_agente_version():
+    try:
+        with open('agente.py', 'r', encoding='utf-8') as f:
+            version_hash = hashlib.sha256(f.read().encode('utf-8')).hexdigest()[:12]
+        return jsonify({"version": version_hash}), 200
+    except:
+        return jsonify({"version": "error"}), 500
+
+@app.route('/api/agente/descargar_update')
+def api_agente_update():
+    api_k = (request.args.get('api_key') or '').strip()
+    sub = (request.args.get('subnet') or '192.168.0').strip()
+    if not api_k or api_k == "TU_API_KEY_AQUI":
+        return "API Key requerida", 401
+
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT username, subnet FROM usuarios WHERE api_key=%s", (api_k,))
+    u = cur.fetchone()
+    if not u:
+        return "API Key invalida", 401
+
+    sub_final = u.get('subnet') or sub
+    try:
+        codigo, _ = obtener_codigo_agente_configurado(api_k, sub_final)
+        return Response(codigo, mimetype="text/x-python")
+    except:
+        return "Error leyendo agente", 500
+
 @app.route('/descargar_agente')
 @login_required
 def descargar_agente():
@@ -891,12 +931,55 @@ def descargar_agente():
     sub = u.get('subnet') or '192.168.0'
 
     try:
-        with open('agente.py', 'r', encoding='utf-8') as f:
-            codigo = f.read()
-        codigo = codigo.replace('API_KEY = "TU_API_KEY_AQUI"', f'API_KEY = "{api_k}"')
-        codigo = codigo.replace('SUBNET = "192.168.0"', f'SUBNET = "{sub}"')
-        return Response(codigo, mimetype="text/x-python", headers={"Content-Disposition": f"attachment;filename=agente_{usr_actual}.py"})
-    except:
+        codigo_agente, _ = obtener_codigo_agente_configurado(api_k, sub)
+        bat_script = f"""@echo off
+title El Minero Gris - Agente Local ({usr_actual})
+cd /d "%~dp0"
+set EMG_MANAGED=1
+
+echo ==================================================
+echo   EL MINERO GRIS - INSTALADOR Y MONITOR 24/7
+echo ==================================================
+
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo [!] Python no encontrado. Intentando instalar automaticamente...
+    winget install -e --id Python.Python.3.11 --silent --accept-package-agreements --accept-source-agreements
+    echo [!] Si termino de instalar, cierra esta ventana y abre START_AGENT.bat de nuevo.
+    pause
+    exit /b
+)
+
+echo [*] Verificando librerias necesarias...
+python -m pip install --quiet --upgrade requests
+
+:: Crear acceso directo en Inicio de Windows para arrancar solo al encender la PC
+set "STARTUP_LNK=%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\ElMineroGris_Agente.lnk"
+if not exist "%STARTUP_LNK%" (
+    echo [*] Configurando arranque automatico con Windows...
+    powershell -NoProfile -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%STARTUP_LNK%');$s.TargetPath='%~f0';$s.WorkingDirectory='%~dp0';$s.Save()"
+)
+
+:LOOP
+echo.
+echo [OK] Iniciando Agente Universal El Minero Gris...
+python agente.py
+echo [!] El agente se reiniciara en 4 segundos (actualizacion o reconexion)...
+timeout /t 4 /nobreak >nul
+goto LOOP
+"""
+        mem_zip = io.BytesIO()
+        with zipfile.ZipFile(mem_zip, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr('agente.py', codigo_agente)
+            zf.writestr('START_AGENT.bat', bat_script.replace('\n', '\r\n'))
+        mem_zip.seek(0)
+        return Response(
+            mem_zip.getvalue(),
+            mimetype="application/zip",
+            headers={"Content-Disposition": f"attachment;filename=ElMineroGris_Agente_{usr_actual}.zip"}
+        )
+    except Exception as e:
+        print(f"Error generando zip agente: {e}")
         return redirect('/ajustes')
 
 @app.route('/plan')
