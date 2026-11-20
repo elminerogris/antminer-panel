@@ -968,12 +968,25 @@ def api_guardar_gps():
     pais = str(data.get('pais') or '').strip() or 'Bolivia'
     if lat is None or lon is None:
         return jsonify({"status": "error", "msg": "Coordenadas inválidas"}), 400
+
+    owner_target = usr_actual
+    if es_super_admin() and data.get('owner'):
+        owner_target = str(data.get('owner')).strip()
+
+    subred = str(data.get('subred') or '').strip()
     con = get_db(); con.autocommit = True; cur = con.cursor()
-    cur.execute(
-        "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s",
-        (lat, lon, ciudad, pais, usr_actual)
-    )
-    return jsonify({"status": "ok", "lat": lat, "lon": lon, "ciudad": ciudad, "pais": pais})
+    if subred and subred.endswith('.x'):
+        prefijo = subred[:-1]
+        cur.execute(
+            "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s AND ip LIKE %s",
+            (lat, lon, ciudad, pais, owner_target, prefijo + '%')
+        )
+    else:
+        cur.execute(
+            "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s",
+            (lat, lon, ciudad, pais, owner_target)
+        )
+    return jsonify({"status": "ok", "lat": lat, "lon": lon, "ciudad": ciudad, "pais": pais, "owner": owner_target})
 
 # --- VISTA: / y /resumen -> templates/resumen.html ---
 @app.route('/')
