@@ -15,32 +15,44 @@
         box-sizing: border-box;
     }
 
-    /* Bloque Watchdog Individual */
-    .wd-minero-box {
+    /* Tarjeta Watchdog Individual (misma temática que el resto del panel) */
+    .wd-card-pro {
         background: var(--bg-card);
         border: 1px solid var(--border-color);
         border-radius: 8px;
-        padding: 12px 16px;
-        margin-bottom: 18px;
+        margin-bottom: 20px;
+        padding: 16px;
+    }
+    .wd-inner-box {
+        background: rgba(10, 12, 18, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        padding: 14px 16px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
-        gap: 12px;
+        gap: 14px;
     }
     .wd-minero-info {
         display: flex;
         flex-direction: column;
-        gap: 3px;
+        gap: 4px;
     }
     .wd-minero-title {
         font-weight: bold;
-        font-size: 0.94em;
+        font-size: 0.92em;
         color: var(--text-main);
         display: flex;
         align-items: center;
         gap: 8px;
         flex-wrap: wrap;
+    }
+    .wd-ip-badge {
+        font-size: 0.82em;
+        color: var(--text-muted);
+        font-weight: normal;
+        font-family: monospace;
     }
     .wd-minero-sub {
         font-size: 0.78em;
@@ -59,29 +71,61 @@
     .wd-toggle-wrap {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
     }
-    .wd-switch-lbl {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        font-size: 0.84em;
+    .wd-status-txt {
+        font-size: 0.82em;
         font-weight: bold;
-        color: var(--text-main);
-        user-select: none;
-    }
-    .wd-switch-lbl input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        accent-color: #00e676;
-        cursor: pointer;
+        font-family: monospace;
     }
     .wd-save-state {
         font-size: 0.76em;
         font-family: monospace;
         color: #00e676;
         min-width: 72px;
+    }
+
+    /* Interruptor deslizable estilo Dashboard Pro */
+    .wd-switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+        flex-shrink: 0;
+    }
+    .wd-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .wd-slider {
+        position: absolute;
+        cursor: pointer;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border-color);
+        border-radius: 24px;
+        transition: all 0.22s ease;
+    }
+    .wd-slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 3px;
+        bottom: 3px;
+        background: var(--text-muted);
+        border-radius: 50%;
+        transition: all 0.22s ease;
+    }
+    .wd-switch input:checked + .wd-slider {
+        background: rgba(0, 230, 118, 0.22);
+        border-color: #00e676;
+        box-shadow: 0 0 12px rgba(0, 230, 118, 0.4);
+    }
+    .wd-switch input:checked + .wd-slider:before {
+        transform: translateX(20px);
+        background: #00e676;
     }
 
     /* Botón flotante para volver rápido arriba en celular y PC */
@@ -130,44 +174,50 @@
         {% include "minero_partes/_placas_hash.html" %}
     </div>
 
-    <!-- 4. Watchdog Individual -->
-    <div class="miner-section-wrap">
-        <div class="wd-minero-box" data-no-live-patch="1">
-            <div class="wd-minero-info">
-                <div class="wd-minero-title">
-                    <span>🔄 Watchdog Individual ({{ ip }})</span>
-                    {% if ultimo.wd_cuarentena %}
-                    <span class="wd-quarantine-tag">🔒 EN CUARENTENA</span>
-                    {% endif %}
-                </div>
-                <div class="wd-minero-sub">
-                    Permite o excluye a este equipo del auto-reinicio configurado en <a href="/alertas" style="color:#60a5fa; text-decoration:none;">🔔 Alertas</a>.
-                </div>
-            </div>
-
-            <div class="wd-toggle-wrap">
-                <label class="wd-switch-lbl">
-                    <input type="checkbox" id="wdMineroSwitch" {% if ultimo.watchdog_activo %}checked{% endif %} onchange="guardarWatchdogMinero(this)">
-                    <span id="wdMineroTexto">{{ 'Permitido (ON)' if ultimo.watchdog_activo else 'Excluido (OFF)' }}</span>
-                </label>
-                <span id="wdMineroEstado" class="wd-save-state"></span>
-            </div>
-        </div>
-    </div>
-
-    <!-- 5. Panel de Control, Perfiles de Energía y Consola de Logs -->
+    <!-- 4. Panel de Control, Perfiles de Energía y Consola de Logs -->
     <div class="miner-section-wrap">
         {% include "minero_partes/_panel_control.html" %}
     </div>
 
-    <!-- 6. Pools de Minería (Stratum + Plantillas 1-Clic) -->
+    <!-- 5. Pools de Minería (Stratum + Plantillas 1-Clic) -->
     <div class="miner-section-wrap">
         {% include "minero_partes/_pools.html" %}
     </div>
 
-    <!-- 7. Configuración IP e Información del Dispositivo -->
+    <!-- 6. Configuración IP e Información del Dispositivo -->
     <div class="miner-section-wrap">
         {% include "minero_partes/_red_info.html" %}
+    </div>
+
+    <!-- 7. Watchdog Individual (al final de la página) -->
+    <div class="miner-section-wrap">
+        <div class="wd-card-pro" data-no-live-patch="1">
+            <div class="wd-inner-box">
+                <div class="wd-minero-info">
+                    <div class="wd-minero-title">
+                        <span>🔄 Watchdog Individual</span>
+                        <span class="wd-ip-badge" translate="no">IP: {{ ip }}</span>
+                        {% if ultimo.wd_cuarentena %}
+                        <span class="wd-quarantine-tag">🔒 EN CUARENTENA</span>
+                        {% endif %}
+                    </div>
+                    <div class="wd-minero-sub">
+                        Permite o excluye a este equipo del auto-reinicio configurado en <a href="/alertas" style="color:#60a5fa; text-decoration:none; font-weight:bold;">🔔 Alertas</a>.
+                    </div>
+                </div>
+
+                <div class="wd-toggle-wrap">
+                    <span id="wdMineroTexto" class="wd-status-txt" style="color:{{ '#00e676' if ultimo.watchdog_activo else 'var(--text-muted)' }};">
+                        {{ '● Permitido (ON)' if ultimo.watchdog_activo else '○ Excluido (OFF)' }}
+                    </span>
+                    <label class="wd-switch" title="Activar o excluir del Watchdog">
+                        <input type="checkbox" id="wdMineroSwitch" {% if ultimo.watchdog_activo %}checked{% endif %} onchange="guardarWatchdogMinero(this)">
+                        <span class="wd-slider"></span>
+                    </label>
+                    <span id="wdMineroEstado" class="wd-save-state"></span>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -179,7 +229,10 @@
         const activo = checkboxEl.checked ? 1 : 0;
         const txt = document.getElementById('wdMineroTexto');
         const st = document.getElementById('wdMineroEstado');
-        if (txt) txt.innerText = activo ? 'Permitido (ON)' : 'Excluido (OFF)';
+        if (txt) {
+            txt.innerText = activo ? '● Permitido (ON)' : '○ Excluido (OFF)';
+            txt.style.color = activo ? '#00e676' : 'var(--text-muted)';
+        }
         if (st) { st.style.color = '#38bdf8'; st.innerText = 'Guardando...'; }
 
         fetch('/api/guardar_watchdog_minero', {
