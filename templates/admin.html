@@ -1,32 +1,29 @@
 {% extends "layout.html" %}
 {% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
-    .admin-header {
+    .adm-card {
         background: var(--bg-card);
         border: 1px solid var(--border-color);
         border-radius: 8px;
-        padding: 16px 20px;
         margin-bottom: 18px;
+        overflow: hidden;
+    }
+    .adm-card-hdr {
+        padding: 13px 16px;
+        background: rgba(255, 255, 255, 0.015);
+        border-bottom: 1px solid var(--border-color);
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
-        gap: 12px;
+        gap: 10px;
+        font-weight: bold;
+        font-size: 0.98em;
     }
-    .admin-header h1 {
-        margin: 0;
-        font-size: 1.38em;
-        color: var(--text-main);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .admin-header p {
-        margin: 4px 0 0 0;
-        font-size: 0.84em;
-        color: var(--text-muted);
-    }
-    .admin-flash {
+    .adm-flash {
         background: rgba(0, 230, 118, 0.12);
         border: 1px solid rgba(0, 230, 118, 0.45);
         color: #69f0ae;
@@ -36,191 +33,215 @@
         font-size: 0.86em;
         font-weight: 600;
     }
-    .admin-kpis {
+    .adm-kpis {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
-        gap: 14px;
+        grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+        gap: 12px;
         margin-bottom: 18px;
     }
-    .ak-card {
+    .ak-box {
         background: var(--bg-card);
         border: 1px solid var(--border-color);
         border-radius: 8px;
-        padding: 14px 16px;
+        padding: 13px 15px;
     }
-    .ak-label {
-        font-size: 0.72em;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        font-weight: bold;
-        letter-spacing: 0.4px;
+    .ak-lbl { font-size: 0.70em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; letter-spacing: 0.4px; }
+    .ak-val { font-size: 1.42em; font-weight: bold; font-family: monospace; margin-top: 5px; color: var(--text-main); }
+    .ak-sub { font-size: 0.73em; color: var(--text-muted); margin-top: 3px; font-family: monospace; }
+    .db-bar-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+    .db-bar-fill { height: 100%; border-radius: 4px; }
+
+    #globalFarmsMap { width: 100%; height: 320px; background: #0a0c12; z-index: 1; }
+    .map-legend { display: flex; gap: 12px; font-size: 0.76em; font-weight: normal; color: var(--text-muted); flex-wrap: wrap; }
+    .map-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+    .adm-grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-bottom: 18px; }
+    @media (max-width: 860px) { .adm-grid-2 { grid-template-columns: 1fr; } }
+
+    .adm-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .adm-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.83em; }
+    .adm-table th {
+        text-align: left; padding: 10px 12px; font-size: 0.72em; text-transform: uppercase;
+        color: var(--text-muted); background: rgba(255,255,255,0.015); border-bottom: 1px solid var(--border-color);
     }
-    .ak-val {
-        font-size: 1.48em;
-        font-weight: bold;
-        font-family: monospace;
-        margin-top: 6px;
-        color: var(--text-main);
-    }
-    .db-bar-bg {
-        width: 100%;
-        height: 6px;
-        background: rgba(255, 255, 255, 0.08);
-        border-radius: 4px;
-        overflow: hidden;
-        margin-top: 8px;
-    }
-    .db-bar-fill {
-        height: 100%;
-        border-radius: 4px;
-        transition: width 0.3s ease;
-    }
-    .admin-table-card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-    .admin-table-scroll {
-        width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    .admin-table {
-        width: 100%;
-        min-width: 820px;
-        border-collapse: collapse;
-        font-size: 0.85em;
-    }
-    .admin-table th {
-        text-align: left;
-        padding: 11px 14px;
-        font-size: 0.73em;
-        text-transform: uppercase;
-        color: var(--text-muted);
-        background: rgba(255, 255, 255, 0.015);
-        border-bottom: 1px solid var(--border-color);
-    }
-    .admin-table td {
-        padding: 10px 14px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        vertical-align: middle;
-    }
+    .adm-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+    .adm-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
     .adm-input, .adm-select {
-        background: rgba(10, 12, 18, 0.75);
-        border: 1px solid var(--border-color);
-        color: var(--text-main);
-        padding: 6px 8px;
-        border-radius: 6px;
-        font-family: monospace;
-        font-size: 0.88em;
-        outline: none;
+        background: rgba(10, 12, 18, 0.75); border: 1px solid var(--border-color); color: var(--text-main);
+        padding: 7px 10px; border-radius: 6px; font-family: monospace; font-size: 0.86em; outline: none;
     }
-    .adm-btn {
-        background: rgba(51, 102, 255, 0.18);
-        border: 1px solid rgba(59, 130, 246, 0.5);
-        color: #60a5fa;
-        padding: 6px 11px;
-        border-radius: 6px;
-        font-weight: bold;
-        font-size: 0.82em;
-        cursor: pointer;
+    .adm-input:focus { border-color: #3b82f6; }
+
+    .btn-adm {
+        background: rgba(51, 102, 255, 0.16); border: 1px solid rgba(59, 130, 246, 0.5); color: #60a5fa;
+        padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 0.80em; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
     }
-    .adm-btn:hover { background: rgba(51, 102, 255, 0.35); color: #fff; }
-    .adm-btn-del {
-        background: rgba(255, 82, 82, 0.12);
-        border: 1px solid rgba(255, 82, 82, 0.4);
-        color: #ff5252;
-        padding: 6px 10px;
-        border-radius: 6px;
-        font-weight: bold;
-        font-size: 0.82em;
-        cursor: pointer;
+    .btn-adm:hover { background: rgba(51, 102, 255, 0.35); color: #fff; }
+    .btn-adm.green { background: rgba(0, 230, 118, 0.12); border-color: rgba(0, 230, 118, 0.45); color: #00e676; }
+    .btn-adm.green:hover { background: rgba(0, 230, 118, 0.28); color: #fff; }
+    .btn-adm.gold { background: rgba(255, 179, 0, 0.14); border-color: rgba(255, 179, 0, 0.45); color: #ffd54f; }
+    .btn-adm.gold:hover { background: rgba(255, 179, 0, 0.30); color: #fff; }
+    .btn-adm.red { background: rgba(255, 82, 82, 0.12); border-color: rgba(255, 82, 82, 0.4); color: #ff5252; }
+    .btn-adm.red:hover { background: rgba(255, 82, 82, 0.28); color: #fff; }
+
+    .pill-plan { padding: 2px 8px; border-radius: 12px; font-size: 0.76em; font-weight: bold; font-family: monospace; }
+    .pill-pro { background: rgba(0, 230, 118, 0.14); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.4); }
+    .pill-free { background: rgba(148, 153, 176, 0.14); color: var(--text-muted); border: 1px solid var(--border-color); }
+    .pill-susp { background: rgba(255, 82, 82, 0.18); color: #ff8a80; border: 1px solid rgba(255, 82, 82, 0.45); }
+
+    /* Modales */
+    .adm-modal-bg {
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+        z-index: 9999; align-items: center; justify-content: center; padding: 14px;
     }
-    .adm-btn-del:hover { background: rgba(255, 82, 82, 0.28); color: #fff; }
+    .adm-modal {
+        background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 10px;
+        padding: 20px; width: 100%; max-width: 440px; box-shadow: 0 16px 40px rgba(0,0,0,0.85);
+    }
+    .adm-field { margin-bottom: 12px; }
+    .adm-field label { display: block; font-size: 0.74em; color: var(--text-muted); font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+    .adm-field input, .adm-field select { width: 100%; }
 </style>
 
-<div class="admin-header">
-    <div>
-        <h1>🛡️ Panel de Administración</h1>
-        <p>Gestión de cuentas, planes, saldos y estado de almacenamiento de PostgreSQL.</p>
-    </div>
-</div>
-
 {% if msg %}
-<div class="admin-flash">✅ {{ msg }}</div>
+<div class="adm-flash">✅ {{ msg }}</div>
 {% endif %}
 
 {% set db_color = '#ff5252' if stats.db_pct >= 85 else ('#ffb300' if stats.db_pct >= 70 else '#00e676') %}
 
-<div class="admin-kpis" translate="no">
-    <div class="ak-card">
-        <div class="ak-label">👤 Usuarios</div>
+<!-- 1. KPIs GLOBALES DE LA PLATAFORMA -->
+<div class="adm-kpis" translate="no">
+    <div class="ak-box">
+        <div class="ak-lbl">👤 Usuarios</div>
         <div class="ak-val">{{ stats.usuarios }}</div>
-        <div style="font-size:0.74em; color:var(--text-muted); margin-top:4px;">{{ stats.pro }} cuentas Pro</div>
+        <div class="ak-sub">{{ stats.pro }} cuentas Pro</div>
     </div>
-    <div class="ak-card">
-        <div class="ak-label">⛏️ Mineros Totales</div>
+    <div class="ak-box">
+        <div class="ak-lbl">🏭 Granjas</div>
+        <div class="ak-val" style="color:#38bdf8;">{{ stats.granjas }}</div>
+        <div class="ak-sub">Ubicaciones activas</div>
+    </div>
+    <div class="ak-box">
+        <div class="ak-lbl">⛏️ ASICs Totales</div>
         <div class="ak-val" style="color:#60a5fa;">{{ stats.mineros }}</div>
-        <div style="font-size:0.74em; color:var(--text-muted); margin-top:4px;">En toda la plataforma</div>
+        <div class="ak-sub"><span style="color:#00e676;">{{ stats.mineros_online }} on</span> · <span style="color:#ff5252;">{{ stats.mineros_offline }} off</span></div>
     </div>
-    <div class="ak-card">
-        <div class="ak-label">💰 Saldo Acumulado</div>
+    <div class="ak-box">
+        <div class="ak-lbl">⚡ Hashrate Global</div>
+        <div class="ak-val" style="color:#c084fc;">{{ stats.hashrate_global }} <span style="font-size:0.55em; color:var(--text-muted);">TH/s</span></div>
+        <div class="ak-sub">BTC / SHA-256</div>
+    </div>
+    <div class="ak-box">
+        <div class="ak-lbl">💰 Saldo Clientes</div>
         <div class="ak-val" style="color:#00e676;">${{ "%.2f"|format(stats.saldo_total) }}</div>
-        <div style="font-size:0.74em; color:var(--text-muted); margin-top:4px;">USDT en cuentas</div>
+        <div class="ak-sub">USDT acumulado</div>
     </div>
-    <div class="ak-card">
-        <div class="ak-label">🗄️ Base de Datos (PostgreSQL)</div>
+    <div class="ak-box">
+        <div class="ak-lbl">🗄️ PostgreSQL</div>
         <div class="ak-val" style="color:{{ db_color }};">{{ "%.2f"|format(stats.db_mb) }} <span style="font-size:0.55em; color:var(--text-muted);">MB</span></div>
-        <div class="db-bar-bg">
-            <div class="db-bar-fill" style="width:{{ stats.db_pct }}%; background:{{ db_color }};"></div>
-        </div>
-        <div style="font-size:0.72em; color:var(--text-muted); margin-top:4px;">{{ stats.db_pct }}% de 1 GB (ref.)</div>
+        <div class="db-bar-bg"><div class="db-bar-fill" style="width:{{ stats.db_pct }}%; background:{{ db_color }};"></div></div>
+        <div class="ak-sub">{{ "{:,}".format(stats.hist_filas) }} filas hist. ({{ stats.db_pct }}%)</div>
     </div>
 </div>
 
-<div class="admin-table-card">
-    <div class="admin-table-scroll">
-        <table class="admin-table">
+<!-- 2. MAPA MUNDIAL DE GRANJAS Y ASICS -->
+<div class="adm-card">
+    <div class="adm-card-hdr">
+        <span>🌍 Mapa Global de Granjas y ASICs</span>
+        <div class="map-legend">
+            <span><span class="map-dot" style="background:#00e676;"></span>Óptima</span>
+            <span><span class="map-dot" style="background:#ffb300;"></span>Caliente (75-84°C)</span>
+            <span><span class="map-dot" style="background:#ff5252;"></span>Offline / Crítica</span>
+        </div>
+    </div>
+    <div id="globalFarmsMap"></div>
+</div>
+
+<!-- 3. ANUNCIO GLOBAL + LIMPIEZA MANUAL DE BD -->
+<div class="adm-grid-2">
+    <div class="adm-card" style="margin-bottom:0;">
+        <div class="adm-card-hdr"><span>📢 Anuncio Global (visible para todos los clientes)</span></div>
+        <div style="padding:14px 16px;">
+            <form method="POST" action="/admin" style="display:flex; gap:8px; flex-wrap:wrap; margin:0;">
+                <input type="hidden" name="accion" value="guardar_anuncio">
+                <input type="text" name="anuncio_global" class="adm-input" style="flex:1; min-width:200px;" value="{{ anuncio_actual }}" placeholder="Ej: Nueva versión APK disponible en Ajustes (dejar vacío para ocultar)">
+                <button type="submit" class="btn-adm">💾 Publicar</button>
+            </form>
+        </div>
+    </div>
+    <div class="adm-card" style="margin-bottom:0;">
+        <div class="adm-card-hdr"><span>🧹 Mantenimiento de Base de Datos</span></div>
+        <div style="padding:14px 16px;">
+            <form method="POST" action="/admin" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0;" onsubmit="return confirm('¿Eliminar registros de historial más antiguos que los días elegidos?');">
+                <input type="hidden" name="accion" value="limpiar_bd_manual">
+                <span style="font-size:0.80em; color:var(--text-muted);">Borrar historial ></span>
+                <select name="dias_retencion" class="adm-select">
+                    <option value="30" selected>30 días</option>
+                    <option value="15">15 días</option>
+                    <option value="7">7 días</option>
+                </select>
+                <button type="submit" class="btn-adm gold">🧹 Limpiar Ahora</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 4. GESTIÓN TOTAL DE USUARIOS -->
+<div class="adm-card">
+    <div class="adm-card-hdr">
+        <span>👥 Control Total de Usuarios y Clientes ({{ usuarios|length }})</span>
+    </div>
+    <div class="adm-scroll">
+        <table class="adm-table">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Usuario</th>
-                    <th>Mineros</th>
-                    <th>Subred</th>
-                    <th>Plan</th>
-                    <th>Saldo (USDT)</th>
+                    <th>Usuario / Correo</th>
+                    <th>Miembro desde</th>
+                    <th>Plan / Estado</th>
+                    <th>ASICs / TH/s</th>
+                    <th>Genera Minando</th>
+                    <th>Saldo / Gasto Mes</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for u in usuarios %}
                 <tr>
-                    <td style="font-family:monospace; color:var(--text-muted);" translate="no">#{{ u.id }}</td>
-                    <td style="font-weight:bold;" translate="no">{{ u.username }}</td>
-                    <td style="font-family:monospace;" translate="no">{{ u.total_mineros }}</td>
-                    <td style="font-family:monospace; color:var(--text-muted);" translate="no">{{ u.subnet or '192.168.0' }}</td>
+                    <td translate="no">
+                        <b>{{ u.username }}</b>
+                        <div style="font-size:0.80em; color:var(--text-muted);">{{ u.email or 'Sin correo' }}</div>
+                    </td>
+                    <td style="font-family:monospace; color:var(--text-muted);" translate="no">{{ u.fecha_registro or '-' }}</td>
                     <td>
-                        <form method="POST" action="/admin" id="form_u_{{ u.id }}" style="margin:0; display:flex; align-items:center; gap:6px;">
-                            <input type="hidden" name="accion" value="actualizar_usuario">
-                            <input type="hidden" name="user_id" value="{{ u.id }}">
-                            <select name="plan" class="adm-select" {% if u.username == 'giovanni' %}disabled{% endif %}>
-                                <option value="Gratis" {% if u.plan == 'Gratis' %}selected{% endif %}>Gratis</option>
-                                <option value="Pro" {% if u.plan == 'Pro' %}selected{% endif %}>Pro</option>
-                            </select>
-                        </form>
+                        <span class="pill-plan {{ 'pill-pro' if u.plan == 'Pro' else 'pill-free' }}">{{ u.plan }}</span>
+                        {% if u.suspendido %}
+                        <span class="pill-plan pill-susp">SUSPENDIDO</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-family:monospace;" translate="no">
+                        <b>{{ u.online_mineros }}/{{ u.total_mineros }}</b> eq.
+                        <div style="font-size:0.80em; color:#60a5fa;">{{ u.hashrate_btc }} TH/s</div>
+                    </td>
+                    <td style="font-family:monospace;" translate="no">
+                        <b style="color:#00e676;">${{ "%.2f"|format(u.gen_dia) }}/d</b>
+                        <div style="font-size:0.80em; color:var(--text-muted);">~${{ "%.0f"|format(u.gen_mes) }}/mes</div>
+                    </td>
+                    <td style="font-family:monospace;" translate="no">
+                        <b style="color:#38bdf8;">${{ "%.2f"|format(u.saldo or 0) }}</b>
+                        <div style="font-size:0.78em; color:var(--text-muted);">Dep: ${{ "%.2f"|format(u.total_dep) }} · Mes: -${{ "%.2f"|format(u.gasto_mes) }}</div>
                     </td>
                     <td>
-                        <input type="number" step="0.01" name="saldo" form="form_u_{{ u.id }}" class="adm-input" style="width:95px;" value="{{ '%.2f'|format(u.saldo or 0) }}">
-                    </td>
-                    <td>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <button type="submit" form="form_u_{{ u.id }}" class="adm-btn">💾 Guardar</button>
+                        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                            <a href="/admin/soporte/{{ u.id }}" class="btn-adm gold" title="Entrar al panel de este cliente para editar sus Antminers">🛠️ Soporte</a>
+                            <button type="button" class="btn-adm green" onclick="abrirModalSaldo({{ u.id }}, '{{ u.username }}', {{ u.saldo or 0 }})">💰 Saldo</button>
+                            <button type="button" class="btn-adm" onclick="abrirModalEditar({{ u.id }}, '{{ u.username }}', '{{ u.email or '' }}', '{{ u.plan }}', {{ u.suspendido or 0 }})">✏️ Editar</button>
                             {% if u.username != 'giovanni' %}
-                            <form method="POST" action="/admin" style="margin:0;" onsubmit="return confirm('¿Eliminar la cuenta {{ u.username }}?');">
+                            <form method="POST" action="/admin" style="margin:0;" onsubmit="return confirm('¿Eliminar permanentemente la cuenta {{ u.username }}?');">
                                 <input type="hidden" name="accion" value="eliminar_usuario">
                                 <input type="hidden" name="user_id" value="{{ u.id }}">
-                                <button type="submit" class="adm-btn-del">🗑️</button>
+                                <button type="submit" class="btn-adm red" title="Eliminar cuenta">🗑️</button>
                             </form>
                             {% endif %}
                         </div>
@@ -231,4 +252,172 @@
         </table>
     </div>
 </div>
+
+<!-- 5. HISTORIAL DE DEPÓSITOS Y GASTOS -->
+<div class="adm-card">
+    <div class="adm-card-hdr">
+        <span>🧾 Historial de Depósitos, Bonos y Gastos ({{ movimientos|length }})</span>
+    </div>
+    <div class="adm-scroll">
+        <table class="adm-table" style="min-width:620px;">
+            <thead>
+                <tr>
+                    <th>Fecha (UTC)</th>
+                    <th>Usuario</th>
+                    <th>Tipo</th>
+                    <th>Monto (USDT)</th>
+                    <th>Nota</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if movimientos %}
+                    {% for mv in movimientos %}
+                    <tr>
+                        <td style="font-family:monospace; color:var(--text-muted);" translate="no">{{ mv.fecha }}</td>
+                        <td style="font-weight:bold;" translate="no">{{ mv.username }}</td>
+                        <td style="text-transform:uppercase; font-family:monospace; font-size:0.85em;">{{ mv.tipo }}</td>
+                        <td style="font-family:monospace; font-weight:bold; color:{{ '#00e676' if mv.monto >= 0 else '#ff5252' }};" translate="no">
+                            {{ '+' if mv.monto >= 0 else '-' }}${{ "%.2f"|format(mv.monto|abs) }}
+                        </td>
+                        <td>{{ mv.nota or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">Sin movimientos registrados todavía.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR USUARIO -->
+<div id="modalEditarUsr" class="adm-modal-bg" onclick="if(event.target===this) this.style.display='none'">
+    <div class="adm-modal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <b style="font-size:1.05em;">✏️ Editar Cuenta</b>
+            <button type="button" onclick="document.getElementById('modalEditarUsr').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">✕</button>
+        </div>
+        <form method="POST" action="/admin">
+            <input type="hidden" name="accion" value="editar_usuario_completo">
+            <input type="hidden" name="user_id" id="ed_uid">
+            <div class="adm-field">
+                <label>Nombre de Usuario</label>
+                <input type="text" name="username" id="ed_user" class="adm-input" required>
+            </div>
+            <div class="adm-field">
+                <label>Correo Electrónico</label>
+                <input type="email" name="email" id="ed_email" class="adm-input" placeholder="cliente@correo.com">
+            </div>
+            <div class="adm-field">
+                <label>Nueva Contraseña (dejar vacío para no cambiar)</label>
+                <input type="text" name="nueva_password" class="adm-input" placeholder="Nueva contraseña...">
+            </div>
+            <div class="adm-field">
+                <label>Plan</label>
+                <select name="plan" id="ed_plan" class="adm-select">
+                    <option value="Gratis">Gratis</option>
+                    <option value="Pro">Pro</option>
+                </select>
+            </div>
+            <div class="adm-field" style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" name="suspendido" id="ed_susp" value="1" style="width:16px; height:16px; accent-color:#ff5252;">
+                <label for="ed_susp" style="margin:0; cursor:pointer; color:#ff8a80;">Suspender acceso de esta cuenta</label>
+            </div>
+            <button type="submit" class="btn-adm" style="width:100%; justify-content:center; padding:9px;">💾 Guardar Cambios</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: SUMAR / RESTAR SALDO -->
+<div id="modalSaldoUsr" class="adm-modal-bg" onclick="if(event.target===this) this.style.display='none'">
+    <div class="adm-modal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <b style="font-size:1.05em;">💰 Movimiento de Saldo — <span id="sal_uname"></span></b>
+            <button type="button" onclick="document.getElementById('modalSaldoUsr').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">✕</button>
+        </div>
+        <div style="font-size:0.82em; color:var(--text-muted); margin-bottom:12px;">Saldo actual: <b id="sal_actual" style="color:#00e676;"></b></div>
+        <form method="POST" action="/admin">
+            <input type="hidden" name="accion" value="movimiento_saldo">
+            <input type="hidden" name="user_id" id="sal_uid">
+            <div class="adm-field">
+                <label>Tipo de Movimiento</label>
+                <select name="tipo_mov" class="adm-select">
+                    <option value="deposito">➕ Depósito (Sumar saldo)</option>
+                    <option value="bono">🎁 Bono / Regalo (Sumar saldo)</option>
+                    <option value="gasto">➖ Cobro Mensual / Gasto (Restar saldo)</option>
+                    <option value="retiro">➖ Ajuste / Retiro (Restar saldo)</option>
+                </select>
+            </div>
+            <div class="adm-field">
+                <label>Monto (USDT)</label>
+                <input type="number" step="0.01" min="0.01" name="monto" class="adm-input" placeholder="Ej: 15.00" required>
+            </div>
+            <div class="adm-field">
+                <label>Nota / Referencia</label>
+                <input type="text" name="nota" class="adm-input" placeholder="Ej: Pago USDT TRC20 / Mensualidad Pro">
+            </div>
+            <button type="submit" class="btn-adm green" style="width:100%; justify-content:center; padding:9px;">✅ Registrar Movimiento</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function abrirModalEditar(id, username, email, plan, susp) {
+        document.getElementById('ed_uid').value = id;
+        document.getElementById('ed_user').value = username;
+        document.getElementById('ed_user').readOnly = (username === 'giovanni');
+        document.getElementById('ed_email').value = email;
+        document.getElementById('ed_plan').value = plan;
+        document.getElementById('ed_susp').checked = (susp === 1);
+        document.getElementById('ed_susp').disabled = (username === 'giovanni');
+        document.getElementById('modalEditarUsr').style.display = 'flex';
+    }
+
+    function abrirModalSaldo(id, username, saldo) {
+        document.getElementById('sal_uid').value = id;
+        document.getElementById('sal_uname').innerText = username;
+        document.getElementById('sal_actual').innerText = '$' + Number(saldo).toFixed(2) + ' USDT';
+        document.getElementById('modalSaldoUsr').style.display = 'flex';
+    }
+
+    window.addEventListener('load', function() {
+        const granjas = {{ mapa_granjas_json | safe }};
+        const map = L.map('globalFarmsMap', { scrollWheelZoom: false }).setView([-15.0, -60.0], 3);
+        L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            maxZoom: 18,
+            attribution: '&copy; Google Maps'
+        }).addTo(map);
+
+        const bounds = [];
+        granjas.forEach(g => {
+            if (!g.lat || !g.lon) return;
+            const marker = L.circleMarker([g.lat, g.lon], {
+                radius: 9,
+                fillColor: g.color,
+                color: '#ffffff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).addTo(map);
+
+            marker.bindPopup(`
+                <div style="font-family:sans-serif; font-size:12px; line-height:1.45;">
+                    <b>🏭 ${g.ciudad}</b> (${g.subred})<br>
+                    👤 Cliente: <b>${g.owner}</b><br>
+                    ⛏️ Equipos: <b>${g.online}/${g.total}</b> online<br>
+                    ⚡ Hashrate: <b>${g.hashrate} TH/s</b><br>
+                    🌡️ Temp Máx: <b>${g.temp_max}°C</b><br>
+                    Estado: <b style="color:${g.color};">${g.estado_txt}</b>
+                </div>
+            `);
+            bounds.push([g.lat, g.lon]);
+        });
+
+        if (bounds.length === 1) {
+            map.setView(bounds[0], 11);
+        } else if (bounds.length > 1) {
+            map.fitBounds(bounds, { padding: [35, 35], maxZoom: 12 });
+        }
+    });
+</script>
 {% endblock %}
