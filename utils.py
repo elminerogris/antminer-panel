@@ -6,8 +6,8 @@ import json, urllib.request, urllib.parse, time, os, secrets, hashlib, re
 from datetime import datetime
 
 LIMITE_MINEROS_GRATIS = 3
-APK_VERSION_CODE = 3
-APK_VERSION_NAME = "1.2"
+APK_VERSION_CODE = 4
+APK_VERSION_NAME = "1.3"
 
 cache_geo_granja = {}
 cache_clima_coord = {}
