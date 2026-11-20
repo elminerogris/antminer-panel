@@ -68,7 +68,7 @@
     .map-wrapper {
         position: relative;
         width: 100%;
-        height: 380px;
+        height: 410px;
         background: #0a0c12;
     }
     .map-wrapper.fullscreen {
@@ -119,6 +119,11 @@
         border-color: #3b82f6;
         color: #60a5fa;
     }
+    .map-pill-btn.drag-on {
+        background: rgba(255, 179, 0, 0.25);
+        border-color: #ffb300;
+        color: #ffd54f;
+    }
     .map-hud {
         position: absolute;
         bottom: 12px;
@@ -137,29 +142,88 @@
         flex-wrap: wrap;
         pointer-events: none;
     }
-    .farm-pin {
+
+    /* Pin Ovalado 2 Niveles (Dueño + Total arriba | Mitad Verde / Mitad Roja abajo) */
+    .farm-pin-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transform: translate(-50%, -100%);
+        pointer-events: auto;
+    }
+    .farm-pin-owner {
+        background: rgba(10, 13, 22, 0.94);
+        color: #e2e8f0;
+        border: 1px solid rgba(96, 165, 250, 0.55);
+        border-radius: 6px;
+        padding: 2px 7px;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 10.5px;
+        font-weight: 700;
+        white-space: nowrap;
+        margin-bottom: 3px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.8);
+    }
+    .farm-pin-owner span {
+        color: #60a5fa;
+        font-family: monospace;
+        margin-left: 3px;
+    }
+    .farm-pin-oval {
+        display: flex;
+        align-items: stretch;
+        overflow: hidden;
+        border-radius: 14px;
+        border: 2px solid #ffffff;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.85);
+        font-family: monospace;
+        font-size: 11px;
+        font-weight: 800;
+        min-width: 56px;
+        height: 22px;
+    }
+    .farm-pin-oval.alert-pulse {
+        animation: pinPulse 1.6s infinite;
+    }
+    .fpo-left {
+        flex: 1;
+        background: #00e676;
+        color: #05140c;
         display: flex;
         align-items: center;
         justify-content: center;
-        min-width: 38px;
-        height: 24px;
         padding: 0 7px;
-        border-radius: 12px;
-        font-family: monospace;
-        font-size: 11px;
-        font-weight: bold;
-        color: #071018;
-        border: 2px solid #ffffff;
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.75);
-        white-space: nowrap;
     }
-    .farm-pin.alert-pulse {
-        color: #fff;
-        animation: pinPulse 1.6s infinite;
+    .fpo-left.zero {
+        background: #1e293b;
+        color: #64748b;
     }
+    .fpo-right {
+        flex: 1;
+        background: #ff5252;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 7px;
+        border-left: 1px solid rgba(0, 0, 0, 0.35);
+    }
+    .fpo-right.zero {
+        background: #1e293b;
+        color: #64748b;
+    }
+    .farm-pin-tip {
+        width: 0;
+        height: 0;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 7px solid #ffffff;
+        margin-top: -1px;
+    }
+
     .cluster-badge {
-        width: 34px;
-        height: 34px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -341,6 +405,7 @@
             <button type="button" class="map-pill-btn" id="mf-online" onclick="filtrarMapa('online')">🟢 Online</button>
             <button type="button" class="map-pill-btn" id="mf-offline" onclick="filtrarMapa('offline')">🔴 Con Offline</button>
             <button type="button" class="map-pill-btn" id="mf-hot" onclick="filtrarMapa('hot')">🔥 Calientes</button>
+            <button type="button" class="map-pill-btn" id="btnMoverPin" onclick="toggleModoMoverPin()" title="Arrastra los pines a su ubicación exacta">📍 Mover Pin</button>
             <button type="button" class="map-pill-btn" onclick="recentrarMapa()" title="Encuadrar todas las granjas">🎯 Recentrar</button>
             <button type="button" class="map-pill-btn" id="btnMapFs" onclick="toggleMapaFullscreen()" title="Pantalla completa">⛶</button>
         </div>
@@ -351,6 +416,7 @@
             <span>🟢 Online: <b style="color:#00e676;">{{ stats.mineros_online }}</b></span>
             <span>🔴 Offline: <b style="color:#ff5252;">{{ stats.mineros_offline }}</b></span>
             <span>⚡ <b style="color:#c084fc;">{{ stats.hashrate_global }} TH/s</b></span>
+            <span id="hudDragStatus" style="display:none; color:#ffd54f;">✋ Modo Mover Pin activo</span>
         </div>
     </div>
 </div>
@@ -638,10 +704,15 @@
 
 <script>
     const GRANJAS_DATA = {{ mapa_granjas_json | safe }};
+    const USERS_ID_MAP = {
+        {% for u in usuarios %}{{ u.username|tojson }}: {{ u.id }}{% if not loop.last %},{% endif %}{% endfor %}
+    };
     let admMap = null;
     let admClusterGroup = null;
     let admMarkersByOwner = {};
     let admAllBounds = [];
+    let filtroMapaActual = 'all';
+    let modoMoverPin = false;
 
     function abrirModalEditar(id, username, email, plan, susp, notas) {
         const esAdmin = (String(username || '').toLowerCase() === 'admin');
@@ -735,6 +806,7 @@
 
     function renderizarMarcadoresMapa(filtro) {
         if (!admMap || !admClusterGroup) return;
+        filtroMapaActual = filtro;
         admClusterGroup.clearLayers();
         admMarkersByOwner = {};
         admAllBounds = [];
@@ -748,23 +820,65 @@
             const tieneAlerta = (g.offline > 0 || g.temp_max >= 85 || g.cuarentena > 0);
             const icon = L.divIcon({
                 className: '',
-                html: `<div class="farm-pin ${tieneAlerta ? 'alert-pulse' : ''}" style="background:${g.color};">${g.online}/${g.total}</div>`,
-                iconSize: [44, 24],
-                iconAnchor: [22, 12]
+                html: `
+                    <div class="farm-pin-wrap">
+                        <div class="farm-pin-owner">👤 ${g.owner}<span>· ${g.total}</span></div>
+                        <div class="farm-pin-oval ${tieneAlerta ? 'alert-pulse' : ''}">
+                            <div class="fpo-left ${g.online === 0 ? 'zero' : ''}">${g.online}</div>
+                            <div class="fpo-right ${g.offline === 0 ? 'zero' : ''}">${g.offline}</div>
+                        </div>
+                        <div class="farm-pin-tip"></div>
+                    </div>
+                `,
+                iconSize: [0, 0],
+                iconAnchor: [0, 0]
             });
 
-            const marker = L.marker([g.lat, g.lon], { icon: icon, farmData: g });
+            const marker = L.marker([g.lat, g.lon], {
+                icon: icon,
+                farmData: g,
+                draggable: modoMoverPin
+            });
+
+            const uid = USERS_ID_MAP[g.owner];
+            const btnSoporteHtml = uid
+                ? `<div style="margin-top:8px;"><a href="/admin/soporte/${uid}" class="btn-adm gold" style="width:100%; justify-content:center;">🛠️ Entrar a Soporte (${g.owner})</a></div>`
+                : '';
+
             marker.bindPopup(`
-                <div style="font-family:sans-serif; font-size:12px; line-height:1.5; min-width:220px;">
+                <div style="font-family:sans-serif; font-size:12px; line-height:1.5; min-width:225px;">
                     <div style="font-weight:bold; font-size:13px; margin-bottom:2px; color:#60a5fa;">🏭 ${g.ciudad}</div>
                     <div style="font-family:monospace; font-size:11px; color:#94a3b8; margin-bottom:6px;">Subred: ${g.subred}</div>
-                    👤 Cliente: <b>${g.owner}</b><br>
+                    👤 Dueño: <b>${g.owner}</b> · Total: <b>${g.total} ASICs</b><br>
                     🟢 En línea: <b style="color:#00e676;">${g.online}</b> · 🔴 Offline: <b style="color:#ff5252;">${g.offline}</b><br>
                     ⚡ Hashrate: <b style="color:#c084fc;">${g.hashrate} TH/s</b> · 🌡️ <b>${g.temp_max}°C</b><br>
                     Estado: <b style="color:${g.color};">${g.estado_txt}</b>
                     ${construirListaAsicsPopup(g.asics)}
+                    ${btnSoporteHtml}
                 </div>
             `);
+
+            marker.on('dragend', function(ev) {
+                const pos = ev.target.getLatLng();
+                g.lat = Number(pos.lat.toFixed(6));
+                g.lon = Number(pos.lng.toFixed(6));
+                fetch('/api/guardar_gps', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lat: g.lat,
+                        lon: g.lon,
+                        ciudad: g.ciudad,
+                        pais: g.pais || 'Bolivia',
+                        owner: g.owner,
+                        subred: g.subred
+                    })
+                }).then(() => {
+                    if (typeof mostrarLayoutToast === 'function') {
+                        mostrarLayoutToast('📍 Ubicación exacta guardada para ' + g.owner);
+                    }
+                }).catch(() => {});
+            });
 
             admClusterGroup.addLayer(marker);
             if (!admMarkersByOwner[g.owner]) {
@@ -772,6 +886,15 @@
             }
             admAllBounds.push([g.lat, g.lon]);
         });
+    }
+
+    function toggleModoMoverPin() {
+        modoMoverPin = !modoMoverPin;
+        const btn = document.getElementById('btnMoverPin');
+        const hud = document.getElementById('hudDragStatus');
+        if (btn) btn.classList.toggle('drag-on', modoMoverPin);
+        if (hud) hud.style.display = modoMoverPin ? 'inline' : 'none';
+        renderizarMarcadoresMapa(filtroMapaActual);
     }
 
     function filtrarMapa(tipo) {
@@ -806,7 +929,7 @@
         const marker = admMarkersByOwner[owner];
         if (marker && admMap) {
             admClusterGroup.zoomToShowLayer(marker, function() {
-                admMap.flyTo(marker.getLatLng(), 12, { duration: 1.0 });
+                admMap.flyTo(marker.getLatLng(), 13, { duration: 1.0 });
                 marker.openPopup();
             });
         }
