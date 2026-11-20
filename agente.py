@@ -1,10 +1,10 @@
-import socket, json, time, requests, concurrent.futures, re, os, sys, subprocess, shutil
+import socket, json, time, requests, concurrent.futures, re, os, sys, subprocess, shutil, uuid
 from requests.auth import HTTPDigestAuth
 
-URL_NUBE = "https://antminer-panel.onrender.com/api/recibir_datos"
-URL_LOGS = "https://antminer-panel.onrender.com/api/recibir_logs"
-URL_VERSION = "https://antminer-panel.onrender.com/api/agente/version"
-URL_UPDATE = "https://antminer-panel.onrender.com/api/agente/descargar_update"
+URL_NUBE = "https://elminerogris.com/api/recibir_datos"
+URL_LOGS = "https://elminerogris.com/api/recibir_logs"
+URL_VERSION = "https://elminerogris.com/api/agente/version"
+URL_UPDATE = "https://elminerogris.com/api/agente/descargar_update"
 VERSION_AGENTE = "LOCAL"
 API_KEY = "TU_API_KEY_AQUI"
 SUBNET = "192.168.0"
@@ -31,6 +31,26 @@ cache_info_estatica = {}
 cache_geo_wifi = {"lat": None, "lon": None, "ts": 0}
 ultimo_escaneo_auto = 0
 ultimo_check_update = 0
+
+def obtener_o_crear_agent_id():
+    """Genera y persiste un agent_id único por equipo/sede para evitar choques de IPs."""
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        ruta_id = os.path.join(base_dir, "agent_id.txt")
+        if os.path.exists(ruta_id):
+            with open(ruta_id, "r", encoding="utf-8") as f:
+                val = f.read().strip()
+                if val and len(val) >= 4:
+                    return val[:40]
+        prefijo = "TERMUX-" if "ANDROID_ROOT" in os.environ else "PC-"
+        nuevo_id = f"{prefijo}{uuid.uuid4().hex[:8].upper()}"
+        with open(ruta_id, "w", encoding="utf-8") as f:
+            f.write(nuevo_id)
+        return nuevo_id
+    except Exception:
+        return f"PC-{uuid.uuid4().hex[:8].upper()}"
+
+AGENT_ID = obtener_o_crear_agent_id()
 
 def keep_awake():
     """Evita que Windows entre en suspensión o que Termux pause el proceso."""
@@ -924,11 +944,12 @@ def recolectar_y_enviar():
         if ip_b not in ips_conocidas:
             ips_conocidas.append(ip_b)
 
-    datos = {"api_key": API_KEY, "mineros": []}
+    datos = {"api_key": API_KEY, "agent_id": AGENT_ID, "mineros": []}
     geo_wifi = obtener_ubicacion_wifi()
     if geo_wifi:
         datos["lat"] = geo_wifi["lat"]
         datos["lon"] = geo_wifi["lon"]
+        datos["geo_source"] = "Wi-Fi PC"
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for res in executor.map(extraer_todo, ips_conocidas):
@@ -940,7 +961,7 @@ def recolectar_y_enviar():
         r = requests.post(URL_NUBE, json=datos, timeout=15)
         if r.status_code == 200:
             resp_json = r.json()
-            print(f"[NUBE OK 200] {len(datos['mineros'])} mineros actualizados en línea.")
+            print(f"[NUBE OK 200] {len(datos['mineros'])} mineros actualizados en línea (Sede: {AGENT_ID}).")
             ordenes = resp_json.get("ordenes", [])
             if ordenes:
                 procesar_comandos(ordenes)
@@ -950,7 +971,7 @@ def recolectar_y_enviar():
         print(f"[ERROR CONEXIÓN NUBE]: {e}")
 
 if __name__ == '__main__':
-    print("Iniciando Agente Universal El Minero Gris (Antminer + WhatsMiner | Multi-Moneda)...")
+    print(f"Iniciando Agente Universal El Minero Gris | Sede ID: {AGENT_ID}")
     keep_awake()
     while True:
         recolectar_y_enviar()
