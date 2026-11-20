@@ -235,6 +235,8 @@
         text-align: center;
     }
     .btn-farm-cmd:hover { border-color: #3b82f6; background: rgba(51, 102, 255, 0.18); color: #fff; }
+    .btn-farm-cmd.scan { color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); }
+    .btn-farm-cmd.scan:hover { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #fff; }
     .btn-farm-cmd.eco { color: #00e676; border-color: rgba(0, 230, 118, 0.35); }
     .btn-farm-cmd.eco:hover { background: rgba(0, 230, 118, 0.2); border-color: #00e676; color: #fff; }
     .btn-farm-cmd.sleep { color: #ffb300; border-color: rgba(255, 179, 0, 0.35); }
@@ -415,6 +417,7 @@
 
         <!-- Acciones Rápidas por Granja -->
         <div class="farm-actions-bar">
+            <button type="button" class="btn-farm-cmd scan" onclick="escanearRedLocal(this)" title="Buscar equipos nuevos en {{ g.subred }}">🔍 Escanear</button>
             <button type="button" class="btn-farm-cmd eco" onclick='comandoGranja("profile|low", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>❄️ Modo Eco</button>
             <button type="button" class="btn-farm-cmd sleep" onclick='comandoGranja("sleep", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>😴 Reposo</button>
             <button type="button" class="btn-farm-cmd" onclick='comandoGranja("normal", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>▶ Normal</button>
@@ -426,9 +429,10 @@
         <div style="font-size:2.4em; margin-bottom:10px;">🏭</div>
         <h3 style="margin:0 0 8px 0;">Aún no hay granjas activas detectadas</h3>
         <p style="color:var(--text-muted); font-size:0.88em; margin-bottom:18px;">
-            En cuanto tu <code>agente.py</code> transmita datos, tus sedes aparecerán automáticamente aquí, o puedes registrar una granja manualmente.
+            En cuanto tu <code>agente.py</code> o APK Android transmitan datos, tus sedes aparecerán automáticamente aquí, o puedes buscar equipos ahora.
         </p>
-        <div>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+            <button type="button" class="btn-farm-cmd scan" style="flex:0 0 auto; padding:9px 16px;" onclick="escanearRedLocal(this)">🔍 Buscar Mineros</button>
             <button type="button" class="btn-new-farm" onclick="abrirNuevaGranjaModal()">＋ Crear Primera Granja</button>
         </div>
     </div>
@@ -520,7 +524,6 @@
         cfg[id] = { nombre, cap_kw, tarifa, notas };
         guardarConfigGranjasStorage(cfg);
 
-        // Si es una sede nueva creada manualmente, renderizar su tarjeta al instante
         if (id.startsWith('custom_') && !document.querySelector(`.farm-card[data-farm-id="${id}"]`)) {
             const grid = document.getElementById('farmsGridContainer');
             const div = document.createElement('div');
@@ -531,7 +534,7 @@
                 <div class="farm-card-top">
                     <div>
                         <div class="farm-name"><span>🏭</span><span class="farm-name-label">${nombre}</span></div>
-                        <div class="farm-meta"><span>📝 ${notas || 'Sede lista para conectar agente.py'}</span></div>
+                        <div class="farm-meta"><span>📝 ${notas || 'Sede lista para conectar agente'}</span></div>
                     </div>
                     <span class="farm-pill-status ok">● Lista (0/0)</span>
                 </div>
@@ -543,7 +546,7 @@
                     <div class="power-bar-bg"><div class="power-bar-fill farm-cap-bar" style="width:0%; background:#00e676;"></div></div>
                 </div>
                 <div class="rack-map-box" style="color:var(--text-muted); font-size:0.84em;">
-                    Descarga tu <b>agente.py</b> desde <a href="/ajustes" style="color:#60a5fa; text-decoration:underline;">Ajustes</a> e instálalo en esta sede para vincular sus mineros.
+                    Descarga tu <b>agente</b> desde <a href="/ajustes" style="color:#60a5fa; text-decoration:underline;">Ajustes</a> e instálalo en esta sede para vincular sus mineros.
                 </div>
             `;
             grid.appendChild(div);
