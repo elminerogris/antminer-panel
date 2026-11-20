@@ -896,7 +896,7 @@ def api_agente_apk_version():
     return jsonify({
         "version_code": APK_VERSION_CODE,
         "version_name": APK_VERSION_NAME,
-        "apk_url": "https://antminer-panel.onrender.com/static/ElMineroGris-Agente.apk"
+        "apk_url": "https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris-Agente.apk"
     }), 200
 
 @app.route('/api/agente/login', methods=['POST'])
