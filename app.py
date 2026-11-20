@@ -63,10 +63,59 @@ def verificar_password(stored_pass, input_pass):
         return check_password_hash(stored_pass, input_pass)
     return stored_pass == input_pass
 
-def es_cuenta_pro(username, plan_str):
+def es_cuenta_pro(username, plan_str, pro_hasta_str=""):
     if str(username or '').lower() == 'admin':
         return True
+    ph = str(pro_hasta_str or '').strip()
+    if ph:
+        try:
+            dt_exp = datetime.strptime(ph, "%Y-%m-%d %H:%M:%S")
+            if dt_exp > datetime.utcnow():
+                return True
+            return False
+        except:
+            pass
     return str(plan_str or '').strip().lower() in ('pro', 'unlimited', 'enterprise')
+
+def calcular_dias_pro_restantes(pro_hasta_str):
+    ph = str(pro_hasta_str or '').strip()
+    if not ph:
+        return None
+    try:
+        dt_exp = datetime.strptime(ph, "%Y-%m-%d %H:%M:%S")
+        diff = (dt_exp - datetime.utcnow()).total_seconds()
+        if diff <= 0:
+            return 0
+        return max(1, int((diff + 86399) // 86400))
+    except:
+        return None
+
+def evaluar_plan_usuario(cur, u_row):
+    """Verifica vencimiento de Pro temporal y devuelve (es_pro, limite_efectivo, dias_restantes)."""
+    if not u_row:
+        return False, LIMITE_MINEROS_GRATIS, None
+    uname = u_row.get('username', '')
+    if str(uname).lower() == 'admin':
+        return True, 0, None
+
+    plan_str = str(u_row.get('plan') or 'Gratis')
+    pro_hasta = str(u_row.get('pro_hasta') or '').strip()
+    lim_cfg = a_int_seguro(u_row.get('limite_mineros'), 0)
+
+    if pro_hasta:
+        dias_rest = calcular_dias_pro_restantes(pro_hasta)
+        if dias_rest is not None and dias_rest > 0:
+            return True, lim_cfg, dias_rest
+        # Venció el Pro temporal: regresar automáticamente a Gratis
+        try:
+            cur.execute("UPDATE usuarios SET plan='Gratis', pro_hasta='', limite_mineros=0 WHERE username=%s", (uname,))
+        except:
+            pass
+        return False, LIMITE_MINEROS_GRATIS, 0
+
+    if plan_str.strip().lower() in ('pro', 'unlimited', 'enterprise'):
+        return True, lim_cfg, None
+    return False, LIMITE_MINEROS_GRATIS, None
 
 def es_super_admin():
     return str(session.get('usuario') or '').lower() == 'admin' or str(session.get('admin_real') or '').lower() == 'admin'
@@ -208,7 +257,7 @@ def init_db():
         con.autocommit = True
         c = con.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'Admin', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia', gps_manual INTEGER DEFAULT 0, corte_activo INTEGER DEFAULT 0, corte_temp INTEGER DEFAULT 85, watchdog_activo INTEGER DEFAULT 1, wd_fallo_desde TEXT DEFAULT '', wd_motivo_fallo TEXT DEFAULT '', wd_ultimo_reinicio TEXT DEFAULT '', wd_reinicios_seguidos INTEGER DEFAULT 0, wd_cuarentena INTEGER DEFAULT 0, placas_normales INTEGER DEFAULT 0, prot_sleep_desde TEXT DEFAULT '', prot_motivo TEXT DEFAULT '')''')
-        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, email TEXT DEFAULT '', fecha_registro TEXT DEFAULT '', suspendido INTEGER DEFAULT 0, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 0, wd_activo INTEGER DEFAULT 0, wd_alcance TEXT DEFAULT 'all', wd_granjas TEXT DEFAULT '[]', wd_mineros TEXT DEFAULT '[]', wd_zero_hr INTEGER DEFAULT 0, wd_cold_on INTEGER DEFAULT 0, wd_cold_temp INTEGER DEFAULT 31, wd_amb_cold_on INTEGER DEFAULT 0, wd_amb_cold_temp INTEGER DEFAULT 18, wd_dead_board INTEGER DEFAULT 0, wd_gracia_min INTEGER DEFAULT 5, wd_cooldown_min INTEGER DEFAULT 30, wd_cuarentena_on INTEGER DEFAULT 0, wd_max_reinicios INTEGER DEFAULT 3, prot_activo INTEGER DEFAULT 0, prot_temp_on INTEGER DEFAULT 0, prot_temp_val INTEGER DEFAULT 85, prot_temp_accion TEXT DEFAULT 'sleep', prot_clima_on INTEGER DEFAULT 0, prot_clima_val INTEGER DEFAULT 38, prot_clima_accion TEXT DEFAULT 'sleep', prot_net_on INTEGER DEFAULT 0, prot_net_rej_pct REAL DEFAULT 5.0, prot_net_accion TEXT DEFAULT 'sleep', prot_fan_on INTEGER DEFAULT 0, prot_fan_accion TEXT DEFAULT 'sleep', prot_wakeup_on INTEGER DEFAULT 0, prot_wakeup_min INTEGER DEFAULT 30, mineros_omitidos INTEGER DEFAULT 0)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, email TEXT DEFAULT '', fecha_registro TEXT DEFAULT '', suspendido INTEGER DEFAULT 0, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, saldo_bonus REAL DEFAULT 0.0, pro_hasta TEXT DEFAULT '', limite_mineros INTEGER DEFAULT 0, notas_admin TEXT DEFAULT '', ultima_conexion TEXT DEFAULT '', api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 0, wd_activo INTEGER DEFAULT 0, wd_alcance TEXT DEFAULT 'all', wd_granjas TEXT DEFAULT '[]', wd_mineros TEXT DEFAULT '[]', wd_zero_hr INTEGER DEFAULT 0, wd_cold_on INTEGER DEFAULT 0, wd_cold_temp INTEGER DEFAULT 31, wd_amb_cold_on INTEGER DEFAULT 0, wd_amb_cold_temp INTEGER DEFAULT 18, wd_dead_board INTEGER DEFAULT 0, wd_gracia_min INTEGER DEFAULT 5, wd_cooldown_min INTEGER DEFAULT 30, wd_cuarentena_on INTEGER DEFAULT 0, wd_max_reinicios INTEGER DEFAULT 3, prot_activo INTEGER DEFAULT 0, prot_temp_on INTEGER DEFAULT 0, prot_temp_val INTEGER DEFAULT 85, prot_temp_accion TEXT DEFAULT 'sleep', prot_clima_on INTEGER DEFAULT 0, prot_clima_val INTEGER DEFAULT 38, prot_clima_accion TEXT DEFAULT 'sleep', prot_net_on INTEGER DEFAULT 0, prot_net_rej_pct REAL DEFAULT 5.0, prot_net_accion TEXT DEFAULT 'sleep', prot_fan_on INTEGER DEFAULT 0, prot_fan_accion TEXT DEFAULT 'sleep', prot_wakeup_on INTEGER DEFAULT 0, prot_wakeup_min INTEGER DEFAULT 30, mineros_omitidos INTEGER DEFAULT 0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'Admin', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'Admin', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT, owner TEXT DEFAULT 'Admin', nombre TEXT)''')
@@ -269,6 +318,11 @@ def init_db():
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS fecha_registro TEXT DEFAULT ''",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS suspendido INTEGER DEFAULT 0",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS saldo_bonus REAL DEFAULT 0.0",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pro_hasta TEXT DEFAULT ''",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS limite_mineros INTEGER DEFAULT 0",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS notas_admin TEXT DEFAULT ''",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS ultima_conexion TEXT DEFAULT ''",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS api_key TEXT",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS subnet TEXT DEFAULT '192.168.0'",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tarifa_kwh REAL DEFAULT 0.0",
@@ -386,19 +440,28 @@ def inyectar_globales():
     anuncio = ""
     omitidos_u = 0
     es_pro_u = False
+    saldo_bonus_u = 0.0
+    pro_dias_u = None
+    limite_efectivo_u = LIMITE_MINEROS_GRATIS
     try:
         if 'usuario' in session and DB_URL:
             con = get_db()
-            cur = con.cursor()
+            con.autocommit = True
+            cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT valor FROM config_global WHERE clave='anuncio_global'")
             row = cur.fetchone()
-            if row and row[0]:
-                anuncio = str(row[0]).strip()
-            cur.execute("SELECT plan, mineros_omitidos FROM usuarios WHERE username=%s", (session['usuario'],))
+            if row and row.get('valor'):
+                anuncio = str(row['valor']).strip()
+            cur.execute("SELECT username, plan, saldo, saldo_bonus, pro_hasta, limite_mineros, mineros_omitidos FROM usuarios WHERE username=%s", (session['usuario'],))
             urow = cur.fetchone()
             if urow:
-                es_pro_u = es_cuenta_pro(session['usuario'], urow[0])
-                omitidos_u = 0 if es_pro_u else a_int_seguro(urow[1], 0)
+                es_pro_u, limite_efectivo_u, pro_dias_u = evaluar_plan_usuario(cur, urow)
+                saldo_bonus_u = round(a_float_seguro(urow.get('saldo_bonus'), 0.0), 2)
+                session['saldo'] = round(a_float_seguro(urow.get('saldo'), 0.0), 2)
+                session['plan'] = 'Pro' if es_pro_u else 'Gratis'
+                omitidos_u = a_int_seguro(urow.get('mineros_omitidos'), 0)
+                if es_pro_u and limite_efectivo_u == 0:
+                    omitidos_u = 0
     except:
         pass
     return {
@@ -407,7 +470,10 @@ def inyectar_globales():
         'es_super_admin': es_super_admin(),
         'mineros_omitidos': omitidos_u,
         'es_pro_actual': es_pro_u,
-        'limite_gratis': LIMITE_MINEROS_GRATIS
+        'limite_gratis': LIMITE_MINEROS_GRATIS,
+        'limite_efectivo': limite_efectivo_u,
+        'saldo_bonus_actual': saldo_bonus_u,
+        'pro_dias_restantes': pro_dias_u
     }
 
 def login_required(f):
@@ -467,6 +533,7 @@ def obtener_codigo_agente_configurado(api_k, sub):
     version_hash = hashlib.sha256(codigo_base.encode('utf-8')).hexdigest()[:12]
     codigo = codigo_base.replace('API_KEY = "TU_API_KEY_AQUI"', f'API_KEY = "{api_k}"')
     codigo = codigo.replace('SUBNET = "192.168.0"', f'SUBNET = "{sub}"')
+    codigo = codigo.replace('SUBNET_DEFECTO = "192.168.0"', f'SUBNET_DEFECTO = "{sub}"')
     codigo = codigo.replace('VERSION_AGENTE = "LOCAL"', f'VERSION_AGENTE = "{version_hash}"')
     return codigo, version_hash
 
@@ -541,6 +608,7 @@ def admin_panel():
                 new_pass = (request.form.get('nueva_password') or '').strip()
                 new_plan = 'Pro' if es_target_admin else (request.form.get('plan') or 'Gratis')
                 new_susp = 0 if es_target_admin else (1 if request.form.get('suspendido') == '1' else 0)
+                new_notas = (request.form.get('notas_admin') or '').strip()
 
                 try:
                     if new_user != old_user and new_user:
@@ -554,32 +622,71 @@ def admin_panel():
                                          ('movimientos_saldo', 'username')]:
                             cur.execute(f"UPDATE {tbl} SET {col}=%s WHERE {col}=%s", (new_user, old_user))
 
+                    # Si se cambia a Gratis manualmente, limpiar pro_hasta y limite_mineros
+                    extra_plan_sql = ""
+                    if new_plan == 'Gratis':
+                        extra_plan_sql = ", pro_hasta='', limite_mineros=0"
+
                     if new_pass:
-                        cur.execute("UPDATE usuarios SET email=%s, plan=%s, suspendido=%s, password=%s WHERE id=%s",
-                                    (new_email, new_plan, new_susp, generate_password_hash(new_pass), uid))
+                        cur.execute(f"UPDATE usuarios SET email=%s, plan=%s, suspendido=%s, notas_admin=%s, password=%s{extra_plan_sql} WHERE id=%s",
+                                    (new_email, new_plan, new_susp, new_notas, generate_password_hash(new_pass), uid))
                     else:
-                        cur.execute("UPDATE usuarios SET email=%s, plan=%s, suspendido=%s WHERE id=%s",
-                                    (new_email, new_plan, new_susp, uid))
+                        cur.execute(f"UPDATE usuarios SET email=%s, plan=%s, suspendido=%s, notas_admin=%s{extra_plan_sql} WHERE id=%s",
+                                    (new_email, new_plan, new_susp, new_notas, uid))
                     msg = f"Cuenta '{new_user}' actualizada correctamente."
                 except Exception as e_upd:
                     msg = f"No se pudo cambiar el nombre (posiblemente ya existe): {e_upd}"
+        elif accion == 'regalar_pro':
+            uid = a_int_seguro(request.form.get('user_id'), 0)
+            dias = max(1, min(3650, a_int_seguro(request.form.get('dias_pro'), 15)))
+            lim_m = max(0, min(5000, a_int_seguro(request.form.get('limite_mineros'), 0)))
+            nota = (request.form.get('nota') or '').strip()
+            cur.execute("SELECT username, pro_hasta FROM usuarios WHERE id=%s", (uid,))
+            target = cur.fetchone()
+            if target:
+                base_dt = datetime.utcnow()
+                ph_prev = str(target.get('pro_hasta') or '').strip()
+                if ph_prev:
+                    try:
+                        dt_p = datetime.strptime(ph_prev, "%Y-%m-%d %H:%M:%S")
+                        if dt_p > base_dt:
+                            base_dt = dt_p
+                    except:
+                        pass
+                nueva_exp = (base_dt + timedelta(days=dias)).strftime("%Y-%m-%d %H:%M:%S")
+                cur.execute("UPDATE usuarios SET plan='Pro', pro_hasta=%s, limite_mineros=%s WHERE id=%s",
+                            (nueva_exp, lim_m, uid))
+                lim_txt = f"hasta {lim_m} máquinas" if lim_m > 0 else "máquinas ilimitadas"
+                nota_reg = f"Regalo Pro: +{dias} días ({lim_txt})" + (f" · {nota}" if nota else "")
+                cur.execute("INSERT INTO movimientos_saldo (username, tipo, monto, nota, fecha) VALUES (%s, 'regalo_pro', 0, %s, %s)",
+                            (target['username'], nota_reg, ahora_str))
+                msg = f"🎁 Regalo aplicado a '{target['username']}': +{dias} días Pro ({lim_txt}), vence el {nueva_exp[:10]}."
         elif accion == 'movimiento_saldo':
             uid = a_int_seguro(request.form.get('user_id'), 0)
             tipo_mov = request.form.get('tipo_mov', 'deposito')
             monto = abs(a_float_seguro(request.form.get('monto'), 0.0))
             nota = (request.form.get('nota') or '').strip()
-            cur.execute("SELECT username, saldo FROM usuarios WHERE id=%s", (uid,))
+            cur.execute("SELECT username, saldo, saldo_bonus FROM usuarios WHERE id=%s", (uid,))
             target = cur.fetchone()
             if target and monto > 0:
-                delta = -monto if tipo_mov in ('gasto', 'retiro') else monto
-                nuevo_saldo = round(a_float_seguro(target.get('saldo'), 0.0) + delta, 2)
-                cur.execute("UPDATE usuarios SET saldo=%s WHERE id=%s", (nuevo_saldo, uid))
-                cur.execute("INSERT INTO movimientos_saldo (username, tipo, monto, nota, fecha) VALUES (%s, %s, %s, %s, %s)",
-                            (target['username'], tipo_mov, delta, nota, ahora_str))
-                if target['username'] == session.get('usuario'):
-                    session['saldo'] = nuevo_saldo
-                signo = "+" if delta >= 0 else "-"
-                msg = f"Saldo de '{target['username']}' actualizado ({signo}${abs(delta):.2f} USDT). Nuevo saldo: ${nuevo_saldo:.2f} USDT."
+                if tipo_mov in ('bonus', 'quitar_bonus'):
+                    delta = -monto if tipo_mov == 'quitar_bonus' else monto
+                    nuevo_bonus = max(0.0, round(a_float_seguro(target.get('saldo_bonus'), 0.0) + delta, 2))
+                    cur.execute("UPDATE usuarios SET saldo_bonus=%s WHERE id=%s", (nuevo_bonus, uid))
+                    cur.execute("INSERT INTO movimientos_saldo (username, tipo, monto, nota, fecha) VALUES (%s, %s, %s, %s, %s)",
+                                (target['username'], 'credito_promo' if delta >= 0 else 'ajuste_promo', delta, nota or 'Crédito Promocional (No reembolsable)', ahora_str))
+                    signo = "+" if delta >= 0 else "-"
+                    msg = f"🎁 Crédito Promocional de '{target['username']}' actualizado ({signo}${abs(delta):.2f} USDT). Nuevo Bonus: ${nuevo_bonus:.2f} USDT."
+                else:
+                    delta = -monto if tipo_mov in ('gasto', 'retiro') else monto
+                    nuevo_saldo = round(a_float_seguro(target.get('saldo'), 0.0) + delta, 2)
+                    cur.execute("UPDATE usuarios SET saldo=%s WHERE id=%s", (nuevo_saldo, uid))
+                    cur.execute("INSERT INTO movimientos_saldo (username, tipo, monto, nota, fecha) VALUES (%s, %s, %s, %s, %s)",
+                                (target['username'], tipo_mov, delta, nota, ahora_str))
+                    if target['username'] == session.get('usuario'):
+                        session['saldo'] = nuevo_saldo
+                    signo = "+" if delta >= 0 else "-"
+                    msg = f"Saldo de '{target['username']}' actualizado ({signo}${abs(delta):.2f} USDT). Nuevo saldo: ${nuevo_saldo:.2f} USDT."
         elif accion == 'eliminar_usuario':
             uid = a_int_seguro(request.form.get('user_id'), 0)
             cur.execute("SELECT username FROM usuarios WHERE id=%s", (uid,))
@@ -665,7 +772,7 @@ def admin_panel():
 
     cur.execute("""
         SELECT username,
-               COALESCE(SUM(CASE WHEN monto > 0 THEN monto ELSE 0 END), 0) AS total_dep,
+               COALESCE(SUM(CASE WHEN monto > 0 AND tipo NOT IN ('credito_promo', 'ajuste_promo') THEN monto ELSE 0 END), 0) AS total_dep,
                COALESCE(SUM(CASE WHEN monto < 0 AND fecha LIKE %s THEN ABS(monto) ELSE 0 END), 0) AS gasto_mes
         FROM movimientos_saldo
         GROUP BY username
@@ -673,11 +780,20 @@ def admin_panel():
     fin_por_usuario = {r['username']: r for r in cur.fetchall()}
 
     # 3. Lista de usuarios enriquecida
-    cur.execute("SELECT id, username, email, fecha_registro, suspendido, plan, saldo, subnet FROM usuarios ORDER BY id ASC")
+    cur.execute("SELECT id, username, email, fecha_registro, suspendido, plan, saldo, saldo_bonus, pro_hasta, limite_mineros, notas_admin, ultima_conexion, subnet FROM usuarios ORDER BY id ASC")
     usuarios_raw = cur.fetchall()
     usuarios = []
+    por_vencer = []
     for u in usuarios_raw:
         un = u['username']
+        es_pro_u, lim_ef, dias_rest = evaluar_plan_usuario(cur, u)
+        u['plan'] = 'Pro' if es_pro_u else 'Gratis'
+        u['pro_dias'] = dias_rest
+        u['limite_efectivo'] = lim_ef
+        u['saldo_bonus'] = round(a_float_seguro(u.get('saldo_bonus'), 0.0), 2)
+        if dias_rest is not None and 0 < dias_rest <= 3:
+            por_vencer.append({'username': un, 'dias': dias_rest, 'fecha': str(u.get('pro_hasta') or '')[:10]})
+
         sm = stats_por_usuario.get(un, {'total': 0, 'online': 0, 'hr_btc': 0.0, 'gen_dia': 0.0})
         fm = fin_por_usuario.get(un, {'total_dep': 0.0, 'gasto_mes': 0.0})
         u['total_mineros'] = sm['total']
@@ -709,13 +825,14 @@ def admin_panel():
 
     stats = {
         'usuarios': len(usuarios),
-        'pro': sum(1 for u in usuarios if es_cuenta_pro(u['username'], u['plan'])),
+        'pro': sum(1 for u in usuarios if u['plan'] == 'Pro'),
         'granjas': len(mapa_granjas),
         'mineros': len(todos_mineros),
         'mineros_online': mineros_online_global,
         'mineros_offline': mineros_offline_global,
         'hashrate_global': round(hashrate_global, 1),
         'saldo_total': sum(a_float_seguro(u['saldo'], 0.0) for u in usuarios),
+        'bonus_total': sum(a_float_seguro(u['saldo_bonus'], 0.0) for u in usuarios),
         'db_mb': db_mb,
         'db_pct': min(100.0, round((db_mb / 1024.0) * 100.0, 1)),
         'hist_filas': hist_filas
@@ -723,7 +840,7 @@ def admin_panel():
     return render_seguro(
         'admin.html', active_page='admin', usuarios=usuarios, stats=stats,
         movimientos=movimientos, mapa_granjas_json=json.dumps(mapa_granjas),
-        anuncio_actual=anuncio_actual, msg=msg
+        anuncio_actual=anuncio_actual, por_vencer=por_vencer, msg=msg
     )
 
 # --- API: Eliminar mineros (liberar cupo o borrar equipos offline/fantasma) ---
@@ -1477,6 +1594,9 @@ def api_agente_login():
     if a_int_seguro(usr.get('suspendido'), 0) == 1:
         return jsonify({"ok": False, "msg": "Cuenta suspendida. Contacta soporte."}), 403
 
+    ahora_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute("UPDATE usuarios SET ultima_conexion=%s WHERE id=%s", (ahora_str, usr['id']))
+
     api_k = usr.get('api_key')
     if not api_k:
         api_k = generar_api_key()
@@ -1588,11 +1708,14 @@ def plan():
     usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT plan, saldo FROM usuarios WHERE username=%s", (usr_actual,))
+    cur.execute("SELECT plan, saldo, saldo_bonus, pro_hasta, limite_mineros FROM usuarios WHERE username=%s", (usr_actual,))
     u = cur.fetchone() or {}
     session['plan'] = u.get('plan', session.get('plan', 'Gratis'))
     session['saldo'] = u.get('saldo', session.get('saldo', 0.0))
-    return render_seguro('plan.html', active_page='plan', current_plan=session['plan'], saldo=session['saldo'])
+    return render_seguro(
+        'plan.html', active_page='plan', current_plan=session['plan'],
+        saldo=session['saldo'], saldo_bonus=round(a_float_seguro(u.get('saldo_bonus'), 0.0), 2)
+    )
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1606,8 +1729,11 @@ def login():
         if usr and verificar_password(usr.get('password'), p):
             if a_int_seguro(usr.get('suspendido'), 0) == 1:
                 return render_seguro('login.html', error='Tu cuenta se encuentra suspendida. Contacta soporte.', mode='login')
+            ahora_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             if not es_hash_seguro(usr.get('password')):
-                cur.execute("UPDATE usuarios SET password=%s WHERE id=%s", (generate_password_hash(p), usr['id']))
+                cur.execute("UPDATE usuarios SET password=%s, ultima_conexion=%s WHERE id=%s", (generate_password_hash(p), ahora_str, usr['id']))
+            else:
+                cur.execute("UPDATE usuarios SET ultima_conexion=%s WHERE id=%s", (ahora_str, usr['id']))
             session.pop('admin_real', None)
             session['usuario'] = usr['username']
             session['plan'] = usr.get('plan', 'Gratis')
@@ -1778,8 +1904,7 @@ def recibir_datos():
         cur.execute("SELECT * FROM usuarios WHERE LOWER(username)='admin'")
         u_cfg = cur.fetchone()
 
-    plan_owner = (u_cfg.get('plan') or 'Gratis') if u_cfg else 'Gratis'
-    es_pro = es_cuenta_pro(owner_user, plan_owner)
+    es_pro, limite_efectivo, _ = evaluar_plan_usuario(cur, u_cfg)
 
     cur.execute("""
         SELECT ip, corte_activo, corte_temp, watchdog_activo, wd_fallo_desde, wd_motivo_fallo,
@@ -1851,8 +1976,8 @@ def recibir_datos():
             ip_m = str(m.get('ip') or '').strip()
             if not ip_m: continue
 
-            if not es_pro and ip_m not in ips_existentes:
-                if len(ips_existentes) >= LIMITE_MINEROS_GRATIS:
+            if limite_efectivo > 0 and ip_m not in ips_existentes:
+                if len(ips_existentes) >= limite_efectivo:
                     omitidos_por_plan += 1
                     continue
                 ips_existentes.add(ip_m)
@@ -2071,7 +2196,7 @@ def recibir_datos():
             print(f"Error guardando minero {m.get('ip')}: {err_m}")
 
     try:
-        cur.execute("UPDATE usuarios SET mineros_omitidos=%s WHERE username=%s", (0 if es_pro else omitidos_por_plan, owner_user))
+        cur.execute("UPDATE usuarios SET mineros_omitidos=%s WHERE username=%s", (0 if (es_pro and limite_efectivo == 0) else omitidos_por_plan, owner_user))
     except:
         pass
 
