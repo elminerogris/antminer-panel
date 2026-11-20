@@ -1,5 +1,5 @@
 from flask import Blueprint, redirect, request, session, jsonify, Response
-import psycopg2.extras, json, time, io, hashlib, zipfile
+import psycopg2.extras, json, time, io, hashlib, zipfile, re
 from datetime import datetime, timedelta
 
 from db import get_db
@@ -13,6 +13,41 @@ from utils import (
 
 agente_bp = Blueprint('agente_bp', __name__)
 ultima_limpieza_bd = 0
+
+def normalizar_mac(mac_str):
+    s = re.sub(r'[^0-9A-Fa-f]', '', str(mac_str or '')).upper()
+    if len(s) != 12 or s in ('000000000000', 'FFFFFFFFFFFF'):
+        return ""
+    return s
+
+def normalizar_sn(sn_str):
+    s = str(sn_str or '').strip().upper()
+    if not s or s in ('-', 'NONE', 'NULL', 'UNKNOWN', 'N/A'):
+        return ""
+    # Ignorar seriales ficticios generados con la IP por el agente
+    if s.startswith('SN-') or s.startswith('WM-'):
+        return ""
+    if len(s) < 6:
+        return ""
+    return s
+
+def migrar_ip_en_tablas(cur, owner, ip_vieja, ip_nueva):
+    if not ip_vieja or not ip_nueva or ip_vieja == ip_nueva:
+        return
+    try:
+        cur.execute("UPDATE historial_nube SET ip=%s WHERE owner=%s AND ip=%s", (ip_nueva, owner, ip_vieja))
+        cur.execute("UPDATE registro_alertas SET ip=%s WHERE owner=%s AND ip=%s", (ip_nueva, owner, ip_vieja))
+        cur.execute("SELECT nombre FROM nombres_mineros WHERE owner=%s AND ip=%s", (owner, ip_vieja))
+        row_n = cur.fetchone()
+        if row_n and row_n.get('nombre'):
+            cur.execute(
+                "INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s) ON CONFLICT(owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre",
+                (owner, ip_nueva, row_n['nombre'])
+            )
+            cur.execute("DELETE FROM nombres_mineros WHERE owner=%s AND ip=%s", (owner, ip_vieja))
+        cur.execute("DELETE FROM logs_mineros WHERE owner=%s AND ip=%s", (owner, ip_vieja))
+    except Exception as e:
+        print(f"Error migrando IP {ip_vieja} -> {ip_nueva}: {e}")
 
 @agente_bp.route('/api/agente/apk_version')
 def api_agente_apk_version():
@@ -215,14 +250,35 @@ def recibir_datos():
     es_pro, limite_efectivo, _ = evaluar_plan_usuario(cur, u_cfg)
 
     cur.execute("""
-        SELECT agent_id, ip, corte_activo, corte_temp, watchdog_activo, wd_fallo_desde, wd_motivo_fallo,
-               wd_ultimo_reinicio, wd_reinicios_seguidos, wd_cuarentena, placas_normales,
-               prot_sleep_desde, prot_motivo, farm_lat, farm_lon, farm_city, gps_manual
+        SELECT agent_id, ip, miner_uid, mac, serial, corte_activo, corte_temp, watchdog_activo,
+               wd_fallo_desde, wd_motivo_fallo, wd_ultimo_reinicio, wd_reinicios_seguidos,
+               wd_cuarentena, placas_normales, prot_sleep_desde, prot_motivo,
+               farm_lat, farm_lon, farm_city, gps_manual, ultima_act
         FROM mineros_activos WHERE owner=%s
     """, (owner_user,))
     rows_exist = cur.fetchall()
-    claves_existentes = {(str(row.get('agent_id') or 'default'), row['ip']) for row in rows_exist}
-    estado_prev_dict = {(str(row.get('agent_id') or 'default'), row['ip']): row for row in rows_exist}
+
+    # Índices en memoria para enlazar por MAC (principal) y SN real (secundario)
+    por_mac = {}
+    por_sn = {}
+    por_ip_agent = {}
+    por_ip_solo = {}
+    for row in rows_exist:
+        r_mac = normalizar_mac(row.get('mac'))
+        r_sn = normalizar_sn(row.get('serial'))
+        r_ip = row['ip']
+        r_ag = str(row.get('agent_id') or 'default')
+        if r_mac:
+            if r_mac not in por_mac or str(row.get('ultima_act') or '') > str(por_mac[r_mac].get('ultima_act') or ''):
+                por_mac[r_mac] = row
+        if r_sn:
+            if r_sn not in por_sn or str(row.get('ultima_act') or '') > str(por_sn[r_sn].get('ultima_act') or ''):
+                por_sn[r_sn] = row
+        por_ip_agent[(r_ag, r_ip)] = row
+        if r_ip not in por_ip_solo:
+            por_ip_solo[r_ip] = row
+
+    total_existentes = len(rows_exist)
 
     if owner_user.lower() == 'admin':
         cur.execute("""
@@ -294,12 +350,60 @@ def recibir_datos():
             ip_m = str(m.get('ip') or '').strip()
             if not ip_m: continue
 
-            clave_m = (agent_id, ip_m)
-            if limite_efectivo > 0 and clave_m not in claves_existentes:
-                if len(claves_existentes) >= limite_efectivo:
-                    omitidos_por_plan += 1
-                    continue
-                claves_existentes.add(clave_m)
+            mc = str(m.get('mac') or '-').strip()
+            sr = str(m.get('serial') or '-').strip()
+            mac_norm = normalizar_mac(mc)
+            sn_norm = normalizar_sn(sr)
+
+            # 1. Identificación inteligente: MAC principal -> SN real secundario -> IP respaldo
+            prev_m = None
+            if mac_norm and mac_norm in por_mac:
+                prev_m = por_mac[mac_norm]
+            elif sn_norm and sn_norm in por_sn:
+                prev_m = por_sn[sn_norm]
+            elif (agent_id, ip_m) in por_ip_agent:
+                prev_m = por_ip_agent[(agent_id, ip_m)]
+            elif ip_m in por_ip_solo:
+                cand = por_ip_solo[ip_m]
+                cand_mac = normalizar_mac(cand.get('mac'))
+                cand_sn = normalizar_sn(cand.get('serial'))
+                if (not mac_norm or not cand_mac or mac_norm == cand_mac) and (not sn_norm or not cand_sn or sn_norm == cand_sn):
+                    prev_m = cand
+
+            if prev_m is None and limite_efectivo > 0 and total_existentes >= limite_efectivo:
+                omitidos_por_plan += 1
+                continue
+
+            if mac_norm:
+                miner_uid = f"MAC:{mac_norm}"
+            elif sn_norm:
+                miner_uid = f"SN:{sn_norm}"
+            else:
+                miner_uid = (prev_m.get('miner_uid') if prev_m else '') or f"IP:{agent_id}:{ip_m}"
+
+            # Si el minero existía bajo otra IP o agent_id, fusionar y limpiar duplicados
+            if prev_m is not None:
+                old_ip = prev_m['ip']
+                old_ag = str(prev_m.get('agent_id') or 'default')
+                if old_ip != ip_m or old_ag != agent_id:
+                    cur.execute("DELETE FROM mineros_activos WHERE owner=%s AND agent_id=%s AND ip=%s", (owner_user, agent_id, ip_m))
+                    cur.execute(
+                        "UPDATE mineros_activos SET ip=%s, agent_id=%s, miner_uid=%s WHERE owner=%s AND agent_id=%s AND ip=%s",
+                        (ip_m, agent_id, miner_uid, owner_user, old_ag, old_ip)
+                    )
+                    if old_ip != ip_m:
+                        migrar_ip_en_tablas(cur, owner_user, old_ip, ip_m)
+                if mac_norm:
+                    cur.execute(
+                        "DELETE FROM mineros_activos WHERE owner=%s AND UPPER(REPLACE(mac, ':', ''))=%s AND NOT (agent_id=%s AND ip=%s)",
+                        (owner_user, mac_norm, agent_id, ip_m)
+                    )
+                cur.execute(
+                    "DELETE FROM mineros_activos WHERE owner=%s AND ip=%s AND agent_id != %s AND (mac IS NULL OR mac='' OR mac='-' OR UPPER(REPLACE(mac, ':', ''))=%s)",
+                    (owner_user, ip_m, agent_id, mac_norm)
+                )
+            else:
+                total_existentes += 1
 
             mod_m = str(m.get('modelo') or 'Antminer')
             algo_m = str(m.get('algoritmo') or 'SHA-256')
@@ -312,8 +416,6 @@ def recibir_datos():
             err = a_int_seguro(m.get('errores'), 0)
             unid = str(m.get('unidad') or 'TH/s')
 
-            mc = str(m.get('mac') or '-')
-            sr = str(m.get('serial') or '-')
             fw = str(m.get('firmware') or 'Desconocido')
             fs = str(m.get('fans') or '0 / 0 RPM')
             up = str(m.get('uptime') or 'En línea')
@@ -336,9 +438,9 @@ def recibir_datos():
                 cadenas_list = []
             cadenas_json = json.dumps(cadenas_list)
 
-            cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
-                            modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns,
+            cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, miner_uid, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
+                            miner_uid=EXCLUDED.miner_uid, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_activos.mac END, serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_activos.serial END, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns,
                             farm_lat=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lat ELSE EXCLUDED.farm_lat END,
                             farm_lon=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lon ELSE EXCLUDED.farm_lon END,
                             farm_city=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_city ELSE EXCLUDED.farm_city END,
@@ -346,7 +448,7 @@ def recibir_datos():
                             real_lat=EXCLUDED.real_lat,
                             real_lon=EXCLUDED.real_lon,
                             real_source=EXCLUDED.real_source''',
-                        (ip_m, owner_user, agent_id, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
+                        (ip_m, owner_user, agent_id, miner_uid, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
 
             cur.execute("SELECT id, hashrate, temp_max FROM historial_nube WHERE owner=%s AND ip=%s AND fecha=%s LIMIT 1", (owner_user, ip_m, ahora_minuto))
             row_min = cur.fetchone()
@@ -362,7 +464,7 @@ def recibir_datos():
 
             guardados_ok += 1
 
-            prev_m = estado_prev_dict.get(clave_m) or {}
+            prev_m = prev_m or {}
             es_manual_gps = a_int_seguro(prev_m.get('gps_manual'), 0) == 1
             ciudad_efectiva = prev_m.get('farm_city') if es_manual_gps else f_city
             lat_efectiva = prev_m.get('farm_lat') if es_manual_gps else f_lat
