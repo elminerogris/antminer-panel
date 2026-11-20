@@ -467,6 +467,21 @@
             <span style="font-size:0.74em; color:var(--text-muted); font-family:monospace;" translate="no">{{ user.username }}</span>
         </div>
         <div class="card-pro-body">
+            <!-- Editar Nombre de Usuario -->
+            <form action="/ajustes" method="POST" style="margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <input type="hidden" name="accion" value="cambiar_username">
+                <div class="form-group">
+                    <label class="form-label">Nombre de Usuario (se respetan mayúsculas)</label>
+                    <input type="text" name="nuevo_username" class="form-input" value="{{ user.username }}" placeholder="Ej: GioGio" minlength="3" maxlength="30" translate="no" {{ 'readonly' if user.username.lower() == 'admin' else 'required' }}>
+                </div>
+                {% if user.username.lower() == 'admin' %}
+                    <div style="font-size:0.76em; color:var(--text-muted);">🛡️ La cuenta principal <b>Admin</b> está protegida contra cambios de nombre.</div>
+                {% else %}
+                    <button type="submit" class="btn-outline-pro" style="width:100%;">✏️ Guardar Nombre de Usuario</button>
+                {% endif %}
+            </form>
+
+            <!-- Editar Contraseña -->
             <form action="/ajustes" method="POST" onsubmit="return validarClavesAntesDeEnviar();">
                 <input type="hidden" name="accion" value="cambiar_password">
                 <div class="form-group">
@@ -498,16 +513,16 @@
 
                 <div id="gpanel-win">
                     <div class="guide-step-txt">
-                        1. Descarga <b>Agente Windows (.zip)</b> y descomprímelo en una carpeta fija (ej: <code>C:\ElMineroGris</code>).<br>
-                        2. Haz doble clic en <b><code>START_AGENT.bat</code></b>.<br>
+1. Descarga <b>Agente Windows (.zip)</b> y descomprímelo en una carpeta fija (ej: <code>C:\ElMineroGris</code>).<br>
+2. Haz doble clic en <b><code>START_AGENT.bat</code></b>.<br>
                         <span style="color:#00e676;">✔ Instala dependencias, arranca con Windows y se actualiza solo.</span>
                     </div>
                 </div>
 
                 <div id="gpanel-android" style="display:none;">
                     <div class="guide-step-txt">
-                        1. Conecta tu celular Android o TV Box al <b>mismo Wi-Fi</b> de tus mineros.<br>
-                        2. Instala <b><code>ElMineroGris-Agente.apk</code></b>, inicia sesión con tu usuario y contraseña y toca <b>▶ Iniciar Agente 24/7</b>.<br>
+1. Conecta tu celular Android o TV Box al <b>mismo Wi-Fi</b> de tus mineros.<br>
+2. Instala <b><code>ElMineroGris-Agente.apk</code></b>, inicia sesión con tu usuario y contraseña y toca <b>▶ Iniciar Agente 24/7</b>.<br>
                         <span style="color:#00e676;">✔ Monitoreo continuo en segundo plano sin necesitar PC.</span>
                     </div>
                 </div>
