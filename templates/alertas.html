@@ -1,7 +1,6 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    /* Contenedor Principal Pro (misma estética que Pools y Telemetría) */
     .wd-card-pro {
         background: var(--bg-card);
         border: 1px solid var(--border-color);
@@ -65,7 +64,6 @@
     }
     .btn-guia-wd:hover { background: rgba(56, 189, 248, 0.22); color: #fff; }
 
-    /* Mini Guía Desplegable */
     .wd-beginner-guide {
         display: none;
         padding: 12px 16px;
@@ -77,7 +75,6 @@
     }
     .wd-beginner-guide b { color: #fff; }
 
-    /* Subbarra de Estadísticas + Plantillas 1-Clic */
     .wd-subbar {
         display: flex;
         align-items: center;
@@ -104,7 +101,6 @@
         border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
         padding-bottom: 1px;
         user-select: none;
-        transition: 0.18s;
     }
     .wd-stat-item:hover { color: #fff; border-bottom-color: var(--accent-blue); }
     .wd-stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.05em; }
@@ -135,7 +131,6 @@
         box-shadow: 0 0 10px rgba(51, 102, 255, 0.35);
     }
 
-    /* Botón Guardar Neon Glow */
     .btn-neon-save {
         background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%);
         border: 1px solid rgba(82, 140, 255, 0.65);
@@ -182,7 +177,6 @@
     }
     .btn-outline-wd:hover { border-color: #3b82f6; color: #60a5fa; background: rgba(51, 102, 255, 0.12); }
 
-    /* Alerta Flash */
     .alert-flash-pro {
         background: linear-gradient(90deg, rgba(0, 230, 118, 0.14) 0%, rgba(0, 230, 118, 0.04) 100%);
         border: 1px solid rgba(0, 230, 118, 0.45);
@@ -195,10 +189,8 @@
         display: flex;
         align-items: center;
         gap: 9px;
-        box-shadow: 0 0 14px rgba(0, 230, 118, 0.15);
     }
 
-    /* Banner Cuarentena */
     .quarantine-card {
         background: rgba(255, 82, 82, 0.10);
         border: 1px solid rgba(255, 82, 82, 0.45);
@@ -231,14 +223,13 @@
     }
     .btn-release-q:hover { background: #00e676; color: #000; }
 
-    /* Grilla de 2 columnas */
     .wd-grid {
         display: grid;
-        grid-template-columns: 1.25fr 0.95fr;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
         gap: 18px;
         align-items: start;
     }
-    @media (max-width: 960px) {
+    @media (max-width: 520px) {
         .wd-grid { grid-template-columns: 1fr; }
     }
 
@@ -256,12 +247,11 @@
     }
     .wd-section-lbl:first-child { margin-top: 0; }
 
-    /* Filas de Reglas */
     .rule-row-pro {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
+        gap: 8px;
         padding: 10px 12px;
         background: rgba(10, 12, 18, 0.45);
         border: 1px solid var(--border-color);
@@ -273,17 +263,25 @@
     .rule-left {
         display: flex;
         align-items: center;
-        gap: 9px;
-        font-size: 0.84em;
+        gap: 8px;
+        font-size: 0.83em;
         font-weight: 600;
         color: var(--text-main);
         cursor: pointer;
+        flex: 1;
     }
     .rule-left input[type="checkbox"] {
         width: 16px;
         height: 16px;
         accent-color: #3366ff;
         cursor: pointer;
+        flex-shrink: 0;
+    }
+    .rule-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
     }
     .info-dot {
         display: inline-flex;
@@ -313,14 +311,11 @@
         font-family: monospace;
         font-size: 0.86em;
         outline: none;
-        transition: 0.18s;
     }
-    .input-pro-dark:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 9px rgba(59, 130, 246, 0.35);
-    }
+    .input-pro-dark:focus { border-color: #3b82f6; box-shadow: 0 0 9px rgba(59, 130, 246, 0.35); }
+
     .input-num-sm {
-        width: 66px;
+        width: 64px;
         background: rgba(10, 12, 18, 0.85);
         border: 1px solid var(--border-color);
         color: #38bdf8;
@@ -329,12 +324,22 @@
         font-family: monospace;
         font-weight: bold;
         text-align: center;
-        font-size: 0.88em;
+        font-size: 0.85em;
         outline: none;
     }
-    .input-num-sm:focus { border-color: #38bdf8; }
+    .select-acc-sm {
+        background: rgba(10, 12, 18, 0.85);
+        border: 1px solid var(--border-color);
+        color: #cbd5e1;
+        padding: 4px 6px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.78em;
+        font-weight: bold;
+        outline: none;
+        cursor: pointer;
+    }
 
-    /* Selector de Alcance (Tabs estilo Chart Filters) */
     .scope-bar {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -372,7 +377,7 @@
         border: 1px solid var(--border-color);
         border-radius: 7px;
         padding: 8px 10px;
-        max-height: 175px;
+        max-height: 165px;
         overflow-y: auto;
         margin-bottom: 12px;
     }
@@ -390,7 +395,6 @@
 
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-    /* Tabla Historial */
     .hist-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .hist-table-pro { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 0.83em; }
     .hist-table-pro th {
@@ -403,10 +407,7 @@
         border-bottom: 1px solid var(--border-color);
         text-align: left;
     }
-    .hist-table-pro td {
-        padding: 9px 12px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
+    .hist-table-pro td { padding: 9px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
     .hist-table-pro tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
     .badge-ev {
         display: inline-block;
@@ -421,7 +422,6 @@
     .badge-WATCHDOG_REBOOT { background: rgba(51, 102, 255, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.45); }
     .badge-WATCHDOG_CUARENTENA { background: rgba(168, 85, 247, 0.20); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.5); }
 
-    /* Tooltip Flotante Global (mismo estilo que Telemetría y Pools) */
     .wd-smart-tooltip {
         position: fixed;
         display: none;
@@ -466,12 +466,12 @@
 
 {% if en_cuarentena %}
 <div class="quarantine-card">
-    <div style="font-weight:bold; color:#ff8a80; font-size:0.92em;">🔒 Mineros en Cuarentena Anti-Bucle (en Sleep para proteger el hardware)</div>
+    <div style="font-weight:bold; color:#ff8a80; font-size:0.92em;">🔒 Mineros en Cuarentena o Reposo Automático (Sleep)</div>
     {% for q in en_cuarentena %}
     <div class="q-row">
         <div>
             <b translate="no">{{ q.nombre }} ({{ q.ip }})</b> <span style="color:var(--text-muted);">· {{ q.modelo }}</span><br>
-            <span style="color:#ff8a80; font-size:0.9em;">Motivo: {{ q.motivo or 'Fallos consecutivos' }} ({{ q.reinicios }} reinicios)</span>
+            <span style="color:#ff8a80; font-size:0.9em;">Motivo: {{ q.motivo or 'Protección / Fallos' }}</span>
         </div>
         <form method="POST" action="/alertas" style="margin:0;">
             <input type="hidden" name="accion" value="liberar_cuarentena">
@@ -483,235 +483,342 @@
 </div>
 {% endif %}
 
-<div class="wd-grid">
-    <!-- TARJETA PRINCIPAL: WATCHDOG INTELIGENTE -->
-    <div class="wd-card-pro">
-        <form method="POST" action="/alertas" id="formWatchdog">
-            <input type="hidden" name="accion" value="guardar_watchdog">
+<form method="POST" action="/alertas" id="formAutomatizacion">
+    <input type="hidden" name="accion" value="guardar_automatizacion">
 
+    <!-- ALCANCE COMPARTIDO -->
+    <div class="wd-card-pro">
+        <div class="wd-header-pro">
+            <div class="wd-title-group">
+                <span class="wd-title-txt">🎯 Alcance de Automatización (Protección y Watchdog)</span>
+                <button type="button" class="btn-guia-wd" onclick="toggleGuiaWd()">💡 ¿Cómo funciona?</button>
+            </div>
+            <button type="submit" class="btn-neon-save" id="btnGuardarAutoTop">
+                <span>💾</span><span class="txt-guardar-auto">Guardar Todo</span>
+            </button>
+        </div>
+
+        <div id="wdBeginnerGuide" class="wd-beginner-guide">
+            <b>👋 Todo inicia desactivado por seguridad:</b><br>
+            1. Elige aquí si las reglas aplican a <b>Toda tu cuenta</b>, solo a <b>una Granja</b> o a <b>Mineros específicos</b>.<br>
+            2. A la izquierda configura <b>Protección y Apagado</b> (calor del ASIC, clima exterior, internet inestable, ventilador 0 RPM y auto-despertar).<br>
+            3. A la derecha configura <b>Watchdog / Auto-Reinicio</b> (0 TH/s, temp. fría de chips o ambiente, placa caída y cuarentena anti-bucle), y presiona <b>Guardar</b>.
+        </div>
+
+        <div class="wd-subbar" translate="no">
+            <div class="wd-stats-list">
+                <div class="wd-stat-item" data-wd-tt="stat_granjas">Granjas: <b>{{ granjas_disp|length }}</b></div>
+                <div class="wd-stat-item" data-wd-tt="stat_mineros">Equipos: <b>{{ mineros_disp|length }}</b></div>
+                <div class="wd-stat-item" data-wd-tt="stat_cuarentena">En Sleep/Cuarentena: <b style="color:{{ '#ff5252' if en_cuarentena|length > 0 else '#00e676' }};">{{ en_cuarentena|length }}</b></div>
+            </div>
+            <div class="wd-presets-bar">
+                <span class="preset-label" data-wd-tt="presets_wd">⚡ Cargar Perfil (sin guardar):</span>
+                <span class="preset-pill" onclick="aplicarPerfilAuto('estandar')">Estándar</span>
+                <span class="preset-pill" onclick="aplicarPerfilAuto('calor_extremo')">Calor / Clima</span>
+                <span class="preset-pill" onclick="aplicarPerfilAuto('apagar_todo')">Apagar Todo</span>
+            </div>
+        </div>
+
+        <div class="wd-body">
+            <div class="scope-bar">
+                <label class="scope-tab">
+                    <input type="radio" name="wd_alcance" value="all" {% if wd.alcance == 'all' %}checked{% endif %} onchange="actualizarAlcanceUI(); marcarAutoEditado()">
+                    <span>🌐 Toda la cuenta</span>
+                </label>
+                <label class="scope-tab">
+                    <input type="radio" name="wd_alcance" value="farms" {% if wd.alcance == 'farms' %}checked{% endif %} onchange="actualizarAlcanceUI(); marcarAutoEditado()">
+                    <span>🏭 Por Granja</span>
+                </label>
+                <label class="scope-tab">
+                    <input type="radio" name="wd_alcance" value="miners" {% if wd.alcance == 'miners' %}checked{% endif %} onchange="actualizarAlcanceUI(); marcarAutoEditado()">
+                    <span>⛏️ Mineros</span>
+                </label>
+            </div>
+
+            <div id="boxGranjas" class="selector-list-box" style="display: {{ 'block' if wd.alcance == 'farms' else 'none' }};">
+                {% if granjas_disp %}
+                    {% for g in granjas_disp %}
+                    <div class="sel-row">
+                        <label>
+                            <input type="checkbox" name="wd_granjas" value="{{ g.clave }}" {% if g.clave in wd.granjas_sel %}checked{% endif %} onchange="marcarAutoEditado()">
+                            <span translate="no">{{ g.clave }}</span>
+                        </label>
+                        <span style="font-family:monospace; color:var(--text-muted);">{{ g.total }} eq.</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="color:var(--text-muted); font-size:0.82em;">Aún no hay granjas detectadas.</div>
+                {% endif %}
+            </div>
+
+            <div id="boxMineros" class="selector-list-box" style="display: {{ 'block' if wd.alcance == 'miners' else 'none' }};">
+                {% if mineros_disp %}
+                    {% for m in mineros_disp %}
+                    <div class="sel-row">
+                        <label>
+                            <input type="checkbox" name="wd_mineros" value="{{ m.ip }}" {% if m.ip in wd.mineros_sel %}checked{% endif %} onchange="marcarAutoEditado()">
+                            <span translate="no"><b>{{ m.nombre }}</b> ({{ m.ip }})</span>
+                        </label>
+                        <span style="font-family:monospace; color:var(--text-muted);">{{ m.modelo }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="color:var(--text-muted); font-size:0.82em;">Aún no hay mineros registrados.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="wd-grid">
+        <!-- BLOQUE 1: PROTECCIÓN Y APAGADO AUTOMÁTICO -->
+        <div class="wd-card-pro">
             <div class="wd-header-pro">
                 <div class="wd-title-group">
-                    <span class="wd-title-txt">🛡️ Watchdog — Auto-Reinicio Inteligente</span>
-                    <span class="wd-status-badge {{ 'on' if wd.activo else 'off' }}" data-wd-tt="estado_wd">
-                        {{ '● ACTIVO' if wd.activo else '○ INACTIVO' }}
+                    <span class="wd-title-txt">🛡️ Protección y Apagado</span>
+                    <span class="wd-status-badge {{ 'on' if wd.prot_activo else 'off' }}">
+                        {{ '● ACTIVO' if wd.prot_activo else '○ OFF' }}
                     </span>
-                    <button type="button" class="btn-guia-wd" onclick="toggleGuiaWd()">💡 ¿Cómo funciona?</button>
                 </div>
-                <button type="submit" class="btn-neon-save" id="btnGuardarWd">
-                    <span>💾</span><span id="txtGuardarWd">Guardar Reglas</span>
-                </button>
             </div>
 
-            <div id="wdBeginnerGuide" class="wd-beginner-guide">
-                <b>👋 Protección automática en 3 pasos:</b><br>
-                1. Elige un <b>Perfil Rápido</b> abajo (ej. <i>Estándar</i>) o ajusta cada regla a tu gusto.<br>
-                2. Selecciona si aplica a <b>Toda tu cuenta</b>, solo a <b>una Granja</b> o a <b>Mineros puntuales</b>.<br>
-                3. Si un equipo falla repetidamente tras N reinicios, la <b>Cuarentena Anti-Bucle</b> lo pone en <i>Sleep</i> para no dañar la fuente y te avisa por Telegram.
-            </div>
-
-            <!-- Subbarra de métricas + Plantillas 1-Clic -->
-            <div class="wd-subbar" translate="no">
-                <div class="wd-stats-list">
-                    <div class="wd-stat-item" data-wd-tt="stat_granjas">Granjas: <b>{{ granjas_disp|length }}</b></div>
-                    <div class="wd-stat-item" data-wd-tt="stat_mineros">Equipos: <b>{{ mineros_disp|length }}</b></div>
-                    <div class="wd-stat-item" data-wd-tt="stat_cuarentena">Cuarentena: <b style="color:{{ '#ff5252' if en_cuarentena|length > 0 else '#00e676' }};">{{ en_cuarentena|length }}</b></div>
+            <div class="wd-body">
+                <div class="rule-row-pro" style="border-color: {{ 'rgba(0,230,118,0.45)' if wd.prot_activo else 'var(--border-color)' }};">
+                    <label class="rule-left">
+                        <input type="checkbox" name="prot_activo" id="prot_activo" value="1" {% if wd.prot_activo %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>Activar Módulo de Protección</span>
+                    </label>
+                    <span class="info-dot" data-wd-tt="prot_master">i</span>
                 </div>
-                <div class="wd-presets-bar">
-                    <span class="preset-label" data-wd-tt="presets_wd">⚡ Perfiles:</span>
-                    <span class="preset-pill" onclick="aplicarPerfilWd('estandar')">Estándar</span>
-                    <span class="preset-pill" onclick="aplicarPerfilWd('conservador')">Conservador</span>
-                    <span class="preset-pill" onclick="aplicarPerfilWd('hydro')">Hydro / Frío</span>
+
+                <div class="rule-row-pro">
+                    <label class="rule-left">
+                        <input type="checkbox" name="prot_temp_on" id="prot_temp_on" value="1" {% if wd.prot_temp_on %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>🔥 Temp. ASIC ≥</span>
+                        <span class="info-dot" data-wd-tt="prot_temp">i</span>
+                    </label>
+                    <div class="rule-controls">
+                        <input type="number" name="prot_temp_val" id="prot_temp_val" class="input-num-sm" min="60" max="105" value="{{ wd.prot_temp_val }}" oninput="marcarAutoEditado()">
+                        <span style="font-family:monospace; color:var(--text-muted); font-size:0.78em;">°C</span>
+                        <select name="prot_temp_accion" id="prot_temp_accion" class="select-acc-sm" onchange="marcarAutoEditado()">
+                            <option value="sleep" {% if wd.prot_temp_accion == 'sleep' %}selected{% endif %}>Sleep</option>
+                            <option value="profile_low" {% if wd.prot_temp_accion == 'profile_low' %}selected{% endif %}>Low Power</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rule-row-pro">
+                    <label class="rule-left">
+                        <input type="checkbox" name="prot_clima_on" id="prot_clima_on" value="1" {% if wd.prot_clima_on %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>☀️ Clima Ext. ≥</span>
+                        <span class="info-dot" data-wd-tt="prot_clima">i</span>
+                    </label>
+                    <div class="rule-controls">
+                        <input type="number" name="prot_clima_val" id="prot_clima_val" class="input-num-sm" min="20" max="55" value="{{ wd.prot_clima_val }}" oninput="marcarAutoEditado()">
+                        <span style="font-family:monospace; color:var(--text-muted); font-size:0.78em;">°C</span>
+                        <select name="prot_clima_accion" id="prot_clima_accion" class="select-acc-sm" onchange="marcarAutoEditado()">
+                            <option value="sleep" {% if wd.prot_clima_accion == 'sleep' %}selected{% endif %}>Sleep</option>
+                            <option value="profile_low" {% if wd.prot_clima_accion == 'profile_low' %}selected{% endif %}>Low Power</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rule-row-pro">
+                    <label class="rule-left">
+                        <input type="checkbox" name="prot_net_on" id="prot_net_on" value="1" {% if wd.prot_net_on %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>🌐 Red Inestable ≥</span>
+                        <span class="info-dot" data-wd-tt="prot_net">i</span>
+                    </label>
+                    <div class="rule-controls">
+                        <input type="number" step="0.5" name="prot_net_rej_pct" id="prot_net_rej_pct" class="input-num-sm" min="0.5" max="50" value="{{ wd.prot_net_rej_pct }}" oninput="marcarAutoEditado()">
+                        <span style="font-family:monospace; color:var(--text-muted); font-size:0.78em;">%</span>
+                        <select name="prot_net_accion" id="prot_net_accion" class="select-acc-sm" onchange="marcarAutoEditado()">
+                            <option value="sleep" {% if wd.prot_net_accion == 'sleep' %}selected{% endif %}>Sleep</option>
+                            <option value="restart" {% if wd.prot_net_accion == 'restart' %}selected{% endif %}>Restart</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rule-row-pro">
+                    <label class="rule-left">
+                        <input type="checkbox" name="prot_fan_on" id="prot_fan_on" value="1" {% if wd.prot_fan_on %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>🌀 Fan en 0 RPM</span>
+                        <span class="info-dot" data-wd-tt="prot_fan">i</span>
+                    </label>
+                    <div class="rule-controls">
+                        <select name="prot_fan_accion" id="prot_fan_accion" class="select-acc-sm" onchange="marcarAutoEditado()">
+                            <option value="sleep" {% if wd.prot_fan_accion == 'sleep' %}selected{% endif %}>Sleep</option>
+                            <option value="restart" {% if wd.prot_fan_accion == 'restart' %}selected{% endif %}>Restart</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rule-row-pro" style="margin-bottom:0;">
+                    <label class="rule-left">
+                        <input type="checkbox" name="prot_wakeup_on" id="prot_wakeup_on" value="1" {% if wd.prot_wakeup_on %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>🌅 Auto-Despertar</span>
+                        <span class="info-dot" data-wd-tt="prot_wakeup">i</span>
+                    </label>
+                    <div class="rule-controls">
+                        <input type="number" name="prot_wakeup_min" id="prot_wakeup_min" class="input-num-sm" min="5" max="360" value="{{ wd.prot_wakeup_min }}" oninput="marcarAutoEditado()">
+                        <span style="font-family:monospace; color:var(--text-muted); font-size:0.78em;">min</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BLOQUE 2: WATCHDOG Y AUTO-REINICIO -->
+        <div class="wd-card-pro">
+            <div class="wd-header-pro">
+                <div class="wd-title-group">
+                    <span class="wd-title-txt">🔄 Watchdog / Auto-Reinicio</span>
+                    <span class="wd-status-badge {{ 'on' if wd.activo else 'off' }}">
+                        {{ '● ACTIVO' if wd.activo else '○ OFF' }}
+                    </span>
                 </div>
             </div>
 
             <div class="wd-body">
                 <div class="rule-row-pro" style="border-color: {{ 'rgba(0,230,118,0.45)' if wd.activo else 'var(--border-color)' }};">
                     <label class="rule-left">
-                        <input type="checkbox" name="wd_activo" id="wd_activo" value="1" {% if wd.activo %}checked{% endif %} onchange="marcarWdEditado()">
-                        <span>Activar Auto-Reinicio Automático</span>
+                        <input type="checkbox" name="wd_activo" id="wd_activo" value="1" {% if wd.activo %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>Activar Watchdog de Reinicio</span>
                     </label>
                     <span class="info-dot" data-wd-tt="wd_master">i</span>
                 </div>
 
-                <div class="wd-section-lbl">🎯 Alcance de Protección</div>
-                <div class="scope-bar">
-                    <label class="scope-tab">
-                        <input type="radio" name="wd_alcance" value="all" {% if wd.alcance == 'all' %}checked{% endif %} onchange="actualizarAlcanceUI(); marcarWdEditado()">
-                        <span>🌐 Toda la cuenta</span>
-                    </label>
-                    <label class="scope-tab">
-                        <input type="radio" name="wd_alcance" value="farms" {% if wd.alcance == 'farms' %}checked{% endif %} onchange="actualizarAlcanceUI(); marcarWdEditado()">
-                        <span>🏭 Por Granja</span>
-                    </label>
-                    <label class="scope-tab">
-                        <input type="radio" name="wd_alcance" value="miners" {% if wd.alcance == 'miners' %}checked{% endif %} onchange="actualizarAlcanceUI(); marcarWdEditado()">
-                        <span>⛏️ Mineros</span>
-                    </label>
-                </div>
-
-                <div id="boxGranjas" class="selector-list-box" style="display: {{ 'block' if wd.alcance == 'farms' else 'none' }};">
-                    {% if granjas_disp %}
-                        {% for g in granjas_disp %}
-                        <div class="sel-row">
-                            <label>
-                                <input type="checkbox" name="wd_granjas" value="{{ g.clave }}" {% if g.clave in wd.granjas_sel %}checked{% endif %} onchange="marcarWdEditado()">
-                                <span translate="no">{{ g.clave }}</span>
-                            </label>
-                            <span style="font-family:monospace; color:var(--text-muted);">{{ g.total }} eq.</span>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div style="color:var(--text-muted); font-size:0.82em;">Aún no hay granjas detectadas.</div>
-                    {% endif %}
-                </div>
-
-                <div id="boxMineros" class="selector-list-box" style="display: {{ 'block' if wd.alcance == 'miners' else 'none' }};">
-                    {% if mineros_disp %}
-                        {% for m in mineros_disp %}
-                        <div class="sel-row">
-                            <label>
-                                <input type="checkbox" name="wd_mineros" value="{{ m.ip }}" {% if m.ip in wd.mineros_sel %}checked{% endif %} onchange="marcarWdEditado()">
-                                <span translate="no"><b>{{ m.nombre }}</b> ({{ m.ip }})</span>
-                            </label>
-                            <span style="font-family:monospace; color:var(--text-muted);">{{ m.modelo }}</span>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div style="color:var(--text-muted); font-size:0.82em;">Aún no hay mineros registrados.</div>
-                    {% endif %}
-                </div>
-
-                <div class="wd-section-lbl">⚡ Reglas de Disparo (Condiciones)</div>
-
                 <div class="rule-row-pro">
                     <label class="rule-left">
-                        <input type="checkbox" name="wd_zero_hr" id="wd_zero_hr" value="1" {% if wd.zero_hr %}checked{% endif %} onchange="marcarWdEditado()">
+                        <input type="checkbox" name="wd_zero_hr" id="wd_zero_hr" value="1" {% if wd.zero_hr %}checked{% endif %} onchange="marcarAutoEditado()">
                         <span>⚡ Hashrate en 0 TH/s</span>
                         <span class="info-dot" data-wd-tt="rule_zero">i</span>
                     </label>
-                    <span style="font-family:monospace; color:#60a5fa; font-size:0.82em;">0.00</span>
+                    <span style="font-family:monospace; color:#60a5fa; font-size:0.80em;">0.00</span>
                 </div>
 
                 <div class="rule-row-pro">
                     <label class="rule-left">
-                        <input type="checkbox" name="wd_cold_on" id="wd_cold_on" value="1" {% if wd.cold_on %}checked{% endif %} onchange="marcarWdEditado()">
-                        <span>❄️ Temp. Chips Baja (≤ °C)</span>
+                        <input type="checkbox" name="wd_cold_on" id="wd_cold_on" value="1" {% if wd.cold_on %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>❄️ Temp. Chips ≤</span>
                         <span class="info-dot" data-wd-tt="rule_cold">i</span>
                     </label>
-                    <div style="display:flex; align-items:center; gap:5px;">
-                        <input type="number" name="wd_cold_temp" id="wd_cold_temp" class="input-num-sm" min="15" max="60" value="{{ wd.cold_temp }}" oninput="marcarWdEditado()">
-                        <span style="font-family:monospace; color:var(--text-muted); font-size:0.8em;">°C</span>
+                    <div class="rule-controls">
+                        <input type="number" name="wd_cold_temp" id="wd_cold_temp" class="input-num-sm" min="15" max="60" value="{{ wd.cold_temp }}" oninput="marcarAutoEditado()">
+                        <span style="font-family:monospace; color:var(--text-muted); font-size:0.78em;">°C</span>
                     </div>
                 </div>
 
                 <div class="rule-row-pro">
                     <label class="rule-left">
-                        <input type="checkbox" name="wd_amb_cold_on" id="wd_amb_cold_on" value="1" {% if wd.amb_cold_on %}checked{% endif %} onchange="marcarWdEditado()">
-                        <span>🍃 Temp. Ambiente Baja (≤ °C)</span>
+                        <input type="checkbox" name="wd_amb_cold_on" id="wd_amb_cold_on" value="1" {% if wd.amb_cold_on %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>🍃 Temp. Ambiente ≤</span>
                         <span class="info-dot" data-wd-tt="rule_amb_cold">i</span>
                     </label>
-                    <div style="display:flex; align-items:center; gap:5px;">
-                        <input type="number" name="wd_amb_cold_temp" id="wd_amb_cold_temp" class="input-num-sm" min="5" max="45" value="{{ wd.amb_cold_temp }}" oninput="marcarWdEditado()">
-                        <span style="font-family:monospace; color:var(--text-muted); font-size:0.8em;">°C</span>
+                    <div class="rule-controls">
+                        <input type="number" name="wd_amb_cold_temp" id="wd_amb_cold_temp" class="input-num-sm" min="5" max="45" value="{{ wd.amb_cold_temp }}" oninput="marcarAutoEditado()">
+                        <span style="font-family:monospace; color:var(--text-muted); font-size:0.78em;">°C</span>
                     </div>
                 </div>
 
                 <div class="rule-row-pro">
                     <label class="rule-left">
-                        <input type="checkbox" name="wd_dead_board" id="wd_dead_board" value="1" {% if wd.dead_board %}checked{% endif %} onchange="marcarWdEditado()">
-                        <span>🧩 Placa Caída (Hashboard en 0)</span>
+                        <input type="checkbox" name="wd_dead_board" id="wd_dead_board" value="1" {% if wd.dead_board %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>🧩 Placa Caída</span>
                         <span class="info-dot" data-wd-tt="rule_board">i</span>
                     </label>
-                    <span style="font-family:monospace; color:#00e676; font-size:0.82em;">Auto</span>
+                    <span style="font-family:monospace; color:#00e676; font-size:0.80em;">Auto</span>
                 </div>
 
-                <div class="wd-section-lbl">⏱️ Tiempos y Cuarentena Anti-Bucle</div>
-                <div class="two-col" style="margin-bottom:10px;">
+                <div class="two-col" style="margin-top:10px; margin-bottom:10px;">
                     <div>
-                        <div style="font-size:0.74em; color:var(--text-muted); margin-bottom:4px; display:flex; align-items:center; gap:5px;">
-                            Tiempo de Gracia (min) <span class="info-dot" data-wd-tt="rule_gracia">i</span>
+                        <div style="font-size:0.73em; color:var(--text-muted); margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+                            Gracia (min) <span class="info-dot" data-wd-tt="rule_gracia">i</span>
                         </div>
-                        <input type="number" name="wd_gracia_min" id="wd_gracia_min" class="input-pro-dark" min="1" max="60" value="{{ wd.gracia_min }}" oninput="marcarWdEditado()">
+                        <input type="number" name="wd_gracia_min" id="wd_gracia_min" class="input-pro-dark" min="1" max="60" value="{{ wd.gracia_min }}" oninput="marcarAutoEditado()">
                     </div>
                     <div>
-                        <div style="font-size:0.74em; color:var(--text-muted); margin-bottom:4px; display:flex; align-items:center; gap:5px;">
-                            Espera entre Reinicios (min) <span class="info-dot" data-wd-tt="rule_cooldown">i</span>
+                        <div style="font-size:0.73em; color:var(--text-muted); margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+                            Espera (min) <span class="info-dot" data-wd-tt="rule_cooldown">i</span>
                         </div>
-                        <input type="number" name="wd_cooldown_min" id="wd_cooldown_min" class="input-pro-dark" min="5" max="180" value="{{ wd.cooldown_min }}" oninput="marcarWdEditado()">
+                        <input type="number" name="wd_cooldown_min" id="wd_cooldown_min" class="input-pro-dark" min="5" max="180" value="{{ wd.cooldown_min }}" oninput="marcarAutoEditado()">
                     </div>
                 </div>
 
-                <div class="rule-row-pro" style="margin-bottom:0;">
+                <div class="rule-row-pro" style="margin-bottom:12px;">
                     <label class="rule-left">
-                        <input type="checkbox" name="wd_cuarentena_on" id="wd_cuarentena_on" value="1" {% if wd.cuarentena_on %}checked{% endif %} onchange="marcarWdEditado()">
-                        <span>🔒 Cuarentena (Sleep tras N intentos)</span>
+                        <input type="checkbox" name="wd_cuarentena_on" id="wd_cuarentena_on" value="1" {% if wd.cuarentena_on %}checked{% endif %} onchange="marcarAutoEditado()">
+                        <span>🔒 Cuarentena Anti-Bucle</span>
                         <span class="info-dot" data-wd-tt="rule_cuarentena">i</span>
                     </label>
-                    <input type="number" name="wd_max_reinicios" id="wd_max_reinicios" class="input-num-sm" min="1" max="10" value="{{ wd.max_reinicios }}" oninput="marcarWdEditado()">
+                    <input type="number" name="wd_max_reinicios" id="wd_max_reinicios" class="input-num-sm" min="1" max="10" value="{{ wd.max_reinicios }}" oninput="marcarAutoEditado()">
                 </div>
+
+                <button type="submit" class="btn-neon-save" style="width:100%;">
+                    <span>💾</span><span class="txt-guardar-auto">Guardar Reglas</span>
+                </button>
             </div>
-        </form>
+        </div>
     </div>
+</form>
 
-    <!-- TARJETA SECUNDARIA: TELEGRAM Y UMBRALES -->
-    <div class="wd-card-pro">
-        <form method="POST" action="/alertas">
-            <input type="hidden" name="accion" value="guardar_config">
-            <div class="wd-header-pro">
-                <div class="wd-title-group">
-                    <span class="wd-title-txt">📲 Alertas Telegram</span>
-                    <span class="wd-status-badge {{ 'on' if cfg.activas else 'off' }}">
-                        {{ '● Activo' if cfg.activas else '○ Pausado' }}
-                    </span>
-                </div>
-                <button type="submit" class="btn-neon-save">💾 Guardar</button>
+<!-- TARJETA TELEGRAM -->
+<div class="wd-card-pro">
+    <form method="POST" action="/alertas">
+        <input type="hidden" name="accion" value="guardar_config">
+        <div class="wd-header-pro">
+            <div class="wd-title-group">
+                <span class="wd-title-txt">📲 Alertas Telegram y Umbrales</span>
+                <span class="wd-status-badge {{ 'on' if cfg.activas else 'off' }}">
+                    {{ '● ACTIVO' if cfg.activas else '○ OFF' }}
+                </span>
+            </div>
+            <button type="submit" class="btn-neon-save">💾 Guardar Telegram</button>
+        </div>
+
+        <div class="wd-body">
+            <div class="rule-row-pro">
+                <label class="rule-left">
+                    <input type="checkbox" name="alertas_activas" value="1" {% if cfg.activas %}checked{% endif %}>
+                    <span>Enviar notificaciones por Telegram</span>
+                </label>
+                <span class="info-dot" data-wd-tt="tg_info">i</span>
             </div>
 
-            <div class="wd-body">
-                <div class="rule-row-pro">
-                    <label class="rule-left">
-                        <input type="checkbox" name="alertas_activas" value="1" {% if cfg.activas %}checked{% endif %}>
-                        <span>Enviar avisos por Telegram</span>
-                    </label>
-                    <span class="info-dot" data-wd-tt="tg_info">i</span>
-                </div>
-
-                <div style="margin-bottom:12px;">
+            <div class="two-col" style="margin-bottom:12px;">
+                <div>
                     <div class="wd-section-lbl">Bot Token</div>
                     <input type="text" name="tg_token" class="input-pro-dark" value="{{ cfg.tg_token }}" placeholder="123456:ABC-DEF..." translate="no">
                 </div>
-
-                <div style="margin-bottom:12px;">
+                <div>
                     <div class="wd-section-lbl">Chat ID</div>
                     <input type="text" name="tg_chat_id" class="input-pro-dark" value="{{ cfg.tg_chat_id }}" placeholder="Ej: 987654321" translate="no">
                 </div>
+            </div>
 
-                <div class="two-col" style="margin-bottom:14px;">
-                    <div>
-                        <div class="wd-section-lbl">Alerta Temp Máx (°C)</div>
-                        <input type="number" name="umbral_temp" class="input-pro-dark" value="{{ cfg.umbral_temp }}" min="40" max="110">
-                    </div>
-                    <div>
-                        <div class="wd-section-lbl">Alerta Hashrate Mín</div>
-                        <input type="number" step="0.1" name="umbral_hr" class="input-pro-dark" value="{{ cfg.umbral_hr }}" min="0">
-                    </div>
+            <div class="two-col" style="margin-bottom:14px;">
+                <div>
+                    <div class="wd-section-lbl">Aviso Temp Máx (°C)</div>
+                    <input type="number" name="umbral_temp" class="input-pro-dark" value="{{ cfg.umbral_temp }}" min="40" max="110">
+                </div>
+                <div>
+                    <div class="wd-section-lbl">Aviso Hashrate Mín</div>
+                    <input type="number" step="0.1" name="umbral_hr" class="input-pro-dark" value="{{ cfg.umbral_hr }}" min="0">
                 </div>
             </div>
-        </form>
-        <div style="padding:0 16px 16px 16px;">
-            <form method="POST" action="/alertas" style="margin:0;">
-                <input type="hidden" name="accion" value="probar_telegram">
-                <button type="submit" class="btn-outline-wd" style="width:100%;">📨 Enviar Mensaje de Prueba a Telegram</button>
-            </form>
         </div>
+    </form>
+    <div style="padding:0 16px 16px 16px;">
+        <form method="POST" action="/alertas" style="margin:0;">
+            <input type="hidden" name="accion" value="probar_telegram">
+            <button type="submit" class="btn-outline-wd" style="width:100%;">📨 Enviar Mensaje de Prueba a Telegram</button>
+        </form>
     </div>
 </div>
 
-<!-- TARJETA 3: HISTORIAL DE INCIDENTES Y ACCIONES -->
+<!-- TARJETA HISTORIAL -->
 <div class="wd-card-pro">
     <div class="wd-header-pro">
         <div class="wd-title-group">
-            <span class="wd-title-txt">📜 Historial de Incidentes y Watchdog</span>
+            <span class="wd-title-txt">📜 Historial de Incidentes</span>
             <span class="wd-status-badge off">{{ historial|length }} eventos</span>
         </div>
         <form method="POST" action="/alertas" style="margin:0;" onsubmit="return confirm('¿Vaciar todo el historial de alertas?');">
@@ -753,20 +860,25 @@
 
 <script>
     const INFO_TOOLTIPS_WD = {
-        'estado_wd': { titulo: '🛡️ Estado del Watchdog', desc: 'Indica si el motor de auto-reinicio inteligente está vigilando tus equipos en tiempo real.', rango: 'OFF por defecto hasta que lo actives' },
-        'wd_master': { titulo: '⚡ Interruptor General', desc: 'Enciende o apaga todas las reglas de auto-reinicio de un solo clic sin perder tu configuración.', rango: 'Recomendado: ON tras elegir tu alcance' },
-        'presets_wd': { titulo: '⚡ Perfiles Rápidos 1-Clic', desc: 'Rellena automáticamente tiempos y temperaturas recomendadas según el tipo de granja.', rango: 'No guarda hasta que presiones Guardar Reglas' },
-        'rule_zero': { titulo: '⚡ Hashrate en 0 TH/s', desc: 'Reinicia el minero si reporta 0 TH/s durante el tiempo de gracia configurado.', rango: 'Ideal para destrabar cortes de pool o firmware' },
-        'rule_cold': { titulo: '❄️ Temperatura de Chips Baja', desc: 'Cuando un ASIC se congela deja de generar calor y sus chips bajan rápido cerca de la temperatura ambiente.', rango: 'Recomendado: 31°C a 35°C' },
-        'rule_amb_cold': { titulo: '🍃 Temperatura Ambiente Baja', desc: 'Reinicia si el sensor de entrada/ambiente (temp_amb) cae al valor elegido o menos durante el tiempo de gracia.', rango: 'Útil en granjas con sensores de entrada o Hydro' },
-        'rule_board': { titulo: '🧩 Placa Caída (Missing Hashboard)', desc: 'Aprende cuántas placas sanas tiene cada minero (ej. 3) y reinicia si alguna cae a 0.', rango: 'Recupera placas desconectadas automáticamente' },
-        'rule_gracia': { titulo: '⏱️ Tiempo de Gracia', desc: 'Minutos seguidos que debe persistir el fallo antes de mandar el reinicio. Evita reiniciar equipos que están arrancando.', rango: 'Recomendado: 5 a 10 minutos' },
-        'rule_cooldown': { titulo: '🧊 Espera entre Reinicios', desc: 'Tiempo mínimo de enfriamiento antes de volver a intentar otro reinicio en la misma IP.', rango: 'Recomendado: 20 a 30 minutos' },
-        'rule_cuarentena': { titulo: '🔒 Cuarentena Anti-Bucle', desc: 'Si un minero falla tras N reinicios seguidos, lo pone en Sleep para proteger la fuente y te avisa por Telegram.', rango: 'Recomendado: 3 intentos' },
-        'tg_info': { titulo: '📲 Notificaciones Telegram', desc: 'Te avisa al instante cada vez que el Watchdog reinicia un equipo, activa cuarentena o detecta sobrecalentamiento.', rango: 'Usa @BotFather para crear tu token' },
-        'stat_granjas': { titulo: '🏭 Granjas Detectadas', desc: 'Agrupadas automáticamente por ubicación y subred.', rango: 'Puedes proteger una granja sí y otra no' },
-        'stat_mineros': { titulo: '⛏️ Mineros Registrados', desc: 'Total de equipos vinculados a tu cuenta.', rango: 'Seleccionables individualmente' },
-        'stat_cuarentena': { titulo: '🔒 Equipos en Cuarentena', desc: 'Equipos detenidos por el Watchdog tras varios reinicios fallidos.', rango: 'Requieren revisión o liberación manual' }
+        'prot_master': { titulo: '🛡️ Protección y Apagado', desc: 'Apaga (Sleep) o baja potencia (Low Power) antes de que el calor o la mala red dañen el hardware.', rango: 'Inicia OFF por defecto' },
+        'prot_temp': { titulo: '🔥 Corte por Temp. ASIC', desc: 'Si los chips alcanzan esta temperatura o más, ejecuta Sleep o Low Power.', rango: 'Recomendado: 85°C a 90°C' },
+        'prot_clima': { titulo: '☀️ Corte por Clima Exterior', desc: 'Usa la temperatura exterior de la ubicación de tu granja para proteger equipos si hace calor extremo afuera.', rango: 'Ej: 38°C a 42°C' },
+        'prot_net': { titulo: '🌐 Internet Inestable', desc: 'Actúa si los shares rechazados superan el % configurado o si todos los pools caen a Dead.', rango: 'Ej: ≥ 5.0% rechazados' },
+        'prot_fan': { titulo: '🌀 Ventilador en 0 RPM', desc: 'Detecta ventiladores detenidos en equipos de aire (ignora modelos Hydro).', rango: 'Protección preventiva' },
+        'prot_wakeup': { titulo: '🌅 Auto-Despertar', desc: 'Vuelve a poner el equipo en modo Normal tras pasar X minutos en reposo (si el clima ya no está extremo).', rango: 'Ej: 30 minutos' },
+        'wd_master': { titulo: '🔄 Watchdog de Reinicio', desc: 'Reinicia automáticamente equipos trabados, en 0 TH/s o con placas caídas.', rango: 'Inicia OFF por defecto' },
+        'rule_zero': { titulo: '⚡ Hashrate en 0 TH/s', desc: 'Reinicia el minero si reporta 0 TH/s durante el tiempo de gracia.', rango: 'Recupera cortes de pool o firmware' },
+        'rule_cold': { titulo: '❄️ Temp. Chips Baja', desc: 'Reinicia si los chips caen al límite o menos (señal de congelamiento sin generar calor).', rango: 'Recomendado: 31°C' },
+        'rule_amb_cold': { titulo: '🍃 Temp. Ambiente Baja', desc: 'Reinicia si la temperatura ambiente/entrada baja al límite configurado durante la gracia.', rango: 'Ej: 18°C' },
+        'rule_board': { titulo: '🧩 Placa Caída', desc: 'Detecta si desaparece alguna placa o deja de hashear y reinicia el equipo.', rango: 'Aprende el número de placas sano' },
+        'rule_gracia': { titulo: '⏱️ Tiempo de Gracia', desc: 'Minutos seguidos de fallo antes de actuar, para no interrumpir arranques normales.', rango: 'Recomendado: 5 a 10 min' },
+        'rule_cooldown': { titulo: '🧊 Espera entre Reinicios', desc: 'Tiempo mínimo entre reinicios de una misma máquina.', rango: 'Recomendado: 30 min' },
+        'rule_cuarentena': { titulo: '🔒 Cuarentena Anti-Bucle', desc: 'Si tras N reinicios sigue fallando, lo pone en Sleep para evitar bucles infinitos.', rango: 'Recomendado: 3 intentos' },
+        'tg_info': { titulo: '📲 Notificaciones Telegram', desc: 'Recibe avisos en tiempo real cuando se active una protección, reinicio o cuarentena.', rango: 'Configura Token y Chat ID' },
+        'presets_wd': { titulo: '⚡ Perfiles Rápidos', desc: 'Marca o desmarca reglas de ejemplo sin guardar hasta que presiones Guardar.', rango: 'Solo prepara el formulario' },
+        'stat_granjas': { titulo: '🏭 Granjas', desc: 'Agrupadas según la ubicación GPS y subred de tus equipos.', rango: 'Filtrables en Alcance' },
+        'stat_mineros': { titulo: '⛏️ Equipos', desc: 'Total de mineros en tu cuenta.', rango: 'Seleccionables uno a uno' },
+        'stat_cuarentena': { titulo: '🔒 En Sleep / Cuarentena', desc: 'Equipos actualmente en reposo o cuarentena automática.', rango: 'Puedes liberarlos arriba' }
     };
 
     function toggleGuiaWd() {
@@ -780,45 +892,45 @@
         document.getElementById('boxMineros').style.display = (sel === 'miners') ? 'block' : 'none';
     }
 
-    function marcarWdEditado() {
-        const btn = document.getElementById('btnGuardarWd');
-        const txt = document.getElementById('txtGuardarWd');
-        if (btn) btn.classList.add('unsaved-pulse');
-        if (txt) txt.innerText = 'Guardar Cambios';
+    function marcarAutoEditado() {
+        document.querySelectorAll('.btn-neon-save').forEach(b => b.classList.add('unsaved-pulse'));
+        document.querySelectorAll('.txt-guardar-auto').forEach(t => t.innerText = 'Guardar Cambios');
     }
 
-    function aplicarPerfilWd(tipo) {
-        document.getElementById('wd_activo').checked = true;
-        document.getElementById('wd_zero_hr').checked = true;
-        document.getElementById('wd_dead_board').checked = true;
-        document.getElementById('wd_cuarentena_on').checked = true;
+    function aplicarPerfilAuto(tipo) {
+        if (tipo === 'apagar_todo') {
+            ['prot_activo','prot_temp_on','prot_clima_on','prot_net_on','prot_fan_on','prot_wakeup_on',
+             'wd_activo','wd_zero_hr','wd_cold_on','wd_amb_cold_on','wd_dead_board','wd_cuarentena_on'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.checked = false;
+            });
+        } else if (tipo === 'estandar') {
+            document.getElementById('prot_activo').checked = true;
+            document.getElementById('prot_temp_on').checked = true;
+            document.getElementById('prot_temp_val').value = 85;
+            document.getElementById('prot_fan_on').checked = true;
+            document.getElementById('prot_wakeup_on').checked = true;
+            document.getElementById('prot_wakeup_min').value = 30;
 
-        if (tipo === 'estandar') {
+            document.getElementById('wd_activo').checked = true;
+            document.getElementById('wd_zero_hr').checked = true;
             document.getElementById('wd_cold_on').checked = true;
             document.getElementById('wd_cold_temp').value = 31;
-            document.getElementById('wd_amb_cold_on').checked = false;
-            document.getElementById('wd_amb_cold_temp').value = 18;
-            document.getElementById('wd_gracia_min').value = 5;
-            document.getElementById('wd_cooldown_min').value = 30;
+            document.getElementById('wd_dead_board').checked = true;
+            document.getElementById('wd_cuarentena_on').checked = true;
             document.getElementById('wd_max_reinicios').value = 3;
-        } else if (tipo === 'conservador') {
-            document.getElementById('wd_cold_on').checked = true;
-            document.getElementById('wd_cold_temp').value = 28;
-            document.getElementById('wd_amb_cold_on').checked = false;
-            document.getElementById('wd_amb_cold_temp').value = 15;
-            document.getElementById('wd_gracia_min').value = 10;
-            document.getElementById('wd_cooldown_min').value = 45;
-            document.getElementById('wd_max_reinicios').value = 2;
-        } else if (tipo === 'hydro') {
-            document.getElementById('wd_cold_on').checked = true;
-            document.getElementById('wd_cold_temp').value = 30;
-            document.getElementById('wd_amb_cold_on').checked = true;
-            document.getElementById('wd_amb_cold_temp').value = 20;
-            document.getElementById('wd_gracia_min').value = 6;
-            document.getElementById('wd_cooldown_min').value = 30;
-            document.getElementById('wd_max_reinicios').value = 3;
+        } else if (tipo === 'calor_extremo') {
+            document.getElementById('prot_activo').checked = true;
+            document.getElementById('prot_temp_on').checked = true;
+            document.getElementById('prot_temp_val').value = 83;
+            document.getElementById('prot_clima_on').checked = true;
+            document.getElementById('prot_clima_val').value = 38;
+            document.getElementById('prot_net_on').checked = true;
+            document.getElementById('prot_net_rej_pct').value = 5.0;
+            document.getElementById('prot_wakeup_on').checked = true;
+            document.getElementById('prot_wakeup_min').value = 45;
         }
-        marcarWdEditado();
+        marcarAutoEditado();
     }
 
     window.addEventListener('load', function() {
