@@ -452,11 +452,23 @@ def admin_panel():
         ORDER BY u.id ASC
     """)
     usuarios = cur.fetchall()
+
+    db_mb = 0.0
+    try:
+        cur.execute("SELECT pg_database_size(current_database()) AS db_bytes")
+        row_sz = cur.fetchone()
+        if row_sz and row_sz.get('db_bytes'):
+            db_mb = round(float(row_sz['db_bytes']) / (1024.0 * 1024.0), 2)
+    except Exception as e:
+        print(f"Error leyendo tamaño BD: {e}")
+
     stats = {
         'usuarios': len(usuarios),
         'pro': sum(1 for u in usuarios if es_cuenta_pro(u['username'], u['plan'])),
         'mineros': sum(int(u['total_mineros'] or 0) for u in usuarios),
-        'saldo_total': sum(a_float_seguro(u['saldo'], 0.0) for u in usuarios)
+        'saldo_total': sum(a_float_seguro(u['saldo'], 0.0) for u in usuarios),
+        'db_mb': db_mb,
+        'db_pct': min(100.0, round((db_mb / 1024.0) * 100.0, 1))
     }
     return render_seguro('admin.html', active_page='admin', usuarios=usuarios, stats=stats, msg=msg)
 
@@ -1637,7 +1649,6 @@ def recibir_datos():
                         accion_proteccion = prot_net_accion
                         motivo_proteccion = "Todos los pools en estado Dead"
 
-            # Compatibilidad con corte térmico individual si estaba encendido manualmente
             if not accion_proteccion and corte_on_m == 1 and temp_m >= corte_temp_m and hr_m > 0:
                 accion_proteccion = "sleep"
                 motivo_proteccion = f"Corte térmico {temp_m}°C ≥ {corte_temp_m}°C"
@@ -1654,7 +1665,6 @@ def recibir_datos():
                 if alertas_on:
                     enviar_telegram(tg_tok, tg_cid, f"🛡️ <b>PROTECCIÓN ACTIVADA ({accion_proteccion.upper()})</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nMotivo: <b>{motivo_proteccion}</b>")
 
-            # Auto-Despertar Térmico cuando el equipo estaba en Sleep por protección
             if prot_activo and prot_wakeup_on and prot_sleep_desde and hr_m <= 0.01:
                 segs_dormido = calcular_segundos_desconectado(prot_sleep_desde)
                 clima_ok = True
