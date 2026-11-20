@@ -88,13 +88,24 @@ def api_guardar_gps():
     if es_super_admin() and data.get('owner'):
         owner_target = str(data.get('owner')).strip()
 
+    agent_id = str(data.get('agent_id') or '').strip()
     subred = str(data.get('subred') or '').strip()
     con = get_db(); con.autocommit = True; cur = con.cursor()
-    if subred and subred.endswith('.x'):
-        prefijo = subred[:-1]
+
+    if agent_id and subred and subred.endswith('.x'):
+        cur.execute(
+            "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s AND agent_id=%s AND ip LIKE %s",
+            (lat, lon, ciudad, pais, owner_target, agent_id, subred[:-1] + '%')
+        )
+    elif agent_id:
+        cur.execute(
+            "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s AND agent_id=%s",
+            (lat, lon, ciudad, pais, owner_target, agent_id)
+        )
+    elif subred and subred.endswith('.x'):
         cur.execute(
             "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s AND ip LIKE %s",
-            (lat, lon, ciudad, pais, owner_target, prefijo + '%')
+            (lat, lon, ciudad, pais, owner_target, subred[:-1] + '%')
         )
     else:
         cur.execute(
