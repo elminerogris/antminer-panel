@@ -1,7 +1,6 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    /* Encabezado y KPIs de Alertas */
     .alerts-header {
         display: flex;
         align-items: center;
@@ -12,11 +11,11 @@
         padding: 16px 20px;
         background: var(--bg-card);
         border: 1px solid var(--border-color);
-        border-radius: 8px;
+        border-radius: 10px;
     }
     .alerts-header h1 {
         margin: 0;
-        font-size: 1.42em;
+        font-size: 1.4em;
         color: var(--text-main);
         display: flex;
         align-items: center;
@@ -27,38 +26,31 @@
         font-size: 0.84em;
         color: var(--text-muted);
     }
-    .bot-status-pill {
+    .status-pill-wd {
         display: inline-flex;
         align-items: center;
         gap: 7px;
-        padding: 5px 12px;
+        padding: 6px 13px;
         border-radius: 20px;
         font-size: 0.78em;
         font-weight: bold;
         font-family: monospace;
     }
-    .bot-status-pill.active {
-        background: rgba(0, 230, 118, 0.12);
+    .status-pill-wd.on {
+        background: rgba(0, 230, 118, 0.14);
         color: #00e676;
-        border: 1px solid rgba(0, 230, 118, 0.35);
-        box-shadow: 0 0 12px rgba(0, 230, 118, 0.2);
+        border: 1px solid rgba(0, 230, 118, 0.45);
     }
-    .bot-status-pill.paused {
-        background: rgba(255, 179, 0, 0.14);
-        color: #ffb300;
-        border: 1px solid rgba(255, 179, 0, 0.4);
-    }
-    .bot-status-pill.unconf {
-        background: rgba(255, 82, 82, 0.12);
-        color: #ff5252;
-        border: 1px solid rgba(255, 82, 82, 0.35);
+    .status-pill-wd.off {
+        background: rgba(148, 153, 176, 0.12);
+        color: var(--text-muted);
+        border: 1px solid var(--border-color);
     }
 
-    /* Notificación Flash del Servidor */
-    .alert-msg-box {
-        background: linear-gradient(90deg, rgba(51, 102, 255, 0.16) 0%, rgba(51, 102, 255, 0.05) 100%);
-        border: 1px solid rgba(59, 130, 246, 0.5);
-        color: #fff;
+    .alert-flash-ok {
+        background: rgba(0, 230, 118, 0.12);
+        border: 1px solid rgba(0, 230, 118, 0.45);
+        color: #69f0ae;
         padding: 12px 16px;
         border-radius: 8px;
         margin-bottom: 18px;
@@ -67,18 +59,58 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        box-shadow: 0 0 14px rgba(59, 130, 246, 0.2);
     }
 
-    /* Grilla Principal */
-    .grid-alertas {
+    .quarantine-banner {
+        background: rgba(255, 82, 82, 0.12);
+        border: 1px solid rgba(255, 82, 82, 0.5);
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-bottom: 18px;
+    }
+    .quarantine-banner-title {
+        font-weight: bold;
+        color: #ff8a80;
+        font-size: 0.94em;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .q-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+        background: rgba(0, 0, 0, 0.28);
+        border: 1px solid rgba(255, 82, 82, 0.25);
+        padding: 10px 12px;
+        border-radius: 7px;
+        margin-top: 8px;
+        font-size: 0.84em;
+    }
+    .btn-release-q {
+        background: rgba(0, 230, 118, 0.16);
+        border: 1px solid #00e676;
+        color: #00e676;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 0.82em;
+        cursor: pointer;
+    }
+    .btn-release-q:hover { background: #00e676; color: #000; }
+
+    .alerts-grid {
         display: grid;
-        grid-template-columns: 380px 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
         gap: 20px;
         align-items: start;
+        margin-bottom: 20px;
     }
-    @media (max-width: 960px) {
-        .grid-alertas { grid-template-columns: 1fr; }
+    @media (max-width: 520px) {
+        .alerts-grid { grid-template-columns: 1fr; }
     }
 
     .card-pro {
@@ -90,22 +122,18 @@
     .card-pro-header {
         padding: 14px 18px;
         background: rgba(255, 255, 255, 0.015);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid var(--border-color);
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        flex-wrap: wrap;
         font-weight: bold;
-        font-size: 1.02em;
+        font-size: 1em;
         color: var(--text-main);
     }
-    .card-pro-body {
-        padding: 18px;
-    }
+    .card-pro-body { padding: 18px; }
 
-    /* Formulario de Telegram */
-    .form-group { margin-bottom: 15px; }
+    .form-group { margin-bottom: 14px; }
     .form-label {
         display: block;
         font-size: 0.74em;
@@ -115,467 +143,472 @@
         text-transform: uppercase;
         letter-spacing: 0.4px;
     }
-    .input-icon-wrap {
-        position: relative;
-        display: flex;
-        align-items: center;
-    }
     .form-input {
         width: 100%;
-        background: rgba(10, 12, 18, 0.7);
+        background: var(--bg-input);
         border: 1px solid var(--border-color);
         color: var(--text-main);
         padding: 9px 12px;
         border-radius: 7px;
         font-family: monospace;
         font-size: 0.88em;
-        box-sizing: border-box;
         outline: none;
-        transition: all 0.2s ease;
     }
-    .form-input.with-btn { padding-right: 36px; }
     .form-input:focus {
         border-color: #3b82f6;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
-    }
-    .btn-eye-token {
-        position: absolute;
-        right: 6px;
-        background: transparent;
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        font-size: 1em;
-        padding: 4px 6px;
-        border-radius: 4px;
-    }
-    .btn-eye-token:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
-
-    /* Píldoras rápidas de temperatura */
-    .temp-presets {
-        display: flex;
-        gap: 5px;
-        margin-top: 6px;
-    }
-    .t-preset-pill {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border-color);
-        color: var(--text-muted);
-        padding: 2px 7px;
-        border-radius: 12px;
-        font-size: 0.72em;
-        font-family: monospace;
-        font-weight: bold;
-        cursor: pointer;
-        transition: 0.15s;
-    }
-    .t-preset-pill:hover {
-        color: #fff;
-        border-color: #ffb300;
-        background: rgba(255, 179, 0, 0.15);
+        box-shadow: 0 0 8px rgba(59, 130, 246, 0.35);
     }
 
-    /* Interruptor Switch Moderno */
     .switch-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: rgba(10, 12, 18, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.07);
-        padding: 10px 12px;
-        border-radius: 7px;
-        margin-bottom: 16px;
+        gap: 12px;
+        padding: 11px 13px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-bottom: 10px;
     }
-    .switch-label { font-size: 0.84em; font-weight: bold; color: var(--text-main); cursor: pointer; }
-    .toggle-switch {
-        position: relative;
-        display: inline-block;
-        width: 42px;
-        height: 22px;
-        flex-shrink: 0;
-    }
-    .toggle-switch input { opacity: 0; width: 0; height: 0; }
-    .toggle-slider {
-        position: absolute;
+    .switch-row label {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 0.86em;
+        font-weight: 600;
         cursor: pointer;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: #2c3044;
-        transition: .25s;
-        border-radius: 22px;
+        color: var(--text-main);
     }
-    .toggle-slider:before {
-        position: absolute;
-        content: "";
-        height: 16px;
-        width: 16px;
-        left: 3px;
-        bottom: 3px;
-        background-color: white;
-        transition: .25s;
-        border-radius: 50%;
+    .switch-row input[type="checkbox"] {
+        width: 17px;
+        height: 17px;
+        accent-color: #3366ff;
+        cursor: pointer;
     }
-    .toggle-switch input:checked + .toggle-slider {
-        background-color: #00e676;
-        box-shadow: 0 0 10px rgba(0, 230, 118, 0.45);
-    }
-    .toggle-switch input:checked + .toggle-slider:before {
-        transform: translateX(20px);
+    .inline-num {
+        width: 72px;
+        background: var(--bg-input);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 5px 8px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-weight: bold;
+        text-align: center;
     }
 
-    /* Botones con Neon Glow */
-    .btn-save-pro {
+    /* Selector de alcance */
+    .scope-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-bottom: 12px;
+    }
+    .scope-opt {
+        position: relative;
+        cursor: pointer;
+    }
+    .scope-opt input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .scope-opt span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 8px 6px;
+        border-radius: 7px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-input);
+        color: var(--text-muted);
+        font-size: 0.78em;
+        font-weight: bold;
+        text-align: center;
+        transition: 0.18s;
+    }
+    .scope-opt input:checked + span {
+        background: rgba(51, 102, 255, 0.18);
+        border-color: #3b82f6;
+        color: #60a5fa;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
+    }
+
+    .selector-box {
+        background: var(--bg-input);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 10px 12px;
+        max-height: 185px;
+        overflow-y: auto;
+        margin-bottom: 14px;
+    }
+    .selector-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        font-size: 0.82em;
+    }
+    .selector-item:last-child { border-bottom: none; }
+    .selector-item label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        flex: 1;
+    }
+    .selector-item input[type="checkbox"] {
+        width: 15px;
+        height: 15px;
+        accent-color: #00e676;
+    }
+    .tag-sub {
+        font-size: 0.78em;
+        font-family: monospace;
+        color: var(--text-muted);
+    }
+
+    .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .btn-primary-pro {
         background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
         color: #fff;
         border: 1px solid #60a5fa;
-        padding: 10px 15px;
+        padding: 10px 16px;
         border-radius: 7px;
         font-weight: bold;
         cursor: pointer;
-        font-size: 0.86em;
+        font-size: 0.85em;
         width: 100%;
-        box-shadow: 0 0 14px rgba(59, 130, 246, 0.4);
-        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
     }
-    .btn-save-pro:hover {
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.7);
-        transform: translateY(-1px);
-    }
-    .btn-test-pro {
-        background: rgba(0, 230, 118, 0.1);
-        color: #00e676;
-        border: 1px solid rgba(0, 230, 118, 0.45);
+    .btn-primary-pro:hover { box-shadow: 0 0 18px rgba(59, 130, 246, 0.65); }
+
+    .btn-outline-pro {
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text-main);
+        border: 1px solid var(--border-color);
         padding: 9px 14px;
         border-radius: 7px;
         font-weight: bold;
         cursor: pointer;
-        font-size: 0.84em;
-        width: 100%;
-        margin-top: 10px;
-        transition: all 0.2s ease;
+        font-size: 0.83em;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
     }
-    .btn-test-pro:hover {
-        background: rgba(0, 230, 118, 0.22);
-        color: #fff;
-        box-shadow: 0 0 14px rgba(0, 230, 118, 0.45);
-        transform: translateY(-1px);
-    }
-    .btn-clear-pro {
-        background: rgba(255, 82, 82, 0.08);
+    .btn-outline-pro:hover { border-color: #3b82f6; color: #60a5fa; }
+
+    .btn-danger-sm {
+        background: rgba(255, 82, 82, 0.1);
         color: #ff5252;
         border: 1px solid rgba(255, 82, 82, 0.35);
-        padding: 5px 11px;
+        padding: 6px 12px;
         border-radius: 6px;
-        font-size: 0.76em;
-        cursor: pointer;
-        font-weight: bold;
-        transition: 0.18s;
-    }
-    .btn-clear-pro:hover {
-        background: rgba(255, 82, 82, 0.22);
-        color: #fff;
-        box-shadow: 0 0 10px rgba(255, 82, 82, 0.4);
-    }
-
-    /* Guía rápida desplegable */
-    .help-box-pro {
-        background: rgba(56, 189, 248, 0.06);
-        border: 1px solid rgba(56, 189, 248, 0.22);
-        padding: 12px 14px;
-        border-radius: 7px;
         font-size: 0.78em;
-        color: #d1d3e0;
-        line-height: 1.5;
-        margin-top: 16px;
+        font-weight: bold;
+        cursor: pointer;
     }
-    .help-box-pro code {
-        background: rgba(0, 0, 0, 0.45);
-        padding: 1px 5px;
-        border-radius: 4px;
-        color: #38bdf8;
-    }
+    .btn-danger-sm:hover { background: rgba(255, 82, 82, 0.25); color: #fff; }
 
-    /* Barra de Filtros y Buscador del Historial */
-    .log-toolbar {
-        padding: 12px 18px;
-        background: rgba(10, 12, 18, 0.45);
+    /* Tabla Historial */
+    .table-wrap { overflow-x: auto; }
+    .hist-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.84em;
+    }
+    .hist-table th, .hist-table td {
+        padding: 10px 12px;
         border-bottom: 1px solid var(--border-color);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        flex-wrap: wrap;
+        text-align: left;
     }
-    .log-filter-pills {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
-    .log-pill {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border-color);
-        color: var(--text-muted);
-        padding: 4px 10px;
-        border-radius: 16px;
+    .hist-table th {
         font-size: 0.75em;
-        font-weight: bold;
-        cursor: pointer;
-        transition: 0.18s;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        letter-spacing: 0.4px;
     }
-    .log-pill:hover { color: #fff; border-color: #3b82f6; }
-    .log-pill.active {
-        background: rgba(51, 102, 255, 0.22);
-        color: #60a5fa;
-        border-color: #3b82f6;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
-    }
-    .log-search {
-        background: rgba(10, 12, 18, 0.75);
-        border: 1px solid var(--border-color);
-        color: #fff;
-        padding: 6px 10px;
-        border-radius: 6px;
-        font-size: 0.80em;
-        outline: none;
-        min-width: 190px;
-    }
-    .log-search:focus { border-color: #3b82f6; }
-
-    /* Lista de Incidentes */
-    .alert-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        max-height: 540px;
-        overflow-y: auto;
-        padding: 16px 18px;
-    }
-    .alert-item {
-        background: rgba(10, 12, 18, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-left: 4px solid #ff5252;
-        padding: 12px 15px;
-        border-radius: 7px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-        transition: background 0.15s ease;
-    }
-    .alert-item:hover { background: rgba(255, 255, 255, 0.03); }
-    .alert-item.temp { border-left-color: #ffb300; }
-    .alert-item.hashrate { border-left-color: #3b82f6; }
-
-    .alert-type-badge {
+    .badge-type {
         display: inline-block;
-        padding: 2px 7px;
-        border-radius: 4px;
+        padding: 3px 8px;
+        border-radius: 12px;
         font-size: 0.75em;
         font-weight: bold;
         font-family: monospace;
-        margin-right: 6px;
     }
-    .alert-type-badge.temp { background: rgba(255, 179, 0, 0.15); color: #ffb300; }
-    .alert-type-badge.hashrate { background: rgba(59, 130, 246, 0.16); color: #60a5fa; }
-    .alert-type-badge.offline { background: rgba(255, 82, 82, 0.16); color: #ff5252; }
-
-    .alert-ip-link {
-        color: #60a5fa;
-        font-weight: bold;
-        font-family: monospace;
-        text-decoration: none;
-    }
-    .alert-ip-link:hover { color: #fff; text-decoration: underline; }
-    .alert-time {
-        font-family: monospace;
-        font-size: 0.78em;
-        color: var(--text-muted);
-        background: rgba(255, 255, 255, 0.03);
-        padding: 3px 8px;
-        border-radius: 4px;
-    }
+    .badge-TEMP, .badge-CORTE_TERMICO { background: rgba(255, 82, 82, 0.16); color: #ff8a80; border: 1px solid rgba(255, 82, 82, 0.4); }
+    .badge-HASHRATE { background: rgba(255, 179, 0, 0.16); color: #ffd54f; border: 1px solid rgba(255, 179, 0, 0.4); }
+    .badge-WATCHDOG_REBOOT { background: rgba(51, 102, 255, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.45); }
+    .badge-WATCHDOG_CUARENTENA { background: rgba(168, 85, 247, 0.20); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.5); }
 </style>
 
-{% set tiene_bot = (cfg.tg_token and cfg.tg_chat_id) %}
-
-<!-- Encabezado -->
 <div class="alerts-header">
     <div>
-        <h1>🔔 Centro de Alertas y Telegram</h1>
-        <p>Recibe avisos instantáneos en tu celular ante sobrecalentamiento o caída de rendimiento en tus ASICs.</p>
+        <h1>🔔 Alertas y Watchdog Inteligente</h1>
+        <p>Automatiza reinicios por 0 TH/s, temperatura fría o placas caídas, elige qué granjas o mineros proteger y recibe avisos en Telegram.</p>
     </div>
-    {% if not tiene_bot %}
-        <span class="bot-status-pill unconf">● Bot Sin Configurar</span>
-    {% elif cfg.activas %}
-        <span class="bot-status-pill active">● Bot Activo en Vivo</span>
-    {% else %}
-        <span class="bot-status-pill paused">● Alertas Pausadas</span>
-    {% endif %}
+    <span class="status-pill-wd {{ 'on' if wd.activo else 'off' }}">
+        {{ '🛡️ Watchdog ACTIVO' if wd.activo else '⏸ Watchdog INACTIVO' }}
+    </span>
 </div>
 
 {% if msg %}
-<div class="alert-msg-box"><span>🔔</span><span>{{ msg }}</span></div>
+<div class="alert-flash-ok"><span>✅</span><span>{{ msg }}</span></div>
 {% endif %}
 
-<div class="grid-alertas">
-    <!-- Columna Izquierda: Configuración de Telegram y Umbrales -->
+{% if en_cuarentena %}
+<div class="quarantine-banner">
+    <div class="quarantine-banner-title">🔒 Mineros en Cuarentena Anti-Bucle (en modo Sleep para proteger el hardware)</div>
+    {% for q in en_cuarentena %}
+    <div class="q-item">
+        <div>
+            <b translate="no">{{ q.nombre }} ({{ q.ip }})</b> — <span style="color:var(--text-muted);">{{ q.modelo }}</span><br>
+            <span style="color:#ff8a80; font-size:0.9em;">Motivo: {{ q.motivo or 'Fallos repetidos' }} ({{ q.reinicios }} reinicios seguidos)</span>
+        </div>
+        <form method="POST" action="/alertas" style="margin:0;">
+            <input type="hidden" name="accion" value="liberar_cuarentena">
+            <input type="hidden" name="ip" value="{{ q.ip }}">
+            <button type="submit" class="btn-release-q">🔓 Liberar y Despertar</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="alerts-grid">
+    <!-- TARJETA 1: WATCHDOG INTELIGENTE -->
     <div class="card-pro">
         <div class="card-pro-header">
-            <span>📲 Configuración Bot Telegram</span>
+            <span>🛡️ Watchdog — Auto-Reinicio Inteligente</span>
+            <span style="font-size:0.75em; color:var(--text-muted); font-family:monospace;">4 Reglas</span>
         </div>
         <div class="card-pro-body">
-            <form action="/alertas" method="POST">
-                <input type="hidden" name="accion" value="guardar_config">
+            <form method="POST" action="/alertas">
+                <input type="hidden" name="accion" value="guardar_watchdog">
 
-                <div class="form-group">
-                    <label class="form-label">Telegram Bot Token</label>
-                    <div class="input-icon-wrap">
-                        <input type="password" id="tgTokenInput" name="tg_token" class="form-input with-btn" value="{{ cfg.tg_token }}" placeholder="Ej: 712345678:AAH..." translate="no">
-                        <button type="button" class="btn-eye-token" onclick="toggleVisibilidadToken(this)" title="Mostrar / Ocultar Token">👁️</button>
-                    </div>
+                <div class="switch-row" style="border-color: {{ 'rgba(0,230,118,0.45)' if wd.activo else 'var(--border-color)' }};">
+                    <label>
+                        <input type="checkbox" name="wd_activo" value="1" {% if wd.activo %}checked{% endif %}>
+                        Activar Auto-Reinicio Automático
+                    </label>
+                    <span class="tag-sub">{{ 'ON' if wd.activo else 'OFF' }}</span>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Telegram Chat ID</label>
-                    <input type="text" name="tg_chat_id" class="form-input" value="{{ cfg.tg_chat_id }}" placeholder="Ej: 123456789" translate="no">
+                <!-- SELECTOR DE ALCANCE -->
+                <div class="form-label" style="margin-top:14px;">Alcance de Protección</div>
+                <div class="scope-tabs">
+                    <label class="scope-opt">
+                        <input type="radio" name="wd_alcance" value="all" {% if wd.alcance == 'all' %}checked{% endif %} onchange="actualizarAlcanceUI()">
+                        <span>🌐 Toda la cuenta</span>
+                    </label>
+                    <label class="scope-opt">
+                        <input type="radio" name="wd_alcance" value="farms" {% if wd.alcance == 'farms' %}checked{% endif %} onchange="actualizarAlcanceUI()">
+                        <span>🏭 Por Granja</span>
+                    </label>
+                    <label class="scope-opt">
+                        <input type="radio" name="wd_alcance" value="miners" {% if wd.alcance == 'miners' %}checked{% endif %} onchange="actualizarAlcanceUI()">
+                        <span>⛏️ Mineros</span>
+                    </label>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-                    <div class="form-group">
-                        <label class="form-label">🔥 Alerta Temp (°C)</label>
-                        <input type="number" id="inputUmbralTemp" name="umbral_temp" class="form-input" value="{{ cfg.umbral_temp }}" min="40" max="100" required>
-                        <div class="temp-presets">
-                            <span class="t-preset-pill" onclick="setTempPreset(75)">75°</span>
-                            <span class="t-preset-pill" onclick="setTempPreset(80)">80°</span>
-                            <span class="t-preset-pill" onclick="setTempPreset(85)">85°</span>
+                <div id="boxGranjas" class="selector-box" style="display: {{ 'block' if wd.alcance == 'farms' else 'none' }};">
+                    {% if granjas_disp %}
+                        {% for g in granjas_disp %}
+                        <div class="selector-item">
+                            <label>
+                                <input type="checkbox" name="wd_granjas" value="{{ g.clave }}" {% if g.clave in wd.granjas_sel %}checked{% endif %}>
+                                <span translate="no">{{ g.clave }}</span>
+                            </label>
+                            <span class="tag-sub">{{ g.total }} equipo(s)</span>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">⚡ Hashrate Mín (TH/s)</label>
-                        <input type="number" step="0.5" name="umbral_hr" class="form-input" value="{{ cfg.umbral_hr }}" min="0" required>
+                        {% endfor %}
+                    {% else %}
+                        <div style="color:var(--text-muted); font-size:0.82em;">Aún no hay granjas detectadas.</div>
+                    {% endif %}
+                </div>
+
+                <div id="boxMineros" class="selector-box" style="display: {{ 'block' if wd.alcance == 'miners' else 'none' }};">
+                    {% if mineros_disp %}
+                        {% for m in mineros_disp %}
+                        <div class="selector-item">
+                            <label>
+                                <input type="checkbox" name="wd_mineros" value="{{ m.ip }}" {% if m.ip in wd.mineros_sel %}checked{% endif %}>
+                                <span translate="no"><b>{{ m.nombre }}</b> ({{ m.ip }})</span>
+                            </label>
+                            <span class="tag-sub">{{ m.modelo }}</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div style="color:var(--text-muted); font-size:0.82em;">Aún no hay mineros registrados.</div>
+                    {% endif %}
+                </div>
+
+                <!-- REGLAS DE DISPARO -->
+                <div class="form-label" style="margin-top:14px;">Condiciones de Auto-Reinicio</div>
+
+                <div class="switch-row">
+                    <label>
+                        <input type="checkbox" name="wd_zero_hr" value="1" {% if wd.zero_hr %}checked{% endif %}>
+                        ⚡ Hashrate en 0 TH/s
+                    </label>
+                    <span class="tag-sub">0.00</span>
+                </div>
+
+                <div class="switch-row">
+                    <label>
+                        <input type="checkbox" name="wd_cold_on" value="1" {% if wd.cold_on %}checked{% endif %}>
+                        ❄️ Minero Frío (Temp ≤ °C)
+                    </label>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="number" name="wd_cold_temp" class="inline-num" min="15" max="60" value="{{ wd.cold_temp }}">
+                        <span class="tag-sub">°C</span>
                     </div>
                 </div>
 
                 <div class="switch-row">
-                    <label for="chkAlertas" class="switch-label">Notificaciones Automáticas</label>
-                    <label class="toggle-switch">
-                        <input type="checkbox" name="alertas_activas" id="chkAlertas" value="1" {{ 'checked' if cfg.activas else '' }}>
-                        <span class="toggle-slider"></span>
+                    <label>
+                        <input type="checkbox" name="wd_dead_board" value="1" {% if wd.dead_board %}checked{% endif %}>
+                        🧩 Placa Caída (Hashboard en 0)
                     </label>
+                    <span class="tag-sub">Auto</span>
                 </div>
 
-                <button type="submit" class="btn-save-pro">💾 Guardar Configuración</button>
-            </form>
+                <!-- TIEMPOS Y CUARENTENA -->
+                <div class="two-col" style="margin-top:12px;">
+                    <div class="form-group">
+                        <label class="form-label">Tiempo de Gracia (min)</label>
+                        <input type="number" name="wd_gracia_min" class="form-input" min="1" max="60" value="{{ wd.gracia_min }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Espera entre Reinicios (min)</label>
+                        <input type="number" name="wd_cooldown_min" class="form-input" min="5" max="180" value="{{ wd.cooldown_min }}" required>
+                    </div>
+                </div>
 
-            <form action="/alertas" method="POST">
-                <input type="hidden" name="accion" value="probar_telegram">
-                <button type="submit" class="btn-test-pro">🚀 Enviar Mensaje de Prueba a Telegram</button>
-            </form>
+                <div class="switch-row" style="margin-bottom:16px;">
+                    <label>
+                        <input type="checkbox" name="wd_cuarentena_on" value="1" {% if wd.cuarentena_on %}checked{% endif %}>
+                        🔒 Cuarentena Anti-Bucle (Sleep tras N intentos)
+                    </label>
+                    <input type="number" name="wd_max_reinicios" class="inline-num" min="1" max="10" value="{{ wd.max_reinicios }}">
+                </div>
 
-            <div class="help-box-pro">
-                <div style="font-weight:bold; color:#38bdf8; margin-bottom:5px;">💡 ¿Cómo conectarlo en 1 minuto?</div>
-                1. En Telegram busca <b>@BotFather</b>, envíale <code>/newbot</code> y copia el <b>Token</b>.<br>
-                2. Abre tu nuevo bot y presiona <b>Iniciar</b>.<br>
-                3. Busca <b>@userinfobot</b>, dale a Iniciar y copia tu <b>Id (Chat ID)</b>.
-            </div>
+                <button type="submit" class="btn-primary-pro">💾 Guardar Reglas del Watchdog</button>
+            </form>
         </div>
     </div>
 
-    <!-- Columna Derecha: Historial en Vivo de Incidentes -->
+    <!-- TARJETA 2: TELEGRAM Y UMBRALES -->
     <div class="card-pro">
         <div class="card-pro-header">
-            <span>🚨 Registro de Incidentes (<span id="countAlertasVisibles">{{ historial|length }}</span>)</span>
-            {% if historial %}
-            <form action="/alertas" method="POST" style="margin:0;" onsubmit="return confirm('¿Deseas vaciar todo el historial de incidentes?');">
-                <input type="hidden" name="accion" value="limpiar_historial">
-                <button type="submit" class="btn-clear-pro">🗑️ Limpiar Historial</button>
-            </form>
-            {% endif %}
+            <span>📲 Alertas por Telegram y Umbrales</span>
+            <span style="font-size:0.75em; color:{{ '#00e676' if cfg.activas else 'var(--text-muted)' }}; font-family:monospace;">
+                {{ '● Activo' if cfg.activas else '○ Pausado' }}
+            </span>
         </div>
+        <div class="card-pro-body">
+            <form method="POST" action="/alertas">
+                <input type="hidden" name="accion" value="guardar_config">
 
-        {% if historial %}
-        <div class="log-toolbar">
-            <div class="log-filter-pills">
-                <span class="log-pill active" id="fp-ALL" onclick="filtrarAlertas('ALL')">Todos</span>
-                <span class="log-pill" id="fp-TEMP" onclick="filtrarAlertas('TEMP')">🔥 Temp</span>
-                <span class="log-pill" id="fp-HASHRATE" onclick="filtrarAlertas('HASHRATE')">⚡ Hashrate</span>
-                <span class="log-pill" id="fp-OFFLINE" onclick="filtrarAlertas('OFFLINE')">⛔ Offline</span>
-            </div>
-            <input type="text" id="buscadorAlertas" class="log-search" placeholder="🔍 Filtrar por IP o mensaje..." oninput="aplicarFiltroAlertas()">
-        </div>
-
-        <div class="alert-list" id="listaAlertas">
-            {% for a in historial %}
-            {% set tipo_cls = 'temp' if a.tipo == 'TEMP' else ('hashrate' if a.tipo == 'HASHRATE' else 'offline') %}
-            <div class="alert-item {{ tipo_cls }}" data-tipo="{{ a.tipo }}" data-search="{{ (a.ip ~ ' ' ~ a.mensaje ~ ' ' ~ a.tipo)|lower }}">
-                <div style="flex:1; min-width:220px;">
-                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px;" translate="no">
-                        <span class="alert-type-badge {{ tipo_cls }}">
-                            {% if a.tipo == 'TEMP' %}🔥 TEMP{% elif a.tipo == 'HASHRATE' %}⚡ HASHRATE{% else %}⛔ OFFLINE{% endif %}
-                        </span>
-                        <a href="/minero/{{ a.ip }}" class="alert-ip-link">{{ a.ip }}</a>
-                    </div>
-                    <div style="font-size:0.84em; color:#d1d3e0; margin-top:5px; line-height:1.4;">{{ a.mensaje }}</div>
+                <div class="switch-row">
+                    <label>
+                        <input type="checkbox" name="alertas_activas" value="1" {% if cfg.activas %}checked{% endif %}>
+                        Activar notificaciones por Telegram
+                    </label>
                 </div>
-                <div class="alert-time" translate="no">🕒 {{ a.fecha }}</div>
-            </div>
-            {% endfor %}
+
+                <div class="form-group">
+                    <label class="form-label">Telegram Bot Token</label>
+                    <input type="text" name="tg_token" class="form-input" value="{{ cfg.tg_token }}" placeholder="123456:ABC-DEF..." translate="no">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Telegram Chat ID</label>
+                    <input type="text" name="tg_chat_id" class="form-input" value="{{ cfg.tg_chat_id }}" placeholder="Ej: 987654321" translate="no">
+                </div>
+
+                <div class="two-col">
+                    <div class="form-group">
+                        <label class="form-label">Alerta Temp Máx (°C)</label>
+                        <input type="number" name="umbral_temp" class="form-input" value="{{ cfg.umbral_temp }}" min="40" max="110">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Alerta Hashrate Mín</label>
+                        <input type="number" step="0.1" name="umbral_hr" class="form-input" value="{{ cfg.umbral_hr }}" min="0">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary-pro" style="margin-bottom:10px;">💾 Guardar Configuración Telegram</button>
+            </form>
+
+            <form method="POST" action="/alertas">
+                <input type="hidden" name="accion" value="probar_telegram">
+                <button type="submit" class="btn-outline-pro" style="width:100%;">📨 Enviar Mensaje de Prueba a Telegram</button>
+            </form>
         </div>
-        {% else %}
-        <div style="text-align:center; padding:65px 20px; color:var(--text-muted);">
-            <div style="font-size:2.4em; margin-bottom:10px;">✅</div>
-            <div style="font-weight:bold; color:var(--text-main); font-size:1.05em;">Sin incidentes registrados</div>
-            <div style="font-size:0.85em; margin-top:6px;">Todos tus mineros operan dentro de los parámetros seguros.</div>
-        </div>
-        {% endif %}
+    </div>
+</div>
+
+<!-- TARJETA 3: HISTORIAL DE INCIDENTES Y ACCIONES -->
+<div class="card-pro">
+    <div class="card-pro-header">
+        <span>📜 Historial de Incidentes y Acciones del Watchdog</span>
+        <form method="POST" action="/alertas" style="margin:0;" onsubmit="return confirm('¿Vaciar todo el historial de alertas?');">
+            <input type="hidden" name="accion" value="limpiar_historial">
+            <button type="submit" class="btn-danger-sm">🗑️ Limpiar</button>
+        </form>
+    </div>
+    <div class="table-wrap">
+        <table class="hist-table">
+            <thead>
+                <tr>
+                    <th>Fecha (UTC)</th>
+                    <th>IP</th>
+                    <th>Evento</th>
+                    <th>Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if historial %}
+                    {% for h in historial %}
+                    <tr>
+                        <td style="font-family:monospace; color:var(--text-muted); white-space:nowrap;" translate="no">{{ h.fecha }}</td>
+                        <td style="font-family:monospace; font-weight:bold;" translate="no"><a href="/minero/{{ h.ip }}" style="color:#60a5fa;">{{ h.ip }}</a></td>
+                        <td><span class="badge-type badge-{{ h.tipo }}" translate="no">{{ h.tipo }}</span></td>
+                        <td>{{ h.mensaje }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align:center; padding:24px; color:var(--text-muted);">
+                            Sin incidentes registrados todavía.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
     </div>
 </div>
 
 <script>
-    let filtroAlertaTipo = 'ALL';
-
-    function toggleVisibilidadToken(btn) {
-        const inp = document.getElementById('tgTokenInput');
-        if (!inp) return;
-        if (inp.type === 'password') {
-            inp.type = 'text';
-            btn.innerText = '🙈';
-        } else {
-            inp.type = 'password';
-            btn.innerText = '👁️';
-        }
-    }
-
-    function setTempPreset(val) {
-        const inp = document.getElementById('inputUmbralTemp');
-        if (inp) inp.value = val;
-    }
-
-    function filtrarAlertas(tipo) {
-        filtroAlertaTipo = tipo;
-        document.querySelectorAll('.log-pill').forEach(p => p.classList.remove('active'));
-        const pill = document.getElementById('fp-' + tipo);
-        if (pill) pill.classList.add('active');
-        aplicarFiltroAlertas();
-    }
-
-    function aplicarFiltroAlertas() {
-        const q = (document.getElementById('buscadorAlertas')?.value || '').toLowerCase().trim();
-        let visibles = 0;
-        document.querySelectorAll('.alert-item').forEach(item => {
-            const t = item.getAttribute('data-tipo') || '';
-            const txt = item.getAttribute('data-search') || '';
-            const pasaTipo = (filtroAlertaTipo === 'ALL' || t === filtroAlertaTipo);
-            const pasaTexto = (!q || txt.includes(q));
-            if (pasaTipo && pasaTexto) {
-                item.style.display = 'flex';
-                visibles++;
-            } else {
-                item.style.display = 'none';
-            }
-        });
-        const cnt = document.getElementById('countAlertasVisibles');
-        if (cnt) cnt.innerText = visibles;
+    function actualizarAlcanceUI() {
+        const sel = document.querySelector('input[name="wd_alcance"]:checked')?.value || 'all';
+        document.getElementById('boxGranjas').style.display = (sel === 'farms') ? 'block' : 'none';
+        document.getElementById('boxMineros').style.display = (sel === 'miners') ? 'block' : 'none';
     }
 </script>
 {% endblock %}
