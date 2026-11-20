@@ -1,99 +1,118 @@
-{% extends "layout.html" %}
-{% block content %}
 <style>
-    /* Contenedor principal limpio y uniforme para todos los módulos */
-    .miner-dashboard-stack {
+    .wd-minero-box {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    .wd-minero-info {
         display: flex;
         flex-direction: column;
-        gap: 0;
-        width: 100%;
-        box-sizing: border-box;
+        gap: 3px;
     }
-
-    .miner-section-wrap {
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    /* Botón flotante para volver rápido arriba en celular y PC */
-    .btn-scroll-top-pro {
-        position: fixed;
-        bottom: 22px;
-        right: 22px;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: rgba(15, 17, 26, 0.92);
-        border: 1px solid rgba(59, 130, 246, 0.55);
-        color: #60a5fa;
-        font-size: 1.1em;
+    .wd-minero-title {
         font-weight: bold;
-        cursor: pointer;
-        display: none;
+        font-size: 0.94em;
+        color: var(--text-main);
+        display: flex;
         align-items: center;
-        justify-content: center;
-        z-index: 1800;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), 0 0 12px rgba(59, 130, 246, 0.35);
-        transition: all 0.2s ease;
-        backdrop-filter: blur(4px);
+        gap: 8px;
+        flex-wrap: wrap;
     }
-    .btn-scroll-top-pro:hover {
-        background: rgba(51, 102, 255, 0.28);
-        color: #fff;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+    .wd-minero-sub {
+        font-size: 0.78em;
+        color: var(--text-muted);
+    }
+    .wd-quarantine-tag {
+        background: rgba(255, 82, 82, 0.16);
+        border: 1px solid rgba(255, 82, 82, 0.45);
+        color: #ff8a80;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75em;
+        font-family: monospace;
+        font-weight: bold;
+    }
+    .wd-toggle-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .wd-switch-lbl {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 0.84em;
+        font-weight: bold;
+        color: var(--text-main);
+        user-select: none;
+    }
+    .wd-switch-lbl input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: #00e676;
+        cursor: pointer;
+    }
+    .wd-save-state {
+        font-size: 0.76em;
+        font-family: monospace;
+        color: #00e676;
+        min-width: 72px;
     }
 </style>
 
-<div class="miner-dashboard-stack">
-    <!-- 1. Encabezado y Tarjetas KPI Superiores -->
-    <div class="miner-section-wrap">
-        {% include "minero_partes/_tarjetas_top.html" %}
+<div class="wd-minero-box" data-no-live-patch="1">
+    <div class="wd-minero-info">
+        <div class="wd-minero-title">
+            <span>🔄 Watchdog Individual ({{ ip }})</span>
+            {% if ultimo.wd_cuarentena %}
+            <span class="wd-quarantine-tag">🔒 EN CUARENTENA</span>
+            {% endif %}
+        </div>
+        <div class="wd-minero-sub">
+            Permite o excluye a este equipo del auto-reinicio configurado en <a href="/alertas" style="color:#60a5fa; text-decoration:none;">🔔 Alertas</a>.
+        </div>
     </div>
 
-    <!-- 2. Gráfico de Telemetría e Historial (Prioridad visual + Portal de Tooltips) -->
-    <div class="miner-section-wrap">
-        {% include "minero_partes/_grafico.html" %}
-    </div>
-
-    <!-- 3. Placas de Hash y Telemetría de Chips -->
-    <div class="miner-section-wrap">
-        {% include "minero_partes/_placas_hash.html" %}
-    </div>
-
-    <!-- 4. Panel de Control, Perfiles de Energía y Consola de Logs -->
-    <div class="miner-section-wrap">
-        {% include "minero_partes/_panel_control.html" %}
-    </div>
-
-    <!-- 5. Pools de Minería (Stratum + Plantillas 1-Clic) -->
-    <div class="miner-section-wrap">
-        {% include "minero_partes/_pools.html" %}
-    </div>
-
-    <!-- 6. Configuración IP e Información del Dispositivo -->
-    <div class="miner-section-wrap">
-        {% include "minero_partes/_red_info.html" %}
+    <div class="wd-toggle-wrap">
+        <label class="wd-switch-lbl">
+            <input type="checkbox" id="wdMineroSwitch" {% if ultimo.watchdog_activo %}checked{% endif %} onchange="guardarWatchdogMinero(this)">
+            <span id="wdMineroTexto">{{ 'Permitido (ON)' if ultimo.watchdog_activo else 'Excluido (OFF)' }}</span>
+        </label>
+        <span id="wdMineroEstado" class="wd-save-state"></span>
     </div>
 </div>
 
-<!-- Botón flotante para volver arriba -->
-<button type="button" id="btnScrollTopPro" class="btn-scroll-top-pro" onclick="volverArribaSuave()" title="Volver arriba">↑</button>
-
 <script>
-    function volverArribaSuave() {
-        const area = document.getElementById('mainScrollArea');
-        if (area) area.scrollTo({ top: 0, behavior: 'smooth' });
-        else window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    function guardarWatchdogMinero(checkboxEl) {
+        const activo = checkboxEl.checked ? 1 : 0;
+        const txt = document.getElementById('wdMineroTexto');
+        const st = document.getElementById('wdMineroEstado');
+        if (txt) txt.innerText = activo ? 'Permitido (ON)' : 'Excluido (OFF)';
+        if (st) { st.style.color = '#38bdf8'; st.innerText = 'Guardando...'; }
 
-    window.addEventListener('DOMContentLoaded', function() {
-        const area = document.getElementById('mainScrollArea');
-        const btnTop = document.getElementById('btnScrollTopPro');
-        if (!area || !btnTop) return;
-        area.addEventListener('scroll', function() {
-            btnTop.style.display = (area.scrollTop > 420) ? 'inline-flex' : 'none';
-        }, { passive: true });
-    });
+        fetch('/api/guardar_watchdog_minero', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip: '{{ ip }}', activo: activo })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (st && d.status === 'ok') {
+                st.style.color = '#00e676';
+                st.innerText = '✔ Guardado';
+                setTimeout(() => { st.innerText = ''; }, 2200);
+            }
+        })
+        .catch(() => {
+            if (st) { st.style.color = '#ff5252'; st.innerText = 'Error'; }
+        });
+    }
 </script>
-{% endblock %}
