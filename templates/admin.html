@@ -237,7 +237,7 @@
                             <a href="/admin/soporte/{{ u.id }}" class="btn-adm gold" title="Entrar al panel de este cliente para editar sus Antminers">🛠️ Soporte</a>
                             <button type="button" class="btn-adm green" onclick="abrirModalSaldo({{ u.id }}, '{{ u.username }}', {{ u.saldo or 0 }})">💰 Saldo</button>
                             <button type="button" class="btn-adm" onclick="abrirModalEditar({{ u.id }}, '{{ u.username }}', '{{ u.email or '' }}', '{{ u.plan }}', {{ u.suspendido or 0 }})">✏️ Editar</button>
-                            {% if u.username != 'giovanni' %}
+                            {% if u.username.lower() != 'admin' %}
                             <form method="POST" action="/admin" style="margin:0;" onsubmit="return confirm('¿Eliminar permanentemente la cuenta {{ u.username }}?');">
                                 <input type="hidden" name="accion" value="eliminar_usuario">
                                 <input type="hidden" name="user_id" value="{{ u.id }}">
@@ -363,13 +363,14 @@
 
 <script>
     function abrirModalEditar(id, username, email, plan, susp) {
+        const esAdmin = (String(username || '').toLowerCase() === 'admin');
         document.getElementById('ed_uid').value = id;
         document.getElementById('ed_user').value = username;
-        document.getElementById('ed_user').readOnly = (username === 'giovanni');
+        document.getElementById('ed_user').readOnly = esAdmin;
         document.getElementById('ed_email').value = email;
         document.getElementById('ed_plan').value = plan;
         document.getElementById('ed_susp').checked = (susp === 1);
-        document.getElementById('ed_susp').disabled = (username === 'giovanni');
+        document.getElementById('ed_susp').disabled = esAdmin;
         document.getElementById('modalEditarUsr').style.display = 'flex';
     }
 
