@@ -7,7 +7,7 @@ from db import get_db
 from utils import (
     login_required, es_super_admin, a_int_seguro, a_float_seguro,
     evaluar_plan_usuario, obtener_datos_red, calcular_segundos_desconectado,
-    render_seguro
+    ordenar_ip_key, render_seguro
 )
 
 admin_bp = Blueprint('admin_bp', __name__)
@@ -90,6 +90,14 @@ def admin_panel():
                 new_notas = (request.form.get('notas_admin') or '').strip()
 
                 try:
+                    if not es_target_admin and (len(new_user) < 3 or len(new_user) > 30 or ' ' in new_user):
+                        raise Exception("El nombre de usuario debe tener entre 3 y 30 caracteres sin espacios.")
+
+                    if new_email:
+                        cur.execute("SELECT id FROM usuarios WHERE LOWER(email)=LOWER(%s) AND id != %s", (new_email, uid))
+                        if cur.fetchone():
+                            raise Exception("Ese correo electrónico ya está registrado en otra cuenta.")
+
                     if new_user != old_user and new_user:
                         cur.execute("SELECT id FROM usuarios WHERE LOWER(username)=LOWER(%s) AND id != %s", (new_user, uid))
                         if cur.fetchone():
@@ -113,7 +121,7 @@ def admin_panel():
                                     (new_email, new_plan, new_susp, new_notas, uid))
                     msg = f"Cuenta '{new_user}' actualizada correctamente."
                 except Exception as e_upd:
-                    msg = f"No se pudo cambiar el nombre (posiblemente ya existe): {e_upd}"
+                    msg = f"Error al actualizar cuenta: {e_upd}"
         elif accion == 'regalar_pro':
             uid = a_int_seguro(request.form.get('user_id'), 0)
             dias = max(1, min(3650, a_int_seguro(request.form.get('dias_pro'), 15)))
@@ -184,7 +192,8 @@ def admin_panel():
     # 1. Todos los mineros de usuarios existentes para estadísticas globales y mapa
     cur.execute("""
         SELECT m.owner, m.agent_id, m.ip, m.modelo, m.hashrate, m.temp_max, m.unidad, m.algoritmo,
-               m.ultima_act, m.farm_lat, m.farm_lon, m.farm_city, m.farm_country, m.wd_cuarentena
+               m.ultima_act, m.farm_lat, m.farm_lon, m.farm_city, m.farm_country,
+               m.real_source, m.gps_manual, m.wd_cuarentena
         FROM mineros_activos m
         INNER JOIN usuarios u ON u.username = m.owner
     """)
@@ -226,11 +235,14 @@ def admin_panel():
         ciudad = str(m.get('farm_city') or 'Santa Cruz de la Sierra').strip()
         subred = ".".join(str(m.get('ip') or '').split('.')[:3]) + ".x"
         g_key = f"{ow}|{ag_id}|{subred}"
+        geo_src = 'Pin Manual' if a_int_seguro(m.get('gps_manual'), 0) == 1 else str(m.get('real_source') or 'IP Pública')
+
         if g_key not in mapa_granjas_dict:
             mapa_granjas_dict[g_key] = {
                 'owner': ow, 'agent_id': ag_id, 'ciudad': ciudad, 'pais': str(m.get('farm_country') or ''),
                 'subred': subred, 'lat': a_float_seguro(m.get('farm_lat'), -17.7833),
                 'lon': a_float_seguro(m.get('farm_lon'), -63.1821),
+                'geo_source': geo_src,
                 'total': 0, 'online': 0, 'offline': 0, 'hashrate': 0.0, 'temp_max': 0, 'cuarentena': 0,
                 'asics': []
             }
@@ -255,6 +267,7 @@ def admin_panel():
 
     mapa_granjas = []
     for gd in mapa_granjas_dict.values():
+        gd['asics'] = sorted(gd['asics'], key=ordenar_ip_key)
         if gd['offline'] > 0 or gd['temp_max'] >= 85 or gd['cuarentena'] > 0:
             gd['color'] = '#ff5252'
             gd['estado_txt'] = 'Atención / Offline'
@@ -306,17 +319,21 @@ def admin_panel():
         u['gasto_mes'] = round(a_float_seguro(fm.get('gasto_mes'), 0.0), 2)
         usuarios.append(u)
 
-    # 4. Métricas PostgreSQL
+    # 4. Métricas PostgreSQL (conteo rápido vía pg_class para escalar a millones de filas)
     db_mb, hist_filas = 0.0, 0
     try:
         cur.execute("SELECT pg_database_size(current_database()) AS db_bytes")
         row_sz = cur.fetchone()
         if row_sz and row_sz.get('db_bytes'):
             db_mb = round(float(row_sz['db_bytes']) / (1024.0 * 1024.0), 2)
-        cur.execute("SELECT COUNT(*) AS cnt FROM historial_nube")
+        cur.execute("SELECT reltuples::BIGINT AS cnt FROM pg_class WHERE relname='historial_nube'")
         row_cnt = cur.fetchone()
-        if row_cnt:
-            hist_filas = int(row_cnt.get('cnt') or 0)
+        hist_filas = int(row_cnt.get('cnt') or 0) if row_cnt else 0
+        if hist_filas <= 0:
+            cur.execute("SELECT COUNT(*) AS cnt FROM historial_nube")
+            row_cnt2 = cur.fetchone()
+            if row_cnt2:
+                hist_filas = int(row_cnt2.get('cnt') or 0)
     except Exception as e:
         print(f"Error leyendo métricas BD: {e}")
 
