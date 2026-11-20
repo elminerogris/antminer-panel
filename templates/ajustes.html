@@ -241,6 +241,30 @@
         box-shadow: 0 0 22px rgba(59, 130, 246, 0.75);
         transform: translateY(-1px);
     }
+    .btn-android-pro {
+        background: linear-gradient(135deg, rgba(0, 230, 118, 0.20) 0%, rgba(16, 185, 129, 0.14) 100%);
+        color: #00e676;
+        border: 1px solid rgba(0, 230, 118, 0.55);
+        padding: 10px 16px;
+        border-radius: 7px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 0.85em;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        text-decoration: none;
+        box-shadow: 0 0 14px rgba(0, 230, 118, 0.22);
+        flex: 1 1 auto;
+    }
+    .btn-android-pro:hover {
+        background: rgba(0, 230, 118, 0.30);
+        color: #fff;
+        box-shadow: 0 0 20px rgba(0, 230, 118, 0.55);
+        transform: translateY(-1px);
+    }
     .btn-outline-pro {
         background: rgba(255, 255, 255, 0.03);
         color: var(--text-main);
@@ -299,6 +323,7 @@
         border-radius: 7px;
         border: 1px solid rgba(255, 255, 255, 0.07);
         margin-bottom: 10px;
+        flex-wrap: wrap;
     }
     .g-tab {
         background: transparent;
@@ -329,6 +354,15 @@
         justify-content: space-between;
         gap: 8px;
         margin-bottom: 8px;
+    }
+    .guide-step-txt {
+        background: #07080c;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-size: 0.81em;
+        color: #cbd5e1;
+        line-height: 1.55;
     }
     .pass-match-msg {
         font-size: 0.75em;
@@ -389,7 +423,7 @@
                 <span id="apiKeyDisplay" class="api-key-val" data-real="{{ user.api_key }}" translate="no">{{ user.api_key }}</span>
                 <div class="api-actions">
                     <button type="button" class="btn-mini-icon" onclick="toggleApiKeyMask(this)" title="Ocultar / Mostrar API Key">👁️</button>
-                    <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes('{{ user.api_key }}', 'API Key copiada')">📋 Copiar</button>
+                    <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes('{{ user.api_key }}', 'API Key copiada')" title="Copiar API Key">📋 Copiar</button>
                 </div>
             </div>
 
@@ -410,13 +444,16 @@
                         <input type="number" step="0.001" min="0" name="tarifa_kwh" class="form-input" value="{{ user.tarifa_kwh }}" placeholder="0.08" required>
                     </div>
                 </div>
+                <div class="btn-row" style="margin-bottom: 10px;">
+                    <button type="submit" class="btn-outline-pro" style="width:100%;">💾 Guardar Preferencias</button>
+                </div>
                 <div class="btn-row">
-                    <button type="submit" class="btn-outline-pro">💾 Guardar Preferencias</button>
-                    <a href="/descargar_agente" class="btn-main-pro">📥 Descargar Agente (.py)</a>
+                    <a href="/descargar_agente" class="btn-main-pro">💻 Descargar Agente Windows (.zip)</a>
+                    <a href="/static/ElMineroGris-Agente.apk" download="ElMineroGris-Agente.apk" class="btn-android-pro">🤖 Descargar APK Android (24/7)</a>
                 </div>
             </form>
 
-            <form action="/ajustes" method="POST" onsubmit="return confirm('¿Regenerar tu API Key? Deberás actualizarla en tu Termux/PC para que siga transmitiendo.');" style="border-top:1px solid rgba(255,255,255,0.06); padding-top:14px;">
+            <form action="/ajustes" method="POST" onsubmit="return confirm('¿Regenerar tu API Key? Deberás actualizarla en tu PC/Android para que siga transmitiendo.');" style="border-top:1px solid rgba(255,255,255,0.06); padding-top:14px;">
                 <input type="hidden" name="accion" value="regenerar_key">
                 <button type="submit" class="btn-danger-pro">🔄 Regenerar API Key por Seguridad</button>
             </form>
@@ -450,33 +487,39 @@
                 <button type="submit" class="btn-main-pro" style="width:100%;">🔐 Actualizar Contraseña</button>
             </form>
 
-            <!-- Guía rápida con comandos copiables -->
+            <!-- Guía rápida con pestañas actualizadas -->
             <div class="guide-box">
                 <div style="font-weight:bold; font-size:0.88em; margin-bottom:10px; color:var(--text-main);">🚀 Instalación Rápida del Agente</div>
                 <div class="guide-tabs">
-                    <button type="button" id="gtab-linux" class="g-tab active" onclick="cambiarTabGuia('linux')">📱 Termux / Linux</button>
-                    <button type="button" id="gtab-win" class="g-tab" onclick="cambiarTabGuia('win')">💻 Windows PC</button>
+                    <button type="button" id="gtab-win" class="g-tab active" onclick="cambiarTabGuia('win')">💻 Windows PC</button>
+                    <button type="button" id="gtab-android" class="g-tab" onclick="cambiarTabGuia('android')">🤖 Android APK</button>
+                    <button type="button" id="gtab-linux" class="g-tab" onclick="cambiarTabGuia('linux')">📱 Termux / Linux</button>
                 </div>
 
-                <div id="gpanel-linux">
+                <div id="gpanel-win">
+                    <div class="guide-step-txt">
+                        1. Descarga <b>Agente Windows (.zip)</b> y descomprímelo en una carpeta fija (ej: <code>C:\ElMineroGris</code>).<br>
+                        2. Haz doble clic en <b><code>START_AGENT.bat</code></b>.<br>
+                        <span style="color:#00e676;">✔ Instala dependencias, arranca con Windows y se actualiza solo.</span>
+                    </div>
+                </div>
+
+                <div id="gpanel-android" style="display:none;">
+                    <div class="guide-step-txt">
+                        1. Conecta tu celular Android o TV Box al <b>mismo Wi-Fi</b> de tus mineros.<br>
+                        2. Instala <b><code>ElMineroGris-Agente.apk</code></b>, inicia sesión con tu usuario y contraseña y toca <b>▶ Iniciar Agente 24/7</b>.<br>
+                        <span style="color:#00e676;">✔ Monitoreo continuo en segundo plano sin necesitar PC.</span>
+                    </div>
+                </div>
+
+                <div id="gpanel-linux" style="display:none;">
                     <div class="cmd-line" translate="no">
                         <span>pip install requests</span>
                         <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes('pip install requests', 'Comando copiado')">📋</button>
                     </div>
                     <div class="cmd-line" translate="no">
-                        <span>python agente_{{ user.username }}.py</span>
-                        <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes('python agente_{{ user.username }}.py', 'Comando copiado')">📋</button>
-                    </div>
-                </div>
-
-                <div id="gpanel-win" style="display:none;">
-                    <div class="cmd-line" translate="no">
-                        <span>py -m pip install requests</span>
-                        <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes('py -m pip install requests', 'Comando copiado')">📋</button>
-                    </div>
-                    <div class="cmd-line" translate="no">
-                        <span>py agente_{{ user.username }}.py</span>
-                        <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes('py agente_{{ user.username }}.py', 'Comando copiado')">📋</button>
+                        <span>python agente.py</span>
+                        <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes('python agente.py', 'Comando copiado')">📋</button>
                     </div>
                 </div>
             </div>
@@ -551,10 +594,12 @@
     }
 
     function cambiarTabGuia(so) {
-        document.getElementById('gtab-linux').classList.toggle('active', so === 'linux');
         document.getElementById('gtab-win').classList.toggle('active', so === 'win');
-        document.getElementById('gpanel-linux').style.display = (so === 'linux') ? 'block' : 'none';
+        document.getElementById('gtab-android').classList.toggle('active', so === 'android');
+        document.getElementById('gtab-linux').classList.toggle('active', so === 'linux');
         document.getElementById('gpanel-win').style.display = (so === 'win') ? 'block' : 'none';
+        document.getElementById('gpanel-android').style.display = (so === 'android') ? 'block' : 'none';
+        document.getElementById('gpanel-linux').style.display = (so === 'linux') ? 'block' : 'none';
     }
 </script>
 {% endblock %}
