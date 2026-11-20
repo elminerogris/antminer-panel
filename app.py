@@ -622,7 +622,6 @@ def admin_panel():
                                          ('movimientos_saldo', 'username')]:
                             cur.execute(f"UPDATE {tbl} SET {col}=%s WHERE {col}=%s", (new_user, old_user))
 
-                    # Si se cambia a Gratis manualmente, limpiar pro_hasta y limite_mineros
                     extra_plan_sql = ""
                     if new_plan == 'Gratis':
                         extra_plan_sql = ", pro_hasta='', limite_mineros=0"
