@@ -1,4 +1,4 @@
-import socket, json, time, requests, concurrent.futures, re, os, sys, subprocess
+import socket, json, time, requests, concurrent.futures, re, os, sys, subprocess, shutil
 from requests.auth import HTTPDigestAuth
 
 URL_NUBE = "https://antminer-panel.onrender.com/api/recibir_datos"
@@ -31,6 +31,21 @@ cache_info_estatica = {}
 ultimo_escaneo_auto = 0
 ultimo_check_update = 0
 
+def keep_awake():
+    """Evita que Windows entre en suspensión o que Termux pause el proceso."""
+    try:
+        if sys.platform == "win32":
+            import ctypes
+            ES_CONTINUOUS = 0x80000000
+            ES_SYSTEM_REQUIRED = 0x00000001
+            ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)
+            print("[OK] Anti-suspensión de Windows activado.")
+        elif "ANDROID_ROOT" in os.environ:
+            subprocess.Popen(["termux-wake-lock"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("[OK] Wake-lock de Termux activado.")
+    except Exception as e:
+        print(f"[AVISO] No se pudo activar anti-suspensión: {e}")
+
 def verificar_actualizacion():
     global ultimo_check_update
     ahora_ts = time.time()
@@ -52,11 +67,16 @@ def verificar_actualizacion():
         if r_code.status_code == 200 and "def recolectar_y_enviar" in r_code.text:
             compile(r_code.text, "agente.py", "exec")
             ruta_actual = os.path.abspath(__file__)
+            ruta_bak = ruta_actual + ".bak"
             ruta_tmp = ruta_actual + ".tmp"
+            try:
+                shutil.copy2(ruta_actual, ruta_bak)
+            except Exception as e_bak:
+                print(f"[UPDATE] No se pudo crear respaldo .bak: {e_bak}")
             with open(ruta_tmp, "w", encoding="utf-8") as f:
                 f.write(r_code.text)
             os.replace(ruta_tmp, ruta_actual)
-            print("[UPDATE] ¡Agente actualizado con éxito! Reiniciando...")
+            print("[UPDATE] ¡Agente actualizado con éxito (respaldo .bak guardado)! Reiniciando...")
             if os.environ.get("EMG_MANAGED") == "1":
                 sys.exit(0)
             else:
@@ -68,14 +88,14 @@ def verificar_actualizacion():
 def peticion_4028(ip, comando, parametro=""):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(2.5)
+        s.settimeout(3.0)
         s.connect((ip, 4028))
         cmd_dict = {"command": comando}
         if parametro != "":
             cmd_dict["parameter"] = parametro
         s.sendall(json.dumps(cmd_dict).encode('utf-8'))
         resp = b""
-        s.settimeout(1.8)
+        s.settimeout(2.5)
         while True:
             try:
                 datos = s.recv(8192)
@@ -101,7 +121,7 @@ def peticion_4028(ip, comando, parametro=""):
     except:
         return None
 
-def peticion_http(ip, endpoint, metodo="GET", payload=None, timeout_sec=2.5):
+def peticion_http(ip, endpoint, metodo="GET", payload=None, timeout_sec=4.5):
     url = f"http://{ip}/cgi-bin/{endpoint}"
     headers = {'User-Agent': 'Mozilla/5.0', 'Referer': f'http://{ip}/'}
     for usr, pwd in CREDENCIALES_HTTP:
@@ -126,8 +146,8 @@ def peticion_http(ip, endpoint, metodo="GET", payload=None, timeout_sec=2.5):
 def formatear_de_fabrica(ip):
     print(f"[{ip}] Ejecutando formateo de fábrica (Factory Reset)...")
     for ep in ["reset_conf.cgi", "factory_reset.cgi", "reset.cgi"]:
-        peticion_http(ip, ep, "POST_EMPTY", timeout_sec=4.0)
-        peticion_http(ip, ep, "GET", timeout_sec=4.0)
+        peticion_http(ip, ep, "POST_EMPTY", timeout_sec=5.0)
+        peticion_http(ip, ep, "GET", timeout_sec=5.0)
 
     payload_default = {
         "pools": [
@@ -139,12 +159,12 @@ def formatear_de_fabrica(ip):
         "bitmain-fan-ctrl": False,
         "bitmain-fan-pwm": "100"
     }
-    peticion_http(ip, "set_miner_conf.cgi", "POST", payload_default, timeout_sec=4.0)
+    peticion_http(ip, "set_miner_conf.cgi", "POST", payload_default, timeout_sec=5.0)
     peticion_4028(ip, "removepool", "0")
     peticion_4028(ip, "removepool", "1")
     peticion_4028(ip, "removepool", "2")
     time.sleep(3)
-    peticion_http(ip, "reboot.cgi", "GET", timeout_sec=4.0)
+    peticion_http(ip, "reboot.cgi", "GET", timeout_sec=5.0)
 
 def extraer_numeros(val):
     if val is None or val == "":
@@ -414,7 +434,7 @@ def extraer_todo(ip):
         return extraer_whatsminer(ip, st_sum, "")
 
     if not st and not st_sum:
-        raw_st_cgi = peticion_http(ip, "stats.cgi", timeout_sec=1.8)
+        raw_st_cgi = peticion_http(ip, "stats.cgi", timeout_sec=4.5)
         if raw_st_cgi:
             try:
                 j_st = json.loads(raw_st_cgi)
@@ -423,7 +443,7 @@ def extraer_todo(ip):
             except:
                 pass
         if not st:
-            raw_sum_cgi = peticion_http(ip, "summary.cgi", timeout_sec=1.8)
+            raw_sum_cgi = peticion_http(ip, "summary.cgi", timeout_sec=4.5)
             if raw_sum_cgi:
                 try:
                     j_sum = json.loads(raw_sum_cgi)
@@ -454,7 +474,7 @@ def extraer_todo(ip):
                 fw = val
                 break
 
-        info_http = peticion_http(ip, "get_system_info.cgi", timeout_sec=1.5)
+        info_http = peticion_http(ip, "get_system_info.cgi", timeout_sec=4.5)
         if info_http:
             try:
                 j_net = json.loads(info_http)
@@ -654,7 +674,7 @@ def extraer_todo(ip):
                     temps_max.append(t_chip)
 
     if not amb_candidates and any(m in mod_lower for m in ["s21", "s23", "hyd"]):
-        raw_cgi = peticion_http(ip, "stats.cgi", timeout_sec=1.2)
+        raw_cgi = peticion_http(ip, "stats.cgi", timeout_sec=3.0)
         if raw_cgi:
             matches = re.findall(r'"(?:ambientemp|ambient_temp|env_temp|water_in_temp)"\s*:\s*([\d"\[\],\s.-]+)', raw_cgi, re.IGNORECASE)
             for m_str in matches:
@@ -708,19 +728,19 @@ def extraer_todo(ip):
     }
 
 def escanear_red():
-    print(f"Escaneando subred {SUBNET}.2 - {SUBNET}.254 en busca de todos tus mineros (Antminer / WhatsMiner)...")
+    print(f"Escaneando subred {SUBNET}.2 - {SUBNET}.254 (máx. {MAX_WORKERS} conexiones)...")
     encontradas = list(IPS_BASE)
     def probar_4028(ip):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.45)
+            s.settimeout(0.6)
             s.connect((ip, 4028))
             s.close()
             return ip
         except:
             return None
     ips_a_probar = [f"{SUBNET}.{i}" for i in range(2, 255)]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=40) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for res in executor.map(probar_4028, ips_a_probar):
             if res and res not in encontradas:
                 encontradas.append(res)
@@ -729,7 +749,7 @@ def escanear_red():
 
 def actualizar_config_minero_segura(ip_dest, nuevos_campos):
     conf_actual = {}
-    raw_conf = peticion_http(ip_dest, "get_miner_conf.cgi", "GET", timeout_sec=3.0)
+    raw_conf = peticion_http(ip_dest, "get_miner_conf.cgi", "GET", timeout_sec=5.0)
     if raw_conf:
         try:
             j_conf = json.loads(raw_conf)
@@ -738,7 +758,7 @@ def actualizar_config_minero_segura(ip_dest, nuevos_campos):
         except:
             pass
     conf_actual.update(nuevos_campos)
-    return peticion_http(ip_dest, "set_miner_conf.cgi", "POST", conf_actual, timeout_sec=4.5)
+    return peticion_http(ip_dest, "set_miner_conf.cgi", "POST", conf_actual, timeout_sec=5.0)
 
 def cambiar_modo_inteligente(ip_dest, modo):
     es_wm = cache_info_estatica.get(ip_dest, {}).get('marca') == 'WhatsMiner'
@@ -767,7 +787,7 @@ def procesar_comandos(ordenes):
                 peticion_4028(ip_dest, "reboot")
                 peticion_4028(ip_dest, "restart_btminer")
             else:
-                peticion_http(ip_dest, "reboot.cgi", timeout_sec=4.0)
+                peticion_http(ip_dest, "reboot.cgi", timeout_sec=5.0)
                 peticion_4028(ip_dest, "restart")
         elif accion == "reset":
             if not es_wm:
@@ -780,7 +800,7 @@ def procesar_comandos(ordenes):
             if es_wm:
                 peticion_4028(ip_dest, "set_led")
             else:
-                peticion_http(ip_dest, "blink.cgi", "POST", {"blink": "true"}, timeout_sec=3.0)
+                peticion_http(ip_dest, "blink.cgi", "POST", {"blink": "true"}, timeout_sec=4.5)
         elif accion.startswith("profile|"):
             modo_str = accion.split('|')[1].lower()
             if es_wm:
@@ -794,8 +814,8 @@ def procesar_comandos(ordenes):
                 host, proto, nip, mask, gw, dns = partes[1], partes[2], partes[3], partes[4], partes[5], partes[6]
                 payload_json = {"ipHost": host, "ipPro": int(proto) if proto.isdigit() else 2, "ipAddress": nip, "ipSub": mask, "ipGateway": gw, "ipDns": dns}
                 payload_form = {"_ant_conf_hostname": host, "_ant_conf_nettype": "DHCP" if proto == "1" else "Static", "_ant_conf_ipaddress": nip, "_ant_conf_netmask": mask, "_ant_conf_gateway": gw, "_ant_conf_dnsservers": dns}
-                peticion_http(ip_dest, "set_network_conf.cgi", "POST", payload_json, timeout_sec=4.0)
-                peticion_http(ip_dest, "set_network_conf.cgi", "POST_FORM", payload_form, timeout_sec=4.0)
+                peticion_http(ip_dest, "set_network_conf.cgi", "POST", payload_json, timeout_sec=5.0)
+                peticion_http(ip_dest, "set_network_conf.cgi", "POST_FORM", payload_form, timeout_sec=5.0)
                 if nip and nip not in ips_conocidas:
                     ips_conocidas.append(nip)
         elif accion.startswith("guardar_pools|"):
@@ -814,13 +834,13 @@ def procesar_comandos(ordenes):
                     "_ant_pool2url": partes[4], "_ant_pool2user": partes[5], "_ant_pool2pw": partes[6],
                     "_ant_pool3url": partes[7], "_ant_pool3user": partes[8], "_ant_pool3pw": partes[9]
                 }
-                peticion_http(ip_dest, "set_miner_conf.cgi", "POST_FORM", payload_form_pools, timeout_sec=4.0)
+                peticion_http(ip_dest, "set_miner_conf.cgi", "POST_FORM", payload_form_pools, timeout_sec=5.0)
         elif accion in ["get_log", "clog", "hlog", "dlog"]:
             if not es_wm:
                 endpoint = f"{accion}.cgi" if accion != "get_log" else "log.cgi"
-                log_txt = peticion_http(ip_dest, endpoint, timeout_sec=4.0)
+                log_txt = peticion_http(ip_dest, endpoint, timeout_sec=5.0)
                 if not log_txt and accion == "get_log":
-                    log_txt = peticion_http(ip_dest, "get_kernel_log.cgi", timeout_sec=4.0)
+                    log_txt = peticion_http(ip_dest, "get_kernel_log.cgi", timeout_sec=5.0)
                 if log_txt:
                     try:
                         requests.post(URL_LOGS, json={"api_key": API_KEY, "ip": ip_dest, "log": log_txt}, timeout=6)
@@ -861,6 +881,7 @@ def recolectar_y_enviar():
 
 if __name__ == '__main__':
     print("Iniciando Agente Universal El Minero Gris (Antminer + WhatsMiner | Multi-Moneda)...")
+    keep_awake()
     while True:
         recolectar_y_enviar()
         time.sleep(25)
