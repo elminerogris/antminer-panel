@@ -171,7 +171,7 @@ def init_db():
         con.autocommit = True
         c = con.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'giovanni', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia', gps_manual INTEGER DEFAULT 0, corte_activo INTEGER DEFAULT 0, corte_temp INTEGER DEFAULT 85, watchdog_activo INTEGER DEFAULT 1, wd_fallo_desde TEXT DEFAULT '', wd_motivo_fallo TEXT DEFAULT '', wd_ultimo_reinicio TEXT DEFAULT '', wd_reinicios_seguidos INTEGER DEFAULT 0, wd_cuarentena INTEGER DEFAULT 0, placas_normales INTEGER DEFAULT 0)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 1, wd_activo INTEGER DEFAULT 0, wd_alcance TEXT DEFAULT 'all', wd_granjas TEXT DEFAULT '[]', wd_mineros TEXT DEFAULT '[]', wd_zero_hr INTEGER DEFAULT 1, wd_cold_on INTEGER DEFAULT 1, wd_cold_temp INTEGER DEFAULT 31, wd_dead_board INTEGER DEFAULT 1, wd_gracia_min INTEGER DEFAULT 5, wd_cooldown_min INTEGER DEFAULT 30, wd_cuarentena_on INTEGER DEFAULT 1, wd_max_reinicios INTEGER DEFAULT 3)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 1, wd_activo INTEGER DEFAULT 0, wd_alcance TEXT DEFAULT 'all', wd_granjas TEXT DEFAULT '[]', wd_mineros TEXT DEFAULT '[]', wd_zero_hr INTEGER DEFAULT 1, wd_cold_on INTEGER DEFAULT 1, wd_cold_temp INTEGER DEFAULT 31, wd_amb_cold_on INTEGER DEFAULT 0, wd_amb_cold_temp INTEGER DEFAULT 18, wd_dead_board INTEGER DEFAULT 1, wd_gracia_min INTEGER DEFAULT 5, wd_cooldown_min INTEGER DEFAULT 30, wd_cuarentena_on INTEGER DEFAULT 1, wd_max_reinicios INTEGER DEFAULT 3)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT, owner TEXT DEFAULT 'giovanni', nombre TEXT)''')
@@ -240,6 +240,8 @@ def init_db():
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_zero_hr INTEGER DEFAULT 1",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_cold_on INTEGER DEFAULT 1",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_cold_temp INTEGER DEFAULT 31",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_amb_cold_on INTEGER DEFAULT 0",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_amb_cold_temp INTEGER DEFAULT 18",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_dead_board INTEGER DEFAULT 1",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_gracia_min INTEGER DEFAULT 5",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS wd_cooldown_min INTEGER DEFAULT 30",
@@ -874,6 +876,8 @@ def alertas():
             wd_zero_hr = 1 if request.form.get('wd_zero_hr') == '1' else 0
             wd_cold_on = 1 if request.form.get('wd_cold_on') == '1' else 0
             wd_cold_temp = max(15, min(60, a_int_seguro(request.form.get('wd_cold_temp'), 31)))
+            wd_amb_cold_on = 1 if request.form.get('wd_amb_cold_on') == '1' else 0
+            wd_amb_cold_temp = max(5, min(45, a_int_seguro(request.form.get('wd_amb_cold_temp'), 18)))
             wd_dead_board = 1 if request.form.get('wd_dead_board') == '1' else 0
             wd_gracia_min = max(1, min(60, a_int_seguro(request.form.get('wd_gracia_min'), 5)))
             wd_cooldown_min = max(5, min(180, a_int_seguro(request.form.get('wd_cooldown_min'), 30)))
@@ -883,11 +887,13 @@ def alertas():
             cur.execute("""
                 UPDATE usuarios
                 SET wd_activo=%s, wd_alcance=%s, wd_granjas=%s, wd_mineros=%s,
-                    wd_zero_hr=%s, wd_cold_on=%s, wd_cold_temp=%s, wd_dead_board=%s,
+                    wd_zero_hr=%s, wd_cold_on=%s, wd_cold_temp=%s,
+                    wd_amb_cold_on=%s, wd_amb_cold_temp=%s, wd_dead_board=%s,
                     wd_gracia_min=%s, wd_cooldown_min=%s, wd_cuarentena_on=%s, wd_max_reinicios=%s
                 WHERE username=%s
             """, (wd_activo, wd_alcance, wd_granjas, wd_mineros, wd_zero_hr, wd_cold_on, wd_cold_temp,
-                  wd_dead_board, wd_gracia_min, wd_cooldown_min, wd_cuarentena_on, wd_max_reinicios, usr_actual))
+                  wd_amb_cold_on, wd_amb_cold_temp, wd_dead_board, wd_gracia_min, wd_cooldown_min,
+                  wd_cuarentena_on, wd_max_reinicios, usr_actual))
             msg = "Reglas del Watchdog (Auto-Reinicio Inteligente) guardadas correctamente."
         elif accion == 'liberar_cuarentena':
             ip_lib = (request.form.get('ip') or '').strip()
@@ -916,8 +922,8 @@ def alertas():
     cur.execute("""
         SELECT tg_token, tg_chat_id, umbral_temp, umbral_hr, alertas_activas,
                wd_activo, wd_alcance, wd_granjas, wd_mineros, wd_zero_hr, wd_cold_on,
-               wd_cold_temp, wd_dead_board, wd_gracia_min, wd_cooldown_min,
-               wd_cuarentena_on, wd_max_reinicios
+               wd_cold_temp, wd_amb_cold_on, wd_amb_cold_temp, wd_dead_board,
+               wd_gracia_min, wd_cooldown_min, wd_cuarentena_on, wd_max_reinicios
         FROM usuarios WHERE username=%s
     """, (usr_actual,))
     row_u = cur.fetchone() or {}
@@ -941,6 +947,8 @@ def alertas():
         'zero_hr': bool(a_int_seguro(row_u.get('wd_zero_hr'), 1) == 1),
         'cold_on': bool(a_int_seguro(row_u.get('wd_cold_on'), 1) == 1),
         'cold_temp': a_int_seguro(row_u.get('wd_cold_temp'), 31),
+        'amb_cold_on': bool(a_int_seguro(row_u.get('wd_amb_cold_on'), 0) == 1),
+        'amb_cold_temp': a_int_seguro(row_u.get('wd_amb_cold_temp'), 18),
         'dead_board': bool(a_int_seguro(row_u.get('wd_dead_board'), 1) == 1),
         'gracia_min': a_int_seguro(row_u.get('wd_gracia_min'), 5),
         'cooldown_min': a_int_seguro(row_u.get('wd_cooldown_min'), 30),
@@ -1385,6 +1393,8 @@ def recibir_datos():
     wd_zero_hr = bool(a_int_seguro(u_cfg.get('wd_zero_hr'), 1) == 1) if u_cfg else True
     wd_cold_on = bool(a_int_seguro(u_cfg.get('wd_cold_on'), 1) == 1) if u_cfg else True
     wd_cold_temp = a_int_seguro(u_cfg.get('wd_cold_temp'), 31) if u_cfg else 31
+    wd_amb_cold_on = bool(a_int_seguro(u_cfg.get('wd_amb_cold_on'), 0) == 1) if u_cfg else False
+    wd_amb_cold_temp = a_int_seguro(u_cfg.get('wd_amb_cold_temp'), 18) if u_cfg else 18
     wd_dead_board = bool(a_int_seguro(u_cfg.get('wd_dead_board'), 1) == 1) if u_cfg else True
     wd_gracia_seg = max(60, a_int_seguro(u_cfg.get('wd_gracia_min'), 5) * 60) if u_cfg else 300
     wd_cooldown_seg = max(300, a_int_seguro(u_cfg.get('wd_cooldown_min'), 30) * 60) if u_cfg else 1800
@@ -1499,6 +1509,8 @@ def recibir_datos():
                 fallo_wd = f"0 {unid} (Hashrate en cero)"
             elif wd_cold_on and temp_m > 0 and temp_m <= wd_cold_temp:
                 fallo_wd = f"Minero frío ({temp_m}°C ≤ {wd_cold_temp}°C)"
+            elif wd_amb_cold_on and t_amb > 0 and t_amb <= wd_amb_cold_temp:
+                fallo_wd = f"Temp. Ambiente baja ({t_amb}°C ≤ {wd_amb_cold_temp}°C)"
             elif wd_dead_board and placas_normales >= 2 and hr_m > 0 and placas_con_hr < placas_normales:
                 fallo_wd = f"Placa caída ({placas_con_hr}/{placas_normales} placas activas)"
 
@@ -1508,7 +1520,6 @@ def recibir_datos():
             wd_cuarentena = a_int_seguro(prev_m.get('wd_cuarentena'), 0)
 
             if fallo_wd is None:
-                # Minero sano: limpiar contadores de fallo y cuarentena automáticamente
                 if wd_fallo_desde or wd_reinicios > 0 or wd_cuarentena == 1:
                     cur.execute("""
                         UPDATE mineros_activos
