@@ -1,100 +1,229 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    .alerts-header {
+    /* Contenedor Principal Pro (misma estética que Pools y Telemetría) */
+    .wd-card-pro {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        margin-bottom: 20px;
+        overflow: hidden;
+        position: relative;
+    }
+    .wd-header-pro {
+        padding: 14px 16px;
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 12px;
         flex-wrap: wrap;
-        gap: 14px;
-        margin-bottom: 18px;
-        padding: 16px 20px;
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.01);
     }
-    .alerts-header h1 {
-        margin: 0;
-        font-size: 1.4em;
+    .wd-title-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .wd-title-txt {
+        font-weight: bold;
+        font-size: 1.08em;
         color: var(--text-main);
         display: flex;
         align-items: center;
-        gap: 10px;
-    }
-    .alerts-header p {
-        margin: 4px 0 0 0;
-        font-size: 0.84em;
-        color: var(--text-muted);
-    }
-    .status-pill-wd {
-        display: inline-flex;
-        align-items: center;
         gap: 7px;
-        padding: 6px 13px;
-        border-radius: 20px;
-        font-size: 0.78em;
-        font-weight: bold;
+    }
+    .wd-status-badge {
+        font-size: 0.72em;
+        padding: 2px 9px;
+        border-radius: 12px;
         font-family: monospace;
+        font-weight: bold;
+        cursor: help;
     }
-    .status-pill-wd.on {
-        background: rgba(0, 230, 118, 0.14);
+    .wd-status-badge.on {
         color: #00e676;
-        border: 1px solid rgba(0, 230, 118, 0.45);
+        background: rgba(0, 230, 118, 0.10);
+        border: 1px solid rgba(0, 230, 118, 0.35);
     }
-    .status-pill-wd.off {
-        background: rgba(148, 153, 176, 0.12);
+    .wd-status-badge.off {
         color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.04);
         border: 1px solid var(--border-color);
     }
+    .btn-guia-wd {
+        background: rgba(56, 189, 248, 0.10);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        color: #38bdf8;
+        padding: 3px 9px;
+        border-radius: 12px;
+        font-size: 0.72em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.18s;
+    }
+    .btn-guia-wd:hover { background: rgba(56, 189, 248, 0.22); color: #fff; }
 
-    .alert-flash-ok {
-        background: rgba(0, 230, 118, 0.12);
+    /* Mini Guía Desplegable */
+    .wd-beginner-guide {
+        display: none;
+        padding: 12px 16px;
+        background: linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, rgba(51, 102, 255, 0.04) 100%);
+        border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+        font-size: 0.80em;
+        color: #d1d3e0;
+        line-height: 1.55;
+    }
+    .wd-beginner-guide b { color: #fff; }
+
+    /* Subbarra de Estadísticas + Plantillas 1-Clic */
+    .wd-subbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px 14px;
+        flex-wrap: wrap;
+        padding: 10px 16px;
+        background: rgba(10, 12, 18, 0.45);
+        border-bottom: 1px solid var(--border-color);
+        font-size: 0.75em;
+    }
+    .wd-stats-list {
+        display: flex;
+        align-items: center;
+        gap: 8px 14px;
+        flex-wrap: wrap;
+    }
+    .wd-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--text-muted);
+        cursor: help;
+        border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
+        padding-bottom: 1px;
+        user-select: none;
+        transition: 0.18s;
+    }
+    .wd-stat-item:hover { color: #fff; border-bottom-color: var(--accent-blue); }
+    .wd-stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.05em; }
+
+    .wd-presets-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .preset-label { color: var(--text-muted); font-size: 0.92em; margin-right: 2px; cursor: help; }
+    .preset-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 4px 10px;
+        border-radius: 14px;
+        font-size: 0.90em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        user-select: none;
+    }
+    .preset-pill:hover {
+        color: #fff;
+        border-color: var(--accent-blue);
+        background: rgba(51, 102, 255, 0.15);
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.35);
+    }
+
+    /* Botón Guardar Neon Glow */
+    .btn-neon-save {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%);
+        border: 1px solid rgba(82, 140, 255, 0.65);
+        color: #60a5fa;
+        padding: 7px 14px;
+        border-radius: 7px;
+        cursor: pointer;
+        font-size: 0.82em;
+        font-weight: bold;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.22s ease;
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.25);
+    }
+    .btn-neon-save:hover {
+        color: #fff;
+        background: rgba(51, 102, 255, 0.35);
+        border-color: #60a5fa;
+        box-shadow: 0 0 16px rgba(59, 130, 246, 0.65);
+        transform: translateY(-1px);
+    }
+    .btn-neon-save.unsaved-pulse {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.50) 0%, rgba(37, 99, 235, 0.32) 100%);
+        color: #fff;
+        border-color: #38bdf8;
+        box-shadow: 0 0 18px rgba(56, 189, 248, 0.75);
+    }
+    .btn-outline-wd {
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text-main);
+        border: 1px solid var(--border-color);
+        padding: 8px 14px;
+        border-radius: 7px;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 0.82em;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: 0.18s;
+    }
+    .btn-outline-wd:hover { border-color: #3b82f6; color: #60a5fa; background: rgba(51, 102, 255, 0.12); }
+
+    /* Alerta Flash */
+    .alert-flash-pro {
+        background: linear-gradient(90deg, rgba(0, 230, 118, 0.14) 0%, rgba(0, 230, 118, 0.04) 100%);
         border: 1px solid rgba(0, 230, 118, 0.45);
         color: #69f0ae;
-        padding: 12px 16px;
+        padding: 11px 15px;
         border-radius: 8px;
-        margin-bottom: 18px;
-        font-size: 0.86em;
+        margin-bottom: 16px;
+        font-size: 0.85em;
         font-weight: 600;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 9px;
+        box-shadow: 0 0 14px rgba(0, 230, 118, 0.15);
     }
 
-    .quarantine-banner {
-        background: rgba(255, 82, 82, 0.12);
-        border: 1px solid rgba(255, 82, 82, 0.5);
-        border-radius: 10px;
-        padding: 14px 18px;
+    /* Banner Cuarentena */
+    .quarantine-card {
+        background: rgba(255, 82, 82, 0.10);
+        border: 1px solid rgba(255, 82, 82, 0.45);
+        border-radius: 8px;
+        padding: 14px 16px;
         margin-bottom: 18px;
     }
-    .quarantine-banner-title {
-        font-weight: bold;
-        color: #ff8a80;
-        font-size: 0.94em;
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .q-item {
+    .q-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 10px;
-        background: rgba(0, 0, 0, 0.28);
+        background: rgba(10, 12, 18, 0.55);
         border: 1px solid rgba(255, 82, 82, 0.25);
-        padding: 10px 12px;
-        border-radius: 7px;
+        padding: 9px 12px;
+        border-radius: 6px;
         margin-top: 8px;
-        font-size: 0.84em;
+        font-size: 0.83em;
     }
     .btn-release-q {
-        background: rgba(0, 230, 118, 0.16);
+        background: rgba(0, 230, 118, 0.14);
         border: 1px solid #00e676;
         color: #00e676;
-        padding: 6px 12px;
+        padding: 5px 12px;
         border-radius: 6px;
         font-weight: bold;
         font-size: 0.82em;
@@ -102,282 +231,247 @@
     }
     .btn-release-q:hover { background: #00e676; color: #000; }
 
-    .alerts-grid {
+    /* Grilla de 2 columnas */
+    .wd-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        gap: 20px;
+        grid-template-columns: 1.25fr 0.95fr;
+        gap: 18px;
         align-items: start;
-        margin-bottom: 20px;
     }
-    @media (max-width: 520px) {
-        .alerts-grid { grid-template-columns: 1fr; }
+    @media (max-width: 960px) {
+        .wd-grid { grid-template-columns: 1fr; }
     }
 
-    .card-pro {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        overflow: hidden;
+    .wd-body { padding: 16px; }
+    .wd-section-lbl {
+        font-size: 0.72em;
+        color: var(--text-muted);
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 14px 0 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
-    .card-pro-header {
-        padding: 14px 18px;
-        background: rgba(255, 255, 255, 0.015);
-        border-bottom: 1px solid var(--border-color);
+    .wd-section-lbl:first-child { margin-top: 0; }
+
+    /* Filas de Reglas */
+    .rule-row-pro {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        font-weight: bold;
-        font-size: 1em;
-        color: var(--text-main);
-    }
-    .card-pro-body { padding: 18px; }
-
-    .form-group { margin-bottom: 14px; }
-    .form-label {
-        display: block;
-        font-size: 0.74em;
-        color: var(--text-muted);
-        font-weight: bold;
-        margin-bottom: 6px;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-    }
-    .form-input {
-        width: 100%;
-        background: var(--bg-input);
+        padding: 10px 12px;
+        background: rgba(10, 12, 18, 0.45);
         border: 1px solid var(--border-color);
-        color: var(--text-main);
-        padding: 9px 12px;
         border-radius: 7px;
-        font-family: monospace;
-        font-size: 0.88em;
-        outline: none;
+        margin-bottom: 8px;
+        transition: border-color 0.18s;
     }
-    .form-input:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 8px rgba(59, 130, 246, 0.35);
-    }
-
-    .switch-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 11px 13px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        margin-bottom: 10px;
-    }
-    .switch-row label {
+    .rule-row-pro:hover { border-color: rgba(59, 130, 246, 0.45); }
+    .rule-left {
         display: flex;
         align-items: center;
         gap: 9px;
-        font-size: 0.86em;
+        font-size: 0.84em;
         font-weight: 600;
-        cursor: pointer;
         color: var(--text-main);
+        cursor: pointer;
     }
-    .switch-row input[type="checkbox"] {
-        width: 17px;
-        height: 17px;
+    .rule-left input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
         accent-color: #3366ff;
         cursor: pointer;
     }
-    .inline-num {
-        width: 72px;
-        background: var(--bg-input);
+    .info-dot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        color: #9499b0;
+        font-size: 9.5px;
+        font-family: serif;
+        font-style: italic;
+        font-weight: bold;
+        cursor: help;
+        flex-shrink: 0;
+    }
+    .info-dot:hover { background: rgba(51, 102, 255, 0.4); color: #fff; }
+
+    .input-pro-dark {
+        width: 100%;
+        background: rgba(10, 12, 18, 0.65);
         border: 1px solid var(--border-color);
         color: var(--text-main);
-        padding: 5px 8px;
+        padding: 8px 11px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.86em;
+        outline: none;
+        transition: 0.18s;
+    }
+    .input-pro-dark:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 9px rgba(59, 130, 246, 0.35);
+    }
+    .input-num-sm {
+        width: 66px;
+        background: rgba(10, 12, 18, 0.85);
+        border: 1px solid var(--border-color);
+        color: #38bdf8;
+        padding: 4px 6px;
         border-radius: 6px;
         font-family: monospace;
         font-weight: bold;
         text-align: center;
+        font-size: 0.88em;
+        outline: none;
     }
+    .input-num-sm:focus { border-color: #38bdf8; }
 
-    /* Selector de alcance */
-    .scope-tabs {
+    /* Selector de Alcance (Tabs estilo Chart Filters) */
+    .scope-bar {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 6px;
-        margin-bottom: 12px;
+        gap: 4px;
+        background: rgba(10, 12, 18, 0.7);
+        padding: 4px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        margin-bottom: 10px;
     }
-    .scope-opt {
-        position: relative;
-        cursor: pointer;
-    }
-    .scope-opt input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-    }
-    .scope-opt span {
+    .scope-tab { position: relative; cursor: pointer; }
+    .scope-tab input { position: absolute; opacity: 0; pointer-events: none; }
+    .scope-tab span {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 5px;
-        padding: 8px 6px;
-        border-radius: 7px;
-        border: 1px solid var(--border-color);
-        background: var(--bg-input);
+        padding: 7px 6px;
+        border-radius: 6px;
+        border: 1px solid transparent;
         color: var(--text-muted);
-        font-size: 0.78em;
+        font-size: 0.77em;
         font-weight: bold;
-        text-align: center;
         transition: 0.18s;
     }
-    .scope-opt input:checked + span {
-        background: rgba(51, 102, 255, 0.18);
-        border-color: #3b82f6;
+    .scope-tab input:checked + span {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.32) 0%, rgba(37, 99, 235, 0.18) 100%);
         color: #60a5fa;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
+        border-color: #3b82f6;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
     }
 
-    .selector-box {
-        background: var(--bg-input);
+    .selector-list-box {
+        background: rgba(10, 12, 18, 0.65);
         border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 10px 12px;
-        max-height: 185px;
+        border-radius: 7px;
+        padding: 8px 10px;
+        max-height: 175px;
         overflow-y: auto;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
     }
-    .selector-item {
+    .sel-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
         padding: 6px 4px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        font-size: 0.82em;
+        font-size: 0.81em;
     }
-    .selector-item:last-child { border-bottom: none; }
-    .selector-item label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        flex: 1;
-    }
-    .selector-item input[type="checkbox"] {
-        width: 15px;
-        height: 15px;
-        accent-color: #00e676;
-    }
-    .tag-sub {
-        font-size: 0.78em;
-        font-family: monospace;
-        color: var(--text-muted);
-    }
+    .sel-row:last-child { border-bottom: none; }
+    .sel-row label { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; }
+    .sel-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: #00e676; }
 
-    .two-col {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-    }
-
-    .btn-primary-pro {
-        background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
-        color: #fff;
-        border: 1px solid #60a5fa;
-        padding: 10px 16px;
-        border-radius: 7px;
-        font-weight: bold;
-        cursor: pointer;
-        font-size: 0.85em;
-        width: 100%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 7px;
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
-    }
-    .btn-primary-pro:hover { box-shadow: 0 0 18px rgba(59, 130, 246, 0.65); }
-
-    .btn-outline-pro {
-        background: rgba(255, 255, 255, 0.03);
-        color: var(--text-main);
-        border: 1px solid var(--border-color);
-        padding: 9px 14px;
-        border-radius: 7px;
-        font-weight: bold;
-        cursor: pointer;
-        font-size: 0.83em;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-    }
-    .btn-outline-pro:hover { border-color: #3b82f6; color: #60a5fa; }
-
-    .btn-danger-sm {
-        background: rgba(255, 82, 82, 0.1);
-        color: #ff5252;
-        border: 1px solid rgba(255, 82, 82, 0.35);
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 0.78em;
-        font-weight: bold;
-        cursor: pointer;
-    }
-    .btn-danger-sm:hover { background: rgba(255, 82, 82, 0.25); color: #fff; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
     /* Tabla Historial */
-    .table-wrap { overflow-x: auto; }
-    .hist-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.84em;
-    }
-    .hist-table th, .hist-table td {
-        padding: 10px 12px;
+    .hist-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .hist-table-pro { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 0.83em; }
+    .hist-table-pro th {
+        padding: 9px 12px;
+        font-size: 0.73em;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.015);
         border-bottom: 1px solid var(--border-color);
         text-align: left;
     }
-    .hist-table th {
-        font-size: 0.75em;
-        text-transform: uppercase;
-        color: var(--text-muted);
-        letter-spacing: 0.4px;
+    .hist-table-pro td {
+        padding: 9px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
-    .badge-type {
+    .hist-table-pro tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+    .badge-ev {
         display: inline-block;
-        padding: 3px 8px;
+        padding: 2px 8px;
         border-radius: 12px;
-        font-size: 0.75em;
+        font-size: 0.76em;
         font-weight: bold;
         font-family: monospace;
     }
-    .badge-TEMP, .badge-CORTE_TERMICO { background: rgba(255, 82, 82, 0.16); color: #ff8a80; border: 1px solid rgba(255, 82, 82, 0.4); }
-    .badge-HASHRATE { background: rgba(255, 179, 0, 0.16); color: #ffd54f; border: 1px solid rgba(255, 179, 0, 0.4); }
+    .badge-TEMP, .badge-CORTE_TERMICO { background: rgba(255, 82, 82, 0.14); color: #ff8a80; border: 1px solid rgba(255, 82, 82, 0.4); }
+    .badge-HASHRATE { background: rgba(255, 179, 0, 0.14); color: #ffd54f; border: 1px solid rgba(255, 179, 0, 0.4); }
     .badge-WATCHDOG_REBOOT { background: rgba(51, 102, 255, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.45); }
     .badge-WATCHDOG_CUARENTENA { background: rgba(168, 85, 247, 0.20); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.5); }
+
+    /* Tooltip Flotante Global (mismo estilo que Telemetría y Pools) */
+    .wd-smart-tooltip {
+        position: fixed;
+        display: none;
+        width: 275px;
+        max-width: calc(100vw - 20px);
+        background: rgba(10, 11, 16, 0.98);
+        border: 1px solid rgba(51, 102, 255, 0.55);
+        border-radius: 7px;
+        padding: 10px 12px;
+        color: #d1d3e0;
+        font-size: 11.5px;
+        line-height: 1.45;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
+        z-index: 99999;
+        pointer-events: none;
+    }
+    .wd-tt-title {
+        color: #fff;
+        font-weight: bold;
+        font-size: 12px;
+        margin-bottom: 5px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .wd-tt-range {
+        margin-top: 6px;
+        padding: 5px 7px;
+        background: rgba(56, 189, 248, 0.08);
+        border-left: 2px solid #38bdf8;
+        border-radius: 3px;
+        font-family: monospace;
+        font-size: 10.5px;
+        color: #38bdf8;
+    }
 </style>
 
-<div class="alerts-header">
-    <div>
-        <h1>🔔 Alertas y Watchdog Inteligente</h1>
-        <p>Automatiza reinicios por 0 TH/s, temperatura fría o placas caídas, elige qué granjas o mineros proteger y recibe avisos en Telegram.</p>
-    </div>
-    <span class="status-pill-wd {{ 'on' if wd.activo else 'off' }}">
-        {{ '🛡️ Watchdog ACTIVO' if wd.activo else '⏸ Watchdog INACTIVO' }}
-    </span>
-</div>
+<div id="wdSmartTooltip" class="wd-smart-tooltip"></div>
 
 {% if msg %}
-<div class="alert-flash-ok"><span>✅</span><span>{{ msg }}</span></div>
+<div class="alert-flash-pro"><span>✅</span><span>{{ msg }}</span></div>
 {% endif %}
 
 {% if en_cuarentena %}
-<div class="quarantine-banner">
-    <div class="quarantine-banner-title">🔒 Mineros en Cuarentena Anti-Bucle (en modo Sleep para proteger el hardware)</div>
+<div class="quarantine-card">
+    <div style="font-weight:bold; color:#ff8a80; font-size:0.92em;">🔒 Mineros en Cuarentena Anti-Bucle (en Sleep para proteger el hardware)</div>
     {% for q in en_cuarentena %}
-    <div class="q-item">
+    <div class="q-row">
         <div>
-            <b translate="no">{{ q.nombre }} ({{ q.ip }})</b> — <span style="color:var(--text-muted);">{{ q.modelo }}</span><br>
-            <span style="color:#ff8a80; font-size:0.9em;">Motivo: {{ q.motivo or 'Fallos repetidos' }} ({{ q.reinicios }} reinicios seguidos)</span>
+            <b translate="no">{{ q.nombre }} ({{ q.ip }})</b> <span style="color:var(--text-muted);">· {{ q.modelo }}</span><br>
+            <span style="color:#ff8a80; font-size:0.9em;">Motivo: {{ q.motivo or 'Fallos consecutivos' }} ({{ q.reinicios }} reinicios)</span>
         </div>
         <form method="POST" action="/alertas" style="margin:0;">
             <input type="hidden" name="accion" value="liberar_cuarentena">
@@ -389,51 +483,81 @@
 </div>
 {% endif %}
 
-<div class="alerts-grid">
-    <!-- TARJETA 1: WATCHDOG INTELIGENTE -->
-    <div class="card-pro">
-        <div class="card-pro-header">
-            <span>🛡️ Watchdog — Auto-Reinicio Inteligente</span>
-            <span style="font-size:0.75em; color:var(--text-muted); font-family:monospace;">4 Reglas</span>
-        </div>
-        <div class="card-pro-body">
-            <form method="POST" action="/alertas">
-                <input type="hidden" name="accion" value="guardar_watchdog">
+<div class="wd-grid">
+    <!-- TARJETA PRINCIPAL: WATCHDOG INTELIGENTE -->
+    <div class="wd-card-pro">
+        <form method="POST" action="/alertas" id="formWatchdog">
+            <input type="hidden" name="accion" value="guardar_watchdog">
 
-                <div class="switch-row" style="border-color: {{ 'rgba(0,230,118,0.45)' if wd.activo else 'var(--border-color)' }};">
-                    <label>
-                        <input type="checkbox" name="wd_activo" value="1" {% if wd.activo %}checked{% endif %}>
-                        Activar Auto-Reinicio Automático
+            <div class="wd-header-pro">
+                <div class="wd-title-group">
+                    <span class="wd-title-txt">🛡️ Watchdog — Auto-Reinicio Inteligente</span>
+                    <span class="wd-status-badge {{ 'on' if wd.activo else 'off' }}" data-wd-tt="estado_wd">
+                        {{ '● ACTIVO' if wd.activo else '○ INACTIVO' }}
+                    </span>
+                    <button type="button" class="btn-guia-wd" onclick="toggleGuiaWd()">💡 ¿Cómo funciona?</button>
+                </div>
+                <button type="submit" class="btn-neon-save" id="btnGuardarWd">
+                    <span>💾</span><span id="txtGuardarWd">Guardar Reglas</span>
+                </button>
+            </div>
+
+            <div id="wdBeginnerGuide" class="wd-beginner-guide">
+                <b>👋 Protección automática en 3 pasos:</b><br>
+                1. Elige un <b>Perfil Rápido</b> abajo (ej. <i>Estándar</i>) o ajusta cada regla a tu gusto.<br>
+                2. Selecciona si aplica a <b>Toda tu cuenta</b>, solo a <b>una Granja</b> o a <b>Mineros puntuales</b>.<br>
+                3. Si un equipo falla repetidamente tras N reinicios, la <b>Cuarentena Anti-Bucle</b> lo pone en <i>Sleep</i> para no dañar la fuente y te avisa por Telegram.
+            </div>
+
+            <!-- Subbarra de métricas + Plantillas 1-Clic -->
+            <div class="wd-subbar" translate="no">
+                <div class="wd-stats-list">
+                    <div class="wd-stat-item" data-wd-tt="stat_granjas">Granjas: <b>{{ granjas_disp|length }}</b></div>
+                    <div class="wd-stat-item" data-wd-tt="stat_mineros">Equipos: <b>{{ mineros_disp|length }}</b></div>
+                    <div class="wd-stat-item" data-wd-tt="stat_cuarentena">Cuarentena: <b style="color:{{ '#ff5252' if en_cuarentena|length > 0 else '#00e676' }};">{{ en_cuarentena|length }}</b></div>
+                </div>
+                <div class="wd-presets-bar">
+                    <span class="preset-label" data-wd-tt="presets_wd">⚡ Perfiles:</span>
+                    <span class="preset-pill" onclick="aplicarPerfilWd('estandar')">Estándar</span>
+                    <span class="preset-pill" onclick="aplicarPerfilWd('conservador')">Conservador</span>
+                    <span class="preset-pill" onclick="aplicarPerfilWd('hydro')">Hydro / Frío</span>
+                </div>
+            </div>
+
+            <div class="wd-body">
+                <div class="rule-row-pro" style="border-color: {{ 'rgba(0,230,118,0.45)' if wd.activo else 'var(--border-color)' }};">
+                    <label class="rule-left">
+                        <input type="checkbox" name="wd_activo" id="wd_activo" value="1" {% if wd.activo %}checked{% endif %} onchange="marcarWdEditado()">
+                        <span>Activar Auto-Reinicio Automático</span>
                     </label>
-                    <span class="tag-sub">{{ 'ON' if wd.activo else 'OFF' }}</span>
+                    <span class="info-dot" data-wd-tt="wd_master">i</span>
                 </div>
 
-                <!-- SELECTOR DE ALCANCE -->
-                <div class="form-label" style="margin-top:14px;">Alcance de Protección</div>
-                <div class="scope-tabs">
-                    <label class="scope-opt">
-                        <input type="radio" name="wd_alcance" value="all" {% if wd.alcance == 'all' %}checked{% endif %} onchange="actualizarAlcanceUI()">
+                <div class="wd-section-lbl">🎯 Alcance de Protección</div>
+                <div class="scope-bar">
+                    <label class="scope-tab">
+                        <input type="radio" name="wd_alcance" value="all" {% if wd.alcance == 'all' %}checked{% endif %} onchange="actualizarAlcanceUI(); marcarWdEditado()">
                         <span>🌐 Toda la cuenta</span>
                     </label>
-                    <label class="scope-opt">
-                        <input type="radio" name="wd_alcance" value="farms" {% if wd.alcance == 'farms' %}checked{% endif %} onchange="actualizarAlcanceUI()">
+                    <label class="scope-tab">
+                        <input type="radio" name="wd_alcance" value="farms" {% if wd.alcance == 'farms' %}checked{% endif %} onchange="actualizarAlcanceUI(); marcarWdEditado()">
                         <span>🏭 Por Granja</span>
                     </label>
-                    <label class="scope-opt">
-                        <input type="radio" name="wd_alcance" value="miners" {% if wd.alcance == 'miners' %}checked{% endif %} onchange="actualizarAlcanceUI()">
+                    <label class="scope-tab">
+                        <input type="radio" name="wd_alcance" value="miners" {% if wd.alcance == 'miners' %}checked{% endif %} onchange="actualizarAlcanceUI(); marcarWdEditado()">
                         <span>⛏️ Mineros</span>
                     </label>
                 </div>
 
-                <div id="boxGranjas" class="selector-box" style="display: {{ 'block' if wd.alcance == 'farms' else 'none' }};">
+                <div id="boxGranjas" class="selector-list-box" style="display: {{ 'block' if wd.alcance == 'farms' else 'none' }};">
                     {% if granjas_disp %}
                         {% for g in granjas_disp %}
-                        <div class="selector-item">
+                        <div class="sel-row">
                             <label>
-                                <input type="checkbox" name="wd_granjas" value="{{ g.clave }}" {% if g.clave in wd.granjas_sel %}checked{% endif %}>
+                                <input type="checkbox" name="wd_granjas" value="{{ g.clave }}" {% if g.clave in wd.granjas_sel %}checked{% endif %} onchange="marcarWdEditado()">
                                 <span translate="no">{{ g.clave }}</span>
                             </label>
-                            <span class="tag-sub">{{ g.total }} equipo(s)</span>
+                            <span style="font-family:monospace; color:var(--text-muted);">{{ g.total }} eq.</span>
                         </div>
                         {% endfor %}
                     {% else %}
@@ -441,15 +565,15 @@
                     {% endif %}
                 </div>
 
-                <div id="boxMineros" class="selector-box" style="display: {{ 'block' if wd.alcance == 'miners' else 'none' }};">
+                <div id="boxMineros" class="selector-list-box" style="display: {{ 'block' if wd.alcance == 'miners' else 'none' }};">
                     {% if mineros_disp %}
                         {% for m in mineros_disp %}
-                        <div class="selector-item">
+                        <div class="sel-row">
                             <label>
-                                <input type="checkbox" name="wd_mineros" value="{{ m.ip }}" {% if m.ip in wd.mineros_sel %}checked{% endif %}>
+                                <input type="checkbox" name="wd_mineros" value="{{ m.ip }}" {% if m.ip in wd.mineros_sel %}checked{% endif %} onchange="marcarWdEditado()">
                                 <span translate="no"><b>{{ m.nombre }}</b> ({{ m.ip }})</span>
                             </label>
-                            <span class="tag-sub">{{ m.modelo }}</span>
+                            <span style="font-family:monospace; color:var(--text-muted);">{{ m.modelo }}</span>
                         </div>
                         {% endfor %}
                     {% else %}
@@ -457,128 +581,151 @@
                     {% endif %}
                 </div>
 
-                <!-- REGLAS DE DISPARO -->
-                <div class="form-label" style="margin-top:14px;">Condiciones de Auto-Reinicio</div>
+                <div class="wd-section-lbl">⚡ Reglas de Disparo (Condiciones)</div>
 
-                <div class="switch-row">
-                    <label>
-                        <input type="checkbox" name="wd_zero_hr" value="1" {% if wd.zero_hr %}checked{% endif %}>
-                        ⚡ Hashrate en 0 TH/s
+                <div class="rule-row-pro">
+                    <label class="rule-left">
+                        <input type="checkbox" name="wd_zero_hr" id="wd_zero_hr" value="1" {% if wd.zero_hr %}checked{% endif %} onchange="marcarWdEditado()">
+                        <span>⚡ Hashrate en 0 TH/s</span>
+                        <span class="info-dot" data-wd-tt="rule_zero">i</span>
                     </label>
-                    <span class="tag-sub">0.00</span>
+                    <span style="font-family:monospace; color:#60a5fa; font-size:0.82em;">0.00</span>
                 </div>
 
-                <div class="switch-row">
-                    <label>
-                        <input type="checkbox" name="wd_cold_on" value="1" {% if wd.cold_on %}checked{% endif %}>
-                        ❄️ Minero Frío (Temp ≤ °C)
+                <div class="rule-row-pro">
+                    <label class="rule-left">
+                        <input type="checkbox" name="wd_cold_on" id="wd_cold_on" value="1" {% if wd.cold_on %}checked{% endif %} onchange="marcarWdEditado()">
+                        <span>❄️ Temp. Chips Baja (≤ °C)</span>
+                        <span class="info-dot" data-wd-tt="rule_cold">i</span>
                     </label>
                     <div style="display:flex; align-items:center; gap:5px;">
-                        <input type="number" name="wd_cold_temp" class="inline-num" min="15" max="60" value="{{ wd.cold_temp }}">
-                        <span class="tag-sub">°C</span>
+                        <input type="number" name="wd_cold_temp" id="wd_cold_temp" class="input-num-sm" min="15" max="60" value="{{ wd.cold_temp }}" oninput="marcarWdEditado()">
+                        <span style="font-family:monospace; color:var(--text-muted); font-size:0.8em;">°C</span>
                     </div>
                 </div>
 
-                <div class="switch-row">
-                    <label>
-                        <input type="checkbox" name="wd_dead_board" value="1" {% if wd.dead_board %}checked{% endif %}>
-                        🧩 Placa Caída (Hashboard en 0)
+                <div class="rule-row-pro">
+                    <label class="rule-left">
+                        <input type="checkbox" name="wd_amb_cold_on" id="wd_amb_cold_on" value="1" {% if wd.amb_cold_on %}checked{% endif %} onchange="marcarWdEditado()">
+                        <span>🍃 Temp. Ambiente Baja (≤ °C)</span>
+                        <span class="info-dot" data-wd-tt="rule_amb_cold">i</span>
                     </label>
-                    <span class="tag-sub">Auto</span>
-                </div>
-
-                <!-- TIEMPOS Y CUARENTENA -->
-                <div class="two-col" style="margin-top:12px;">
-                    <div class="form-group">
-                        <label class="form-label">Tiempo de Gracia (min)</label>
-                        <input type="number" name="wd_gracia_min" class="form-input" min="1" max="60" value="{{ wd.gracia_min }}" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Espera entre Reinicios (min)</label>
-                        <input type="number" name="wd_cooldown_min" class="form-input" min="5" max="180" value="{{ wd.cooldown_min }}" required>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="number" name="wd_amb_cold_temp" id="wd_amb_cold_temp" class="input-num-sm" min="5" max="45" value="{{ wd.amb_cold_temp }}" oninput="marcarWdEditado()">
+                        <span style="font-family:monospace; color:var(--text-muted); font-size:0.8em;">°C</span>
                     </div>
                 </div>
 
-                <div class="switch-row" style="margin-bottom:16px;">
-                    <label>
-                        <input type="checkbox" name="wd_cuarentena_on" value="1" {% if wd.cuarentena_on %}checked{% endif %}>
-                        🔒 Cuarentena Anti-Bucle (Sleep tras N intentos)
+                <div class="rule-row-pro">
+                    <label class="rule-left">
+                        <input type="checkbox" name="wd_dead_board" id="wd_dead_board" value="1" {% if wd.dead_board %}checked{% endif %} onchange="marcarWdEditado()">
+                        <span>🧩 Placa Caída (Hashboard en 0)</span>
+                        <span class="info-dot" data-wd-tt="rule_board">i</span>
                     </label>
-                    <input type="number" name="wd_max_reinicios" class="inline-num" min="1" max="10" value="{{ wd.max_reinicios }}">
+                    <span style="font-family:monospace; color:#00e676; font-size:0.82em;">Auto</span>
                 </div>
 
-                <button type="submit" class="btn-primary-pro">💾 Guardar Reglas del Watchdog</button>
-            </form>
-        </div>
+                <div class="wd-section-lbl">⏱️ Tiempos y Cuarentena Anti-Bucle</div>
+                <div class="two-col" style="margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:0.74em; color:var(--text-muted); margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+                            Tiempo de Gracia (min) <span class="info-dot" data-wd-tt="rule_gracia">i</span>
+                        </div>
+                        <input type="number" name="wd_gracia_min" id="wd_gracia_min" class="input-pro-dark" min="1" max="60" value="{{ wd.gracia_min }}" oninput="marcarWdEditado()">
+                    </div>
+                    <div>
+                        <div style="font-size:0.74em; color:var(--text-muted); margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+                            Espera entre Reinicios (min) <span class="info-dot" data-wd-tt="rule_cooldown">i</span>
+                        </div>
+                        <input type="number" name="wd_cooldown_min" id="wd_cooldown_min" class="input-pro-dark" min="5" max="180" value="{{ wd.cooldown_min }}" oninput="marcarWdEditado()">
+                    </div>
+                </div>
+
+                <div class="rule-row-pro" style="margin-bottom:0;">
+                    <label class="rule-left">
+                        <input type="checkbox" name="wd_cuarentena_on" id="wd_cuarentena_on" value="1" {% if wd.cuarentena_on %}checked{% endif %} onchange="marcarWdEditado()">
+                        <span>🔒 Cuarentena (Sleep tras N intentos)</span>
+                        <span class="info-dot" data-wd-tt="rule_cuarentena">i</span>
+                    </label>
+                    <input type="number" name="wd_max_reinicios" id="wd_max_reinicios" class="input-num-sm" min="1" max="10" value="{{ wd.max_reinicios }}" oninput="marcarWdEditado()">
+                </div>
+            </div>
+        </form>
     </div>
 
-    <!-- TARJETA 2: TELEGRAM Y UMBRALES -->
-    <div class="card-pro">
-        <div class="card-pro-header">
-            <span>📲 Alertas por Telegram y Umbrales</span>
-            <span style="font-size:0.75em; color:{{ '#00e676' if cfg.activas else 'var(--text-muted)' }}; font-family:monospace;">
-                {{ '● Activo' if cfg.activas else '○ Pausado' }}
-            </span>
-        </div>
-        <div class="card-pro-body">
-            <form method="POST" action="/alertas">
-                <input type="hidden" name="accion" value="guardar_config">
+    <!-- TARJETA SECUNDARIA: TELEGRAM Y UMBRALES -->
+    <div class="wd-card-pro">
+        <form method="POST" action="/alertas">
+            <input type="hidden" name="accion" value="guardar_config">
+            <div class="wd-header-pro">
+                <div class="wd-title-group">
+                    <span class="wd-title-txt">📲 Alertas Telegram</span>
+                    <span class="wd-status-badge {{ 'on' if cfg.activas else 'off' }}">
+                        {{ '● Activo' if cfg.activas else '○ Pausado' }}
+                    </span>
+                </div>
+                <button type="submit" class="btn-neon-save">💾 Guardar</button>
+            </div>
 
-                <div class="switch-row">
-                    <label>
+            <div class="wd-body">
+                <div class="rule-row-pro">
+                    <label class="rule-left">
                         <input type="checkbox" name="alertas_activas" value="1" {% if cfg.activas %}checked{% endif %}>
-                        Activar notificaciones por Telegram
+                        <span>Enviar avisos por Telegram</span>
                     </label>
+                    <span class="info-dot" data-wd-tt="tg_info">i</span>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Telegram Bot Token</label>
-                    <input type="text" name="tg_token" class="form-input" value="{{ cfg.tg_token }}" placeholder="123456:ABC-DEF..." translate="no">
+                <div style="margin-bottom:12px;">
+                    <div class="wd-section-lbl">Bot Token</div>
+                    <input type="text" name="tg_token" class="input-pro-dark" value="{{ cfg.tg_token }}" placeholder="123456:ABC-DEF..." translate="no">
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Telegram Chat ID</label>
-                    <input type="text" name="tg_chat_id" class="form-input" value="{{ cfg.tg_chat_id }}" placeholder="Ej: 987654321" translate="no">
+                <div style="margin-bottom:12px;">
+                    <div class="wd-section-lbl">Chat ID</div>
+                    <input type="text" name="tg_chat_id" class="input-pro-dark" value="{{ cfg.tg_chat_id }}" placeholder="Ej: 987654321" translate="no">
                 </div>
 
-                <div class="two-col">
-                    <div class="form-group">
-                        <label class="form-label">Alerta Temp Máx (°C)</label>
-                        <input type="number" name="umbral_temp" class="form-input" value="{{ cfg.umbral_temp }}" min="40" max="110">
+                <div class="two-col" style="margin-bottom:14px;">
+                    <div>
+                        <div class="wd-section-lbl">Alerta Temp Máx (°C)</div>
+                        <input type="number" name="umbral_temp" class="input-pro-dark" value="{{ cfg.umbral_temp }}" min="40" max="110">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Alerta Hashrate Mín</label>
-                        <input type="number" step="0.1" name="umbral_hr" class="form-input" value="{{ cfg.umbral_hr }}" min="0">
+                    <div>
+                        <div class="wd-section-lbl">Alerta Hashrate Mín</div>
+                        <input type="number" step="0.1" name="umbral_hr" class="input-pro-dark" value="{{ cfg.umbral_hr }}" min="0">
                     </div>
                 </div>
-
-                <button type="submit" class="btn-primary-pro" style="margin-bottom:10px;">💾 Guardar Configuración Telegram</button>
-            </form>
-
-            <form method="POST" action="/alertas">
+            </div>
+        </form>
+        <div style="padding:0 16px 16px 16px;">
+            <form method="POST" action="/alertas" style="margin:0;">
                 <input type="hidden" name="accion" value="probar_telegram">
-                <button type="submit" class="btn-outline-pro" style="width:100%;">📨 Enviar Mensaje de Prueba a Telegram</button>
+                <button type="submit" class="btn-outline-wd" style="width:100%;">📨 Enviar Mensaje de Prueba a Telegram</button>
             </form>
         </div>
     </div>
 </div>
 
 <!-- TARJETA 3: HISTORIAL DE INCIDENTES Y ACCIONES -->
-<div class="card-pro">
-    <div class="card-pro-header">
-        <span>📜 Historial de Incidentes y Acciones del Watchdog</span>
+<div class="wd-card-pro">
+    <div class="wd-header-pro">
+        <div class="wd-title-group">
+            <span class="wd-title-txt">📜 Historial de Incidentes y Watchdog</span>
+            <span class="wd-status-badge off">{{ historial|length }} eventos</span>
+        </div>
         <form method="POST" action="/alertas" style="margin:0;" onsubmit="return confirm('¿Vaciar todo el historial de alertas?');">
             <input type="hidden" name="accion" value="limpiar_historial">
-            <button type="submit" class="btn-danger-sm">🗑️ Limpiar</button>
+            <button type="submit" class="btn-outline-wd" style="color:#ff5252; border-color:rgba(255,82,82,0.35);">🗑️ Limpiar</button>
         </form>
     </div>
-    <div class="table-wrap">
-        <table class="hist-table">
+    <div class="hist-scroll">
+        <table class="hist-table-pro">
             <thead>
                 <tr>
                     <th>Fecha (UTC)</th>
-                    <th>IP</th>
-                    <th>Evento</th>
+                    <th>Equipo (IP)</th>
+                    <th>Tipo</th>
                     <th>Detalle</th>
                 </tr>
             </thead>
@@ -588,7 +735,7 @@
                     <tr>
                         <td style="font-family:monospace; color:var(--text-muted); white-space:nowrap;" translate="no">{{ h.fecha }}</td>
                         <td style="font-family:monospace; font-weight:bold;" translate="no"><a href="/minero/{{ h.ip }}" style="color:#60a5fa;">{{ h.ip }}</a></td>
-                        <td><span class="badge-type badge-{{ h.tipo }}" translate="no">{{ h.tipo }}</span></td>
+                        <td><span class="badge-ev badge-{{ h.tipo }}" translate="no">{{ h.tipo }}</span></td>
                         <td>{{ h.mensaje }}</td>
                     </tr>
                     {% endfor %}
@@ -605,10 +752,104 @@
 </div>
 
 <script>
+    const INFO_TOOLTIPS_WD = {
+        'estado_wd': { titulo: '🛡️ Estado del Watchdog', desc: 'Indica si el motor de auto-reinicio inteligente está vigilando tus equipos en tiempo real.', rango: 'OFF por defecto hasta que lo actives' },
+        'wd_master': { titulo: '⚡ Interruptor General', desc: 'Enciende o apaga todas las reglas de auto-reinicio de un solo clic sin perder tu configuración.', rango: 'Recomendado: ON tras elegir tu alcance' },
+        'presets_wd': { titulo: '⚡ Perfiles Rápidos 1-Clic', desc: 'Rellena automáticamente tiempos y temperaturas recomendadas según el tipo de granja.', rango: 'No guarda hasta que presiones Guardar Reglas' },
+        'rule_zero': { titulo: '⚡ Hashrate en 0 TH/s', desc: 'Reinicia el minero si reporta 0 TH/s durante el tiempo de gracia configurado.', rango: 'Ideal para destrabar cortes de pool o firmware' },
+        'rule_cold': { titulo: '❄️ Temperatura de Chips Baja', desc: 'Cuando un ASIC se congela deja de generar calor y sus chips bajan rápido cerca de la temperatura ambiente.', rango: 'Recomendado: 31°C a 35°C' },
+        'rule_amb_cold': { titulo: '🍃 Temperatura Ambiente Baja', desc: 'Reinicia si el sensor de entrada/ambiente (temp_amb) cae al valor elegido o menos durante el tiempo de gracia.', rango: 'Útil en granjas con sensores de entrada o Hydro' },
+        'rule_board': { titulo: '🧩 Placa Caída (Missing Hashboard)', desc: 'Aprende cuántas placas sanas tiene cada minero (ej. 3) y reinicia si alguna cae a 0.', rango: 'Recupera placas desconectadas automáticamente' },
+        'rule_gracia': { titulo: '⏱️ Tiempo de Gracia', desc: 'Minutos seguidos que debe persistir el fallo antes de mandar el reinicio. Evita reiniciar equipos que están arrancando.', rango: 'Recomendado: 5 a 10 minutos' },
+        'rule_cooldown': { titulo: '🧊 Espera entre Reinicios', desc: 'Tiempo mínimo de enfriamiento antes de volver a intentar otro reinicio en la misma IP.', rango: 'Recomendado: 20 a 30 minutos' },
+        'rule_cuarentena': { titulo: '🔒 Cuarentena Anti-Bucle', desc: 'Si un minero falla tras N reinicios seguidos, lo pone en Sleep para proteger la fuente y te avisa por Telegram.', rango: 'Recomendado: 3 intentos' },
+        'tg_info': { titulo: '📲 Notificaciones Telegram', desc: 'Te avisa al instante cada vez que el Watchdog reinicia un equipo, activa cuarentena o detecta sobrecalentamiento.', rango: 'Usa @BotFather para crear tu token' },
+        'stat_granjas': { titulo: '🏭 Granjas Detectadas', desc: 'Agrupadas automáticamente por ubicación y subred.', rango: 'Puedes proteger una granja sí y otra no' },
+        'stat_mineros': { titulo: '⛏️ Mineros Registrados', desc: 'Total de equipos vinculados a tu cuenta.', rango: 'Seleccionables individualmente' },
+        'stat_cuarentena': { titulo: '🔒 Equipos en Cuarentena', desc: 'Equipos detenidos por el Watchdog tras varios reinicios fallidos.', rango: 'Requieren revisión o liberación manual' }
+    };
+
+    function toggleGuiaWd() {
+        const g = document.getElementById('wdBeginnerGuide');
+        if (g) g.style.display = (g.style.display === 'block') ? 'none' : 'block';
+    }
+
     function actualizarAlcanceUI() {
         const sel = document.querySelector('input[name="wd_alcance"]:checked')?.value || 'all';
         document.getElementById('boxGranjas').style.display = (sel === 'farms') ? 'block' : 'none';
         document.getElementById('boxMineros').style.display = (sel === 'miners') ? 'block' : 'none';
     }
+
+    function marcarWdEditado() {
+        const btn = document.getElementById('btnGuardarWd');
+        const txt = document.getElementById('txtGuardarWd');
+        if (btn) btn.classList.add('unsaved-pulse');
+        if (txt) txt.innerText = 'Guardar Cambios';
+    }
+
+    function aplicarPerfilWd(tipo) {
+        document.getElementById('wd_activo').checked = true;
+        document.getElementById('wd_zero_hr').checked = true;
+        document.getElementById('wd_dead_board').checked = true;
+        document.getElementById('wd_cuarentena_on').checked = true;
+
+        if (tipo === 'estandar') {
+            document.getElementById('wd_cold_on').checked = true;
+            document.getElementById('wd_cold_temp').value = 31;
+            document.getElementById('wd_amb_cold_on').checked = false;
+            document.getElementById('wd_amb_cold_temp').value = 18;
+            document.getElementById('wd_gracia_min').value = 5;
+            document.getElementById('wd_cooldown_min').value = 30;
+            document.getElementById('wd_max_reinicios').value = 3;
+        } else if (tipo === 'conservador') {
+            document.getElementById('wd_cold_on').checked = true;
+            document.getElementById('wd_cold_temp').value = 28;
+            document.getElementById('wd_amb_cold_on').checked = false;
+            document.getElementById('wd_amb_cold_temp').value = 15;
+            document.getElementById('wd_gracia_min').value = 10;
+            document.getElementById('wd_cooldown_min').value = 45;
+            document.getElementById('wd_max_reinicios').value = 2;
+        } else if (tipo === 'hydro') {
+            document.getElementById('wd_cold_on').checked = true;
+            document.getElementById('wd_cold_temp').value = 30;
+            document.getElementById('wd_amb_cold_on').checked = true;
+            document.getElementById('wd_amb_cold_temp').value = 20;
+            document.getElementById('wd_gracia_min').value = 6;
+            document.getElementById('wd_cooldown_min').value = 30;
+            document.getElementById('wd_max_reinicios').value = 3;
+        }
+        marcarWdEditado();
+    }
+
+    window.addEventListener('load', function() {
+        const box = document.getElementById('wdSmartTooltip');
+        if (box && box.parentNode !== document.body) document.body.appendChild(box);
+
+        function mostrar(el, info) {
+            if (!box || !info) return;
+            box.innerHTML = `<div class="wd-tt-title">${info.titulo}</div><div>${info.desc}</div>` +
+                (info.rango ? `<div class="wd-tt-range">${info.rango}</div>` : '');
+            box.style.display = 'block';
+            const r = el.getBoundingClientRect();
+            const bw = box.offsetWidth || 275;
+            const bh = box.offsetHeight || 95;
+            let left = r.left + (r.width / 2) - (bw / 2);
+            left = Math.max(10, Math.min(window.innerWidth - bw - 10, left));
+            let top = r.top - bh - 8;
+            if (top < 10) top = r.bottom + 8;
+            box.style.left = left + 'px';
+            box.style.top = top + 'px';
+        }
+        function ocultar() { if (box) box.style.display = 'none'; }
+
+        document.querySelectorAll('[data-wd-tt]').forEach(el => {
+            const info = INFO_TOOLTIPS_WD[el.getAttribute('data-wd-tt')];
+            if (!info) return;
+            el.addEventListener('mouseenter', () => mostrar(el, info));
+            el.addEventListener('mouseleave', ocultar);
+            el.addEventListener('click', (e) => { e.stopPropagation(); mostrar(el, info); });
+        });
+        document.addEventListener('click', ocultar);
+    });
 </script>
 {% endblock %}
