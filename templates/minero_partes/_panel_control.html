@@ -254,9 +254,6 @@
                 <button class="btn-ctrl-pro glow-gold" id="btnLedLocator" data-ctrl-tt="hw_blink" onclick="activarLedLocator()">
                     💡 Localizar LED
                 </button>
-                <button class="btn-ctrl-pro glow-blue" data-ctrl-tt="hw_scan" onclick="ejecutarComandoPro('¿Solicitar al Agente un escaneo completo de la red local en busca de nuevos mineros?', '/cmd/{{ ip }}/scan', 'Escaneo de red iniciado')">
-                    📡 Escanear Red
-                </button>
             </div>
         </div>
     </div>
@@ -320,11 +317,6 @@
             titulo: '💡 Localizador Físico por LED (Blink)',
             desc: 'Hace parpadear rápidamente las luces LED roja y verde del minero en el rack para que el técnico identifique físicamente cuál máquina es.',
             rango: 'Útil en granjas con decenas de equipos iguales'
-        },
-        'hw_scan': {
-            titulo: '📡 Escaneo Automático de Subred',
-            desc: 'Ordena al agente local escanear los 254 puertos 4028 de la red LAN para descubrir mineros nuevos o que cambiaron de IP por DHCP.',
-            rango: 'Duración del escaneo: ~5 segundos'
         },
         'log_kernel': {
             titulo: '📜 Kernel Log (Registro Principal)',
