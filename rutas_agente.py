@@ -180,6 +180,8 @@ def recibir_datos():
     if not api_key_recibida or api_key_recibida == "TU_API_KEY_AQUI":
         return jsonify({"status": "error", "msg": "API Key requerida. Configura tu API Key en agente.py"}), 401
 
+    agent_id = str(datos.get('agent_id') or 'default').strip()[:40] or 'default'
+
     xff = request.headers.get('X-Forwarded-For', '')
     ip_publica_agente = xff.split(',')[0].strip() if xff else (request.remote_addr or '')
     geo_granja = obtener_ubicacion_ip_agente(ip_publica_agente)
@@ -213,19 +215,29 @@ def recibir_datos():
     es_pro, limite_efectivo, _ = evaluar_plan_usuario(cur, u_cfg)
 
     cur.execute("""
-        SELECT ip, corte_activo, corte_temp, watchdog_activo, wd_fallo_desde, wd_motivo_fallo,
+        SELECT agent_id, ip, corte_activo, corte_temp, watchdog_activo, wd_fallo_desde, wd_motivo_fallo,
                wd_ultimo_reinicio, wd_reinicios_seguidos, wd_cuarentena, placas_normales,
                prot_sleep_desde, prot_motivo, farm_lat, farm_lon, farm_city, gps_manual
         FROM mineros_activos WHERE owner=%s
     """, (owner_user,))
     rows_exist = cur.fetchall()
-    ips_existentes = {row['ip'] for row in rows_exist}
-    estado_prev_dict = {row['ip']: row for row in rows_exist}
+    claves_existentes = {(str(row.get('agent_id') or 'default'), row['ip']) for row in rows_exist}
+    estado_prev_dict = {(str(row.get('agent_id') or 'default'), row['ip']): row for row in rows_exist}
 
     if owner_user.lower() == 'admin':
-        cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND (LOWER(owner)='admin' OR owner IS NULL)")
+        cur.execute("""
+            SELECT id, ip, comando FROM cola_comandos
+            WHERE estado='pendiente'
+              AND (LOWER(owner)='admin' OR owner IS NULL)
+              AND (agent_id=%s OR agent_id='default' OR agent_id IS NULL)
+        """, (agent_id,))
     else:
-        cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND owner=%s", (owner_user,))
+        cur.execute("""
+            SELECT id, ip, comando FROM cola_comandos
+            WHERE estado='pendiente'
+              AND owner=%s
+              AND (agent_id=%s OR agent_id='default' OR agent_id IS NULL)
+        """, (owner_user, agent_id))
     pend = cur.fetchall()
     ordenes = [{"ip": c['ip'], "comando": c['comando']} for c in pend]
     for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c['id'],))
@@ -282,11 +294,12 @@ def recibir_datos():
             ip_m = str(m.get('ip') or '').strip()
             if not ip_m: continue
 
-            if limite_efectivo > 0 and ip_m not in ips_existentes:
-                if len(ips_existentes) >= limite_efectivo:
+            clave_m = (agent_id, ip_m)
+            if limite_efectivo > 0 and clave_m not in claves_existentes:
+                if len(claves_existentes) >= limite_efectivo:
                     omitidos_por_plan += 1
                     continue
-                ips_existentes.add(ip_m)
+                claves_existentes.add(clave_m)
 
             mod_m = str(m.get('modelo') or 'Antminer')
             algo_m = str(m.get('algoritmo') or 'SHA-256')
@@ -323,8 +336,8 @@ def recibir_datos():
                 cadenas_list = []
             cadenas_json = json.dumps(cadenas_list)
 
-            cur.execute('''INSERT INTO mineros_activos (ip, owner, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, ip) DO UPDATE SET 
+            cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
                             modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=EXCLUDED.mac, serial=EXCLUDED.serial, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns,
                             farm_lat=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lat ELSE EXCLUDED.farm_lat END,
                             farm_lon=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lon ELSE EXCLUDED.farm_lon END,
@@ -333,7 +346,7 @@ def recibir_datos():
                             real_lat=EXCLUDED.real_lat,
                             real_lon=EXCLUDED.real_lon,
                             real_source=EXCLUDED.real_source''',
-                        (ip_m, owner_user, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
+                        (ip_m, owner_user, agent_id, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
 
             cur.execute("SELECT id, hashrate, temp_max FROM historial_nube WHERE owner=%s AND ip=%s AND fecha=%s LIMIT 1", (owner_user, ip_m, ahora_minuto))
             row_min = cur.fetchone()
@@ -349,7 +362,7 @@ def recibir_datos():
 
             guardados_ok += 1
 
-            prev_m = estado_prev_dict.get(ip_m) or {}
+            prev_m = estado_prev_dict.get(clave_m) or {}
             es_manual_gps = a_int_seguro(prev_m.get('gps_manual'), 0) == 1
             ciudad_efectiva = prev_m.get('farm_city') if es_manual_gps else f_city
             lat_efectiva = prev_m.get('farm_lat') if es_manual_gps else f_lat
@@ -401,8 +414,8 @@ def recibir_datos():
                 corte_disparado = True
                 ordenes.append({"ip": ip_m, "comando": accion_proteccion})
                 nuevo_sleep_ts = prot_sleep_desde if (accion_proteccion == 'sleep' and prot_sleep_desde) else (ahora if accion_proteccion == 'sleep' else '')
-                cur.execute("UPDATE mineros_activos SET prot_sleep_desde=%s, prot_motivo=%s WHERE owner=%s AND ip=%s",
-                            (nuevo_sleep_ts, motivo_proteccion, owner_user, ip_m))
+                cur.execute("UPDATE mineros_activos SET prot_sleep_desde=%s, prot_motivo=%s WHERE owner=%s AND agent_id=%s AND ip=%s",
+                            (nuevo_sleep_ts, motivo_proteccion, owner_user, agent_id, ip_m))
                 msg_em = f"🛡️ PROTECCIÓN ({accion_proteccion.upper()}): {mod_m} ({ip_m}) — {motivo_proteccion}."
                 cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'CORTE_TERMICO', %s, %s)", (owner_user, ip_m, msg_em, ahora))
                 if alertas_on:
@@ -418,8 +431,8 @@ def recibir_datos():
                 if segs_dormido >= prot_wakeup_seg and clima_ok:
                     if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'CORTE_TERMICO', 900):
                         ordenes.append({"ip": ip_m, "comando": "normal"})
-                        cur.execute("UPDATE mineros_activos SET prot_sleep_desde='', prot_motivo='' WHERE owner=%s AND ip=%s",
-                                    (owner_user, ip_m))
+                        cur.execute("UPDATE mineros_activos SET prot_sleep_desde='', prot_motivo='' WHERE owner=%s AND agent_id=%s AND ip=%s",
+                                    (owner_user, agent_id, ip_m))
                         msg_wk = f"🌅 AUTO-DESPERTAR: {mod_m} ({ip_m}) vuelto a NORMAL tras {int(segs_dormido // 60)}m de reposo."
                         cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'CORTE_TERMICO', %s, %s)", (owner_user, ip_m, msg_wk, ahora))
                         if alertas_on:
@@ -429,7 +442,7 @@ def recibir_datos():
             placas_normales = a_int_seguro(prev_m.get('placas_normales'), 0)
             if hr_m > 0 and placas_con_hr > placas_normales:
                 placas_normales = placas_con_hr
-                cur.execute("UPDATE mineros_activos SET placas_normales=%s WHERE owner=%s AND ip=%s", (placas_normales, owner_user, ip_m))
+                cur.execute("UPDATE mineros_activos SET placas_normales=%s WHERE owner=%s AND agent_id=%s AND ip=%s", (placas_normales, owner_user, agent_id, ip_m))
 
             fallo_wd = None
             if wd_zero_hr and hr_m <= 0.01 and not prot_sleep_desde:
@@ -452,12 +465,12 @@ def recibir_datos():
                         UPDATE mineros_activos
                         SET wd_fallo_desde='', wd_motivo_fallo='', wd_reinicios_seguidos=0, wd_cuarentena=0,
                             prot_sleep_desde='', prot_motivo=''
-                        WHERE owner=%s AND ip=%s
-                    """, (owner_user, ip_m))
+                        WHERE owner=%s AND agent_id=%s AND ip=%s
+                    """, (owner_user, agent_id, ip_m))
             elif wd_activo and wd_permitido_minero and aplica_alcance and not corte_disparado and wd_cuarentena == 0:
                 if not wd_fallo_desde:
-                    cur.execute("UPDATE mineros_activos SET wd_fallo_desde=%s, wd_motivo_fallo=%s WHERE owner=%s AND ip=%s",
-                                (ahora, fallo_wd, owner_user, ip_m))
+                    cur.execute("UPDATE mineros_activos SET wd_fallo_desde=%s, wd_motivo_fallo=%s WHERE owner=%s AND agent_id=%s AND ip=%s",
+                                (ahora, fallo_wd, owner_user, agent_id, ip_m))
                 else:
                     segs_fallo = calcular_segundos_desconectado(wd_fallo_desde)
                     if segs_fallo >= wd_gracia_seg:
@@ -468,8 +481,8 @@ def recibir_datos():
                                 cur.execute("""
                                     UPDATE mineros_activos
                                     SET wd_cuarentena=1, wd_ultimo_reinicio=%s, wd_motivo_fallo=%s
-                                    WHERE owner=%s AND ip=%s
-                                """, (ahora, fallo_wd, owner_user, ip_m))
+                                    WHERE owner=%s AND agent_id=%s AND ip=%s
+                                """, (ahora, fallo_wd, owner_user, agent_id, ip_m))
                                 msg_q = f"🔒 CUARENTENA: {mod_m} ({ip_m}) falló tras {wd_reinicios} reinicios ({fallo_wd}). Puesto en SLEEP."
                                 cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'WATCHDOG_CUARENTENA', %s, %s)",
                                             (owner_user, ip_m, msg_q, ahora))
@@ -481,8 +494,8 @@ def recibir_datos():
                                 cur.execute("""
                                     UPDATE mineros_activos
                                     SET wd_ultimo_reinicio=%s, wd_reinicios_seguidos=%s, wd_fallo_desde='', wd_motivo_fallo=%s
-                                    WHERE owner=%s AND ip=%s
-                                """, (ahora, nuevos_reb, fallo_wd, owner_user, ip_m))
+                                    WHERE owner=%s AND agent_id=%s AND ip=%s
+                                """, (ahora, nuevos_reb, fallo_wd, owner_user, agent_id, ip_m))
                                 msg_r = f"🔄 AUTO-REINICIO ({nuevos_reb}/{wd_max_reinicios}): {mod_m} ({ip_m}) por {fallo_wd}."
                                 cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'WATCHDOG_REBOOT', %s, %s)",
                                             (owner_user, ip_m, msg_r, ahora))
