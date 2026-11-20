@@ -33,6 +33,16 @@
         font-size: 0.86em;
         font-weight: 600;
     }
+    .adm-warn-bar {
+        background: rgba(255, 179, 0, 0.14);
+        border: 1px solid rgba(255, 179, 0, 0.45);
+        color: #ffd54f;
+        padding: 10px 14px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 0.84em;
+        font-weight: 600;
+    }
     .adm-kpis {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
@@ -58,8 +68,14 @@
     .adm-grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-bottom: 18px; }
     @media (max-width: 860px) { .adm-grid-2 { grid-template-columns: 1fr; } }
 
+    .adm-filter-bar {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
     .adm-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .adm-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.83em; }
+    .adm-table { width: 100%; min-width: 1040px; border-collapse: collapse; font-size: 0.83em; }
     .adm-table th {
         text-align: left; padding: 10px 12px; font-size: 0.72em; text-transform: uppercase;
         color: var(--text-muted); background: rgba(255,255,255,0.015); border-bottom: 1px solid var(--border-color);
@@ -83,6 +99,8 @@
     .btn-adm.green:hover { background: rgba(0, 230, 118, 0.28); color: #fff; }
     .btn-adm.gold { background: rgba(255, 179, 0, 0.14); border-color: rgba(255, 179, 0, 0.45); color: #ffd54f; }
     .btn-adm.gold:hover { background: rgba(255, 179, 0, 0.30); color: #fff; }
+    .btn-adm.purple { background: rgba(168, 85, 247, 0.16); border-color: rgba(168, 85, 247, 0.5); color: #d8b4fe; }
+    .btn-adm.purple:hover { background: rgba(168, 85, 247, 0.34); color: #fff; }
     .btn-adm.red { background: rgba(255, 82, 82, 0.12); border-color: rgba(255, 82, 82, 0.4); color: #ff5252; }
     .btn-adm.red:hover { background: rgba(255, 82, 82, 0.28); color: #fff; }
 
@@ -91,6 +109,21 @@
     .pill-free { background: rgba(148, 153, 176, 0.14); color: var(--text-muted); border: 1px solid var(--border-color); }
     .pill-susp { background: rgba(255, 82, 82, 0.18); color: #ff8a80; border: 1px solid rgba(255, 82, 82, 0.45); }
 
+    .nota-privada-chip {
+        margin-top: 3px;
+        font-size: 0.78em;
+        color: #ffd54f;
+        background: rgba(255, 179, 0, 0.10);
+        border: 1px solid rgba(255, 179, 0, 0.25);
+        border-radius: 4px;
+        padding: 2px 6px;
+        display: inline-block;
+        max-width: 240px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     /* Modales */
     .adm-modal-bg {
         display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
@@ -98,15 +131,25 @@
     }
     .adm-modal {
         background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 10px;
-        padding: 20px; width: 100%; max-width: 440px; box-shadow: 0 16px 40px rgba(0,0,0,0.85);
+        padding: 20px; width: 100%; max-width: 450px; box-shadow: 0 16px 40px rgba(0,0,0,0.85);
+        max-height: 92vh; overflow-y: auto;
     }
     .adm-field { margin-bottom: 12px; }
     .adm-field label { display: block; font-size: 0.74em; color: var(--text-muted); font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
-    .adm-field input, .adm-field select { width: 100%; }
+    .adm-field input, .adm-field select, .adm-field textarea { width: 100%; }
 </style>
 
 {% if msg %}
 <div class="adm-flash">✅ {{ msg }}</div>
+{% endif %}
+
+{% if por_vencer %}
+<div class="adm-warn-bar">
+    ⏰ <b>Planes Pro por vencer (≤ 3 días):</b>
+    {% for pv in por_vencer %}
+        <span style="margin-left:8px; font-family:monospace;"><b>{{ pv.username }}</b> ({{ pv.dias }}d · {{ pv.fecha }})</span>
+    {% endfor %}
+</div>
 {% endif %}
 
 {% set db_color = '#ff5252' if stats.db_pct >= 85 else ('#ffb300' if stats.db_pct >= 70 else '#00e676') %}
@@ -134,9 +177,9 @@
         <div class="ak-sub">BTC / SHA-256</div>
     </div>
     <div class="ak-box">
-        <div class="ak-lbl">💰 Saldo Clientes</div>
+        <div class="ak-lbl">💰 Saldo / Bonus</div>
         <div class="ak-val" style="color:#00e676;">${{ "%.2f"|format(stats.saldo_total) }}</div>
-        <div class="ak-sub">USDT acumulado</div>
+        <div class="ak-sub">🎁 Promo: ${{ "%.2f"|format(stats.bonus_total) }} USDT</div>
     </div>
     <div class="ak-box">
         <div class="ak-lbl">🗄️ PostgreSQL</div>
@@ -192,32 +235,56 @@
 <div class="adm-card">
     <div class="adm-card-hdr">
         <span>👥 Control Total de Usuarios y Clientes ({{ usuarios|length }})</span>
+        <div class="adm-filter-bar">
+            <input type="text" id="admSearchInput" class="adm-input" style="width:190px;" placeholder="🔍 Buscar usuario, correo, nota..." oninput="filtrarTablaUsuarios()">
+            <select id="admFilterSelect" class="adm-select" onchange="filtrarTablaUsuarios()">
+                <option value="all">Todos</option>
+                <option value="pro">Solo Pro</option>
+                <option value="free">Solo Gratis</option>
+                <option value="susp">Suspendidos</option>
+                <option value="exp">Por vencer (≤3d)</option>
+            </select>
+        </div>
     </div>
     <div class="adm-scroll">
-        <table class="adm-table">
+        <table class="adm-table" id="admUsersTable">
             <thead>
                 <tr>
-                    <th>Usuario / Correo</th>
-                    <th>Miembro desde</th>
-                    <th>Plan / Estado</th>
+                    <th>Usuario / Correo / Nota</th>
+                    <th>Registro / Últ. Conexión</th>
+                    <th>Plan / Límite</th>
                     <th>ASICs / TH/s</th>
                     <th>Genera Minando</th>
-                    <th>Saldo / Gasto Mes</th>
+                    <th>Saldo / Crédito Promo</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for u in usuarios %}
-                <tr>
+                <tr data-search="{{ (u.username ~ ' ' ~ (u.email or '') ~ ' ' ~ (u.notas_admin or ''))|lower }}"
+                    data-plan="{{ 'pro' if u.plan == 'Pro' else 'free' }}"
+                    data-susp="{{ '1' if u.suspendido else '0' }}"
+                    data-exp="{{ '1' if (u.pro_dias is not none and u.pro_dias > 0 and u.pro_dias <= 3) else '0' }}">
                     <td translate="no">
                         <b>{{ u.username }}</b>
                         <div style="font-size:0.80em; color:var(--text-muted);">{{ u.email or 'Sin correo' }}</div>
+                        {% if u.notas_admin %}
+                        <div class="nota-privada-chip" title="{{ u.notas_admin }}">📝 {{ u.notas_admin }}</div>
+                        {% endif %}
                     </td>
-                    <td style="font-family:monospace; color:var(--text-muted);" translate="no">{{ u.fecha_registro or '-' }}</td>
+                    <td style="font-family:monospace; color:var(--text-muted);" translate="no">
+                        <div>{{ u.fecha_registro or '-' }}</div>
+                        <div style="font-size:0.78em; color:#94a3b8;">🕒 {{ (u.ultima_conexion or 'Sin ingreso')[:16] }}</div>
+                    </td>
                     <td>
                         <span class="pill-plan {{ 'pill-pro' if u.plan == 'Pro' else 'pill-free' }}">{{ u.plan }}</span>
                         {% if u.suspendido %}
                         <span class="pill-plan pill-susp">SUSPENDIDO</span>
+                        {% endif %}
+                        {% if u.pro_dias is not none and u.pro_dias > 0 %}
+                        <div style="font-size:0.78em; color:#d8b4fe; font-family:monospace; margin-top:3px;">
+                            ⏳ {{ u.pro_dias }}d · {{ (u.limite_efectivo ~ ' eq.') if u.limite_efectivo > 0 else 'Ilimitado' }}
+                        </div>
                         {% endif %}
                     </td>
                     <td style="font-family:monospace;" translate="no">
@@ -230,13 +297,19 @@
                     </td>
                     <td style="font-family:monospace;" translate="no">
                         <b style="color:#38bdf8;">${{ "%.2f"|format(u.saldo or 0) }}</b>
-                        <div style="font-size:0.78em; color:var(--text-muted);">Dep: ${{ "%.2f"|format(u.total_dep) }} · Mes: -${{ "%.2f"|format(u.gasto_mes) }}</div>
+                        {% if u.saldo_bonus and u.saldo_bonus > 0 %}
+                        <div style="font-size:0.80em; color:#ffd54f;">🎁 Promo: ${{ "%.2f"|format(u.saldo_bonus) }}</div>
+                        {% endif %}
+                        <div style="font-size:0.76em; color:var(--text-muted);">Dep: ${{ "%.2f"|format(u.total_dep) }} · Mes: -${{ "%.2f"|format(u.gasto_mes) }}</div>
                     </td>
                     <td>
                         <div style="display:flex; gap:5px; flex-wrap:wrap;">
                             <a href="/admin/soporte/{{ u.id }}" class="btn-adm gold" title="Entrar al panel de este cliente para editar sus Antminers">🛠️ Soporte</a>
-                            <button type="button" class="btn-adm green" onclick="abrirModalSaldo({{ u.id }}, '{{ u.username }}', {{ u.saldo or 0 }})">💰 Saldo</button>
-                            <button type="button" class="btn-adm" onclick="abrirModalEditar({{ u.id }}, '{{ u.username }}', '{{ u.email or '' }}', '{{ u.plan }}', {{ u.suspendido or 0 }})">✏️ Editar</button>
+                            <button type="button" class="btn-adm green" onclick="abrirModalSaldo({{ u.id }}, '{{ u.username }}', {{ u.saldo or 0 }}, {{ u.saldo_bonus or 0 }})">💰 Saldo</button>
+                            {% if u.username.lower() != 'admin' %}
+                            <button type="button" class="btn-adm purple" onclick="abrirModalRegalarPro({{ u.id }}, '{{ u.username }}')">🎁 Pro</button>
+                            {% endif %}
+                            <button type="button" class="btn-adm" onclick="abrirModalEditar({{ u.id }}, '{{ u.username }}', '{{ u.email or '' }}', '{{ u.plan }}', {{ u.suspendido or 0 }}, {{ (u.notas_admin or '')|tojson }})">✏️ Editar</button>
                             {% if u.username.lower() != 'admin' %}
                             <form method="POST" action="/admin" style="margin:0;" onsubmit="return confirm('¿Eliminar permanentemente la cuenta {{ u.username }}?');">
                                 <input type="hidden" name="accion" value="eliminar_usuario">
@@ -256,7 +329,7 @@
 <!-- 5. HISTORIAL DE DEPÓSITOS Y GASTOS -->
 <div class="adm-card">
     <div class="adm-card-hdr">
-        <span>🧾 Historial de Depósitos, Bonos y Gastos ({{ movimientos|length }})</span>
+        <span>🧾 Historial de Depósitos, Bonos, Regalos Pro y Gastos ({{ movimientos|length }})</span>
     </div>
     <div class="adm-scroll">
         <table class="adm-table" style="min-width:620px;">
@@ -276,8 +349,12 @@
                         <td style="font-family:monospace; color:var(--text-muted);" translate="no">{{ mv.fecha }}</td>
                         <td style="font-weight:bold;" translate="no">{{ mv.username }}</td>
                         <td style="text-transform:uppercase; font-family:monospace; font-size:0.85em;">{{ mv.tipo }}</td>
-                        <td style="font-family:monospace; font-weight:bold; color:{{ '#00e676' if mv.monto >= 0 else '#ff5252' }};" translate="no">
-                            {{ '+' if mv.monto >= 0 else '-' }}${{ "%.2f"|format(mv.monto|abs) }}
+                        <td style="font-family:monospace; font-weight:bold; color:{{ '#d8b4fe' if mv.tipo == 'regalo_pro' else ('#00e676' if mv.monto >= 0 else '#ff5252') }};" translate="no">
+                            {% if mv.tipo == 'regalo_pro' %}
+                                🎁 PRO
+                            {% else %}
+                                {{ '+' if mv.monto >= 0 else '-' }}${{ "%.2f"|format(mv.monto|abs) }}
+                            {% endif %}
                         </td>
                         <td>{{ mv.nota or '-' }}</td>
                     </tr>
@@ -290,7 +367,7 @@
     </div>
 </div>
 
-<!-- MODAL: EDITAR USUARIO -->
+<!-- MODAL: EDITAR USUARIO + CLAVE TEMPORAL + NOTAS PRIVADAS -->
 <div id="modalEditarUsr" class="adm-modal-bg" onclick="if(event.target===this) this.style.display='none'">
     <div class="adm-modal">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
@@ -309,8 +386,12 @@
                 <input type="email" name="email" id="ed_email" class="adm-input" placeholder="cliente@correo.com">
             </div>
             <div class="adm-field">
-                <label>Nueva Contraseña (dejar vacío para no cambiar)</label>
-                <input type="text" name="nueva_password" class="adm-input" placeholder="Nueva contraseña...">
+                <label>Nueva Contraseña / Clave Temporal</label>
+                <div style="display:flex; gap:6px;">
+                    <input type="text" name="nueva_password" id="ed_pass" class="adm-input" placeholder="Dejar vacío para no cambiar">
+                    <button type="button" class="btn-adm gold" onclick="generarClaveTemporal()" style="white-space:nowrap;">🔑 Temporal</button>
+                </div>
+                <div id="tempPassHint" style="font-size:0.75em; color:#00e676; margin-top:4px; display:none;"></div>
             </div>
             <div class="adm-field">
                 <label>Plan</label>
@@ -318,6 +399,10 @@
                     <option value="Gratis">Gratis</option>
                     <option value="Pro">Pro</option>
                 </select>
+            </div>
+            <div class="adm-field">
+                <label>📝 Nota Privada (solo visible para Admin)</label>
+                <textarea name="notas_admin" id="ed_notas" class="adm-input" rows="2" placeholder="Ej: Pagó por Binance Pay, WhatsApp +591..."></textarea>
             </div>
             <div class="adm-field" style="display:flex; align-items:center; gap:8px;">
                 <input type="checkbox" name="suspendido" id="ed_susp" value="1" style="width:16px; height:16px; accent-color:#ff5252;">
@@ -328,57 +413,142 @@
     </div>
 </div>
 
-<!-- MODAL: SUMAR / RESTAR SALDO -->
+<!-- MODAL: SUMAR / RESTAR SALDO Y CRÉDITO PROMOCIONAL -->
 <div id="modalSaldoUsr" class="adm-modal-bg" onclick="if(event.target===this) this.style.display='none'">
     <div class="adm-modal">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-            <b style="font-size:1.05em;">💰 Movimiento de Saldo — <span id="sal_uname"></span></b>
+            <b style="font-size:1.05em;">💰 Saldo / Crédito Promo — <span id="sal_uname"></span></b>
             <button type="button" onclick="document.getElementById('modalSaldoUsr').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">✕</button>
         </div>
-        <div style="font-size:0.82em; color:var(--text-muted); margin-bottom:12px;">Saldo actual: <b id="sal_actual" style="color:#00e676;"></b></div>
+        <div style="font-size:0.82em; color:var(--text-muted); margin-bottom:12px;">
+            Saldo real: <b id="sal_actual" style="color:#00e676;"></b> ·
+            🎁 Promo: <b id="sal_bonus_actual" style="color:#ffd54f;"></b>
+        </div>
         <form method="POST" action="/admin">
             <input type="hidden" name="accion" value="movimiento_saldo">
             <input type="hidden" name="user_id" id="sal_uid">
             <div class="adm-field">
                 <label>Tipo de Movimiento</label>
                 <select name="tipo_mov" class="adm-select">
-                    <option value="deposito">➕ Depósito (Sumar saldo)</option>
-                    <option value="bono">🎁 Bono / Regalo (Sumar saldo)</option>
+                    <option value="bonus">🎁 Regalar Crédito Promocional (No reembolsable)</option>
+                    <option value="deposito">➕ Depósito Real (Sumar saldo USDT)</option>
                     <option value="gasto">➖ Cobro Mensual / Gasto (Restar saldo)</option>
                     <option value="retiro">➖ Ajuste / Retiro (Restar saldo)</option>
+                    <option value="quitar_bonus">➖ Descontar Crédito Promocional</option>
                 </select>
             </div>
             <div class="adm-field">
                 <label>Monto (USDT)</label>
-                <input type="number" step="0.01" min="0.01" name="monto" class="adm-input" placeholder="Ej: 15.00" required>
+                <input type="number" step="0.01" min="0.01" name="monto" class="adm-input" placeholder="Ej: 10.00" required>
             </div>
             <div class="adm-field">
                 <label>Nota / Referencia</label>
-                <input type="text" name="nota" class="adm-input" placeholder="Ej: Pago USDT TRC20 / Mensualidad Pro">
+                <input type="text" name="nota" class="adm-input" placeholder="Ej: Bono de bienvenida / Pago USDT TRC20">
             </div>
             <button type="submit" class="btn-adm green" style="width:100%; justify-content:center; padding:9px;">✅ Registrar Movimiento</button>
         </form>
     </div>
 </div>
 
+<!-- MODAL: REGALAR DÍAS DE PLAN PRO CON LÍMITE DE MÁQUINAS -->
+<div id="modalRegalarPro" class="adm-modal-bg" onclick="if(event.target===this) this.style.display='none'">
+    <div class="adm-modal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <b style="font-size:1.05em;">🎁 Regalar Plan Pro — <span id="pro_uname"></span></b>
+            <button type="button" onclick="document.getElementById('modalRegalarPro').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">✕</button>
+        </div>
+        <div style="font-size:0.80em; color:var(--text-muted); margin-bottom:12px;">
+            Activa Plan Pro temporal. Al vencer la fecha, la cuenta vuelve automáticamente a Plan Gratis.
+        </div>
+        <form method="POST" action="/admin">
+            <input type="hidden" name="accion" value="regalar_pro">
+            <input type="hidden" name="user_id" id="pro_uid">
+            <div class="adm-field">
+                <label>Días de Plan Pro</label>
+                <input type="number" min="1" max="3650" name="dias_pro" class="adm-input" value="15" required>
+            </div>
+            <div class="adm-field">
+                <label>Límite de Máquinas (0 = Ilimitadas)</label>
+                <input type="number" min="0" max="5000" name="limite_mineros" class="adm-input" value="10" required>
+            </div>
+            <div class="adm-field">
+                <label>Motivo / Nota</label>
+                <input type="text" name="nota" class="adm-input" placeholder="Ej: Prueba gratis cliente nuevo">
+            </div>
+            <button type="submit" class="btn-adm purple" style="width:100%; justify-content:center; padding:9px;">🎁 Activar Regalo Pro</button>
+        </form>
+    </div>
+</div>
+
 <script>
-    function abrirModalEditar(id, username, email, plan, susp) {
+    function abrirModalEditar(id, username, email, plan, susp, notas) {
         const esAdmin = (String(username || '').toLowerCase() === 'admin');
         document.getElementById('ed_uid').value = id;
         document.getElementById('ed_user').value = username;
         document.getElementById('ed_user').readOnly = esAdmin;
         document.getElementById('ed_email').value = email;
+        document.getElementById('ed_pass').value = '';
+        document.getElementById('tempPassHint').style.display = 'none';
         document.getElementById('ed_plan').value = plan;
+        document.getElementById('ed_notas').value = notas || '';
         document.getElementById('ed_susp').checked = (susp === 1);
         document.getElementById('ed_susp').disabled = esAdmin;
         document.getElementById('modalEditarUsr').style.display = 'flex';
     }
 
-    function abrirModalSaldo(id, username, saldo) {
+    function generarClaveTemporal() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let suf = '';
+        for (let i = 0; i < 6; i++) {
+            suf += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        const clave = 'EMG-' + suf;
+        const inp = document.getElementById('ed_pass');
+        const hint = document.getElementById('tempPassHint');
+        if (inp) inp.value = clave;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(clave).catch(() => {});
+        }
+        if (hint) {
+            hint.innerText = '✅ Clave temporal generada y copiada: ' + clave + ' (recuerda pulsar Guardar Cambios)';
+            hint.style.display = 'block';
+        }
+    }
+
+    function abrirModalSaldo(id, username, saldo, bonus) {
         document.getElementById('sal_uid').value = id;
         document.getElementById('sal_uname').innerText = username;
         document.getElementById('sal_actual').innerText = '$' + Number(saldo).toFixed(2) + ' USDT';
+        document.getElementById('sal_bonus_actual').innerText = '$' + Number(bonus || 0).toFixed(2) + ' USDT';
         document.getElementById('modalSaldoUsr').style.display = 'flex';
+    }
+
+    function abrirModalRegalarPro(id, username) {
+        document.getElementById('pro_uid').value = id;
+        document.getElementById('pro_uname').innerText = username;
+        document.getElementById('modalRegalarPro').style.display = 'flex';
+    }
+
+    function filtrarTablaUsuarios() {
+        const q = (document.getElementById('admSearchInput').value || '').trim().toLowerCase();
+        const f = document.getElementById('admFilterSelect').value || 'all';
+        const rows = document.querySelectorAll('#admUsersTable tbody tr');
+        rows.forEach(tr => {
+            const txt = tr.getAttribute('data-search') || '';
+            const pl = tr.getAttribute('data-plan') || 'free';
+            const sp = tr.getAttribute('data-susp') || '0';
+            const ex = tr.getAttribute('data-exp') || '0';
+
+            let okSearch = !q || txt.includes(q);
+            let okFilter = (
+                f === 'all' ||
+                (f === 'pro' && pl === 'pro') ||
+                (f === 'free' && pl === 'free') ||
+                (f === 'susp' && sp === '1') ||
+                (f === 'exp' && ex === '1')
+            );
+            tr.style.display = (okSearch && okFilter) ? '' : 'none';
+        });
     }
 
     window.addEventListener('load', function() {
