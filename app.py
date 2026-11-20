@@ -888,7 +888,35 @@ def ajustes():
     }
     return render_seguro('ajustes.html', active_page='ajustes', user=user_info, msg=msg)
 
-# --- AUTO-ACTUALIZACIÓN Y DESCARGA 1-CLIC DEL AGENTE (.ZIP) ---
+# --- LOGIN PARA EL APK ANDROID + AUTO-ACTUALIZACIÓN Y DESCARGA 1-CLIC ---
+@app.route('/api/agente/login', methods=['POST'])
+def api_agente_login():
+    data = request.get_json(silent=True) or {}
+    u = (data.get('username') or '').strip()
+    p = data.get('password') or ''
+    if not u or not p:
+        return jsonify({"ok": False, "msg": "Usuario y contraseña requeridos"}), 400
+
+    con = get_db()
+    con.autocommit = True
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM usuarios WHERE username=%s", (u,))
+    usr = cur.fetchone()
+    if not usr or not verificar_password(usr.get('password'), p):
+        return jsonify({"ok": False, "msg": "Credenciales incorrectas"}), 401
+
+    api_k = usr.get('api_key')
+    if not api_k:
+        api_k = generar_api_key()
+        cur.execute("UPDATE usuarios SET api_key=%s WHERE id=%s", (api_k, usr['id']))
+
+    return jsonify({
+        "ok": True,
+        "username": usr['username'],
+        "api_key": api_k,
+        "subnet": usr.get('subnet') or '192.168.0'
+    }), 200
+
 @app.route('/api/agente/version')
 def api_agente_version():
     try:
