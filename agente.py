@@ -28,6 +28,7 @@ IPS_BASE = [
 ips_conocidas = list(IPS_BASE)
 
 cache_info_estatica = {}
+cache_geo_wifi = {"lat": None, "lon": None, "ts": 0}
 ultimo_escaneo_auto = 0
 ultimo_check_update = 0
 
@@ -45,6 +46,70 @@ def keep_awake():
             print("[OK] Wake-lock de Termux activado.")
     except Exception as e:
         print(f"[AVISO] No se pudo activar anti-suspensión: {e}")
+
+def obtener_ubicacion_wifi():
+    """Triangulación Wi-Fi (Windows/Linux) usando BeaconDB con caché de 6 horas."""
+    global cache_geo_wifi
+    ahora_ts = time.time()
+    if cache_geo_wifi["ts"] > 0 and (ahora_ts - cache_geo_wifi["ts"] < 21600):
+        if cache_geo_wifi["lat"] is not None and cache_geo_wifi["lon"] is not None:
+            return {"lat": cache_geo_wifi["lat"], "lon": cache_geo_wifi["lon"]}
+        return None
+
+    cache_geo_wifi["ts"] = ahora_ts
+    aps = []
+    try:
+        if sys.platform == "win32":
+            flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            out = subprocess.check_output(
+                ["netsh", "wlan", "show", "networks", "mode=bssid"],
+                stderr=subprocess.DEVNULL, timeout=5, creationflags=flags
+            ).decode("utf-8", errors="ignore")
+            bssid_actual = None
+            for linea in out.splitlines():
+                m_mac = re.search(r'([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})', linea)
+                if m_mac:
+                    bssid_actual = m_mac.group(1).lower()
+                elif bssid_actual and ("%" in linea):
+                    m_sig = re.search(r'(\d+)\s*%', linea)
+                    if m_sig:
+                        pct = int(m_sig.group(1))
+                        dbm = int((pct / 2.0) - 100)
+                        aps.append({"macAddress": bssid_actual, "signalStrength": dbm})
+                        bssid_actual = None
+        else:
+            out = subprocess.check_output(
+                ["nmcli", "-t", "-f", "BSSID,SIGNAL", "dev", "wifi"],
+                stderr=subprocess.DEVNULL, timeout=5
+            ).decode("utf-8", errors="ignore")
+            for linea in out.splitlines():
+                m_mac = re.search(r'([0-9a-fA-F]{2}(?:\\?:[0-9a-fA-F]{2}){5})', linea)
+                if m_mac:
+                    mac_clean = m_mac.group(1).replace("\\", "").lower()
+                    resto = linea[m_mac.end():]
+                    m_sig = re.search(r'(\d+)', resto)
+                    if m_sig:
+                        pct = int(m_sig.group(1))
+                        dbm = int((pct / 2.0) - 100)
+                        aps.append({"macAddress": mac_clean, "signalStrength": dbm})
+
+        if len(aps) >= 2:
+            r_geo = requests.post(
+                "https://api.beacondb.net/v1/geolocate",
+                json={"wifiAccessPoints": aps[:15]},
+                headers={"User-Agent": "ElMineroGris-Agente/1.1"},
+                timeout=5
+            )
+            if r_geo.status_code == 200:
+                loc = r_geo.json().get("location", {})
+                if "lat" in loc and "lng" in loc:
+                    cache_geo_wifi["lat"] = round(float(loc["lat"]), 6)
+                    cache_geo_wifi["lon"] = round(float(loc["lng"]), 6)
+                    print(f"[GEO Wi-Fi] Ubicación triangulada ({len(aps)} redes): {cache_geo_wifi['lat']}, {cache_geo_wifi['lon']}")
+                    return {"lat": cache_geo_wifi["lat"], "lon": cache_geo_wifi["lon"]}
+    except Exception:
+        pass
+    return None
 
 def verificar_actualizacion():
     global ultimo_check_update
@@ -860,6 +925,11 @@ def recolectar_y_enviar():
             ips_conocidas.append(ip_b)
 
     datos = {"api_key": API_KEY, "mineros": []}
+    geo_wifi = obtener_ubicacion_wifi()
+    if geo_wifi:
+        datos["lat"] = geo_wifi["lat"]
+        datos["lon"] = geo_wifi["lon"]
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for res in executor.map(extraer_todo, ips_conocidas):
             if res:
