@@ -64,12 +64,12 @@ def verificar_password(stored_pass, input_pass):
     return stored_pass == input_pass
 
 def es_cuenta_pro(username, plan_str):
-    if username == 'giovanni':
+    if str(username or '').lower() == 'admin':
         return True
     return str(plan_str or '').strip().lower() in ('pro', 'unlimited', 'enterprise')
 
 def es_super_admin():
-    return session.get('usuario') == 'giovanni' or session.get('admin_real') == 'giovanni'
+    return str(session.get('usuario') or '').lower() == 'admin' or str(session.get('admin_real') or '').lower() == 'admin'
 
 def a_int_seguro(val, defecto=0):
     try:
@@ -207,18 +207,18 @@ def init_db():
         con = psycopg2.connect(DB_URL, connect_timeout=8)
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'giovanni', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia', gps_manual INTEGER DEFAULT 0, corte_activo INTEGER DEFAULT 0, corte_temp INTEGER DEFAULT 85, watchdog_activo INTEGER DEFAULT 1, wd_fallo_desde TEXT DEFAULT '', wd_motivo_fallo TEXT DEFAULT '', wd_ultimo_reinicio TEXT DEFAULT '', wd_reinicios_seguidos INTEGER DEFAULT 0, wd_cuarentena INTEGER DEFAULT 0, placas_normales INTEGER DEFAULT 0, prot_sleep_desde TEXT DEFAULT '', prot_motivo TEXT DEFAULT '')''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'Admin', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia', gps_manual INTEGER DEFAULT 0, corte_activo INTEGER DEFAULT 0, corte_temp INTEGER DEFAULT 85, watchdog_activo INTEGER DEFAULT 1, wd_fallo_desde TEXT DEFAULT '', wd_motivo_fallo TEXT DEFAULT '', wd_ultimo_reinicio TEXT DEFAULT '', wd_reinicios_seguidos INTEGER DEFAULT 0, wd_cuarentena INTEGER DEFAULT 0, placas_normales INTEGER DEFAULT 0, prot_sleep_desde TEXT DEFAULT '', prot_motivo TEXT DEFAULT '')''')
         c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, email TEXT DEFAULT '', fecha_registro TEXT DEFAULT '', suspendido INTEGER DEFAULT 0, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 0, wd_activo INTEGER DEFAULT 0, wd_alcance TEXT DEFAULT 'all', wd_granjas TEXT DEFAULT '[]', wd_mineros TEXT DEFAULT '[]', wd_zero_hr INTEGER DEFAULT 0, wd_cold_on INTEGER DEFAULT 0, wd_cold_temp INTEGER DEFAULT 31, wd_amb_cold_on INTEGER DEFAULT 0, wd_amb_cold_temp INTEGER DEFAULT 18, wd_dead_board INTEGER DEFAULT 0, wd_gracia_min INTEGER DEFAULT 5, wd_cooldown_min INTEGER DEFAULT 30, wd_cuarentena_on INTEGER DEFAULT 0, wd_max_reinicios INTEGER DEFAULT 3, prot_activo INTEGER DEFAULT 0, prot_temp_on INTEGER DEFAULT 0, prot_temp_val INTEGER DEFAULT 85, prot_temp_accion TEXT DEFAULT 'sleep', prot_clima_on INTEGER DEFAULT 0, prot_clima_val INTEGER DEFAULT 38, prot_clima_accion TEXT DEFAULT 'sleep', prot_net_on INTEGER DEFAULT 0, prot_net_rej_pct REAL DEFAULT 5.0, prot_net_accion TEXT DEFAULT 'sleep', prot_fan_on INTEGER DEFAULT 0, prot_fan_accion TEXT DEFAULT 'sleep', prot_wakeup_on INTEGER DEFAULT 0, prot_wakeup_min INTEGER DEFAULT 30, mineros_omitidos INTEGER DEFAULT 0)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT, owner TEXT DEFAULT 'giovanni', nombre TEXT)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT, owner TEXT DEFAULT 'giovanni', contenido TEXT, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'Admin', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'Admin', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT, owner TEXT DEFAULT 'Admin', nombre TEXT)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS logs_mineros (ip TEXT, owner TEXT DEFAULT 'Admin', contenido TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS registro_alertas (id SERIAL PRIMARY KEY, owner TEXT, ip TEXT, tipo TEXT, mensaje TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS movimientos_saldo (id SERIAL PRIMARY KEY, username TEXT, tipo TEXT, monto REAL, nota TEXT DEFAULT '', fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS config_global (clave TEXT PRIMARY KEY, valor TEXT DEFAULT '')''')
 
         columnas_nuevas = [
-            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS algoritmo TEXT DEFAULT 'SHA-256'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS moneda TEXT DEFAULT 'BTC'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS unidad TEXT DEFAULT 'TH/s'",
@@ -259,13 +259,13 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS placas_normales INTEGER DEFAULT 0",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS prot_sleep_desde TEXT DEFAULT ''",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS prot_motivo TEXT DEFAULT ''",
-            "ALTER TABLE cola_comandos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
-            "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE cola_comandos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
+            "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
             "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS errores INTEGER DEFAULT 0",
             "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS temp_amb INTEGER DEFAULT 0",
             "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS cadenas TEXT",
-            "ALTER TABLE nombres_mineros ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
-            "ALTER TABLE logs_mineros ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'giovanni'",
+            "ALTER TABLE nombres_mineros ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
+            "ALTER TABLE logs_mineros ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email TEXT DEFAULT ''",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS fecha_registro TEXT DEFAULT ''",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS suspendido INTEGER DEFAULT 0",
@@ -311,10 +311,25 @@ def init_db():
             try: c.execute(col_sql)
             except: pass
 
-        c.execute("UPDATE mineros_activos SET owner='giovanni' WHERE owner IS NULL OR owner=''")
-        c.execute("UPDATE nombres_mineros SET owner='giovanni' WHERE owner IS NULL OR owner=''")
-        c.execute("UPDATE logs_mineros SET owner='giovanni' WHERE owner IS NULL OR owner=''")
-        c.execute("UPDATE historial_nube SET owner='giovanni' WHERE owner IS NULL OR owner=''")
+        c.execute("UPDATE mineros_activos SET owner='Admin' WHERE owner IS NULL OR owner=''")
+        c.execute("UPDATE nombres_mineros SET owner='Admin' WHERE owner IS NULL OR owner=''")
+        c.execute("UPDATE logs_mineros SET owner='Admin' WHERE owner IS NULL OR owner=''")
+        c.execute("UPDATE historial_nube SET owner='Admin' WHERE owner IS NULL OR owner=''")
+
+        # Migración automática y segura de 'giovanni' -> 'Admin'
+        c.execute("SELECT id FROM usuarios WHERE LOWER(username)='giovanni'")
+        row_old_adm = c.fetchone()
+        c.execute("SELECT id FROM usuarios WHERE LOWER(username)='admin'")
+        row_new_adm = c.fetchone()
+        if row_old_adm and not row_new_adm:
+            c.execute("UPDATE usuarios SET username='Admin', plan='Pro', suspendido=0 WHERE id=%s", (row_old_adm[0],))
+        for tbl, col in [
+            ('mineros_activos', 'owner'), ('nombres_mineros', 'owner'),
+            ('logs_mineros', 'owner'), ('historial_nube', 'owner'),
+            ('cola_comandos', 'owner'), ('registro_alertas', 'owner'),
+            ('movimientos_saldo', 'username')
+        ]:
+            c.execute(f"UPDATE {tbl} SET {col}='Admin' WHERE LOWER({col})='giovanni'")
 
         hoy_str = datetime.utcnow().strftime("%Y-%m-%d")
         c.execute("UPDATE usuarios SET fecha_registro=%s WHERE fecha_registro IS NULL OR fecha_registro=''", (hoy_str,))
@@ -325,7 +340,8 @@ def init_db():
             "ALTER TABLE nombres_mineros DROP CONSTRAINT IF EXISTS nombres_mineros_ip_key",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_nombres_owner_ip ON nombres_mineros (owner, ip)",
             "ALTER TABLE logs_mineros DROP CONSTRAINT IF EXISTS logs_mineros_ip_key",
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_logs_owner_ip ON logs_mineros (owner, ip)"
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_logs_owner_ip ON logs_mineros (owner, ip)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_username_lower ON usuarios (LOWER(username))"
         ]
         for m_sql in migraciones_unique:
             try: c.execute(m_sql)
@@ -338,12 +354,12 @@ def init_db():
         c.execute("CREATE INDEX IF NOT EXISTS idx_alertas_owner_ip_tipo ON registro_alertas (owner, ip, tipo, id DESC)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_mov_saldo_user ON movimientos_saldo (username, id DESC)")
 
-        c.execute("SELECT * FROM usuarios WHERE username='giovanni'")
+        c.execute("SELECT id FROM usuarios WHERE LOWER(username)='admin'")
         if not c.fetchone():
-            c.execute("INSERT INTO usuarios (username, password, email, fecha_registro, plan, api_key) VALUES ('giovanni', %s, '', %s, 'Pro', %s)",
+            c.execute("INSERT INTO usuarios (username, password, email, fecha_registro, plan, api_key) VALUES ('Admin', %s, '', %s, 'Pro', %s)",
                       (generate_password_hash('admin123'), hoy_str, generar_api_key()))
         else:
-            c.execute("UPDATE usuarios SET plan='Pro', suspendido=0 WHERE username='giovanni'")
+            c.execute("UPDATE usuarios SET username='Admin', plan='Pro', suspendido=0 WHERE LOWER(username)='admin'")
 
         c.execute("SELECT id, username FROM usuarios WHERE api_key IS NULL OR api_key = ''")
         for u_row in c.fetchall():
@@ -387,7 +403,7 @@ def inyectar_globales():
         pass
     return {
         'anuncio_global': anuncio,
-        'en_modo_soporte': bool(session.get('admin_real') == 'giovanni'),
+        'en_modo_soporte': bool(str(session.get('admin_real') or '').lower() == 'admin'),
         'es_super_admin': es_super_admin(),
         'mineros_omitidos': omitidos_u,
         'es_pro_actual': es_pro_u,
@@ -466,7 +482,7 @@ def admin_entrar_soporte(uid):
     target = cur.fetchone()
     if not target:
         return redirect('/admin')
-    session['admin_real'] = 'giovanni'
+    session['admin_real'] = 'Admin'
     session['usuario'] = target['username']
     session['plan'] = target.get('plan', 'Gratis')
     session['saldo'] = target.get('saldo', 0.0)
@@ -475,19 +491,19 @@ def admin_entrar_soporte(uid):
 @app.route('/admin/salir_soporte')
 @login_required
 def admin_salir_soporte():
-    if session.get('admin_real') != 'giovanni':
+    if str(session.get('admin_real') or '').lower() != 'admin':
         return redirect('/')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT plan, saldo FROM usuarios WHERE username='giovanni'")
+    cur.execute("SELECT plan, saldo FROM usuarios WHERE LOWER(username)='admin'")
     adm = cur.fetchone() or {}
     session.pop('admin_real', None)
-    session['usuario'] = 'giovanni'
+    session['usuario'] = 'Admin'
     session['plan'] = adm.get('plan', 'Pro')
     session['saldo'] = adm.get('saldo', 0.0)
     return redirect('/admin')
 
-# --- VISTA: /admin (Centro de Control Super-Admin para giovanni) ---
+# --- VISTA: /admin (Centro de Control Super-Admin para Admin) ---
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
 def admin_panel():
@@ -519,17 +535,18 @@ def admin_panel():
             target = cur.fetchone()
             if target:
                 old_user = target['username']
-                new_user = (request.form.get('username') or old_user).strip()
+                es_target_admin = (old_user.lower() == 'admin')
+                new_user = 'Admin' if es_target_admin else (request.form.get('username') or old_user).strip()
                 new_email = (request.form.get('email') or '').strip().lower()
                 new_pass = (request.form.get('nueva_password') or '').strip()
-                new_plan = 'Pro' if old_user == 'giovanni' else (request.form.get('plan') or 'Gratis')
-                new_susp = 0 if old_user == 'giovanni' else (1 if request.form.get('suspendido') == '1' else 0)
-
-                if old_user == 'giovanni':
-                    new_user = 'giovanni'
+                new_plan = 'Pro' if es_target_admin else (request.form.get('plan') or 'Gratis')
+                new_susp = 0 if es_target_admin else (1 if request.form.get('suspendido') == '1' else 0)
 
                 try:
                     if new_user != old_user and new_user:
+                        cur.execute("SELECT id FROM usuarios WHERE LOWER(username)=LOWER(%s) AND id != %s", (new_user, uid))
+                        if cur.fetchone():
+                            raise Exception("Ese nombre de usuario ya está en uso.")
                         cur.execute("UPDATE usuarios SET username=%s WHERE id=%s", (new_user, uid))
                         for tbl, col in [('mineros_activos', 'owner'), ('nombres_mineros', 'owner'),
                                          ('logs_mineros', 'owner'), ('historial_nube', 'owner'),
@@ -567,7 +584,7 @@ def admin_panel():
             uid = a_int_seguro(request.form.get('user_id'), 0)
             cur.execute("SELECT username FROM usuarios WHERE id=%s", (uid,))
             target = cur.fetchone()
-            if target and target['username'] != 'giovanni':
+            if target and target['username'].lower() != 'admin':
                 cur.execute("DELETE FROM usuarios WHERE id=%s", (uid,))
                 msg = f"Cuenta '{target['username']}' eliminada."
 
@@ -583,7 +600,7 @@ def admin_panel():
     hashrate_global = 0.0
 
     for m in todos_mineros:
-        ow = m.get('owner') or 'giovanni'
+        ow = m.get('owner') or 'Admin'
         if ow not in stats_por_usuario:
             stats_por_usuario[ow] = {'total': 0, 'online': 0, 'hr_btc': 0.0, 'gen_dia': 0.0}
         stats_por_usuario[ow]['total'] += 1
@@ -713,7 +730,7 @@ def admin_panel():
 @app.route('/api/eliminar_mineros', methods=['POST'])
 @login_required
 def api_eliminar_mineros():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     ips = data.get('ips', [])
     if not ips or not isinstance(ips, list):
@@ -735,7 +752,7 @@ def api_eliminar_mineros():
 @app.route('/api/guardar_tarifa', methods=['POST'])
 @login_required
 def api_guardar_tarifa():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     tarifa = max(0.0, a_float_seguro(data.get('tarifa_kwh'), 0.0))
     con = get_db(); con.autocommit = True; cur = con.cursor()
@@ -746,7 +763,7 @@ def api_guardar_tarifa():
 @app.route('/api/guardar_corte_termico', methods=['POST'])
 @login_required
 def api_guardar_corte_termico():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     ip = str(data.get('ip') or '').strip()
     activo = 1 if a_int_seguro(data.get('activo'), 0) == 1 else 0
@@ -761,7 +778,7 @@ def api_guardar_corte_termico():
 @app.route('/api/guardar_watchdog_minero', methods=['POST'])
 @login_required
 def api_guardar_watchdog_minero():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     ip = str(data.get('ip') or '').strip()
     activo = 1 if a_int_seguro(data.get('activo'), 1) == 1 else 0
@@ -775,7 +792,7 @@ def api_guardar_watchdog_minero():
 @app.route('/api/guardar_gps', methods=['POST'])
 @login_required
 def api_guardar_gps():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     lat = a_float_seguro(data.get('lat'), None)
     lon = a_float_seguro(data.get('lon'), None)
@@ -795,7 +812,7 @@ def api_guardar_gps():
 @app.route('/resumen')
 @login_required
 def index():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -889,7 +906,7 @@ def index():
 @app.route('/minero/<ip>')
 @login_required
 def detalle_minero(ip):
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     plan_actual = session.get('plan', 'Gratis')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -1049,7 +1066,7 @@ def detalle_minero(ip):
 @app.route('/mineros')
 @login_required
 def mineros():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
@@ -1117,7 +1134,7 @@ def mineros():
 @app.route('/granjas')
 @login_required
 def granjas():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
@@ -1170,7 +1187,7 @@ def granjas():
 @app.route('/alertas', methods=['GET', 'POST'])
 @login_required
 def alertas():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     msg = None
     con = get_db()
     con.autocommit = True
@@ -1369,7 +1386,7 @@ def alertas():
 @app.route('/ajustes', methods=['GET', 'POST'])
 @login_required
 def ajustes():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     msg = None
     con = get_db()
     con.autocommit = True
@@ -1386,6 +1403,30 @@ def ajustes():
             tarifa = a_float_seguro(request.form.get('tarifa_kwh'), 0.0)
             cur.execute("UPDATE usuarios SET subnet=%s, tarifa_kwh=%s WHERE username=%s", (subnet, tarifa, usr_actual))
             msg = "Preferencias de red y tarifa guardadas."
+        elif accion == 'cambiar_username':
+            nuevo_u = (request.form.get('nuevo_username') or '').strip()
+            if usr_actual.lower() == 'admin':
+                msg = "La cuenta principal Admin no puede cambiar de nombre."
+            elif len(nuevo_u) < 3 or len(nuevo_u) > 30 or ' ' in nuevo_u:
+                msg = "El usuario debe tener entre 3 y 30 caracteres sin espacios."
+            elif nuevo_u == usr_actual:
+                msg = "Tu nombre de usuario no tuvo cambios."
+            else:
+                cur.execute("SELECT id FROM usuarios WHERE LOWER(username)=LOWER(%s) AND LOWER(username) != LOWER(%s)", (nuevo_u, usr_actual))
+                if cur.fetchone():
+                    msg = "Ese nombre de usuario ya está en uso por otra cuenta."
+                else:
+                    cur.execute("UPDATE usuarios SET username=%s WHERE username=%s", (nuevo_u, usr_actual))
+                    for tbl, col in [
+                        ('mineros_activos', 'owner'), ('nombres_mineros', 'owner'),
+                        ('logs_mineros', 'owner'), ('historial_nube', 'owner'),
+                        ('cola_comandos', 'owner'), ('registro_alertas', 'owner'),
+                        ('movimientos_saldo', 'username')
+                    ]:
+                        cur.execute(f"UPDATE {tbl} SET {col}=%s WHERE {col}=%s", (nuevo_u, usr_actual))
+                    session['usuario'] = nuevo_u
+                    usr_actual = nuevo_u
+                    msg = f"Nombre de usuario actualizado a '{nuevo_u}' correctamente."
         elif accion == 'cambiar_password':
             p1 = request.form.get('nueva_pass', '')
             p2 = request.form.get('confirm_pass', '')
@@ -1429,7 +1470,7 @@ def api_agente_login():
     con = get_db()
     con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM usuarios WHERE username=%s OR LOWER(email)=LOWER(%s)", (u, u))
+    cur.execute("SELECT * FROM usuarios WHERE LOWER(username)=LOWER(%s) OR (email != '' AND LOWER(email)=LOWER(%s))", (u, u))
     usr = cur.fetchone()
     if not usr or not verificar_password(usr.get('password'), p):
         return jsonify({"ok": False, "msg": "Credenciales incorrectas"}), 401
@@ -1481,7 +1522,7 @@ def api_agente_update():
 @app.route('/descargar_agente')
 @login_required
 def descargar_agente():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT api_key, subnet FROM usuarios WHERE username=%s", (usr_actual,))
@@ -1544,7 +1585,7 @@ goto LOOP
 @app.route('/plan')
 @login_required
 def plan():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT plan, saldo FROM usuarios WHERE username=%s", (usr_actual,))
@@ -1560,7 +1601,7 @@ def login():
         p = request.form.get('password') or ''
         con = get_db(); con.autocommit = True
         cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute("SELECT * FROM usuarios WHERE username=%s OR (email != '' AND LOWER(email)=LOWER(%s))", (u, u))
+        cur.execute("SELECT * FROM usuarios WHERE LOWER(username)=LOWER(%s) OR (email != '' AND LOWER(email)=LOWER(%s))", (u, u))
         usr = cur.fetchone()
         if usr and verificar_password(usr.get('password'), p):
             if a_int_seguro(usr.get('suspendido'), 0) == 1:
@@ -1583,8 +1624,13 @@ def register():
         p = request.form.get('password') or ''
         if not u or not p:
             return render_seguro('login.html', error='Completa usuario y contraseña', mode='register')
+        if len(u) < 3 or len(u) > 30 or ' ' in u:
+            return render_seguro('login.html', error='El usuario debe tener entre 3 y 30 caracteres sin espacios', mode='register')
         try:
             con = get_db(); con.autocommit = True; cur = con.cursor()
+            cur.execute("SELECT id FROM usuarios WHERE LOWER(username)=LOWER(%s)", (u,))
+            if cur.fetchone():
+                return render_seguro('login.html', error='El nombre de usuario ya está en uso', mode='register')
             hoy_str = datetime.utcnow().strftime("%Y-%m-%d")
             cur.execute("INSERT INTO usuarios (username, email, fecha_registro, password, plan, saldo, api_key) VALUES (%s, %s, %s, %s, 'Gratis', 0.0, %s)",
                         (u, em, hoy_str, generate_password_hash(p), generar_api_key()))
@@ -1599,7 +1645,7 @@ def logout(): session.clear(); return redirect('/login')
 @app.route('/guardar_nombre', methods=['POST'])
 @login_required
 def guardar_nombre():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     ip = request.form.get('ip')
     nombre = request.form.get('nombre')
     if ip and nombre:
@@ -1610,7 +1656,7 @@ def guardar_nombre():
 @app.route('/cmd_bulk', methods=['POST'])
 @login_required
 def cmd_bulk():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     plan_actual = session.get('plan', 'Gratis')
     data = request.get_json(silent=True) or {}
     accion = data.get('accion')
@@ -1634,7 +1680,7 @@ def cmd_bulk():
 @app.route('/cmd/<ip>/<accion>')
 @login_required
 def comando_minero(ip, accion):
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     cmd_str = ""
     if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'):
         cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
@@ -1660,7 +1706,7 @@ def comando_minero(ip, accion):
 @app.route('/exportar_csv')
 @login_required
 def exportar_csv():
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     plan_actual = session.get('plan', 'Gratis')
     if not es_cuenta_pro(usr_actual, plan_actual) and not es_super_admin():
         return redirect('/plan')
@@ -1676,7 +1722,7 @@ def exportar_csv():
 @app.route('/api/ver_log/<ip>')
 @login_required
 def ver_log(ip):
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     con = get_db(); cur = con.cursor()
     cur.execute("SELECT contenido FROM logs_mineros WHERE owner=%s AND ip=%s", (usr_actual, ip))
     log = cur.fetchone()
@@ -1689,7 +1735,7 @@ def recibir_logs():
         con = get_db(); con.autocommit = True
         cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         api_key_recibida = str(data.get('api_key') or '').strip()
-        owner_user = 'giovanni'
+        owner_user = 'Admin'
         if api_key_recibida and api_key_recibida != "TU_API_KEY_AQUI":
             cur.execute("SELECT username FROM usuarios WHERE api_key=%s", (api_key_recibida,))
             u_row = cur.fetchone()
@@ -1720,7 +1766,7 @@ def recibir_datos():
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     api_key_recibida = str(datos.get('api_key') or '').strip()
-    owner_user = 'giovanni'
+    owner_user = 'Admin'
     u_cfg = None
     if api_key_recibida and api_key_recibida != "TU_API_KEY_AQUI":
         cur.execute("SELECT * FROM usuarios WHERE api_key=%s", (api_key_recibida,))
@@ -1729,7 +1775,7 @@ def recibir_datos():
             return jsonify({"status": "error", "msg": "API Key inválida"}), 401
         owner_user = u_cfg['username']
     else:
-        cur.execute("SELECT * FROM usuarios WHERE username='giovanni'")
+        cur.execute("SELECT * FROM usuarios WHERE LOWER(username)='admin'")
         u_cfg = cur.fetchone()
 
     plan_owner = (u_cfg.get('plan') or 'Gratis') if u_cfg else 'Gratis'
@@ -1745,8 +1791,8 @@ def recibir_datos():
     ips_existentes = {row['ip'] for row in rows_exist}
     estado_prev_dict = {row['ip']: row for row in rows_exist}
 
-    if owner_user == 'giovanni':
-        cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND (owner='giovanni' OR owner IS NULL)")
+    if owner_user.lower() == 'admin':
+        cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND (LOWER(owner)='admin' OR owner IS NULL)")
     else:
         cur.execute("SELECT id, ip, comando FROM cola_comandos WHERE estado='pendiente' AND owner=%s", (owner_user,))
     pend = cur.fetchall()
@@ -2045,7 +2091,7 @@ def recibir_datos():
 @app.route('/api/live/minero/<ip>')
 @login_required
 def api_live_minero(ip):
-    usr_actual = session.get('usuario', 'giovanni')
+    usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT hashrate, temp_max, temp_amb, errores, cadenas FROM mineros_activos WHERE owner=%s AND ip=%s", (usr_actual, ip))
