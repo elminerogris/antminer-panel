@@ -1,7 +1,10 @@
 {% extends "layout.html" %}
 {% block content %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
 <style>
     .adm-card {
@@ -61,9 +64,98 @@
     .db-bar-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; margin-top: 6px; }
     .db-bar-fill { height: 100%; border-radius: 4px; }
 
-    #globalFarmsMap { width: 100%; height: 320px; background: #0a0c12; z-index: 1; }
-    .map-legend { display: flex; gap: 12px; font-size: 0.76em; font-weight: normal; color: var(--text-muted); flex-wrap: wrap; }
-    .map-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+    /* Mapa Oscuro NOC */
+    .map-wrapper {
+        position: relative;
+        width: 100%;
+        height: 380px;
+        background: #0a0c12;
+    }
+    .map-wrapper.fullscreen {
+        position: fixed;
+        inset: 0;
+        height: 100vh !important;
+        z-index: 9998;
+    }
+    #globalFarmsMap { width: 100%; height: 100%; background: #0a0c12; z-index: 1; }
+    .map-controls-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .map-pill-btn {
+        background: rgba(10, 12, 18, 0.75);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 4px 9px;
+        border-radius: 6px;
+        font-size: 0.76em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .map-pill-btn:hover { color: #fff; border-color: #3b82f6; }
+    .map-pill-btn.active {
+        background: rgba(51, 102, 255, 0.25);
+        border-color: #3b82f6;
+        color: #60a5fa;
+    }
+    .map-hud {
+        position: absolute;
+        bottom: 12px;
+        left: 12px;
+        z-index: 500;
+        background: rgba(10, 12, 18, 0.88);
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(59, 130, 246, 0.35);
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-family: monospace;
+        font-size: 0.78em;
+        color: #e2e8f0;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        pointer-events: none;
+    }
+    .farm-pin {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 38px;
+        height: 24px;
+        padding: 0 7px;
+        border-radius: 12px;
+        font-family: monospace;
+        font-size: 11px;
+        font-weight: bold;
+        color: #071018;
+        border: 2px solid #ffffff;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.75);
+        white-space: nowrap;
+    }
+    .farm-pin.alert-pulse {
+        color: #fff;
+        animation: pinPulse 1.6s infinite;
+    }
+    @keyframes pinPulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.85); }
+        70% { box-shadow: 0 0 0 12px rgba(255, 82, 82, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0); }
+    }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+        background: #121521 !important;
+        color: #f1f5f9 !important;
+        border: 1px solid rgba(59, 130, 246, 0.45);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85) !important;
+    }
+    .leaflet-control-layers {
+        background: rgba(18, 21, 33, 0.92) !important;
+        color: #e2e8f0 !important;
+        border: 1px solid rgba(59, 130, 246, 0.4) !important;
+        border-radius: 7px !important;
+    }
 
     .adm-grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-bottom: 18px; }
     @media (max-width: 860px) { .adm-grid-2 { grid-template-columns: 1fr; } }
@@ -189,17 +281,27 @@
     </div>
 </div>
 
-<!-- 2. MAPA MUNDIAL DE GRANJAS Y ASICS -->
-<div class="adm-card">
+<!-- 2. MAPA MUNDIAL OSCURO NOC DE GRANJAS Y ASICS -->
+<div class="adm-card" id="mapSectionCard">
     <div class="adm-card-hdr">
         <span>🌍 Mapa Global de Granjas y ASICs</span>
-        <div class="map-legend">
-            <span><span class="map-dot" style="background:#00e676;"></span>Óptima</span>
-            <span><span class="map-dot" style="background:#ffb300;"></span>Caliente (75-84°C)</span>
-            <span><span class="map-dot" style="background:#ff5252;"></span>Offline / Crítica</span>
+        <div class="map-controls-bar">
+            <button type="button" class="map-pill-btn active" id="mf-all" onclick="filtrarMapa('all')">Todos</button>
+            <button type="button" class="map-pill-btn" id="mf-online" onclick="filtrarMapa('online')">🟢 Online</button>
+            <button type="button" class="map-pill-btn" id="mf-offline" onclick="filtrarMapa('offline')">🔴 Con Offline</button>
+            <button type="button" class="map-pill-btn" id="mf-hot" onclick="filtrarMapa('hot')">🔥 Calientes</button>
+            <button type="button" class="map-pill-btn" onclick="recentrarMapa()" title="Encuadrar todas las granjas">🎯 Recentrar</button>
+            <button type="button" class="map-pill-btn" id="btnMapFs" onclick="toggleMapaFullscreen()" title="Pantalla completa">⛶</button>
         </div>
     </div>
-    <div id="globalFarmsMap"></div>
+    <div class="map-wrapper" id="mapWrapper">
+        <div id="globalFarmsMap"></div>
+        <div class="map-hud" translate="no">
+            <span>🟢 Online: <b style="color:#00e676;">{{ stats.mineros_online }}</b></span>
+            <span>🔴 Offline: <b style="color:#ff5252;">{{ stats.mineros_offline }}</b></span>
+            <span>⚡ <b style="color:#c084fc;">{{ stats.hashrate_global }} TH/s</b></span>
+        </div>
+    </div>
 </div>
 
 <!-- 3. ANUNCIO GLOBAL + LIMPIEZA MANUAL DE BD -->
@@ -304,6 +406,9 @@
                     </td>
                     <td>
                         <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                            {% if u.total_mineros > 0 %}
+                            <button type="button" class="btn-adm" onclick="volarAGranjaUsuario('{{ u.username }}')" title="Ubicar granja en el mapa">📍</button>
+                            {% endif %}
                             <a href="/admin/soporte/{{ u.id }}" class="btn-adm gold" title="Entrar al panel de este cliente para editar sus Antminers">🛠️ Soporte</a>
                             <button type="button" class="btn-adm green" onclick="abrirModalSaldo({{ u.id }}, '{{ u.username }}', {{ u.saldo or 0 }}, {{ u.saldo_bonus or 0 }})">💰 Saldo</button>
                             {% if u.username.lower() != 'admin' %}
@@ -481,6 +586,12 @@
 </div>
 
 <script>
+    const GRANJAS_DATA = {{ mapa_granjas_json | safe }};
+    let admMap = null;
+    let admClusterGroup = null;
+    let admMarkersByOwner = {};
+    let admAllBounds = [];
+
     function abrirModalEditar(id, username, email, plan, susp, notas) {
         const esAdmin = (String(username || '').toLowerCase() === 'admin');
         document.getElementById('ed_uid').value = id;
@@ -551,43 +662,123 @@
         });
     }
 
-    window.addEventListener('load', function() {
-        const granjas = {{ mapa_granjas_json | safe }};
-        const map = L.map('globalFarmsMap', { scrollWheelZoom: false }).setView([-15.0, -60.0], 3);
-        L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-            maxZoom: 18,
-            attribution: '&copy; Google Maps'
-        }).addTo(map);
+    function renderizarMarcadoresMapa(filtro) {
+        if (!admMap || !admClusterGroup) return;
+        admClusterGroup.clearLayers();
+        admMarkersByOwner = {};
+        admAllBounds = [];
 
-        const bounds = [];
-        granjas.forEach(g => {
+        GRANJAS_DATA.forEach(g => {
             if (!g.lat || !g.lon) return;
-            const marker = L.circleMarker([g.lat, g.lon], {
-                radius: 9,
-                fillColor: g.color,
-                color: '#ffffff',
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.9
-            }).addTo(map);
+            if (filtro === 'online' && g.online <= 0) return;
+            if (filtro === 'offline' && g.offline <= 0) return;
+            if (filtro === 'hot' && g.temp_max < 75) return;
 
+            const tieneAlerta = (g.offline > 0 || g.temp_max >= 85 || g.cuarentena > 0);
+            const icon = L.divIcon({
+                className: '',
+                html: `<div class="farm-pin ${tieneAlerta ? 'alert-pulse' : ''}" style="background:${g.color};">${g.online}/${g.total}</div>`,
+                iconSize: [44, 24],
+                iconAnchor: [22, 12]
+            });
+
+            const marker = L.marker([g.lat, g.lon], { icon: icon });
             marker.bindPopup(`
-                <div style="font-family:sans-serif; font-size:12px; line-height:1.45;">
-                    <b>🏭 ${g.ciudad}</b> (${g.subred})<br>
+                <div style="font-family:sans-serif; font-size:12px; line-height:1.5; min-width:190px;">
+                    <div style="font-weight:bold; font-size:13px; margin-bottom:4px; color:#60a5fa;">🏭 ${g.ciudad}</div>
+                    <div style="font-family:monospace; font-size:11px; color:#94a3b8; margin-bottom:6px;">Subred: ${g.subred}</div>
                     👤 Cliente: <b>${g.owner}</b><br>
-                    ⛏️ Equipos: <b>${g.online}/${g.total}</b> online<br>
-                    ⚡ Hashrate: <b>${g.hashrate} TH/s</b><br>
+                    🟢 En línea: <b style="color:#00e676;">${g.online}</b> · 🔴 Offline: <b style="color:#ff5252;">${g.offline}</b><br>
+                    ⚡ Hashrate: <b style="color:#c084fc;">${g.hashrate} TH/s</b><br>
                     🌡️ Temp Máx: <b>${g.temp_max}°C</b><br>
                     Estado: <b style="color:${g.color};">${g.estado_txt}</b>
                 </div>
             `);
-            bounds.push([g.lat, g.lon]);
+
+            admClusterGroup.addLayer(marker);
+            if (!admMarkersByOwner[g.owner]) {
+                admMarkersByOwner[g.owner] = marker;
+            }
+            admAllBounds.push([g.lat, g.lon]);
+        });
+    }
+
+    function filtrarMapa(tipo) {
+        ['all', 'online', 'offline', 'hot'].forEach(k => {
+            const btn = document.getElementById('mf-' + k);
+            if (btn) btn.classList.toggle('active', k === tipo);
+        });
+        renderizarMarcadoresMapa(tipo);
+    }
+
+    function recentrarMapa() {
+        if (!admMap) return;
+        if (admAllBounds.length === 1) {
+            admMap.flyTo(admAllBounds[0], 11, { duration: 0.9 });
+        } else if (admAllBounds.length > 1) {
+            admMap.fitBounds(admAllBounds, { padding: [40, 40], maxZoom: 12 });
+        }
+    }
+
+    function toggleMapaFullscreen() {
+        const wrap = document.getElementById('mapWrapper');
+        const btn = document.getElementById('btnMapFs');
+        if (!wrap) return;
+        wrap.classList.toggle('fullscreen');
+        if (btn) btn.innerText = wrap.classList.contains('fullscreen') ? '✕' : '⛶';
+        setTimeout(() => { if (admMap) admMap.invalidateSize(); }, 200);
+    }
+
+    function volarAGranjaUsuario(owner) {
+        const card = document.getElementById('mapSectionCard');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const marker = admMarkersByOwner[owner];
+        if (marker && admMap) {
+            admClusterGroup.zoomToShowLayer(marker, function() {
+                admMap.flyTo(marker.getLatLng(), 12, { duration: 1.0 });
+                marker.openPopup();
+            });
+        }
+    }
+
+    window.addEventListener('load', function() {
+        const capaOscura = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap &copy; CARTO'
+        });
+        const capaSatelite = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            maxZoom: 19,
+            attribution: '&copy; Google Maps'
+        });
+        const capaCalles = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            maxZoom: 19,
+            attribution: '&copy; Google Maps'
         });
 
-        if (bounds.length === 1) {
-            map.setView(bounds[0], 11);
-        } else if (bounds.length > 1) {
-            map.fitBounds(bounds, { padding: [35, 35], maxZoom: 12 });
+        admMap = L.map('globalFarmsMap', {
+            scrollWheelZoom: true,
+            layers: [capaOscura]
+        }).setView([-15.0, -60.0], 3);
+
+        L.control.layers({
+            '🌑 Oscuro NOC': capaOscura,
+            '🛰️ Satélite': capaSatelite,
+            '🗺️ Calles': capaCalles
+        }, null, { position: 'topright' }).addTo(admMap);
+
+        admClusterGroup = L.markerClusterGroup({
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            maxClusterRadius: 42
+        });
+        admMap.addLayer(admClusterGroup);
+
+        renderizarMarcadoresMapa('all');
+
+        if (admAllBounds.length === 1) {
+            admMap.setView(admAllBounds[0], 11);
+        } else if (admAllBounds.length > 1) {
+            admMap.fitBounds(admAllBounds, { padding: [40, 40], maxZoom: 12 });
         }
     });
 </script>
