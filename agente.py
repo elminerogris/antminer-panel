@@ -1,22 +1,23 @@
-import socket, json, time, requests, concurrent.futures, re
+import socket, json, time, requests, concurrent.futures, re, os, sys, subprocess
 from requests.auth import HTTPDigestAuth
 
 URL_NUBE = "https://antminer-panel.onrender.com/api/recibir_datos"
 URL_LOGS = "https://antminer-panel.onrender.com/api/recibir_logs"
+URL_VERSION = "https://antminer-panel.onrender.com/api/agente/version"
+URL_UPDATE = "https://antminer-panel.onrender.com/api/agente/descargar_update"
+VERSION_AGENTE = "LOCAL"
 API_KEY = "TU_API_KEY_AQUI"
 SUBNET = "192.168.0"
 MAX_WORKERS = 15
 
 MINER_USER = "root"
 MINER_PASS = "root"
-# Claves de respaldo si algún cliente cambió la contraseña por defecto
 CREDENCIALES_HTTP = [
     (MINER_USER, MINER_PASS),
     ("admin", "admin"),
     ("root", "admin")
 ]
 
-# Tus IPs fijas base siempre protegidas
 IPS_BASE = [
     f"{SUBNET}.11",
     f"{SUBNET}.12",
@@ -26,9 +27,43 @@ IPS_BASE = [
 ]
 ips_conocidas = list(IPS_BASE)
 
-# Caché en memoria para no saturar el servidor HTTP de los mineros cada 25s
 cache_info_estatica = {}
 ultimo_escaneo_auto = 0
+ultimo_check_update = 0
+
+def verificar_actualizacion():
+    global ultimo_check_update
+    ahora_ts = time.time()
+    if ahora_ts - ultimo_check_update < 1800:
+        return
+    ultimo_check_update = ahora_ts
+    if not API_KEY or API_KEY == "TU_API_KEY_AQUI":
+        return
+    try:
+        r_ver = requests.get(URL_VERSION, timeout=6)
+        if r_ver.status_code != 200:
+            return
+        ver_nube = r_ver.json().get("version", "")
+        if not ver_nube or ver_nube == "error" or ver_nube == VERSION_AGENTE:
+            return
+
+        print(f"[UPDATE] Nueva versión detectada ({ver_nube}). Descargando...")
+        r_code = requests.get(URL_UPDATE, params={"api_key": API_KEY, "subnet": SUBNET}, timeout=12)
+        if r_code.status_code == 200 and "def recolectar_y_enviar" in r_code.text:
+            compile(r_code.text, "agente.py", "exec")
+            ruta_actual = os.path.abspath(__file__)
+            ruta_tmp = ruta_actual + ".tmp"
+            with open(ruta_tmp, "w", encoding="utf-8") as f:
+                f.write(r_code.text)
+            os.replace(ruta_tmp, ruta_actual)
+            print("[UPDATE] ¡Agente actualizado con éxito! Reiniciando...")
+            if os.environ.get("EMG_MANAGED") == "1":
+                sys.exit(0)
+            else:
+                subprocess.Popen([sys.executable, ruta_actual])
+                sys.exit(0)
+    except Exception as e:
+        print(f"[UPDATE] No se pudo verificar actualización: {e}")
 
 def peticion_4028(ip, comando, parametro=""):
     try:
@@ -217,7 +252,6 @@ def normalizar_hashrate_universal(valor_bruto, unidad_origen, modelo_str, algori
             return round(val / 1000.0, 2), "TH/s"
         return round(val, 2), "TH/s"
 
-    # SHA-256, kHeavyHash, Blake2S -> TH/s
     if u_orig == "MHS" or val > 500000:
         return round(val / 1000000.0, 2), "TH/s"
     if u_orig == "THS" or (0 < val < 1200):
@@ -274,7 +308,6 @@ def extraer_whatsminer(ip, st_sum, ver_resp):
 
     modelo_str = estatica.get('modelo', 'WhatsMiner')
 
-    # Pools
     piscinas = peticion_4028(ip, "pools")
     pl = piscinas.get('POOLS', []) if isinstance(piscinas, dict) else []
 
@@ -296,7 +329,6 @@ def extraer_whatsminer(ip, st_sum, ver_resp):
 
     algoritmo, moneda = detectar_algoritmo_y_moneda(modelo_str, p1_url)
 
-    # Hashrate (WhatsMiner reporta en MHS 5s / MHS av)
     raw_5s = buscar_llave(st_sum, ['HS RT', 'MHS 5s', 'MHS 1m', 'MHS av'], 0)
     raw_avg = buscar_llave(st_sum, ['MHS av', 'MHS 15m', 'HS RT'], raw_5s)
     hr_5s, unidad_hr = normalizar_hashrate_universal(raw_5s, "MHS", modelo_str, algoritmo)
@@ -314,7 +346,6 @@ def extraer_whatsminer(ip, st_sum, ver_resp):
     errores_hw = a_entero(buscar_llave(st_sum, ['Hardware Errors'], 0))
     temp_amb = a_entero(buscar_llave(st_sum, ['Env Temp'], 0))
 
-    # Placas desde edevs
     cadenas = []
     temps_max = []
     edevs = peticion_4028(ip, "edevs")
@@ -369,7 +400,6 @@ def extraer_todo(ip):
     if summary and 'SUMMARY' in summary and len(summary['SUMMARY']) > 0:
         st_sum = summary['SUMMARY'][0]
 
-    # Verificar si es WhatsMiner antes de pedir stats de Bitmain
     if st_sum and es_whatsminer({}, st_sum, summary.get("STATUS", "")):
         return extraer_whatsminer(ip, st_sum, summary.get("STATUS", ""))
 
@@ -383,7 +413,6 @@ def extraer_todo(ip):
     if (st or st_sum) and es_whatsminer(st, st_sum, ""):
         return extraer_whatsminer(ip, st_sum, "")
 
-    # Fallback HTTP si el Antminer está en modo Sleep o tiene el puerto 4028 cerrado pero su web responde
     if not st and not st_sum:
         raw_st_cgi = peticion_http(ip, "stats.cgi", timeout_sec=1.8)
         if raw_st_cgi:
@@ -406,7 +435,6 @@ def extraer_todo(ip):
     if not st and not st_sum:
         return None
 
-    # 1. DETECCIÓN DE MODELO Y CACHÉ DE RED (Evita lentitud HTTP)
     modelo_str = str(buscar_llave(st, ["Type", "Miner", "Model", "minertype", "Description"], buscar_llave(st_sum, ["Type", "Miner", "Description"], ""))).strip()
 
     ahora_ts = time.time()
@@ -465,7 +493,6 @@ def extraer_todo(ip):
     gateway = estatica.get('gateway', f"{SUBNET}.1")
     dns = estatica.get('dns', '8.8.8.8')
 
-    # 2. POOLS PRIMERO (Ayuda a detectar algoritmo/moneda con precisión)
     piscinas = peticion_4028(ip, "pools")
     pl = piscinas.get('POOLS', []) if piscinas and isinstance(piscinas, dict) else []
 
@@ -489,7 +516,6 @@ def extraer_todo(ip):
         p1_acc = a_entero(buscar_llave(st_sum, ['Accepted', 'accepted'], 0))
         p1_rej = a_entero(buscar_llave(st_sum, ['Rejected', 'rejected'], 0))
 
-    # 3. EXTRACCIÓN DE HASHRATE Y CLASIFICACIÓN DE MODELO / ALGORITMO
     raw_5s = buscar_llave(st, ['GHS 5s', 'rate_5s'], buscar_llave(st_sum, ['GHS 5s', 'HS 5s'], None))
     u_detectada = "GHS"
     if raw_5s is None:
@@ -521,7 +547,6 @@ def extraer_todo(ip):
 
     mod_lower = modelo_str.lower()
 
-    # 4. CHIPS Y EFICIENCIA SEGÚN MODELO
     chips_por_defecto = 114
     efi = 17.5
     if "z15" in mod_lower: chips_por_defecto = 3; efi = 3.31
@@ -546,7 +571,6 @@ def extraer_todo(ip):
     errores_hw = a_entero(buscar_llave(st, ['Hardware Errors', 'Device Hardware Errors', 'hw_errors'], buscar_llave(st_sum, ['Hardware Errors'], 0)))
     freq_global = a_entero(buscar_llave(st, ['frequency', 'freq_avg', 'freq', 'total_freqavg'], 0))
 
-    # 5. TEMPERATURA AMBIENTE / ENTRADA DE AGUA
     amb_candidates = []
     for k, v in st.items():
         kl = str(k).lower()
@@ -555,7 +579,6 @@ def extraer_todo(ip):
             if 10 <= val_a <= 60:
                 amb_candidates.append(val_a)
 
-    # 6. EXTRACCIÓN DE PLACAS DE HASH
     cadenas = []
     temps_max = []
 
@@ -658,7 +681,6 @@ def extraer_todo(ip):
     tm = max(temps_max) if temps_max else 65
     temp_amb = max(amb_candidates) if amb_candidates else 0
 
-    # 7. DETECCIÓN INTELIGENTE DE VENTILADORES vs HYDRO
     fans = [str(st.get(f)) for f in ['fan1', 'fan2', 'fan3', 'fan4'] if st.get(f) and a_entero(st.get(f)) > 0]
     es_hydro = ("hyd" in mod_lower or "hydro" in mod_lower or "water" in mod_lower)
 
@@ -807,6 +829,7 @@ def procesar_comandos(ordenes):
 
 def recolectar_y_enviar():
     global ips_conocidas, ultimo_escaneo_auto
+    verificar_actualizacion()
     ahora_ts = time.time()
     if ahora_ts - ultimo_escaneo_auto > 600:
         ultimo_escaneo_auto = ahora_ts
