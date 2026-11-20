@@ -2,80 +2,98 @@
 {% block content %}
 <style>
     .admin-header {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 18px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 12px;
-        padding: 16px 20px;
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        margin-bottom: 18px;
     }
     .admin-header h1 {
         margin: 0;
         font-size: 1.38em;
         color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
     .admin-header p {
         margin: 4px 0 0 0;
-        font-size: 0.83em;
+        font-size: 0.84em;
         color: var(--text-muted);
     }
-    .admin-kpi-grid {
+    .admin-flash {
+        background: rgba(0, 230, 118, 0.12);
+        border: 1px solid rgba(0, 230, 118, 0.45);
+        color: #69f0ae;
+        padding: 11px 15px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 0.86em;
+        font-weight: 600;
+    }
+    .admin-kpis {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+        gap: 14px;
         margin-bottom: 18px;
     }
-    .admin-kpi {
+    .ak-card {
         background: var(--bg-card);
         border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 14px 16px;
     }
-    .admin-kpi-lbl {
+    .ak-label {
         font-size: 0.72em;
-        text-transform: uppercase;
         color: var(--text-muted);
+        text-transform: uppercase;
         font-weight: bold;
+        letter-spacing: 0.4px;
     }
-    .admin-kpi-val {
-        font-size: 1.5em;
+    .ak-val {
+        font-size: 1.48em;
         font-weight: bold;
         font-family: monospace;
         margin-top: 6px;
         color: var(--text-main);
     }
-    .admin-msg {
-        background: rgba(0, 230, 118, 0.12);
-        border: 1px solid rgba(0, 230, 118, 0.45);
-        color: #69f0ae;
-        padding: 11px 16px;
-        border-radius: 8px;
-        margin-bottom: 16px;
-        font-size: 0.86em;
-        font-weight: bold;
+    .db-bar-bg {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 8px;
     }
-    .admin-card {
+    .db-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    .admin-table-card {
         background: var(--bg-card);
         border: 1px solid var(--border-color);
-        border-radius: 10px;
+        border-radius: 8px;
         overflow: hidden;
     }
-    .admin-table-wrap {
+    .admin-table-scroll {
         width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
     .admin-table {
         width: 100%;
-        min-width: 780px;
+        min-width: 820px;
         border-collapse: collapse;
-        text-align: left;
+        font-size: 0.85em;
     }
     .admin-table th {
+        text-align: left;
         padding: 11px 14px;
         font-size: 0.73em;
         text-transform: uppercase;
@@ -84,159 +102,128 @@
         border-bottom: 1px solid var(--border-color);
     }
     .admin-table td {
-        padding: 11px 14px;
+        padding: 10px 14px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        font-size: 0.85em;
         vertical-align: middle;
     }
-    .admin-table tr:last-child td { border-bottom: none; }
-    .admin-input, .admin-select {
+    .adm-input, .adm-select {
         background: rgba(10, 12, 18, 0.75);
         border: 1px solid var(--border-color);
         color: var(--text-main);
-        padding: 6px 9px;
+        padding: 6px 8px;
         border-radius: 6px;
         font-family: monospace;
-        font-size: 0.90em;
+        font-size: 0.88em;
         outline: none;
     }
-    .admin-input:focus, .admin-select:focus {
-        border-color: #3b82f6;
-    }
-    .btn-admin-save {
-        background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
-        color: #fff;
-        border: 1px solid #60a5fa;
-        padding: 6px 12px;
+    .adm-btn {
+        background: rgba(51, 102, 255, 0.18);
+        border: 1px solid rgba(59, 130, 246, 0.5);
+        color: #60a5fa;
+        padding: 6px 11px;
         border-radius: 6px;
         font-weight: bold;
         font-size: 0.82em;
         cursor: pointer;
-        transition: 0.18s;
     }
-    .btn-admin-save:hover {
-        box-shadow: 0 0 14px rgba(59, 130, 246, 0.6);
-    }
-    .btn-admin-del {
-        background: rgba(255, 82, 82, 0.10);
+    .adm-btn:hover { background: rgba(51, 102, 255, 0.35); color: #fff; }
+    .adm-btn-del {
+        background: rgba(255, 82, 82, 0.12);
+        border: 1px solid rgba(255, 82, 82, 0.4);
         color: #ff5252;
-        border: 1px solid rgba(255, 82, 82, 0.35);
         padding: 6px 10px;
         border-radius: 6px;
         font-weight: bold;
         font-size: 0.82em;
         cursor: pointer;
     }
-    .btn-admin-del:hover {
-        background: rgba(255, 82, 82, 0.25);
-        color: #fff;
-    }
-    .plan-pill {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-size: 0.78em;
-        font-weight: bold;
-        font-family: monospace;
-    }
-    .plan-pill.pro {
-        background: rgba(0, 230, 118, 0.14);
-        color: #00e676;
-        border: 1px solid rgba(0, 230, 118, 0.4);
-    }
-    .plan-pill.gratis {
-        background: rgba(148, 153, 176, 0.14);
-        color: #cbd5e1;
-        border: 1px solid rgba(148, 153, 176, 0.35);
-    }
+    .adm-btn-del:hover { background: rgba(255, 82, 82, 0.28); color: #fff; }
 </style>
 
 <div class="admin-header">
     <div>
-        <h1>🛡️ Panel de Administrador</h1>
-        <p>Gestiona cuentas registradas, activa planes Pro y acredita saldos USDT en tiempo real.</p>
+        <h1>🛡️ Panel de Administración</h1>
+        <p>Gestión de cuentas, planes, saldos y estado de almacenamiento de PostgreSQL.</p>
     </div>
-    <span class="plan-pill pro" translate="no">● Admin: {{ session['usuario'] }}</span>
 </div>
 
 {% if msg %}
-<div class="admin-msg">✅ {{ msg }}</div>
+<div class="admin-flash">✅ {{ msg }}</div>
 {% endif %}
 
-<div class="admin-kpi-grid" translate="no">
-    <div class="admin-kpi">
-        <div class="admin-kpi-lbl">Usuarios Totales</div>
-        <div class="admin-kpi-val">{{ stats.usuarios }}</div>
+{% set db_color = '#ff5252' if stats.db_pct >= 85 else ('#ffb300' if stats.db_pct >= 70 else '#00e676') %}
+
+<div class="admin-kpis" translate="no">
+    <div class="ak-card">
+        <div class="ak-label">👤 Usuarios</div>
+        <div class="ak-val">{{ stats.usuarios }}</div>
+        <div style="font-size:0.74em; color:var(--text-muted); margin-top:4px;">{{ stats.pro }} cuentas Pro</div>
     </div>
-    <div class="admin-kpi">
-        <div class="admin-kpi-lbl">Cuentas Pro</div>
-        <div class="admin-kpi-val" style="color:#00e676;">{{ stats.pro }}</div>
+    <div class="ak-card">
+        <div class="ak-label">⛏️ Mineros Totales</div>
+        <div class="ak-val" style="color:#60a5fa;">{{ stats.mineros }}</div>
+        <div style="font-size:0.74em; color:var(--text-muted); margin-top:4px;">En toda la plataforma</div>
     </div>
-    <div class="admin-kpi">
-        <div class="admin-kpi-lbl">Mineros Registrados</div>
-        <div class="admin-kpi-val" style="color:#60a5fa;">{{ stats.mineros }}</div>
+    <div class="ak-card">
+        <div class="ak-label">💰 Saldo Acumulado</div>
+        <div class="ak-val" style="color:#00e676;">${{ "%.2f"|format(stats.saldo_total) }}</div>
+        <div style="font-size:0.74em; color:var(--text-muted); margin-top:4px;">USDT en cuentas</div>
     </div>
-    <div class="admin-kpi">
-        <div class="admin-kpi-lbl">Saldo Global (USDT)</div>
-        <div class="admin-kpi-val" style="color:#38bdf8;">${{ "%.2f"|format(stats.saldo_total) }}</div>
+    <div class="ak-card">
+        <div class="ak-label">🗄️ Base de Datos (PostgreSQL)</div>
+        <div class="ak-val" style="color:{{ db_color }};">{{ "%.2f"|format(stats.db_mb) }} <span style="font-size:0.55em; color:var(--text-muted);">MB</span></div>
+        <div class="db-bar-bg">
+            <div class="db-bar-fill" style="width:{{ stats.db_pct }}%; background:{{ db_color }};"></div>
+        </div>
+        <div style="font-size:0.72em; color:var(--text-muted); margin-top:4px;">{{ stats.db_pct }}% de 1 GB (ref.)</div>
     </div>
 </div>
 
-<div class="admin-card">
-    <div class="admin-table-wrap">
+<div class="admin-table-card">
+    <div class="admin-table-scroll">
         <table class="admin-table">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Usuario</th>
                     <th>Mineros</th>
-                    <th>API Key</th>
+                    <th>Subred</th>
                     <th>Plan</th>
                     <th>Saldo (USDT)</th>
                     <th>Acciones</th>
                 </tr>
             </thead>
-            <tbody translate="no">
+            <tbody>
                 {% for u in usuarios %}
                 <tr>
-                    <td style="color:var(--text-muted); font-family:monospace;">#{{ u.id }}</td>
+                    <td style="font-family:monospace; color:var(--text-muted);" translate="no">#{{ u.id }}</td>
+                    <td style="font-weight:bold;" translate="no">{{ u.username }}</td>
+                    <td style="font-family:monospace;" translate="no">{{ u.total_mineros }}</td>
+                    <td style="font-family:monospace; color:var(--text-muted);" translate="no">{{ u.subnet or '192.168.0' }}</td>
                     <td>
-                        <b style="color:var(--text-main);">{{ u.username }}</b>
-                        {% if u.username == 'giovanni' %}
-                            <span class="plan-pill pro" style="margin-left:5px;">OWNER</span>
-                        {% endif %}
-                    </td>
-                    <td style="font-family:monospace; font-weight:bold; color:#60a5fa;">
-                        {{ u.total_mineros }}
-                        {% if u.plan != 'Pro' and u.username != 'giovanni' %}
-                            <span style="color:var(--text-muted); font-weight:normal;">/ 3</span>
-                        {% endif %}
-                    </td>
-                    <td style="font-family:monospace; font-size:0.84em; color:var(--text-muted);">{{ u.api_key or '-' }}</td>
-                    <td>
-                        <form action="/admin" method="POST" style="display:inline-flex; align-items:center; gap:8px; margin:0;">
+                        <form method="POST" action="/admin" id="form_u_{{ u.id }}" style="margin:0; display:flex; align-items:center; gap:6px;">
                             <input type="hidden" name="accion" value="actualizar_usuario">
                             <input type="hidden" name="user_id" value="{{ u.id }}">
-                            <select name="plan" class="admin-select" {{ 'disabled' if u.username == 'giovanni' else '' }}>
-                                <option value="Gratis" {{ 'selected' if u.plan == 'Gratis' else '' }}>Gratis (3 ASIC)</option>
-                                <option value="Pro" {{ 'selected' if u.plan == 'Pro' else '' }}>Pro (Ilimitado)</option>
+                            <select name="plan" class="adm-select" {% if u.username == 'giovanni' %}disabled{% endif %}>
+                                <option value="Gratis" {% if u.plan == 'Gratis' %}selected{% endif %}>Gratis</option>
+                                <option value="Pro" {% if u.plan == 'Pro' %}selected{% endif %}>Pro</option>
                             </select>
-                    </td>
-                    <td>
-                            <input type="number" step="0.01" name="saldo" class="admin-input" style="width:105px;" value="{{ '%.2f'|format(u.saldo or 0.0) }}" required>
-                    </td>
-                    <td>
-                            <div style="display:inline-flex; gap:6px; align-items:center;">
-                                <button type="submit" class="btn-admin-save">💾 Guardar</button>
                         </form>
-                                {% if u.username != 'giovanni' %}
-                                <form action="/admin" method="POST" style="margin:0;" onsubmit="return confirm('¿Eliminar la cuenta {{ u.username }}? Sus mineros ya no podrán reportar con esta API Key.');">
-                                    <input type="hidden" name="accion" value="eliminar_usuario">
-                                    <input type="hidden" name="user_id" value="{{ u.id }}">
-                                    <button type="submit" class="btn-admin-del" title="Eliminar usuario">🗑️</button>
-                                </form>
-                                {% endif %}
-                            </div>
+                    </td>
+                    <td>
+                        <input type="number" step="0.01" name="saldo" form="form_u_{{ u.id }}" class="adm-input" style="width:95px;" value="{{ '%.2f'|format(u.saldo or 0) }}">
+                    </td>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <button type="submit" form="form_u_{{ u.id }}" class="adm-btn">💾 Guardar</button>
+                            {% if u.username != 'giovanni' %}
+                            <form method="POST" action="/admin" style="margin:0;" onsubmit="return confirm('¿Eliminar la cuenta {{ u.username }}?');">
+                                <input type="hidden" name="accion" value="eliminar_usuario">
+                                <input type="hidden" name="user_id" value="{{ u.id }}">
+                                <button type="submit" class="adm-btn-del">🗑️</button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
