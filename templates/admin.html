@@ -64,6 +64,53 @@
     .db-bar-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; margin-top: 6px; }
     .db-bar-fill { height: 100%; border-radius: 4px; }
 
+    /* Selector Segmented Control de Capa GPS */
+    .gps-subbar {
+        padding: 8px 16px;
+        background: rgba(10, 12, 18, 0.55);
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .gps-segmented {
+        display: inline-flex;
+        background: rgba(10, 12, 18, 0.9);
+        border: 1px solid var(--border-color);
+        border-radius: 7px;
+        padding: 3px;
+        gap: 4px;
+    }
+    .gps-seg-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--text-muted);
+        padding: 4px 10px;
+        border-radius: 5px;
+        font-size: 0.76em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .gps-seg-btn:hover { color: #fff; }
+    .gps-seg-btn.active {
+        background: rgba(51, 102, 255, 0.25);
+        border-color: #3b82f6;
+        color: #60a5fa;
+    }
+    .gps-seg-btn.active.real-mode {
+        background: rgba(16, 185, 129, 0.22);
+        border-color: #10b981;
+        color: #34d399;
+    }
+    .gps-seg-btn.active.cmp-mode {
+        background: rgba(245, 158, 11, 0.22);
+        border-color: #f59e0b;
+        color: #fbbf24;
+    }
+
     /* Mapa Oscuro NOC */
     .map-wrapper {
         position: relative;
@@ -143,7 +190,7 @@
         pointer-events: none;
     }
 
-    /* Pin Ovalado 2 Niveles (Dueño + Total arriba | Mitad Verde / Mitad Roja abajo) */
+    /* Pin Ovalado 2 Niveles */
     .farm-pin-wrap {
         display: flex;
         flex-direction: column;
@@ -164,6 +211,7 @@
         margin-bottom: 3px;
         box-shadow: 0 3px 10px rgba(0, 0, 0, 0.8);
     }
+    .farm-pin-owner.real-border { border-color: #10b981; }
     .farm-pin-owner span {
         color: #60a5fa;
         font-family: monospace;
@@ -182,9 +230,7 @@
         min-width: 56px;
         height: 22px;
     }
-    .farm-pin-oval.alert-pulse {
-        animation: pinPulse 1.6s infinite;
-    }
+    .farm-pin-oval.alert-pulse { animation: pinPulse 1.6s infinite; }
     .fpo-left {
         flex: 1;
         background: #00e676;
@@ -194,10 +240,7 @@
         justify-content: center;
         padding: 0 7px;
     }
-    .fpo-left.zero {
-        background: #1e293b;
-        color: #64748b;
-    }
+    .fpo-left.zero { background: #1e293b; color: #64748b; }
     .fpo-right {
         flex: 1;
         background: #ff5252;
@@ -208,10 +251,7 @@
         padding: 0 7px;
         border-left: 1px solid rgba(0, 0, 0, 0.35);
     }
-    .fpo-right.zero {
-        background: #1e293b;
-        color: #64748b;
-    }
+    .fpo-right.zero { background: #1e293b; color: #64748b; }
     .farm-pin-tip {
         width: 0;
         height: 0;
@@ -219,6 +259,21 @@
         border-right: 6px solid transparent;
         border-top: 7px solid #ffffff;
         margin-top: -1px;
+    }
+
+    /* Pin secundario GPS Real en modo Comparar */
+    .real-ghost-pin {
+        background: rgba(16, 185, 129, 0.92);
+        color: #041b11;
+        border: 2px solid #ffffff;
+        border-radius: 10px;
+        padding: 2px 7px;
+        font-family: monospace;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.75);
     }
 
     .cluster-badge {
@@ -235,9 +290,7 @@
         border: 2px solid #ffffff;
         box-shadow: 0 0 14px rgba(0, 0, 0, 0.8);
     }
-    .cluster-badge.alert-pulse {
-        animation: pinPulse 1.6s infinite;
-    }
+    .cluster-badge.alert-pulse { animation: pinPulse 1.6s infinite; }
     @keyframes pinPulse {
         0% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.85); }
         70% { box-shadow: 0 0 0 12px rgba(255, 82, 82, 0); }
@@ -254,6 +307,15 @@
         color: #e2e8f0 !important;
         border: 1px solid rgba(59, 130, 246, 0.4) !important;
         border-radius: 7px !important;
+    }
+    .popup-badge-src {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 5px;
+        font-size: 10px;
+        font-family: monospace;
+        font-weight: bold;
+        margin-bottom: 5px;
     }
     .popup-asics-list {
         margin-top: 7px;
@@ -275,12 +337,7 @@
     .adm-grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-bottom: 18px; }
     @media (max-width: 860px) { .adm-grid-2 { grid-template-columns: 1fr; } }
 
-    .adm-filter-bar {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        align-items: center;
-    }
+    .adm-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .adm-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .adm-table { width: 100%; min-width: 1040px; border-collapse: collapse; font-size: 0.83em; }
     .adm-table th {
@@ -317,18 +374,10 @@
     .pill-susp { background: rgba(255, 82, 82, 0.18); color: #ff8a80; border: 1px solid rgba(255, 82, 82, 0.45); }
 
     .nota-privada-chip {
-        margin-top: 3px;
-        font-size: 0.78em;
-        color: #ffd54f;
-        background: rgba(255, 179, 0, 0.10);
-        border: 1px solid rgba(255, 179, 0, 0.25);
-        border-radius: 4px;
-        padding: 2px 6px;
-        display: inline-block;
-        max-width: 240px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        margin-top: 3px; font-size: 0.78em; color: #ffd54f;
+        background: rgba(255, 179, 0, 0.10); border: 1px solid rgba(255, 179, 0, 0.25);
+        border-radius: 4px; padding: 2px 6px; display: inline-block;
+        max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
     /* Modales */
@@ -409,6 +458,16 @@
             <button type="button" class="map-pill-btn" onclick="recentrarMapa()" title="Encuadrar todas las granjas">🎯 Recentrar</button>
             <button type="button" class="map-pill-btn" id="btnMapFs" onclick="toggleMapaFullscreen()" title="Pantalla completa">⛶</button>
         </div>
+    </div>
+    <div class="gps-subbar">
+        <div class="gps-segmented">
+            <button type="button" class="gps-seg-btn active" id="gpsMode-cliente" onclick="cambiarModoGps('cliente')">📍 GPS Cliente (Clima)</button>
+            <button type="button" class="gps-seg-btn" id="gpsMode-real" onclick="cambiarModoGps('real')">🛰️ GPS Real (Agente)</button>
+            <button type="button" class="gps-seg-btn" id="gpsMode-comparar" onclick="cambiarModoGps('comparar')">🔀 Comparar</button>
+        </div>
+        <span id="gpsModeDesc" style="font-size:0.76em; color:var(--text-muted);">
+            Mostrando ubicación oficial configurada por el cliente (prioridad para clima).
+        </span>
     </div>
     <div class="map-wrapper" id="mapWrapper">
         <div id="globalFarmsMap" class="noc-dark-tiles"></div>
@@ -709,9 +768,11 @@
     };
     let admMap = null;
     let admClusterGroup = null;
+    let admCompareLayer = null;
     let admMarkersByOwner = {};
     let admAllBounds = [];
     let filtroMapaActual = 'all';
+    let modoGpsMapa = 'cliente';
     let modoMoverPin = false;
 
     function abrirModalEditar(id, username, email, plan, susp, notas) {
@@ -804,25 +865,50 @@
         return html;
     }
 
+    function cambiarModoGps(modo) {
+        modoGpsMapa = modo;
+        const bCli = document.getElementById('gpsMode-cliente');
+        const bReal = document.getElementById('gpsMode-real');
+        const bCmp = document.getElementById('gpsMode-comparar');
+        const desc = document.getElementById('gpsModeDesc');
+
+        if (bCli) bCli.className = 'gps-seg-btn' + (modo === 'cliente' ? ' active' : '');
+        if (bReal) bReal.className = 'gps-seg-btn' + (modo === 'real' ? ' active real-mode' : '');
+        if (bCmp) bCmp.className = 'gps-seg-btn' + (modo === 'comparar' ? ' active cmp-mode' : '');
+
+        if (desc) {
+            if (modo === 'cliente') desc.innerText = 'Mostrando ubicación oficial configurada por el cliente (prioridad para clima).';
+            else if (modo === 'real') desc.innerText = 'Mostrando ubicación real detectada por el Agente (APK / Wi-Fi / IP).';
+            else desc.innerText = 'Auditoría: línea punteada conecta el GPS del Cliente con el GPS Real (si difieren ≥ 0.5 km).';
+        }
+        renderizarMarcadoresMapa(filtroMapaActual);
+    }
+
     function renderizarMarcadoresMapa(filtro) {
         if (!admMap || !admClusterGroup) return;
         filtroMapaActual = filtro;
         admClusterGroup.clearLayers();
+        if (admCompareLayer) admCompareLayer.clearLayers();
         admMarkersByOwner = {};
         admAllBounds = [];
 
         GRANJAS_DATA.forEach(g => {
-            if (!g.lat || !g.lon) return;
+            const useReal = (modoGpsMapa === 'real');
+            const lat = useReal ? (g.real_lat || g.lat) : g.lat;
+            const lon = useReal ? (g.real_lon || g.lon) : g.lon;
+            if (!lat || !lon) return;
+
             if (filtro === 'online' && g.online <= 0) return;
             if (filtro === 'offline' && g.offline <= 0) return;
             if (filtro === 'hot' && g.temp_max < 75) return;
 
             const tieneAlerta = (g.offline > 0 || g.temp_max >= 85 || g.cuarentena > 0);
+            const iconoPref = useReal ? '🛰️' : '👤';
             const icon = L.divIcon({
                 className: '',
                 html: `
                     <div class="farm-pin-wrap">
-                        <div class="farm-pin-owner">👤 ${g.owner}<span>· ${g.total}</span></div>
+                        <div class="farm-pin-owner ${useReal ? 'real-border' : ''}">${iconoPref} ${g.owner}<span>· ${g.total}</span></div>
                         <div class="farm-pin-oval ${tieneAlerta ? 'alert-pulse' : ''}">
                             <div class="fpo-left ${g.online === 0 ? 'zero' : ''}">${g.online}</div>
                             <div class="fpo-right ${g.offline === 0 ? 'zero' : ''}">${g.offline}</div>
@@ -834,11 +920,25 @@
                 iconAnchor: [0, 0]
             });
 
-            const marker = L.marker([g.lat, g.lon], {
+            const marker = L.marker([lat, lon], {
                 icon: icon,
                 farmData: g,
-                draggable: modoMoverPin
+                draggable: (modoMoverPin && !useReal)
             });
+
+            const badgeOrigen = useReal
+                ? `<span class="popup-badge-src" style="background:rgba(16,185,129,0.2);color:#34d399;border:1px solid #10b981;">🛰️ Real: ${g.real_source || 'IP Pública'}</span>`
+                : (g.gps_manual
+                    ? `<span class="popup-badge-src" style="background:rgba(59,130,246,0.2);color:#60a5fa;border:1px solid #3b82f6;">📍 Fijado por Cliente</span>`
+                    : `<span class="popup-badge-src" style="background:rgba(148,163,184,0.2);color:#cbd5e1;border:1px solid #64748b;">🌐 Auto: ${g.real_source || 'IP Pública'}</span>`);
+
+            const desvHtml = (g.desviacion_km && g.desviacion_km >= 0.5)
+                ? `<div style="font-size:11px; color:#fbbf24; margin-top:3px;">⚠️ Desviación: <b>${g.desviacion_km} km</b> vs GPS Real (${g.real_source})</div>`
+                : '';
+
+            const climaHtml = (g.clima_ext !== null && g.clima_ext !== undefined)
+                ? ` · 🌤️ <b>${g.clima_ext}°C ext.</b>`
+                : '';
 
             const uid = USERS_ID_MAP[g.owner];
             const btnSoporteHtml = uid
@@ -846,13 +946,15 @@
                 : '';
 
             marker.bindPopup(`
-                <div style="font-family:sans-serif; font-size:12px; line-height:1.5; min-width:225px;">
+                <div style="font-family:sans-serif; font-size:12px; line-height:1.5; min-width:230px;">
+                    ${badgeOrigen}
                     <div style="font-weight:bold; font-size:13px; margin-bottom:2px; color:#60a5fa;">🏭 ${g.ciudad}</div>
-                    <div style="font-family:monospace; font-size:11px; color:#94a3b8; margin-bottom:6px;">Subred: ${g.subred}</div>
+                    <div style="font-family:monospace; font-size:11px; color:#94a3b8; margin-bottom:5px;">Subred: ${g.subred}</div>
                     👤 Dueño: <b>${g.owner}</b> · Total: <b>${g.total} ASICs</b><br>
                     🟢 En línea: <b style="color:#00e676;">${g.online}</b> · 🔴 Offline: <b style="color:#ff5252;">${g.offline}</b><br>
-                    ⚡ Hashrate: <b style="color:#c084fc;">${g.hashrate} TH/s</b> · 🌡️ <b>${g.temp_max}°C</b><br>
+                    ⚡ Hashrate: <b style="color:#c084fc;">${g.hashrate} TH/s</b> · 🌡️ <b>${g.temp_max}°C</b>${climaHtml}<br>
                     Estado: <b style="color:${g.color};">${g.estado_txt}</b>
+                    ${desvHtml}
                     ${construirListaAsicsPopup(g.asics)}
                     ${btnSoporteHtml}
                 </div>
@@ -862,6 +964,7 @@
                 const pos = ev.target.getLatLng();
                 g.lat = Number(pos.lat.toFixed(6));
                 g.lon = Number(pos.lng.toFixed(6));
+                g.gps_manual = true;
                 fetch('/api/guardar_gps', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -884,12 +987,43 @@
             if (!admMarkersByOwner[g.owner]) {
                 admMarkersByOwner[g.owner] = marker;
             }
-            admAllBounds.push([g.lat, g.lon]);
+            admAllBounds.push([lat, lon]);
+
+            // En modo Comparar, dibujar línea punteada y pin fantasma hacia GPS Real si difiere >= 0.5 km
+            if (modoGpsMapa === 'comparar' && admCompareLayer && g.real_lat && g.real_lon && g.desviacion_km >= 0.5) {
+                const linea = L.polyline([[g.lat, g.lon], [g.real_lat, g.real_lon]], {
+                    color: '#fbbf24',
+                    weight: 2,
+                    dashArray: '6, 6',
+                    opacity: 0.85
+                });
+                const ghostIcon = L.divIcon({
+                    className: '',
+                    html: `<div class="real-ghost-pin">🛰️ Real (${g.desviacion_km} km)</div>`,
+                    iconSize: [0, 0],
+                    iconAnchor: [0, 0]
+                });
+                const ghostMarker = L.marker([g.real_lat, g.real_lon], { icon: ghostIcon });
+                ghostMarker.bindPopup(`
+                    <div style="font-family:sans-serif; font-size:12px;">
+                        <b style="color:#34d399;">🛰️ GPS Real del Agente</b><br>
+                        👤 Cliente: <b>${g.owner}</b><br>
+                        Fuente: <b>${g.real_source || 'IP Pública'}</b><br>
+                        Distancia al pin del cliente: <b>${g.desviacion_km} km</b>
+                    </div>
+                `);
+                admCompareLayer.addLayer(linea);
+                admCompareLayer.addLayer(ghostMarker);
+                admAllBounds.push([g.real_lat, g.real_lon]);
+            }
         });
     }
 
     function toggleModoMoverPin() {
         modoMoverPin = !modoMoverPin;
+        if (modoMoverPin && modoGpsMapa === 'real') {
+            cambiarModoGps('cliente');
+        }
         const btn = document.getElementById('btnMoverPin');
         const hud = document.getElementById('hudDragStatus');
         if (btn) btn.classList.toggle('drag-on', modoMoverPin);
@@ -969,6 +1103,8 @@
             '🛰️ Satélite': capaSatelite,
             '🗺️ Calles': capaCalles
         }, null, { position: 'topright' }).addTo(admMap);
+
+        admCompareLayer = L.layerGroup().addTo(admMap);
 
         admClusterGroup = L.markerClusterGroup({
             spiderfyOnMaxZoom: true,
