@@ -264,8 +264,6 @@
             color: #fff;
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
         }
-        .btn-sync { width: auto; padding: 0 14px; gap: 6px; color: var(--text-main); }
-        .btn-sync:hover { background: rgba(51, 102, 255, 0.16); color: var(--accent-blue-light); }
         .top-lang-select { padding: 0 10px; outline: none; }
 
         .top-status {
@@ -289,11 +287,6 @@
         .top-status.paused { border-color: rgba(255, 179, 0, 0.45); }
         .status-envivo { color: var(--accent-green); display: flex; align-items: center; gap: 6px; }
         .top-status.paused .status-envivo { color: #ffb300; }
-        #liveCountdown {
-            display: inline-block;
-            min-width: 34px;
-            text-align: center;
-        }
         .dot-pulse {
             width: 8px;
             height: 8px;
@@ -398,10 +391,7 @@
             .top-lang-select { display: none; }
             .sidebar-mobile-lang { display: block; }
             #relojTop { display: none; }
-            .top-status { padding: 0 8px; gap: 5px; font-size: 0.74em; }
-            .live-txt-label { display: none; }
-            .btn-sync span { display: none; }
-            .btn-sync { width: 34px; padding: 0; }
+            .top-status { padding: 0 9px; gap: 5px; font-size: 0.74em; }
             .top-btn { width: 34px; }
             .main-content { padding: 14px 10px; padding-bottom: calc(95px + env(safe-area-inset-bottom)); }
         }
@@ -472,9 +462,6 @@
                     <img src="/static/logo.png" alt="Logo" onerror="this.outerHTML='<span style=\'font-size:1.2em;\'>⛏️</span>'">
                     <span translate="no">El Minero <span style="color:var(--text-muted); font-weight:normal;">Gris</span></span>
                 </a>
-                <button type="button" class="top-btn btn-sync" onclick="escanearRed()" id="btnSync" title="Escanear red local en busca de mineros">
-                    🔄 <span>Escanear Red</span>
-                </button>
             </div>
 
             <div class="top-bar-right">
@@ -496,7 +483,6 @@
                     <span class="status-envivo" translate="no">
                         <div class="dot-pulse"></div>
                         <span class="live-txt-label" id="liveTxtLabel">En vivo</span>
-                        <span id="liveCountdown">(20s)</span>
                     </span>
                 </div>
             </div>
@@ -521,18 +507,37 @@
             setTimeout(() => { t.style.display = 'none'; }, 3000);
         }
 
-        function escanearRed() {
-            let b = document.getElementById('btnSync');
-            b.innerHTML = '⏳ <span>Escaneando...</span>';
-            b.style.pointerEvents = 'none';
+        function escanearRedLocal(btn) {
+            if (btn && btn.disabled) return;
+            const htmlOrig = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Escaneando...';
+                btn.style.opacity = '0.75';
+            }
             mostrarLayoutToast('📡 Solicitando escaneo de red al Agente...');
-            fetch('/cmd/all/scan').then(() => {
-                setTimeout(() => {
-                    b.innerHTML = '🔄 <span>Escanear Red</span>';
-                    b.style.pointerEvents = 'auto';
-                    actualizacionSilenciosaEnVivo();
-                }, 1800);
-            });
+            fetch('/cmd/all/scan')
+                .then(() => {
+                    if (btn) btn.innerHTML = '✅ En cola (15-30s)';
+                    setTimeout(() => {
+                        if (btn) {
+                            btn.innerHTML = htmlOrig;
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                        }
+                        actualizacionSilenciosaEnVivo();
+                    }, 3500);
+                })
+                .catch(() => {
+                    if (btn) {
+                        btn.innerHTML = '❌ Error';
+                        setTimeout(() => {
+                            btn.innerHTML = htmlOrig;
+                            btn.disabled = false;
+                            btn.style.opacity = '1';
+                        }, 2500);
+                    }
+                });
         }
 
         function googleTranslateElementInit() {
@@ -607,7 +612,6 @@
                 const tag = nodoActual.tagName;
                 if (['SCRIPT', 'STYLE', 'CANVAS', 'INPUT', 'TEXTAREA', 'SELECT', 'SVG', 'IFRAME', 'BUTTON'].includes(tag)) return;
                 if (nodoActual.hasAttribute('data-no-live-patch')) return;
-                // PROTECCIÓN CRÍTICA: Jamás tocar la tarjeta del gráfico ni sus barras/badges calculados por JS
                 if (nodoActual.classList && nodoActual.classList.contains('card') && nodoActual.querySelector('canvas')) return;
                 if (nodoActual.classList && (nodoActual.classList.contains('chart-stats-bar') || nodoActual.classList.contains('chart-CustomLegends'))) return;
             }
@@ -687,27 +691,22 @@
         function actualizarUILive() {
             const pill = document.getElementById('liveStatusPill');
             const lbl = document.getElementById('liveTxtLabel');
-            const cnt = document.getElementById('liveCountdown');
-            if (!pill || !cnt) return;
+            if (!pill || !lbl) return;
 
             if (!rutaPermiteLive()) {
                 pill.classList.add('paused');
-                if (lbl) lbl.innerText = 'Fijo';
-                cnt.innerText = '';
+                lbl.innerText = 'Fijo';
                 return;
             }
             if (livePausadoUsuario) {
                 pill.classList.add('paused');
-                if (lbl) lbl.innerText = 'Pausado';
-                cnt.innerText = '⏸';
+                lbl.innerText = 'Pausado';
             } else if (usuarioEstaEditando()) {
                 pill.classList.add('paused');
-                if (lbl) lbl.innerText = 'Editando';
-                cnt.innerText = '✏️';
+                lbl.innerText = 'Editando';
             } else {
                 pill.classList.remove('paused');
-                if (lbl) lbl.innerText = 'En vivo';
-                cnt.innerText = `(${liveSegundos}s)`;
+                lbl.innerText = 'En vivo';
             }
         }
 
@@ -717,7 +716,7 @@
             try { localStorage.setItem('emg_live_paused', livePausadoUsuario ? '1' : '0'); } catch(e) {}
             if (!livePausadoUsuario) {
                 liveSegundos = LIVE_INTERVAL_SEC;
-                mostrarLayoutToast('🟢 Actualización en vivo activada (cada 20s)');
+                mostrarLayoutToast('🟢 Actualización en vivo activada');
             } else {
                 mostrarLayoutToast('⏸ Actualización automática pausada');
             }
