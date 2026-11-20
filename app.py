@@ -208,7 +208,7 @@ def init_db():
         con.autocommit = True
         c = con.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'giovanni', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia', gps_manual INTEGER DEFAULT 0, corte_activo INTEGER DEFAULT 0, corte_temp INTEGER DEFAULT 85, watchdog_activo INTEGER DEFAULT 1, wd_fallo_desde TEXT DEFAULT '', wd_motivo_fallo TEXT DEFAULT '', wd_ultimo_reinicio TEXT DEFAULT '', wd_reinicios_seguidos INTEGER DEFAULT 0, wd_cuarentena INTEGER DEFAULT 0, placas_normales INTEGER DEFAULT 0, prot_sleep_desde TEXT DEFAULT '', prot_motivo TEXT DEFAULT '')''')
-        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, email TEXT DEFAULT '', fecha_registro TEXT DEFAULT '', suspendido INTEGER DEFAULT 0, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 0, wd_activo INTEGER DEFAULT 0, wd_alcance TEXT DEFAULT 'all', wd_granjas TEXT DEFAULT '[]', wd_mineros TEXT DEFAULT '[]', wd_zero_hr INTEGER DEFAULT 0, wd_cold_on INTEGER DEFAULT 0, wd_cold_temp INTEGER DEFAULT 31, wd_amb_cold_on INTEGER DEFAULT 0, wd_amb_cold_temp INTEGER DEFAULT 18, wd_dead_board INTEGER DEFAULT 0, wd_gracia_min INTEGER DEFAULT 5, wd_cooldown_min INTEGER DEFAULT 30, wd_cuarentena_on INTEGER DEFAULT 0, wd_max_reinicios INTEGER DEFAULT 3, prot_activo INTEGER DEFAULT 0, prot_temp_on INTEGER DEFAULT 0, prot_temp_val INTEGER DEFAULT 85, prot_temp_accion TEXT DEFAULT 'sleep', prot_clima_on INTEGER DEFAULT 0, prot_clima_val INTEGER DEFAULT 38, prot_clima_accion TEXT DEFAULT 'sleep', prot_net_on INTEGER DEFAULT 0, prot_net_rej_pct REAL DEFAULT 5.0, prot_net_accion TEXT DEFAULT 'sleep', prot_fan_on INTEGER DEFAULT 0, prot_fan_accion TEXT DEFAULT 'sleep', prot_wakeup_on INTEGER DEFAULT 0, prot_wakeup_min INTEGER DEFAULT 30)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, email TEXT DEFAULT '', fecha_registro TEXT DEFAULT '', suspendido INTEGER DEFAULT 0, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 0, wd_activo INTEGER DEFAULT 0, wd_alcance TEXT DEFAULT 'all', wd_granjas TEXT DEFAULT '[]', wd_mineros TEXT DEFAULT '[]', wd_zero_hr INTEGER DEFAULT 0, wd_cold_on INTEGER DEFAULT 0, wd_cold_temp INTEGER DEFAULT 31, wd_amb_cold_on INTEGER DEFAULT 0, wd_amb_cold_temp INTEGER DEFAULT 18, wd_dead_board INTEGER DEFAULT 0, wd_gracia_min INTEGER DEFAULT 5, wd_cooldown_min INTEGER DEFAULT 30, wd_cuarentena_on INTEGER DEFAULT 0, wd_max_reinicios INTEGER DEFAULT 3, prot_activo INTEGER DEFAULT 0, prot_temp_on INTEGER DEFAULT 0, prot_temp_val INTEGER DEFAULT 85, prot_temp_accion TEXT DEFAULT 'sleep', prot_clima_on INTEGER DEFAULT 0, prot_clima_val INTEGER DEFAULT 38, prot_clima_accion TEXT DEFAULT 'sleep', prot_net_on INTEGER DEFAULT 0, prot_net_rej_pct REAL DEFAULT 5.0, prot_net_accion TEXT DEFAULT 'sleep', prot_fan_on INTEGER DEFAULT 0, prot_fan_accion TEXT DEFAULT 'sleep', prot_wakeup_on INTEGER DEFAULT 0, prot_wakeup_min INTEGER DEFAULT 30, mineros_omitidos INTEGER DEFAULT 0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'giovanni', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT, owner TEXT DEFAULT 'giovanni', nombre TEXT)''')
@@ -304,7 +304,8 @@ def init_db():
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS prot_fan_on INTEGER DEFAULT 0",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS prot_fan_accion TEXT DEFAULT 'sleep'",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS prot_wakeup_on INTEGER DEFAULT 0",
-            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS prot_wakeup_min INTEGER DEFAULT 30"
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS prot_wakeup_min INTEGER DEFAULT 30",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS mineros_omitidos INTEGER DEFAULT 0"
         ]
         for col_sql in columnas_nuevas:
             try: c.execute(col_sql)
@@ -367,6 +368,8 @@ def asegurar_bd():
 @app.context_processor
 def inyectar_globales():
     anuncio = ""
+    omitidos_u = 0
+    es_pro_u = False
     try:
         if 'usuario' in session and DB_URL:
             con = get_db()
@@ -375,12 +378,20 @@ def inyectar_globales():
             row = cur.fetchone()
             if row and row[0]:
                 anuncio = str(row[0]).strip()
+            cur.execute("SELECT plan, mineros_omitidos FROM usuarios WHERE username=%s", (session['usuario'],))
+            urow = cur.fetchone()
+            if urow:
+                es_pro_u = es_cuenta_pro(session['usuario'], urow[0])
+                omitidos_u = 0 if es_pro_u else a_int_seguro(urow[1], 0)
     except:
         pass
     return {
         'anuncio_global': anuncio,
         'en_modo_soporte': bool(session.get('admin_real') == 'giovanni'),
-        'es_super_admin': es_super_admin()
+        'es_super_admin': es_super_admin(),
+        'mineros_omitidos': omitidos_u,
+        'es_pro_actual': es_pro_u,
+        'limite_gratis': LIMITE_MINEROS_GRATIS
     }
 
 def login_required(f):
@@ -697,6 +708,28 @@ def admin_panel():
         movimientos=movimientos, mapa_granjas_json=json.dumps(mapa_granjas),
         anuncio_actual=anuncio_actual, msg=msg
     )
+
+# --- API: Eliminar mineros (liberar cupo o borrar equipos offline/fantasma) ---
+@app.route('/api/eliminar_mineros', methods=['POST'])
+@login_required
+def api_eliminar_mineros():
+    usr_actual = session.get('usuario', 'giovanni')
+    data = request.get_json(silent=True) or {}
+    ips = data.get('ips', [])
+    if not ips or not isinstance(ips, list):
+        return jsonify({"status": "error", "msg": "No se recibieron IPs"}), 400
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    eliminados = 0
+    for ip in ips:
+        ip_clean = str(ip or '').strip()
+        if not ip_clean:
+            continue
+        cur.execute("DELETE FROM mineros_activos WHERE owner=%s AND ip=%s", (usr_actual, ip_clean))
+        eliminados += cur.rowcount
+        cur.execute("DELETE FROM nombres_mineros WHERE owner=%s AND ip=%s", (usr_actual, ip_clean))
+        cur.execute("DELETE FROM logs_mineros WHERE owner=%s AND ip=%s", (usr_actual, ip_clean))
+        cur.execute("DELETE FROM cola_comandos WHERE owner=%s AND ip=%s", (usr_actual, ip_clean))
+    return jsonify({"status": "ok", "eliminados": eliminados})
 
 # --- API: Sincronizar tarifa eléctrica desde cualquier página ---
 @app.route('/api/guardar_tarifa', methods=['POST'])
@@ -1990,6 +2023,11 @@ def recibir_datos():
                         enviar_telegram(tg_tok, tg_cid, f"⚠️ <b>CAÍDA DE HASHRATE</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nHashrate actual: <b>{hr_m} {unid}</b> (Umbral: {umbral_h} {unid})\nTemperatura: {temp_m}°C")
         except Exception as err_m:
             print(f"Error guardando minero {m.get('ip')}: {err_m}")
+
+    try:
+        cur.execute("UPDATE usuarios SET mineros_omitidos=%s WHERE username=%s", (0 if es_pro else omitidos_por_plan, owner_user))
+    except:
+        pass
 
     if ahora_ts - ultima_limpieza_bd > 3600:
         ultima_limpieza_bd = ahora_ts
