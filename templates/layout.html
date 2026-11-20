@@ -103,6 +103,29 @@
             font-weight: bold;
             font-size: 0.92em;
         }
+        .plan-limit-bar {
+            background: rgba(255, 82, 82, 0.14);
+            border-bottom: 1px solid rgba(255, 82, 82, 0.45);
+            color: #ff8a80;
+            padding: 7px 16px;
+            font-size: 0.80em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .plan-upgrade-btn {
+            background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
+            color: #fff;
+            border: 1px solid #60a5fa;
+            padding: 4px 11px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 0.90em;
+            white-space: nowrap;
+        }
         .global-announce-bar {
             background: rgba(51, 102, 255, 0.16);
             border-bottom: 1px solid rgba(59, 130, 246, 0.45);
@@ -485,6 +508,13 @@
         <div class="support-mode-bar">
             <span>🛠️ MODO SOPORTE ACTIVO — Viendo y editando la cuenta de <b translate="no">{{ session['usuario'] }}</b></span>
             <a href="/admin/salir_soporte" class="support-exit-btn">↩ Volver a mi Admin</a>
+        </div>
+        {% endif %}
+
+        {% if not es_pro_actual and mineros_omitidos > 0 %}
+        <div class="plan-limit-bar">
+            <span>⚠️ <b>Plan Gratis ({{ limite_gratis }}/{{ limite_gratis }} activos):</b> Detectamos <b>{{ mineros_omitidos }}</b> equipo(s) adicional(es) en tu red que no se están monitoreando.</span>
+            <a href="/plan" class="plan-upgrade-btn">🚀 Actualizar a Pro</a>
         </div>
         {% endif %}
 
