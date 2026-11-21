@@ -19,7 +19,6 @@ CREDENCIALES_HTTP = [
 ]
 
 def actualizar_credenciales_http(usr, pwd):
-    """Agrega la clave personalizada del usuario al inicio de la lista sin duplicados."""
     u = str(usr or "").strip()
     p = str(pwd or "").strip()
     if not u or not p:
@@ -48,7 +47,6 @@ ultimo_escaneo_auto = 0
 ultimo_check_update = 0
 
 def obtener_o_crear_agent_id():
-    """Genera y persiste un agent_id único por equipo/sede para evitar choques de IPs."""
     try:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         ruta_id = os.path.join(base_dir, "agent_id.txt")
@@ -68,7 +66,6 @@ def obtener_o_crear_agent_id():
 AGENT_ID = obtener_o_crear_agent_id()
 
 def obtener_ip_local():
-    """Obtiene la IP LAN real del equipo donde corre el agente."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.settimeout(1.5)
@@ -92,7 +89,6 @@ def _leer_cmd_corto(cmd_list, timeout=2):
         return ""
 
 def _detectar_hw_estatico():
-    """Detecta una sola vez marca, modelo, SO y si es Termux / Raspberry Pi / PC."""
     global cache_hw_agente
     if cache_hw_agente is not None:
         return dict(cache_hw_agente)
@@ -164,7 +160,6 @@ def _detectar_hw_estatico():
     return info
 
 def obtener_telemetria_dispositivo():
-    """Retorna tipo de equipo, método de ejecución, IP local, % de batería y estado de cargador."""
     info = _detectar_hw_estatico()
     info["local_ip"] = obtener_ip_local()
     info["has_battery"] = False
@@ -243,7 +238,6 @@ def obtener_telemetria_dispositivo():
     return info
 
 def keep_awake():
-    """Evita que Windows entre en suspensión o que Termux pause el proceso."""
     try:
         if sys.platform == "win32":
             import ctypes
@@ -258,7 +252,6 @@ def keep_awake():
         print(f"[AVISO] No se pudo activar anti-suspensión: {e}")
 
 def obtener_ubicacion_wifi():
-    """Triangulación Wi-Fi (Windows/Linux) usando BeaconDB con caché de 6 horas."""
     global cache_geo_wifi
     ahora_ts = time.time()
     if cache_geo_wifi["ts"] > 0 and (ahora_ts - cache_geo_wifi["ts"] < 21600):
@@ -351,7 +344,7 @@ def verificar_actualizacion():
             with open(ruta_tmp, "w", encoding="utf-8") as f:
                 f.write(r_code.text)
             os.replace(ruta_tmp, ruta_actual)
-            print("[UPDATE] ¡Agente actualizado con éxito (respaldo .bak guardado)! Reiniciando...")
+            print("[UPDATE] ¡Agente actualizado con éxito! Reiniciando...")
             if os.environ.get("EMG_MANAGED") == "1":
                 sys.exit(0)
             else:
@@ -417,6 +410,36 @@ def peticion_http(ip, endpoint, metodo="GET", payload=None, timeout_sec=4.5):
         except:
             break
     return None
+
+def detectar_fw_custom(fw_str, st, st_sum):
+    """Detecta firmwares custom (Vnish, Braiins OS, LuxOS, Hiveon) y su perfil de overclock/potencia."""
+    texto = " ".join([
+        str(fw_str or ""),
+        str(st.get("Type", "")),
+        str(st.get("Description", "")),
+        str(st_sum.get("Description", ""))
+    ]).lower()
+
+    fw_tipo = "Stock"
+    if "vnish" in texto or "anthill" in texto:
+        fw_tipo = "Vnish"
+    elif "braiins" in texto or "bosminer" in texto or "bos+" in texto:
+        fw_tipo = "Braiins OS"
+    elif "luxos" in texto or "luxminer" in texto:
+        fw_tipo = "LuxOS"
+    elif "hiveon" in texto or "hiveos" in texto:
+        fw_tipo = "Hiveon"
+
+    perfil = ""
+    for k in ("preset", "profile", "power_target", "power_limit", "bos_mode", "work_mode"):
+        val = buscar_llave(st, [k], buscar_llave(st_sum, [k], None))
+        if val is not None and str(val).strip() != "":
+            perfil = str(val).strip()[:45]
+            break
+
+    if not perfil and fw_tipo != "Stock":
+        perfil = "Auto-Tuning"
+    return fw_tipo, perfil
 
 def formatear_de_fabrica(ip):
     print(f"[{ip}] Ejecutando formateo de fábrica (Factory Reset)...")
@@ -602,6 +625,8 @@ def extraer_whatsminer(ip, st_sum, ver_resp):
         cache_info_estatica[ip] = estatica
 
     modelo_str = estatica.get('modelo', 'WhatsMiner')
+    fw_str = estatica.get('fw', 'BTMiner')
+    fw_tipo, perfil_oc = detectar_fw_custom(fw_str, {}, st_sum)
 
     piscinas = peticion_4028(ip, "pools")
     pl = piscinas.get('POOLS', []) if isinstance(piscinas, dict) else []
@@ -679,7 +704,7 @@ def extraer_whatsminer(ip, st_sum, ver_resp):
         "hashrate": round(float(hr_5s), 2), "hashrate_30m": round(float(hr_30m), 2),
         "temp": int(tm), "temp_amb": int(temp_amb), "consumo": round(float(c_w), 0), "errores": int(errores_hw),
         "fans": fans_str, "mac": estatica.get('mac', '-'), "serial": estatica.get('serial', f"WM-{ip.replace('.', '')}"),
-        "firmware": estatica.get('fw', 'BTMiner'), "cadenas": cadenas, "uptime": uptime_str,
+        "firmware": fw_str, "fw_tipo": fw_tipo, "perfil_oc": perfil_oc, "cadenas": cadenas, "uptime": uptime_str,
         "hostname": estatica.get('hostname', f"WhatsMiner{ip.split('.')[-1]}"),
         "net_proto": estatica.get('net_proto', 'Static'), "netmask": estatica.get('netmask', '255.255.255.0'),
         "gateway": estatica.get('gateway', f"{SUBNET}.1"), "dns": estatica.get('dns', '8.8.8.8'),
@@ -782,6 +807,7 @@ def extraer_todo(ip):
 
     mac = estatica.get('mac', '-')
     fw = estatica.get('fw', 'Desconocido')
+    fw_tipo, perfil_oc = detectar_fw_custom(fw, st, st_sum)
     hostname = estatica.get('hostname', f"Antminer{ip.split('.')[-1]}")
     net_proto = estatica.get('net_proto', 'Static')
     netmask = estatica.get('netmask', '255.255.255.0')
@@ -994,7 +1020,8 @@ def extraer_todo(ip):
         "algoritmo": algoritmo, "moneda": moneda, "unidad": unidad_hr,
         "hashrate": round(float(hr_5s), 2), "hashrate_30m": round(float(hr_30m), 2),
         "temp": int(tm), "temp_amb": int(temp_amb), "consumo": round(float(c_w), 0), "errores": int(errores_hw),
-        "fans": fans_str, "mac": mac, "serial": str(st.get('Hash Board SN', f"SN-{ip.replace('.', '')}")), "firmware": fw, "cadenas": cadenas,
+        "fans": fans_str, "mac": mac, "serial": str(st.get('Hash Board SN', f"SN-{ip.replace('.', '')}")),
+        "firmware": fw, "fw_tipo": fw_tipo, "perfil_oc": perfil_oc, "cadenas": cadenas,
         "uptime": uptime_str,
         "hostname": hostname, "net_proto": net_proto, "netmask": netmask, "gateway": gateway, "dns": dns,
         "pool1": p1_url, "worker1": p1_usr, "pass1": p1_pas, "status1": p1_st, "acc1": int(p1_acc), "rej1": int(p1_rej),
@@ -1076,6 +1103,14 @@ def procesar_comandos(ordenes):
                 peticion_4028(ip_dest, "set_led")
             else:
                 peticion_http(ip_dest, "blink.cgi", "POST", {"blink": "true"}, timeout_sec=4.5)
+        elif accion.startswith("change_pass|"):
+            partes = accion.split('|')
+            if len(partes) >= 3 and not es_wm:
+                old_p, new_p = partes[1], partes[2]
+                payload_pwd = {"cur_pwd": old_p, "new_pwd": new_p, "confirm_pwd": new_p}
+                peticion_http(ip_dest, "set_passwd.cgi", "POST", payload_pwd, timeout_sec=5.0)
+                peticion_http(ip_dest, "passwd.cgi", "POST_FORM", payload_pwd, timeout_sec=5.0)
+                actualizar_credenciales_http(MINER_USER, new_p)
         elif accion.startswith("profile|"):
             modo_str = accion.split('|')[1].lower()
             if es_wm:
@@ -1149,7 +1184,7 @@ def recolectar_y_enviar():
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for res in executor.map(extraer_todo, ips_conocidas):
             if res:
-                print(f"[{res['ip']}] {res['modelo']} ({res['moneda']}) | {res['hashrate']} {res['unidad']} | Temp: {res['temp']}°C | Acc1: {res['acc1']}")
+                print(f"[{res['ip']}] {res['modelo']} ({res['fw_tipo']}) | {res['hashrate']} {res['unidad']} | Temp: {res['temp']}°C")
                 datos["mineros"].append(res)
 
     try:
