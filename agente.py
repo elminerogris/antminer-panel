@@ -1,4 +1,4 @@
-import socket, json, time, requests, concurrent.futures, re, os, sys, subprocess, shutil, uuid
+import socket, json, time, requests, concurrent.futures, re, os, sys, subprocess, shutil, uuid, platform
 from requests.auth import HTTPDigestAuth
 
 URL_NUBE = "https://elminerogris.com/api/recibir_datos"
@@ -29,6 +29,7 @@ ips_conocidas = list(IPS_BASE)
 
 cache_info_estatica = {}
 cache_geo_wifi = {"lat": None, "lon": None, "ts": 0}
+cache_hw_agente = None
 ultimo_escaneo_auto = 0
 ultimo_check_update = 0
 
@@ -42,7 +43,7 @@ def obtener_o_crear_agent_id():
                 val = f.read().strip()
                 if val and len(val) >= 4:
                     return val[:40]
-        prefijo = "TERMUX-" if "ANDROID_ROOT" in os.environ else "PC-"
+        prefijo = "TERMUX-" if ("ANDROID_ROOT" in os.environ or "TERMUX_VERSION" in os.environ) else "PC-"
         nuevo_id = f"{prefijo}{uuid.uuid4().hex[:8].upper()}"
         with open(ruta_id, "w", encoding="utf-8") as f:
             f.write(nuevo_id)
@@ -51,6 +52,181 @@ def obtener_o_crear_agent_id():
         return f"PC-{uuid.uuid4().hex[:8].upper()}"
 
 AGENT_ID = obtener_o_crear_agent_id()
+
+def obtener_ip_local():
+    """Obtiene la IP LAN real del equipo donde corre el agente."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(1.5)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        try:
+            return socket.gethostbyname(socket.gethostname())
+        except Exception:
+            return ""
+
+def _leer_cmd_corto(cmd_list, timeout=2):
+    try:
+        kwargs = {"stderr": subprocess.DEVNULL, "timeout": timeout}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        return subprocess.check_output(cmd_list, **kwargs).decode("utf-8", errors="ignore").strip()
+    except Exception:
+        return ""
+
+def _detectar_hw_estatico():
+    """Detecta una sola vez marca, modelo, SO y si es Termux / Raspberry Pi / PC."""
+    global cache_hw_agente
+    if cache_hw_agente is not None:
+        return dict(cache_hw_agente)
+
+    es_termux = bool("TERMUX_VERSION" in os.environ or "ANDROID_ROOT" in os.environ or os.path.exists("/data/data/com.termux"))
+    info = {
+        "device_type": "PC de Escritorio",
+        "run_mode": "Python PC",
+        "brand": "",
+        "model": platform.node() or "",
+        "os_info": f"{platform.system()} {platform.release()}".strip()
+    }
+
+    if es_termux:
+        info["run_mode"] = "Termux"
+        brand = _leer_cmd_corto(["getprop", "ro.product.manufacturer"])
+        model = _leer_cmd_corto(["getprop", "ro.product.model"])
+        ver_and = _leer_cmd_corto(["getprop", "ro.build.version.release"])
+        chars = _leer_cmd_corto(["getprop", "ro.build.characteristics"]).lower()
+        info["brand"] = brand.title() if brand else "Android"
+        info["model"] = model or "Dispositivo Android"
+        info["os_info"] = f"Android {ver_and}".strip() if ver_and else "Android"
+        info["device_type"] = "TV Box" if ("tv" in chars or "box" in model.lower()) else "Celular"
+    elif sys.platform == "win32":
+        info["run_mode"] = "Python Windows"
+        info["os_info"] = f"Windows {platform.release()}".strip()
+        out_w = _leer_cmd_corto(["wmic", "computersystem", "get", "manufacturer,model", "/format:list"], timeout=3)
+        for linea in out_w.splitlines():
+            if "=" in linea:
+                k, v = linea.split("=", 1)
+                k = k.strip().lower()
+                v = v.strip()
+                if k == "manufacturer" and v:
+                    info["brand"] = v
+                elif k == "model" and v:
+                    info["model"] = v
+    else:
+        info["run_mode"] = "Python Linux"
+        rpi_model = ""
+        if os.path.exists("/proc/device-tree/model"):
+            try:
+                with open("/proc/device-tree/model", "r", encoding="utf-8", errors="ignore") as f:
+                    rpi_model = f.read().replace("\x00", "").strip()
+            except Exception:
+                pass
+
+        if rpi_model:
+            info["model"] = rpi_model
+            if "raspberry pi" in rpi_model.lower():
+                info["device_type"] = "Raspberry Pi"
+                info["brand"] = "Raspberry Pi"
+            elif any(x in rpi_model.lower() for x in ["amlogic", "rockchip", "allwinner", "tv", "box"]):
+                info["device_type"] = "TV Box"
+                info["brand"] = "ARM Linux"
+        else:
+            try:
+                if os.path.exists("/sys/class/dmi/id/sys_vendor"):
+                    with open("/sys/class/dmi/id/sys_vendor", "r", encoding="utf-8", errors="ignore") as f:
+                        info["brand"] = f.read().strip()
+                if os.path.exists("/sys/class/dmi/id/product_name"):
+                    with open("/sys/class/dmi/id/product_name", "r", encoding="utf-8", errors="ignore") as f:
+                        prod = f.read().strip()
+                        if prod:
+                            info["model"] = prod
+            except Exception:
+                pass
+
+    cache_hw_agente = dict(info)
+    return info
+
+def obtener_telemetria_dispositivo():
+    """Retorna tipo de equipo, método de ejecución, IP local, % de batería y estado de cargador."""
+    info = _detectar_hw_estatico()
+    info["local_ip"] = obtener_ip_local()
+    info["has_battery"] = False
+    info["battery_pct"] = -1
+    info["charging"] = False
+    info["battery_temp_c"] = 0.0
+
+    try:
+        if info["run_mode"] == "Termux":
+            out_b = _leer_cmd_corto(["termux-battery-status"], timeout=2)
+            if out_b and out_b.startswith("{"):
+                jb = json.loads(out_b)
+                pct = int(jb.get("percentage", -1))
+                st = str(jb.get("status", "")).upper()
+                plugged = str(jb.get("plugged", "")).upper()
+                temp_b = float(jb.get("temperature", 0.0) or 0.0)
+                if pct >= 0:
+                    info["has_battery"] = True
+                    info["battery_pct"] = pct
+                    info["charging"] = (st in ("CHARGING", "FULL") or plugged not in ("", "UNPLUGGED", "NONE"))
+                    info["battery_temp_c"] = round(temp_b, 1)
+            elif os.path.exists("/sys/class/power_supply/battery/capacity"):
+                with open("/sys/class/power_supply/battery/capacity", "r") as f:
+                    info["battery_pct"] = int(f.read().strip())
+                    info["has_battery"] = True
+                if os.path.exists("/sys/class/power_supply/battery/status"):
+                    with open("/sys/class/power_supply/battery/status", "r") as f:
+                        st = f.read().strip().lower()
+                        info["charging"] = st in ("charging", "full")
+            if not info["has_battery"] and info["device_type"] == "Celular":
+                info["device_type"] = "TV Box"
+
+        elif sys.platform == "win32":
+            import ctypes
+            class SYSTEM_POWER_STATUS(ctypes.Structure):
+                _fields_ = [
+                    ("ACLineStatus", ctypes.c_byte),
+                    ("BatteryFlag", ctypes.c_byte),
+                    ("BatteryLifePercent", ctypes.c_byte),
+                    ("SystemStatusFlag", ctypes.c_byte),
+                    ("BatteryLifeTime", ctypes.c_ulong),
+                    ("BatteryFullLifeTime", ctypes.c_ulong),
+                ]
+            sps = SYSTEM_POWER_STATUS()
+            if ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(sps)):
+                b_flag = sps.BatteryFlag & 0xFF
+                b_pct = sps.BatteryLifePercent & 0xFF
+                ac = sps.ACLineStatus & 0xFF
+                if b_flag not in (128, 255) and b_pct <= 100:
+                    info["has_battery"] = True
+                    info["battery_pct"] = int(b_pct)
+                    info["charging"] = (ac == 1)
+                    info["device_type"] = "Laptop"
+
+        else:
+            ps_dir = "/sys/class/power_supply"
+            if os.path.isdir(ps_dir):
+                for entry in os.listdir(ps_dir):
+                    if entry.upper().startswith("BAT"):
+                        cap_p = os.path.join(ps_dir, entry, "capacity")
+                        st_p = os.path.join(ps_dir, entry, "status")
+                        if os.path.exists(cap_p):
+                            with open(cap_p, "r") as f:
+                                info["battery_pct"] = int(f.read().strip())
+                                info["has_battery"] = True
+                            if os.path.exists(st_p):
+                                with open(st_p, "r") as f:
+                                    st = f.read().strip().lower()
+                                    info["charging"] = st in ("charging", "full")
+                            if info["device_type"] == "PC de Escritorio":
+                                info["device_type"] = "Laptop"
+                            break
+    except Exception:
+        pass
+
+    return info
 
 def keep_awake():
     """Evita que Windows entre en suspensión o que Termux pause el proceso."""
@@ -944,7 +1120,12 @@ def recolectar_y_enviar():
         if ip_b not in ips_conocidas:
             ips_conocidas.append(ip_b)
 
-    datos = {"api_key": API_KEY, "agent_id": AGENT_ID, "mineros": []}
+    datos = {
+        "api_key": API_KEY,
+        "agent_id": AGENT_ID,
+        "device": obtener_telemetria_dispositivo(),
+        "mineros": []
+    }
     geo_wifi = obtener_ubicacion_wifi()
     if geo_wifi:
         datos["lat"] = geo_wifi["lat"]
