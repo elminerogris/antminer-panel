@@ -5,6 +5,7 @@ from datetime import datetime
 
 from db import get_db
 from tunel import enviar_orden_tunel
+from resolver_modelos import resolver_nombre_dispositivo
 from utils import (
     login_required, es_super_admin, es_cuenta_pro, generar_api_key,
     es_hash_seguro, verificar_password, a_int_seguro, a_float_seguro,
@@ -34,53 +35,6 @@ def verificar_rate_limit(clave, max_intentos=8, ventana_seg=300):
         hist.append(ahora)
         _rate_buckets[clave] = hist
         return False
-
-MODELOS_COMERCIALES = {
-    "SM-A107M": ("Samsung Galaxy A10s", "SM-A107M"),
-    "SM-A107F": ("Samsung Galaxy A10s", "SM-A107F"),
-    "SM-A105M": ("Samsung Galaxy A10", "SM-A105M"),
-    "SM-A105F": ("Samsung Galaxy A10", "SM-A105F"),
-    "SM-A037M": ("Samsung Galaxy A03s", "SM-A037M"),
-    "SM-A032M": ("Samsung Galaxy A03 Core", "SM-A032M"),
-    "SM-A042M": ("Samsung Galaxy A04e", "SM-A042M"),
-    "SM-A125M": ("Samsung Galaxy A12", "SM-A125M"),
-    "SM-J260M": ("Samsung Galaxy J2 Core", "SM-J260M"),
-    "SM-G532M": ("Samsung Galaxy J2 Prime", "SM-G532M"),
-    "MI A2 LITE": ("Xiaomi Mi A2 Lite", "M1805D1SG"),
-    "M1805D1SG": ("Xiaomi Mi A2 Lite", "M1805D1SG"),
-    "MI A2": ("Xiaomi Mi A2", "M1804D2SG"),
-    "M1804D2SG": ("Xiaomi Mi A2", "M1804D2SG"),
-    "M2006C3LG": ("Xiaomi Redmi 9A", "M2006C3LG"),
-    "M2006C3MG": ("Xiaomi Redmi 9C", "M2006C3MG"),
-    "220333QAG": ("Xiaomi Redmi 10C", "220333QAG"),
-}
-
-def resolver_nombre_dispositivo(brand, model, device_type):
-    """Devuelve (nombre_comercial, codigo_tecnico) limpio para mostrar en la tarjeta de Granja."""
-    b = str(brand or '').strip()
-    m = str(model or '').strip()
-
-    if '||' in m:
-        partes = m.split('||', 1)
-        return partes[0].strip() or device_type, partes[1].strip()
-
-    m_up = m.upper()
-    if m_up in MODELOS_COMERCIALES:
-        return MODELOS_COMERCIALES[m_up]
-
-    if b and m_up.startswith(b.upper() + " "):
-        solo_m = m[len(b):].strip()
-        if solo_m.upper() in MODELOS_COMERCIALES:
-            return MODELOS_COMERCIALES[solo_m.upper()]
-        return m, solo_m if solo_m != m else ""
-
-    if b and m:
-        return f"{b} {m}", m
-    if m:
-        return m, ""
-    if b:
-        return b, ""
-    return str(device_type or "Dispositivo Agente"), ""
 
 def despachar_comando(cur, owner, ip, comando, fecha=None):
     """Envía el comando al instante por el túnel WebSocket; si no hay túnel activo, lo encola en BD."""
@@ -1340,4 +1294,4 @@ def api_live_minero(ip):
             "cadenas": cads
         })
 
-    return jsonify({"ok": True, "puntos": puntos})
+    return jsonify({"ok": True, "puntos": puntos}
