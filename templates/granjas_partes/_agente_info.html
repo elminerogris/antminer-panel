@@ -27,7 +27,14 @@
                 </span>
             </div>
         </div>
-        <span class="agent-mode-badge">{{ g.run_mode }}</span>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            {% if g.tunel_activo %}
+                <span class="agent-mode-badge" style="background:rgba(0,230,118,0.12); border-color:rgba(0,230,118,0.4); color:#00e676;">⚡ Túnel Activo</span>
+            {% else %}
+                <span class="agent-mode-badge" style="background:rgba(255,179,0,0.12); border-color:rgba(255,179,0,0.4); color:#ffb300;">⏳ Sin Túnel</span>
+            {% endif %}
+            <span class="agent-mode-badge">{{ g.run_mode }}</span>
+        </div>
     </div>
 
     <div class="agent-specs-row">
