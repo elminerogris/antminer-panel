@@ -167,6 +167,84 @@
     }
     .btn-edit-cap:hover { color: #fff; border-color: #3b82f6; }
 
+    /* Bloque Router / Gateway de la Sede */
+    .router-card-box {
+        padding: 12px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(10, 12, 18, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .router-left {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+    }
+    .router-art {
+        width: 46px;
+        height: 40px;
+        border-radius: 8px;
+        background: rgba(51, 102, 255, 0.12);
+        border: 1px solid rgba(96, 165, 250, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .router-title {
+        font-size: 0.86em;
+        font-weight: bold;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .router-sub {
+        font-size: 0.75em;
+        color: var(--text-muted);
+        font-family: monospace;
+        margin-top: 2px;
+    }
+    .router-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .btn-router-enter {
+        background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
+        color: #fff;
+        border: 1px solid #60a5fa;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.78em;
+        font-weight: bold;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: 0.18s;
+    }
+    .btn-router-enter:hover {
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.55);
+    }
+    .btn-router-ssl {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 6px 9px;
+        border-radius: 6px;
+        font-size: 0.74em;
+        font-weight: bold;
+        font-family: monospace;
+    }
+    .btn-router-ssl:hover {
+        border-color: #38bdf8;
+        color: #38bdf8;
+    }
+
     /* Mapa Térmico Visual de Rack (Live Grid) */
     .rack-map-box {
         padding: 12px 18px;
@@ -322,6 +400,10 @@
             </div>
         </div>
         <div class="fm-group">
+            <label>IP del Router / Gateway (opcional si ya auto-detecta)</label>
+            <input type="text" id="fm_gateway" class="fm-input" placeholder="Ej: 192.168.0.125 o 192.168.1.200">
+        </div>
+        <div class="fm-group">
             <label>Subred / Notas del Técnico</label>
             <input type="text" id="fm_notas" class="fm-input" placeholder="Ej: 192.168.1.x · Transformador 75 kVA">
         </div>
@@ -336,7 +418,7 @@
 <div class="farms-header">
     <div>
         <h1>🏭 Gestión de Granjas y Sedes</h1>
-        <p>Supervisa la carga eléctrica de tus transformadores, el mapa térmico por rack y ejecuta controles por sede.</p>
+        <p>Supervisa la carga eléctrica de tus transformadores, entra al router local y controla tus equipos por sede.</p>
     </div>
     <button type="button" class="btn-new-farm" onclick="abrirNuevaGranjaModal()">＋ Nueva Granja</button>
 </div>
@@ -345,7 +427,7 @@
 <div class="farms-grid" id="farmsGridContainer">
     {% for g in granjas %}
     {% set ips_lista = g.mineros | map(attribute='ip') | list %}
-    <div class="farm-card" data-farm-id="{{ g.id }}" data-consumo-kw="{{ g.consumo_kw }}">
+    <div class="farm-card" data-farm-id="{{ g.id }}" data-consumo-kw="{{ g.consumo_kw }}" data-default-gw="{{ g.gateway }}" data-agent-id="{{ g.agent_id }}">
         <div class="farm-card-top">
             <div>
                 <div class="farm-name">
@@ -395,6 +477,38 @@
             </div>
             <div class="power-bar-bg">
                 <div class="power-bar-fill farm-cap-bar" style="width: 10%; background: #00e676;"></div>
+            </div>
+        </div>
+
+        <!-- Bloque Router / Gateway de la Sede -->
+        <div class="router-card-box" translate="no">
+            <div class="router-left">
+                <div class="router-art" aria-hidden="true">
+                    <svg width="26" height="22" viewBox="0 0 26 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7 6C8.8 4.2 17.2 4.2 19 6" stroke="#60a5fa" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M9.5 8.5C10.9 7.2 15.1 7.2 16.5 8.5" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
+                        <rect x="2" y="11" width="22" height="8" rx="2.5" fill="#1e293b" stroke="#60a5fa" stroke-width="1.5"/>
+                        <circle cx="6.5" cy="15" r="1.4" fill="#00e676"/>
+                        <circle cx="10.5" cy="15" r="1.4" fill="#38bdf8"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="router-title">
+                        <span>Router / Gateway</span>
+                        <span class="router-ip-badge" style="color:#60a5fa; font-family:monospace;">{{ g.gateway }}</span>
+                    </div>
+                    <div class="router-sub">
+                        Sede: {{ g.agent_id }} · Red {{ g.subred }}
+                    </div>
+                </div>
+            </div>
+            <div class="router-actions">
+                <a href="/proxy/{{ g.gateway }}/?agent_id={{ g.agent_id }}" target="_blank" rel="noopener" class="btn-router-enter router-link-http">
+                    🌐 Entrar al Router ↗
+                </a>
+                <a href="/proxy/{{ g.gateway }}/?scheme=https&agent_id={{ g.agent_id }}" target="_blank" rel="noopener" class="btn-router-ssl router-link-https" title="Entrar al router usando HTTPS local">
+                    🔒 HTTPS
+                </a>
             </div>
         </div>
 
@@ -462,12 +576,22 @@
         document.querySelectorAll('.farm-card[data-farm-id]').forEach(card => {
             const id = card.getAttribute('data-farm-id');
             const kw = parseFloat(card.getAttribute('data-consumo-kw') || '0');
+            const defGw = card.getAttribute('data-default-gw') || '192.168.0.1';
+            const agId = card.getAttribute('data-agent-id') || 'default';
             const c = cfg[id] || { cap_kw: 50, tarifa: 0.06 };
 
             if (c.nombre) {
                 const lbl = card.querySelector('.farm-name-label');
                 if (lbl) lbl.innerText = c.nombre;
             }
+
+            const gwFinal = (c.gateway && c.gateway.trim()) ? c.gateway.trim() : defGw;
+            const gwBadge = card.querySelector('.router-ip-badge');
+            const linkHttp = card.querySelector('.router-link-http');
+            const linkHttps = card.querySelector('.router-link-https');
+            if (gwBadge) gwBadge.innerText = gwFinal;
+            if (linkHttp) linkHttp.href = `/proxy/${encodeURIComponent(gwFinal)}/?agent_id=${encodeURIComponent(agId)}`;
+            if (linkHttps) linkHttps.href = `/proxy/${encodeURIComponent(gwFinal)}/?scheme=https&agent_id=${encodeURIComponent(agId)}`;
 
             const cap = Math.max(1, parseFloat(c.cap_kw || 50));
             const tarifa = parseFloat(c.tarifa || 0.06);
@@ -488,12 +612,15 @@
     }
 
     function editarCapacidadGranja(id, nombreActual) {
+        const card = document.querySelector(`.farm-card[data-farm-id="${id}"]`);
+        const defGw = card ? (card.getAttribute('data-default-gw') || '192.168.0.1') : '192.168.0.1';
         const cfg = obtenerConfigGranjas()[id] || {};
         document.getElementById('farmModalTitle').innerText = '⚙️ Configurar Sede';
         document.getElementById('fm_id').value = id;
         document.getElementById('fm_nombre').value = cfg.nombre || nombreActual;
         document.getElementById('fm_cap_kw').value = cfg.cap_kw || 50;
         document.getElementById('fm_tarifa').value = cfg.tarifa !== undefined ? cfg.tarifa : 0.06;
+        document.getElementById('fm_gateway').value = cfg.gateway || defGw;
         document.getElementById('fm_notas').value = cfg.notas || '';
         document.getElementById('farmModal').style.display = 'flex';
     }
@@ -504,6 +631,7 @@
         document.getElementById('fm_nombre').value = '';
         document.getElementById('fm_cap_kw').value = 50;
         document.getElementById('fm_tarifa').value = 0.06;
+        document.getElementById('fm_gateway').value = '192.168.0.1';
         document.getElementById('fm_notas').value = '';
         document.getElementById('farmModal').style.display = 'flex';
     }
@@ -517,11 +645,12 @@
         const nombre = document.getElementById('fm_nombre').value.trim();
         const cap_kw = parseFloat(document.getElementById('fm_cap_kw').value) || 50;
         const tarifa = parseFloat(document.getElementById('fm_tarifa').value) || 0;
+        const gateway = document.getElementById('fm_gateway').value.trim();
         const notas = document.getElementById('fm_notas').value.trim();
 
         if (!nombre) return;
         const cfg = obtenerConfigGranjas();
-        cfg[id] = { nombre, cap_kw, tarifa, notas };
+        cfg[id] = { nombre, cap_kw, tarifa, gateway, notas };
         guardarConfigGranjasStorage(cfg);
 
         if (id.startsWith('custom_') && !document.querySelector(`.farm-card[data-farm-id="${id}"]`)) {
@@ -530,6 +659,8 @@
             div.className = 'farm-card';
             div.setAttribute('data-farm-id', id);
             div.setAttribute('data-consumo-kw', '0');
+            div.setAttribute('data-default-gw', gateway || '192.168.0.1');
+            div.setAttribute('data-agent-id', 'default');
             div.innerHTML = `
                 <div class="farm-card-top">
                     <div>
