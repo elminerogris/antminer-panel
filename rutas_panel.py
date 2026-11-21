@@ -4,6 +4,7 @@ import psycopg2.extras, json, time, calendar, csv, io
 from datetime import datetime
 
 from db import get_db
+from tunel import enviar_orden_tunel
 from utils import (
     login_required, es_super_admin, es_cuenta_pro, generar_api_key,
     es_hash_seguro, verificar_password, a_int_seguro, a_float_seguro,
@@ -12,6 +13,28 @@ from utils import (
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
+
+def despachar_comando(cur, owner, ip, comando, fecha=None):
+    """Envía el comando al instante por el túnel WebSocket; si no hay túnel activo, lo encola en BD."""
+    ahora = fecha or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    agent_id = 'default'
+    try:
+        cur.execute("SELECT agent_id FROM mineros_activos WHERE owner=%s AND ip=%s LIMIT 1", (owner, ip))
+        row_ag = cur.fetchone()
+        if row_ag:
+            ag_val = row_ag['agent_id'] if isinstance(row_ag, dict) else row_ag[0]
+            if ag_val:
+                agent_id = str(ag_val).strip()
+    except Exception:
+        pass
+
+    enviado = enviar_orden_tunel(owner, ip, comando, agent_id=agent_id)
+    estado = 'enviado' if enviado else 'pendiente'
+    cur.execute(
+        "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s)",
+        (owner, agent_id, ip, comando, estado, ahora)
+    )
+    return enviado
 
 # --- APIs del Panel ---
 @panel_bp.route('/api/eliminar_mineros', methods=['POST'])
@@ -576,8 +599,7 @@ def alertas():
                         prot_sleep_desde='', prot_motivo=''
                     WHERE owner=%s AND ip=%s
                 """, (usr_actual, ip_lib))
-                cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, 'normal', 'pendiente', %s)",
-                            (usr_actual, ip_lib, ahora))
+                despachar_comando(cur, usr_actual, ip_lib, 'normal', ahora)
                 msg = f"Minero {ip_lib} liberado y puesto en modo Normal."
         elif accion == 'probar_telegram':
             cur.execute("SELECT tg_token, tg_chat_id FROM usuarios WHERE username=%s", (usr_actual,))
@@ -852,10 +874,10 @@ def cmd_bulk():
     con = get_db(); con.autocommit = True; cur = con.cursor()
     if ordenes_custom:
         for item in ordenes_custom:
-            cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, %s, 'pendiente', %s)", (usr_actual, item['ip'], item['comando'], ahora))
+            despachar_comando(cur, usr_actual, item['ip'], item['comando'], ahora)
     elif accion and ips:
         for ip in ips:
-            cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, %s, 'pendiente', %s)", (usr_actual, ip, accion, ahora))
+            despachar_comando(cur, usr_actual, ip, accion, ahora)
     return jsonify({"status": "ok"})
 
 @panel_bp.route('/cmd/<ip>/<accion>')
@@ -881,7 +903,7 @@ def comando_minero(ip, accion):
 
     if cmd_str:
         con = get_db(); con.autocommit = True; cur = con.cursor()
-        cur.execute("INSERT INTO cola_comandos (owner, ip, comando, estado, fecha) VALUES (%s, %s, %s, 'pendiente', %s)", (usr_actual, ip, cmd_str, datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")))
+        despachar_comando(cur, usr_actual, ip, cmd_str)
     return "OK"
 
 @panel_bp.route('/exportar_csv')
