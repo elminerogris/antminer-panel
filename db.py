@@ -32,7 +32,7 @@ def init_db():
         con = psycopg2.connect(DB_URL, connect_timeout=8)
         con.autocommit = True
         c = con.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'Admin', agent_id TEXT DEFAULT 'default', farm_id TEXT DEFAULT '', miner_uid TEXT DEFAULT '', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia', gps_manual INTEGER DEFAULT 0, real_lat REAL DEFAULT 0.0, real_lon REAL DEFAULT 0.0, real_source TEXT DEFAULT 'IP Pública', corte_activo INTEGER DEFAULT 0, corte_temp INTEGER DEFAULT 85, watchdog_activo INTEGER DEFAULT 1, wd_fallo_desde TEXT DEFAULT '', wd_motivo_fallo TEXT DEFAULT '', wd_ultimo_reinicio TEXT DEFAULT '', wd_reinicios_seguidos INTEGER DEFAULT 0, wd_cuarentena INTEGER DEFAULT 0, placas_normales INTEGER DEFAULT 0, prot_sleep_desde TEXT DEFAULT '', prot_motivo TEXT DEFAULT '')''')
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_activos (ip TEXT, owner TEXT DEFAULT 'Admin', agent_id TEXT DEFAULT 'default', farm_id TEXT DEFAULT '', miner_uid TEXT DEFAULT '', modelo TEXT, algoritmo TEXT DEFAULT 'SHA-256', moneda TEXT DEFAULT 'BTC', unidad TEXT DEFAULT 'TH/s', hashrate REAL, hashrate_30m REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, consumo_w REAL, estado TEXT, ultima_act TEXT, errores INTEGER, pool1 TEXT, worker1 TEXT, pass1 TEXT, pool2 TEXT, worker2 TEXT, pass2 TEXT, pool3 TEXT, worker3 TEXT, pass3 TEXT, mac TEXT, serial TEXT, firmware TEXT, fw_tipo TEXT DEFAULT 'Stock', perfil_oc TEXT DEFAULT '', fans TEXT, cadenas TEXT, uptime TEXT DEFAULT '0h 0m', status1 TEXT DEFAULT 'Alive', acc1 INTEGER DEFAULT 0, rej1 INTEGER DEFAULT 0, status2 TEXT DEFAULT 'Alive', acc2 INTEGER DEFAULT 0, rej2 INTEGER DEFAULT 0, status3 TEXT DEFAULT 'Dead', acc3 INTEGER DEFAULT 0, rej3 INTEGER DEFAULT 0, hostname TEXT DEFAULT 'Antminer', net_proto TEXT DEFAULT 'Static', netmask TEXT DEFAULT '255.255.255.0', gateway TEXT DEFAULT '192.168.0.1', dns TEXT DEFAULT '8.8.8.8', farm_lat REAL DEFAULT -17.7833, farm_lon REAL DEFAULT -63.1821, farm_city TEXT DEFAULT 'Santa Cruz de la Sierra', farm_country TEXT DEFAULT 'Bolivia', gps_manual INTEGER DEFAULT 0, real_lat REAL DEFAULT 0.0, real_lon REAL DEFAULT 0.0, real_source TEXT DEFAULT 'IP Pública', corte_activo INTEGER DEFAULT 0, corte_temp INTEGER DEFAULT 85, watchdog_activo INTEGER DEFAULT 1, wd_fallo_desde TEXT DEFAULT '', wd_motivo_fallo TEXT DEFAULT '', wd_ultimo_reinicio TEXT DEFAULT '', wd_reinicios_seguidos INTEGER DEFAULT 0, wd_cuarentena INTEGER DEFAULT 0, placas_normales INTEGER DEFAULT 0, prot_sleep_desde TEXT DEFAULT '', prot_motivo TEXT DEFAULT '', rack_nombre TEXT DEFAULT '', rack_fila INTEGER DEFAULT 0, rack_col INTEGER DEFAULT 0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS granjas_sedes (
             id SERIAL PRIMARY KEY,
             owner TEXT DEFAULT 'Admin',
@@ -55,9 +55,15 @@ def init_db():
             charging INTEGER DEFAULT 0,
             battery_temp_c REAL DEFAULT 0.0,
             os_info TEXT DEFAULT '',
-            ultima_act TEXT DEFAULT ''
+            ultima_act TEXT DEFAULT '',
+            zt_activo INTEGER DEFAULT 0,
+            zt_pool1 TEXT DEFAULT '',
+            zt_worker_prefix TEXT DEFAULT '',
+            zt_pass1 TEXT DEFAULT '123',
+            zt_pool2 TEXT DEFAULT '',
+            zt_pool3 TEXT DEFAULT ''
         )''')
-        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, email TEXT DEFAULT '', fecha_registro TEXT DEFAULT '', suspendido INTEGER DEFAULT 0, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, saldo_bonus REAL DEFAULT 0.0, pro_hasta TEXT DEFAULT '', limite_mineros INTEGER DEFAULT 0, notas_admin TEXT DEFAULT '', ultima_conexion TEXT DEFAULT '', api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, miner_user TEXT DEFAULT 'root', miner_pass TEXT DEFAULT '', tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 0, wd_activo INTEGER DEFAULT 0, wd_alcance TEXT DEFAULT 'all', wd_granjas TEXT DEFAULT '[]', wd_mineros TEXT DEFAULT '[]', wd_zero_hr INTEGER DEFAULT 0, wd_cold_on INTEGER DEFAULT 0, wd_cold_temp INTEGER DEFAULT 31, wd_amb_cold_on INTEGER DEFAULT 0, wd_amb_cold_temp INTEGER DEFAULT 18, wd_dead_board INTEGER DEFAULT 0, wd_gracia_min INTEGER DEFAULT 5, wd_cooldown_min INTEGER DEFAULT 30, wd_cuarentena_on INTEGER DEFAULT 0, wd_max_reinicios INTEGER DEFAULT 3, prot_activo INTEGER DEFAULT 0, prot_temp_on INTEGER DEFAULT 0, prot_temp_val INTEGER DEFAULT 85, prot_temp_accion TEXT DEFAULT 'sleep', prot_clima_on INTEGER DEFAULT 0, prot_clima_val INTEGER DEFAULT 38, prot_clima_accion TEXT DEFAULT 'sleep', prot_net_on INTEGER DEFAULT 0, prot_net_rej_pct REAL DEFAULT 5.0, prot_net_accion TEXT DEFAULT 'sleep', prot_fan_on INTEGER DEFAULT 0, prot_fan_accion TEXT DEFAULT 'sleep', prot_wakeup_on INTEGER DEFAULT 0, prot_wakeup_min INTEGER DEFAULT 30, curt_activo INTEGER DEFAULT 0, curt_inicio TEXT DEFAULT '18:00', curt_fin TEXT DEFAULT '22:00', curt_accion TEXT DEFAULT 'profile|low', curt_estado_actual TEXT DEFAULT 'normal', mineros_omitidos INTEGER DEFAULT 0)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id SERIAL PRIMARY KEY, username TEXT UNIQUE, password TEXT, email TEXT DEFAULT '', fecha_registro TEXT DEFAULT '', suspendido INTEGER DEFAULT 0, plan TEXT DEFAULT 'Gratis', saldo REAL DEFAULT 0.0, saldo_bonus REAL DEFAULT 0.0, pro_hasta TEXT DEFAULT '', limite_mineros INTEGER DEFAULT 0, notas_admin TEXT DEFAULT '', ultima_conexion TEXT DEFAULT '', api_key TEXT, subnet TEXT DEFAULT '192.168.0', tarifa_kwh REAL DEFAULT 0.0, miner_user TEXT DEFAULT 'root', miner_pass TEXT DEFAULT '', parent_owner TEXT DEFAULT '', rol TEXT DEFAULT 'owner', tg_token TEXT DEFAULT '', tg_chat_id TEXT DEFAULT '', umbral_temp INTEGER DEFAULT 80, umbral_hr REAL DEFAULT 50.0, alertas_activas INTEGER DEFAULT 0, wd_activo INTEGER DEFAULT 0, wd_alcance TEXT DEFAULT 'all', wd_granjas TEXT DEFAULT '[]', wd_mineros TEXT DEFAULT '[]', wd_zero_hr INTEGER DEFAULT 0, wd_cold_on INTEGER DEFAULT 0, wd_cold_temp INTEGER DEFAULT 31, wd_amb_cold_on INTEGER DEFAULT 0, wd_amb_cold_temp INTEGER DEFAULT 18, wd_dead_board INTEGER DEFAULT 0, wd_gracia_min INTEGER DEFAULT 5, wd_cooldown_min INTEGER DEFAULT 30, wd_cuarentena_on INTEGER DEFAULT 0, wd_max_reinicios INTEGER DEFAULT 3, prot_activo INTEGER DEFAULT 0, prot_temp_on INTEGER DEFAULT 0, prot_temp_val INTEGER DEFAULT 85, prot_temp_accion TEXT DEFAULT 'sleep', prot_clima_on INTEGER DEFAULT 0, prot_clima_val INTEGER DEFAULT 38, prot_clima_accion TEXT DEFAULT 'sleep', prot_net_on INTEGER DEFAULT 0, prot_net_rej_pct REAL DEFAULT 5.0, prot_net_accion TEXT DEFAULT 'sleep', prot_fan_on INTEGER DEFAULT 0, prot_fan_accion TEXT DEFAULT 'sleep', prot_wakeup_on INTEGER DEFAULT 0, prot_wakeup_min INTEGER DEFAULT 30, curt_activo INTEGER DEFAULT 0, curt_inicio TEXT DEFAULT '18:00', curt_fin TEXT DEFAULT '22:00', curt_accion TEXT DEFAULT 'profile|low', curt_estado_actual TEXT DEFAULT 'normal', mineros_omitidos INTEGER DEFAULT 0)''')
         c.execute('''CREATE TABLE IF NOT EXISTS cola_comandos (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'Admin', agent_id TEXT DEFAULT 'default', ip TEXT, comando TEXT, estado TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS historial_nube (id SERIAL PRIMARY KEY, owner TEXT DEFAULT 'Admin', ip TEXT, hashrate REAL, temp_max INTEGER, temp_amb INTEGER DEFAULT 0, errores INTEGER DEFAULT 0, cadenas TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS nombres_mineros (ip TEXT, owner TEXT DEFAULT 'Admin', nombre TEXT)''')
@@ -65,6 +71,38 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS registro_alertas (id SERIAL PRIMARY KEY, owner TEXT, ip TEXT, tipo TEXT, mensaje TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS movimientos_saldo (id SERIAL PRIMARY KEY, username TEXT, tipo TEXT, monto REAL, nota TEXT DEFAULT '', fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS config_global (clave TEXT PRIMARY KEY, valor TEXT DEFAULT '')''')
+
+        # --- Tablas Pro: Racks, Enlaces de Hosting (Solo Lectura) y Pagos Automáticos USDT ---
+        c.execute('''CREATE TABLE IF NOT EXISTS racks_sedes (
+            id SERIAL PRIMARY KEY,
+            owner TEXT NOT NULL,
+            farm_id TEXT DEFAULT '',
+            nombre TEXT NOT NULL,
+            filas INTEGER DEFAULT 4,
+            columnas INTEGER DEFAULT 6
+        )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS enlaces_hosting (
+            id SERIAL PRIMARY KEY,
+            owner TEXT NOT NULL,
+            token TEXT UNIQUE NOT NULL,
+            titulo TEXT DEFAULT 'Vista de Cliente',
+            ips_json TEXT DEFAULT '[]',
+            activo INTEGER DEFAULT 1,
+            fecha_creacion TEXT DEFAULT ''
+        )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS pagos_usdt (
+            id SERIAL PRIMARY KEY,
+            username TEXT NOT NULL,
+            order_id TEXT UNIQUE NOT NULL,
+            provider TEXT DEFAULT 'nowpayments',
+            payment_id TEXT DEFAULT '',
+            monto_usd REAL DEFAULT 0.0,
+            estado TEXT DEFAULT 'pendiente',
+            pay_address TEXT DEFAULT '',
+            pay_currency TEXT DEFAULT 'usdttrc20',
+            fecha_creacion TEXT DEFAULT '',
+            fecha_pago TEXT DEFAULT ''
+        )''')
 
         columnas_nuevas = [
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
@@ -80,6 +118,11 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass2 TEXT DEFAULT '123'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS pass3 TEXT DEFAULT '123'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS cadenas TEXT",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS fw_tipo TEXT DEFAULT 'Stock'",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS perfil_oc TEXT DEFAULT ''",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS rack_nombre TEXT DEFAULT ''",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS rack_fila INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS rack_col INTEGER DEFAULT 0",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS uptime TEXT DEFAULT '0h 0m'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS status1 TEXT DEFAULT 'Alive'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS acc1 INTEGER DEFAULT 0",
@@ -114,6 +157,12 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS placas_normales INTEGER DEFAULT 0",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS prot_sleep_desde TEXT DEFAULT ''",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS prot_motivo TEXT DEFAULT ''",
+            "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_activo INTEGER DEFAULT 0",
+            "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_pool1 TEXT DEFAULT ''",
+            "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_worker_prefix TEXT DEFAULT ''",
+            "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_pass1 TEXT DEFAULT '123'",
+            "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_pool2 TEXT DEFAULT ''",
+            "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_pool3 TEXT DEFAULT ''",
             "ALTER TABLE cola_comandos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
             "ALTER TABLE cola_comandos ADD COLUMN IF NOT EXISTS agent_id TEXT DEFAULT 'default'",
             "ALTER TABLE historial_nube ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
@@ -135,6 +184,8 @@ def init_db():
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tarifa_kwh REAL DEFAULT 0.0",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS miner_user TEXT DEFAULT 'root'",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS miner_pass TEXT DEFAULT ''",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS parent_owner TEXT DEFAULT ''",
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol TEXT DEFAULT 'owner'",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tg_token TEXT DEFAULT ''",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tg_chat_id TEXT DEFAULT ''",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS umbral_temp INTEGER DEFAULT 80",
@@ -227,8 +278,11 @@ def init_db():
         migraciones_unique = [
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_mineros_owner_agent_ip ON mineros_activos (owner, agent_id, ip)",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_granjas_owner_farm_id ON granjas_sedes (owner, farm_id)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_racks_owner_nombre ON racks_sedes (owner, nombre)",
             "CREATE INDEX IF NOT EXISTS idx_mineros_owner_uid ON mineros_activos (owner, miner_uid)",
             "CREATE INDEX IF NOT EXISTS idx_mineros_owner_farm ON mineros_activos (owner, farm_id)",
+            "CREATE INDEX IF NOT EXISTS idx_hosting_owner ON enlaces_hosting (owner)",
+            "CREATE INDEX IF NOT EXISTS idx_pagos_user ON pagos_usdt (username, id DESC)",
             "ALTER TABLE nombres_mineros DROP CONSTRAINT IF EXISTS nombres_mineros_ip_key",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_nombres_owner_ip ON nombres_mineros (owner, ip)",
             "ALTER TABLE logs_mineros DROP CONSTRAINT IF EXISTS logs_mineros_ip_key",
