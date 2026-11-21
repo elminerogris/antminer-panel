@@ -13,21 +13,24 @@
 
 <div class="agent-info-box" translate="no">
     <div class="agent-info-top">
-        <div class="agent-dev-title">
-            <span style="font-size:1.15em;">{{ dev_icon }}</span>
-            <span>{{ g.device_type }}</span>
-            <span style="color:{{ '#00e676' if g.agent_online else '#ff5252' }}; font-size:0.8em;">
-                {{ '● Online' if g.agent_online else '○ Offline' }}
-            </span>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.45em; line-height:1;">{{ dev_icon }}</span>
+            <div style="display:flex; flex-direction:column;">
+                <span style="font-size:0.93em; font-weight:700; color:var(--text-main); line-height:1.2;">
+                    {{ g.device_commercial }}
+                </span>
+                <span style="font-size:0.72em; font-family:monospace; color:#64748b; margin-top:2px;">
+                    {% if g.device_code %}{{ g.device_code }} · {% endif %}{{ g.device_type }} ·
+                    <span style="color:{{ '#00e676' if g.agent_online else '#ff5252' }}; font-weight:bold;">
+                        {{ '● Online' if g.agent_online else '○ Offline' }}
+                    </span>
+                </span>
+            </div>
         </div>
         <span class="agent-mode-badge">{{ g.run_mode }}</span>
     </div>
 
     <div class="agent-specs-row">
-        {% if g.brand or g.model %}
-        <span class="agent-chip">🏷️ {{ (g.brand ~ ' ' ~ g.model).strip() }}</span>
-        {% endif %}
-
         {% if g.local_ip %}
         <span class="agent-chip">📶 IP Agente: {{ g.local_ip }}</span>
         {% endif %}
