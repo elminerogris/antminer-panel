@@ -14,6 +14,54 @@ from utils import (
 
 panel_bp = Blueprint('panel_bp', __name__)
 
+MODELOS_COMERCIALES = {
+    "SM-A107M": ("Samsung Galaxy A10s", "SM-A107M"),
+    "SM-A107F": ("Samsung Galaxy A10s", "SM-A107F"),
+    "SM-A105M": ("Samsung Galaxy A10", "SM-A105M"),
+    "SM-A105F": ("Samsung Galaxy A10", "SM-A105F"),
+    "SM-A037M": ("Samsung Galaxy A03s", "SM-A037M"),
+    "SM-A032M": ("Samsung Galaxy A03 Core", "SM-A032M"),
+    "SM-A042M": ("Samsung Galaxy A04e", "SM-A042M"),
+    "SM-A125M": ("Samsung Galaxy A12", "SM-A125M"),
+    "SM-J260M": ("Samsung Galaxy J2 Core", "SM-J260M"),
+    "SM-G532M": ("Samsung Galaxy J2 Prime", "SM-G532M"),
+    "MI A2 LITE": ("Xiaomi Mi A2 Lite", "M1805D1SG"),
+    "M1805D1SG": ("Xiaomi Mi A2 Lite", "M1805D1SG"),
+    "MI A2": ("Xiaomi Mi A2", "M1804D2SG"),
+    "M1804D2SG": ("Xiaomi Mi A2", "M1804D2SG"),
+    "M2006C3LG": ("Xiaomi Redmi 9A", "M2006C3LG"),
+    "M2006C3MG": ("Xiaomi Redmi 9C", "M2006C3MG"),
+    "220333QAG": ("Xiaomi Redmi 10C", "220333QAG"),
+}
+
+def resolver_nombre_dispositivo(brand, model, device_type):
+    """Devuelve (nombre_comercial, codigo_tecnico) limpio para mostrar en la tarjeta de Granja."""
+    b = str(brand or '').strip()
+    m = str(model or '').strip()
+
+    if '||' in m:
+        partes = m.split('||', 1)
+        return partes[0].strip() or device_type, partes[1].strip()
+
+    m_up = m.upper()
+    if m_up in MODELOS_COMERCIALES:
+        return MODELOS_COMERCIALES[m_up]
+
+    # Si model ya incluye la marca (ej: "Xiaomi Mi A2 Lite" o "Samsung SM-A107M")
+    if b and m_up.startswith(b.upper() + " "):
+        solo_m = m[len(b):].strip()
+        if solo_m.upper() in MODELOS_COMERCIALES:
+            return MODELOS_COMERCIALES[solo_m.upper()]
+        return m, solo_m if solo_m != m else ""
+
+    if b and m:
+        return f"{b} {m}", m
+    if m:
+        return m, ""
+    if b:
+        return b, ""
+    return str(device_type or "Dispositivo Agente"), ""
+
 def despachar_comando(cur, owner, ip, comando, fecha=None):
     """Envía el comando al instante por el túnel WebSocket; si no hay túnel activo, lo encola en BD."""
     ahora = fecha or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -552,6 +600,11 @@ def granjas():
         if not fid:
             continue
         segs_ag = calcular_segundos_desconectado(s.get('ultima_act')) if s.get('ultima_act') else 999999
+        dev_type = str(s.get('device_type') or 'Desconocido')
+        dev_brand = str(s.get('brand') or '')
+        dev_model = str(s.get('model') or '')
+        dev_comercial, dev_code = resolver_nombre_dispositivo(dev_brand, dev_model, dev_type)
+
         grupos[fid] = {
             'farm_id': fid,
             'agent_id': str(s.get('agent_id') or fid),
@@ -562,10 +615,12 @@ def granjas():
             'cap_kw': a_float_seguro(s.get('cap_kw'), 50.0),
             'tarifa_kwh': a_float_seguro(s.get('tarifa_kwh'), 0.06),
             'notas': str(s.get('notas') or ''),
-            'device_type': str(s.get('device_type') or 'Desconocido'),
+            'device_type': dev_type,
+            'device_commercial': dev_comercial,
+            'device_code': dev_code,
             'run_mode': str(s.get('run_mode') or 'Agente'),
-            'brand': str(s.get('brand') or ''),
-            'model': str(s.get('model') or ''),
+            'brand': dev_brand,
+            'model': dev_model,
             'local_ip': str(s.get('local_ip') or ''),
             'has_battery': bool(a_int_seguro(s.get('has_battery'), 0) == 1),
             'battery_pct': a_int_seguro(s.get('battery_pct'), -1),
@@ -596,13 +651,16 @@ def granjas():
         tm = a_int_seguro(m.get('temp_max'), 0) if es_online else 0
 
         if fid not in grupos:
+            dev_type = 'Celular' if ag_id.startswith('AND-') else 'PC / Servidor'
             grupos[fid] = {
                 'farm_id': fid,
                 'agent_id': ag_id,
                 'nombre': f"Granja {ciudad} ({fid})",
                 'ciudad': ciudad, 'subred': subred, 'gateway': gw_ip,
                 'cap_kw': 50.0, 'tarifa_kwh': 0.06, 'notas': '',
-                'device_type': 'Celular' if ag_id.startswith('AND-') else 'PC / Servidor',
+                'device_type': dev_type,
+                'device_commercial': dev_type,
+                'device_code': '',
                 'run_mode': 'APK Directo' if ag_id.startswith('AND-') else ('Termux' if ag_id.startswith('TERMUX-') else 'Python PC'),
                 'brand': '', 'model': '', 'local_ip': '',
                 'has_battery': False, 'battery_pct': -1, 'charging': False, 'battery_temp_c': 0.0, 'os_info': '',
