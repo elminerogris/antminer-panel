@@ -9,6 +9,7 @@ from utils import (
 from rutas_admin import admin_bp
 from rutas_panel import panel_bp
 from rutas_agente import agente_bp
+from tunel import init_tunel
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.environ.get("SECRET_KEY", "super_secreta_antminer_tools")
@@ -23,6 +24,9 @@ except ImportError:
 app.register_blueprint(admin_bp)
 app.register_blueprint(panel_bp)
 app.register_blueprint(agente_bp)
+
+# Inicializar túnel WebSocket para comandos en tiempo real
+init_tunel(app)
 
 # Inicializar BD al arrancar
 try:
