@@ -703,3 +703,59 @@ def recibir_datos():
             print(f"Error en limpieza automática 30d: {err_clean}")
 
     return jsonify({"status": "ok", "guardados": guardados_ok, "omitidos_por_plan": omitidos_por_plan, "ordenes": ordenes}), 200
+
+# ==================== DIAGNÓSTICO DE RED (PING A POOLS) DESDE EL PANEL ====================
+@agente_bp.route('/api/panel/sedes', methods=['GET'])
+@login_required
+def api_panel_sedes():
+    owner = session.get('usuario', 'Admin')
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("""
+        SELECT COALESCE(NULLIF(agent_id, ''), 'default') AS agent_id,
+               MAX(farm_city) AS ciudad,
+               COUNT(*) AS total
+        FROM mineros_activos
+        WHERE owner=%s
+        GROUP BY COALESCE(NULLIF(agent_id, ''), 'default')
+        ORDER BY MAX(ultima_act) DESC
+    """, (owner,))
+    sedes = cur.fetchall() or []
+    return jsonify({"ok": True, "sedes": sedes}), 200
+
+@agente_bp.route('/api/panel/ping_pools', methods=['POST'])
+@login_required
+def api_panel_ping_pools():
+    owner = session.get('usuario', 'Admin')
+    data = request.get_json(silent=True) or {}
+    agent_id = str(data.get('agent_id') or 'default').strip()[:40] or 'default'
+    clave_log = f"PING-{agent_id}"
+    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+    con = get_db()
+    con.autocommit = True
+    cur = con.cursor()
+    cur.execute("DELETE FROM logs_mineros WHERE owner=%s AND ip=%s", (owner, clave_log))
+    cur.execute(
+        "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, %s, 'ping_pools', 'pendiente', %s)",
+        (owner, agent_id, clave_log, ahora)
+    )
+    return jsonify({"ok": True, "agent_id": agent_id, "clave_log": clave_log}), 200
+
+@agente_bp.route('/api/panel/ping_pools_resultado', methods=['GET'])
+@login_required
+def api_panel_ping_pools_resultado():
+    owner = session.get('usuario', 'Admin')
+    agent_id = str(request.args.get('agent_id') or 'default').strip()[:40] or 'default'
+    clave_log = f"PING-{agent_id}"
+
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "SELECT contenido, fecha FROM logs_mineros WHERE owner=%s AND ip=%s LIMIT 1",
+        (owner, clave_log)
+    )
+    row = cur.fetchone()
+    if not row:
+        return jsonify({"ok": False, "pendiente": True}), 200
+    return jsonify({"ok": True, "contenido": row['contenido'], "fecha": row['fecha']}), 200
