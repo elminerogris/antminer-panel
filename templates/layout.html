@@ -224,6 +224,17 @@
             border-color: rgba(59, 130, 246, 0.4);
             box-shadow: 0 0 12px rgba(59, 130, 246, 0.18);
         }
+        .menu a.wa-support-link {
+            color: #25d366;
+            border-color: rgba(37, 211, 102, 0.25);
+            background: rgba(37, 211, 102, 0.06);
+            margin-top: 4px;
+        }
+        .menu a.wa-support-link:hover {
+            background: rgba(37, 211, 102, 0.15);
+            border-color: #25d366;
+            color: #fff;
+        }
 
         .sidebar-bottom {
             border-top: 1px solid var(--border-color);
@@ -417,9 +428,7 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        .kpi-card-pro, .boards-card-pro, .pools-card-pro {
-            contain: layout style;
-        }
+        .kpi-card-pro, .boards-card-pro, .pools-card-pro { contain: layout style; }
 
         .btn-menu {
             background: var(--bg-card);
@@ -512,11 +521,7 @@
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 10px;
         }
-        .ping-modal-head h3 {
-            margin: 0;
-            font-size: 1.02em;
-            color: var(--text-main);
-        }
+        .ping-modal-head h3 { margin: 0; font-size: 1.02em; color: var(--text-main); }
         .ping-close-btn {
             background: transparent;
             border: 1px solid var(--border-color);
@@ -528,11 +533,7 @@
             font-weight: bold;
         }
         .ping-close-btn:hover { color: #fff; border-color: var(--accent-red); }
-        .ping-controls {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
+        .ping-controls { display: flex; gap: 8px; flex-wrap: wrap; }
         .ping-select {
             flex: 1;
             min-width: 180px;
@@ -637,7 +638,7 @@
 
         <nav class="menu">
             <div class="menu-section-label">Operación</div>
-            <a href="/" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
+            <a href="/resumen" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
             <a href="/mineros" class="{{ 'active' if active_page == 'mineros' else '' }}">⛏️ Mineros</a>
             <a href="/granjas" class="{{ 'active' if active_page == 'granjas' else '' }}">🏭 Granjas</a>
             <a href="/alertas" class="{{ 'active' if active_page == 'alertas' else '' }}">🔔 Alertas</a>
@@ -645,6 +646,7 @@
             <div class="menu-section-label" style="margin-top:8px;">Cuenta</div>
             <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a>
             <a href="/ajustes" class="{{ 'active' if active_page == 'ajustes' else '' }}">⚙️ Ajustes</a>
+            <a href="https://wa.me/59160805856?text=Hola%2C%20necesito%20ayuda%20con%20El%20Minero%20Gris" target="_blank" rel="noopener" class="wa-support-link">💬 Soporte WhatsApp</a>
             {% if es_super_admin %}
             <a href="/admin" class="{{ 'active' if active_page == 'admin' else '' }}" style="color:#00e676;">🛡️ Panel Admin</a>
             {% endif %}
@@ -708,7 +710,7 @@
         <header class="top-bar">
             <div class="top-bar-left">
                 <button type="button" class="btn-menu" onclick="toggleMenu()">☰ Menú</button>
-                <a href="/" class="logo-top">
+                <a href="/resumen" class="logo-top">
                     <img src="/static/logo.png" alt="Logo" onerror="this.outerHTML='<span style=\'font-size:1.2em;\'>⛏️</span>'">
                     <span translate="no">El Minero <span style="color:var(--text-muted); font-weight:normal;">Gris</span></span>
                 </a>
