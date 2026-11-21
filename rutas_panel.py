@@ -1,6 +1,6 @@
 from flask import Blueprint, redirect, request, session, jsonify, Response
 from werkzeug.security import generate_password_hash
-import psycopg2.extras, json, time, calendar, csv, io, uuid
+import psycopg2.extras, json, time, calendar, csv, io, uuid, secrets, threading
 from datetime import datetime
 
 from db import get_db
@@ -13,6 +13,27 @@ from utils import (
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
+
+# --- Rate Limiting en memoria (anti-fuerza bruta) y códigos de recuperación ---
+_rate_lock = threading.Lock()
+_rate_buckets = {}
+_reset_codes = {}  # username_lower -> {"code": "123456", "exp": ts, "attempts": 0}
+
+def _ip_cliente():
+    xff = request.headers.get('X-Forwarded-For', '')
+    return xff.split(',')[0].strip() if xff else (request.remote_addr or 'unknown')
+
+def verificar_rate_limit(clave, max_intentos=8, ventana_seg=300):
+    """Retorna True si se excedió el límite de intentos en la ventana de tiempo."""
+    ahora = time.time()
+    with _rate_lock:
+        hist = [ts for ts in _rate_buckets.get(clave, []) if ahora - ts < ventana_seg]
+        if len(hist) >= max_intentos:
+            _rate_buckets[clave] = hist
+            return True
+        hist.append(ahora)
+        _rate_buckets[clave] = hist
+        return False
 
 MODELOS_COMERCIALES = {
     "SM-A107M": ("Samsung Galaxy A10s", "SM-A107M"),
@@ -83,12 +104,20 @@ def despachar_comando(cur, owner, ip, comando, fecha=None):
     )
     return enviado
 
-# --- Portada Pública y SEO ---
+# --- Portada Pública, Legales y SEO ---
 @panel_bp.route('/')
 def landing_o_resumen():
     if 'usuario' in session:
         return redirect('/resumen')
     return render_seguro('landing.html')
+
+@panel_bp.route('/privacidad')
+def pagina_privacidad():
+    return render_seguro('privacidad.html')
+
+@panel_bp.route('/terminos')
+def pagina_terminos():
+    return render_seguro('terminos.html')
 
 @panel_bp.route('/robots.txt')
 def robots_txt():
@@ -112,14 +141,24 @@ def sitemap_xml():
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://elminerogris.com/register</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://elminerogris.com/login</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://elminerogris.com/register</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <loc>https://elminerogris.com/privacidad</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://elminerogris.com/terminos</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
   </url>
 </urlset>"""
     return Response(xml, mimetype="application/xml")
@@ -1034,10 +1073,13 @@ def plan():
         saldo=session['saldo'], saldo_bonus=round(a_float_seguro(u.get('saldo_bonus'), 0.0), 2)
     )
 
-# --- Autenticación ---
+# --- Autenticación y Recuperación (con Rate Limiting) ---
 @panel_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        if verificar_rate_limit(f"login:{_ip_cliente()}", max_intentos=10, ventana_seg=300):
+            return render_seguro('login.html', error='Demasiados intentos fallidos. Espera 5 minutos.', mode='login'), 429
+
         u = (request.form.get('username') or '').strip()
         p = request.form.get('password') or ''
         con = get_db(); con.autocommit = True
@@ -1065,6 +1107,9 @@ def login():
 @panel_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
+        if verificar_rate_limit(f"register:{_ip_cliente()}", max_intentos=5, ventana_seg=600):
+            return render_seguro('login.html', error='Demasiados registros recientes desde esta IP. Intenta más tarde.', mode='register'), 429
+
         u = (request.form.get('username') or '').strip()
         em = (request.form.get('email') or '').strip().lower()
         p = request.form.get('password') or ''
@@ -1072,6 +1117,8 @@ def register():
             return render_seguro('login.html', error='Completa usuario y contraseña', mode='register')
         if len(u) < 3 or len(u) > 30 or ' ' in u:
             return render_seguro('login.html', error='El usuario debe tener entre 3 y 30 caracteres sin espacios', mode='register')
+        if len(p) < 6:
+            return render_seguro('login.html', error='La contraseña debe tener al menos 6 caracteres', mode='register')
         try:
             con = get_db(); con.autocommit = True; cur = con.cursor()
             cur.execute("SELECT id FROM usuarios WHERE LOWER(username)=LOWER(%s)", (u,))
@@ -1084,6 +1131,71 @@ def register():
         except:
             return render_seguro('login.html', error='El nombre de usuario ya está en uso', mode='register')
     return render_seguro('login.html', mode='register')
+
+@panel_bp.route('/recuperar', methods=['GET', 'POST'])
+def recuperar_password():
+    if request.method == 'POST':
+        if verificar_rate_limit(f"recuperar:{_ip_cliente()}", max_intentos=6, ventana_seg=600):
+            return render_seguro('recuperar.html', paso='solicitar', error='Demasiados intentos. Espera 10 minutos.'), 429
+
+        paso = (request.form.get('paso') or 'solicitar').strip()
+        u_in = (request.form.get('username') or '').strip()
+        if not u_in:
+            return render_seguro('recuperar.html', paso='solicitar', error='Ingresa tu usuario o correo electrónico.')
+
+        con = get_db(); con.autocommit = True
+        cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT id, username, tg_token, tg_chat_id FROM usuarios WHERE LOWER(username)=LOWER(%s) OR (email != '' AND LOWER(email)=LOWER(%s))", (u_in, u_in))
+        usr = cur.fetchone()
+
+        if paso == 'solicitar':
+            if not usr or not usr.get('tg_token') or not usr.get('tg_chat_id'):
+                return render_seguro(
+                    'recuperar.html', paso='solicitar',
+                    error='No encontramos una cuenta con Telegram vinculado. Si no vinculaste Telegram, contacta a soporte para restablecer tu acceso.'
+                )
+            codigo = f"{secrets.randbelow(900000) + 100000}"
+            clave_u = usr['username'].lower()
+            with _rate_lock:
+                _reset_codes[clave_u] = {"code": codigo, "exp": time.time() + 600, "attempts": 0}
+            ok = enviar_telegram(
+                usr['tg_token'], usr['tg_chat_id'],
+                f"🔑 <b>El Minero Gris — Código de Recuperación</b>\nUsuario: <b>{usr['username']}</b>\nCódigo: <code>{codigo}</code>\nVálido por 10 minutos."
+            )
+            if not ok:
+                return render_seguro('recuperar.html', paso='solicitar', error='No se pudo enviar el código a tu Telegram. Verifica tu bot o contacta soporte.')
+            return render_seguro(
+                'recuperar.html', paso='verificar', username=usr['username'],
+                success='Código enviado a tu Telegram. Ingrésalo abajo junto con tu nueva contraseña.'
+            )
+
+        elif paso == 'verificar':
+            codigo_in = (request.form.get('codigo') or '').strip()
+            p1 = request.form.get('nueva_pass') or ''
+            p2 = request.form.get('confirm_pass') or ''
+            if not usr:
+                return render_seguro('recuperar.html', paso='solicitar', error='Usuario no encontrado.')
+            if len(p1) < 6 or p1 != p2:
+                return render_seguro('recuperar.html', paso='verificar', username=usr['username'], error='Las contraseñas no coinciden o tienen menos de 6 caracteres.')
+
+            clave_u = usr['username'].lower()
+            with _rate_lock:
+                rec = _reset_codes.get(clave_u)
+                if not rec or time.time() > rec['exp']:
+                    _reset_codes.pop(clave_u, None)
+                    return render_seguro('recuperar.html', paso='solicitar', error='El código expiró. Solicita uno nuevo.')
+                rec['attempts'] += 1
+                if rec['attempts'] > 5:
+                    _reset_codes.pop(clave_u, None)
+                    return render_seguro('recuperar.html', paso='solicitar', error='Demasiados intentos incorrectos. Solicita un código nuevo.')
+                if not secrets.compare_digest(rec['code'], codigo_in):
+                    return render_seguro('recuperar.html', paso='verificar', username=usr['username'], error='Código incorrecto. Revisa tu Telegram.')
+                _reset_codes.pop(clave_u, None)
+
+            cur.execute("UPDATE usuarios SET password=%s WHERE id=%s", (generate_password_hash(p1), usr['id']))
+            return render_seguro('login.html', success='Contraseña actualizada correctamente. Ya puedes iniciar sesión.', mode='login')
+
+    return render_seguro('recuperar.html', paso='solicitar')
 
 @panel_bp.route('/logout')
 def logout():
