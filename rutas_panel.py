@@ -65,6 +65,14 @@ def landing_o_resumen():
         return redirect('/resumen')
     return render_seguro('landing.html')
 
+@panel_bp.route('/compatibilidad')
+def pagina_compatibilidad():
+    return render_seguro('compatibilidad.html')
+
+@panel_bp.route('/guia')
+def pagina_guia():
+    return render_seguro('guia.html')
+
 @panel_bp.route('/privacidad')
 def pagina_privacidad():
     return render_seguro('privacidad.html')
@@ -93,6 +101,16 @@ def sitemap_xml():
     <loc>https://elminerogris.com/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://elminerogris.com/compatibilidad</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://elminerogris.com/guia</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
   </url>
   <url>
     <loc>https://elminerogris.com/register</loc>
