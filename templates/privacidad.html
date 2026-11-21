@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidad — El Minero Gris</title>
+    <meta name="description" content="Política de privacidad y seguridad de El Minero Gris. Cómo protegemos tus datos y la red local de tu granja ASIC.">
+    <link rel="canonical" href="https://elminerogris.com/privacidad">
+    <style>
+        :root {
+            --bg-main: #090b12;
+            --bg-card: #111420;
+            --border: rgba(255, 255, 255, 0.09);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --blue-light: #60a5fa;
+            --green: #00e676;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-main);
+            line-height: 1.7;
+            padding: 30px 16px 60px 16px;
+        }
+        .wrap {
+            max-width: 820px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 32px;
+        }
+        .back-link {
+            display: inline-block;
+            color: var(--blue-light);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9em;
+            margin-bottom: 18px;
+        }
+        h1 { font-size: 1.85em; margin-bottom: 6px; }
+        .updated { font-size: 0.82em; color: var(--text-muted); margin-bottom: 24px; font-family: monospace; }
+        h2 { font-size: 1.15em; color: var(--blue-light); margin: 22px 0 8px 0; }
+        p, li { color: #cbd5e1; font-size: 0.94em; margin-bottom: 10px; }
+        ul { padding-left: 20px; margin-bottom: 12px; }
+        .highlight {
+            background: rgba(0, 230, 118, 0.08);
+            border: 1px solid rgba(0, 230, 118, 0.3);
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin: 18px 0;
+            color: #d1fae5;
+            font-size: 0.92em;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <a href="/" class="back-link">← Volver a El Minero Gris</a>
+        <h1>Política de Privacidad</h1>
+        <div class="updated">Última actualización: Noviembre 2026</div>
+
+        <div class="highlight">
+            <b>Compromiso de seguridad:</b> El Minero Gris nunca solicita ni almacena claves privadas de billeteras cripto, frases semilla ni modifica tus pools sin tu orden explícita.
+        </div>
+
+        <h2>1. Información que recopilamos</h2>
+        <ul>
+            <li><b>Datos de cuenta:</b> Nombre de usuario, correo electrónico (opcional), contraseña cifrada (hash seguro) y tu API Key privada.</li>
+            <li><b>Telemetría de minería:</b> Hashrate, temperaturas, velocidad de ventiladores, consumo estimado, pools configurados, IP local y estado de los equipos ASIC reportados por tu agente.</li>
+            <li><b>Telemetría del dispositivo agente:</b> Tipo de dispositivo (celular, PC, Raspberry Pi, TV Box), IP local y estado de batería para enviarte alertas de corte de energía.</li>
+            <li><b>Ubicación (opcional):</b> Ciudad aproximada por IP o coordenadas GPS únicamente si activas esa función para el clima exterior y el mapa de sedes.</li>
+        </ul>
+
+        <h2>2. Cómo funciona el Agente y el Túnel Web</h2>
+        <p>El agente (APK Android o Python) realiza únicamente conexiones salientes cifradas (HTTPS/WSS) hacia nuestros servidores. No requiere abrir puertos en tu router ni exponer tus mineros a internet. El Proxy Web Local solo se activa cuando inicias sesión en tu cuenta y solicitas abrir un equipo.</p>
+
+        <h2>3. Uso de la información</h2>
+        <p>Usamos tus datos exclusivamente para mostrar tu panel en tiempo real, ejecutar tus reglas de Watchdog/Protección Térmica y enviarte notificaciones a tu propio bot de Telegram. No vendemos ni compartimos tu información con terceros.</p>
+
+        <h2>4. Eliminación de datos</h2>
+        <p>El historial de gráficos se limpia automáticamente cada 30 días. Puedes eliminar tus mineros desde el panel en cualquier momento o solicitar la baja completa de tu cuenta contactando a soporte.</p>
+    </div>
+</body>
+</html>
