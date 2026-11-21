@@ -1,0 +1,157 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .pro-header {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 16px 20px;
+    }
+    .pro-header h1 { margin: 0; font-size: 1.35em; }
+    .pro-header p { margin: 4px 0 0 0; font-size: 0.84em; color: var(--text-muted); }
+
+    .alert-ok {
+        background: rgba(0, 230, 118, 0.12); border: 1px solid rgba(0, 230, 118, 0.4);
+        color: #69f0ae; padding: 11px 15px; border-radius: 8px;
+        margin-bottom: 16px; font-size: 0.86em; font-weight: 600;
+    }
+
+    .grid-2 {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+        gap: 18px; align-items: start;
+    }
+    .card-box {
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 18px;
+    }
+    .card-box h2 { margin: 0 0 12px 0; font-size: 1.05em; }
+    .lbl {
+        display: block; font-size: 0.74em; color: var(--text-muted);
+        text-transform: uppercase; font-weight: bold; margin-bottom: 6px;
+    }
+    .inp {
+        width: 100%; background: var(--bg-input); border: 1px solid var(--border-color);
+        color: var(--text-main); padding: 9px 12px; border-radius: 7px;
+        font-size: 0.88em; margin-bottom: 14px; outline: none;
+    }
+    .inp:focus { border-color: #3b82f6; }
+
+    .miners-pick {
+        max-height: 260px; overflow-y: auto;
+        background: rgba(10, 12, 18, 0.5); border: 1px solid var(--border-color);
+        border-radius: 8px; padding: 10px; margin-bottom: 14px;
+        display: flex; flex-direction: column; gap: 6px;
+    }
+    .pick-item {
+        display: flex; align-items: center; gap: 9px;
+        padding: 6px 8px; border-radius: 6px; font-size: 0.84em;
+        cursor: pointer; background: rgba(255, 255, 255, 0.02);
+    }
+    .pick-item:hover { background: rgba(51, 102, 255, 0.12); }
+
+    .btn-primary {
+        width: 100%; background: linear-gradient(135deg, #3366ff, #2563eb);
+        color: #fff; border: 1px solid #60a5fa; padding: 10px;
+        border-radius: 7px; font-weight: bold; font-size: 0.88em; cursor: pointer;
+    }
+
+    .link-item {
+        background: rgba(10, 12, 18, 0.55); border: 1px solid var(--border-color);
+        border-radius: 8px; padding: 13px; margin-bottom: 10px;
+    }
+    .link-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; margin-bottom: 8px;
+    }
+    .link-url {
+        background: #07090f; border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px; padding: 7px 10px; font-family: monospace;
+        font-size: 0.78em; color: #38bdf8; word-break: break-all; margin-bottom: 8px;
+    }
+    .link-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-sm {
+        padding: 5px 10px; border-radius: 6px; font-size: 0.78em;
+        font-weight: bold; cursor: pointer; border: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.04); color: var(--text-main);
+        text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .btn-sm:hover { border-color: #60a5fa; color: #fff; }
+    .btn-sm.del { color: #ff8a80; border-color: rgba(255, 82, 82, 0.4); background: rgba(255, 82, 82, 0.1); }
+</style>
+
+<div class="pro-header">
+    <div>
+        <h1>🔗 Enlaces de Solo Lectura (Modo Hosting)</h1>
+        <p>Comparte un link privado para que tus clientes o inversionistas vean únicamente sus máquinas en vivo sin poder modificar nada.</p>
+    </div>
+</div>
+
+{% if msg %}
+<div class="alert-ok">✅ {{ msg }}</div>
+{% endif %}
+
+<div class="grid-2">
+    <div class="card-box">
+        <h2>➕ Crear Nuevo Enlace de Cliente</h2>
+        <form method="POST" action="/hosting">
+            <input type="hidden" name="accion" value="crear_enlace">
+            <label class="lbl">Nombre del Cliente / Vista</label>
+            <input type="text" name="titulo" class="inp" placeholder="Ej: Cliente Juan — 5x Antminer S21" required>
+
+            <label class="lbl">Selecciona los equipos que podrá ver</label>
+            <div class="miners-pick">
+                {% if mineros_disp|length == 0 %}
+                    <div style="color:var(--text-muted); font-size:0.84em; padding:8px;">No hay mineros registrados todavía.</div>
+                {% else %}
+                    {% for m in mineros_disp %}
+                    <label class="pick-item">
+                        <input type="checkbox" name="ips" value="{{ m.ip }}">
+                        <span style="font-weight:bold;" translate="no">{{ m.nombre }}</span>
+                        <span style="color:var(--text-muted); font-family:monospace; font-size:0.88em;" translate="no">({{ m.ip }} · {{ m.modelo }})</span>
+                    </label>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn-primary">🔗 Generar Enlace Privado</button>
+        </form>
+    </div>
+
+    <div class="card-box">
+        <h2>📋 Enlaces Activos ({{ enlaces|length }})</h2>
+        {% if enlaces|length == 0 %}
+            <p style="color:var(--text-muted); font-size:0.86em;">Aún no has creado enlaces de hosting. Cuando generes uno aparecerá aquí listo para copiar y enviar por WhatsApp.</p>
+        {% else %}
+            {% for e in enlaces %}
+            {% set full_url = request.url_root.rstrip('/') ~ '/h/' ~ e.token %}
+            <div class="link-item">
+                <div class="link-head">
+                    <strong style="font-size:0.94em;">{{ e.titulo }}</strong>
+                    <span style="font-size:0.74em; color:#00e676; font-family:monospace;">{{ e.ips_list|length }} ASIC(s)</span>
+                </div>
+                <div class="link-url" translate="no">{{ full_url }}</div>
+                <div class="link-actions">
+                    <button type="button" class="btn-sm" onclick="copiarLinkHosting('{{ full_url }}', this)">📋 Copiar Link</button>
+                    <a href="/h/{{ e.token }}" target="_blank" rel="noopener" class="btn-sm">👁️ Abrir Vista ↗</a>
+                    <form method="POST" action="/hosting" onsubmit="return confirm('¿Revocar este enlace? El cliente ya no podrá abrirlo.');" style="margin:0;">
+                        <input type="hidden" name="accion" value="eliminar_enlace">
+                        <input type="hidden" name="enlace_id" value="{{ e.id }}">
+                        <button type="submit" class="btn-sm del">🗑️ Revocar</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function copiarLinkHosting(url, btn) {
+        navigator.clipboard.writeText(url).then(() => {
+            const orig = btn.innerText;
+            btn.innerText = '✅ Copiado';
+            setTimeout(() => { btn.innerText = orig; }, 2200);
+        });
+    }
+</script>
+{% endblock %}
