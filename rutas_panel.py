@@ -1053,6 +1053,7 @@ def login():
             else:
                 cur.execute("UPDATE usuarios SET ultima_conexion=%s WHERE id=%s", (ahora_str, usr['id']))
             session.pop('admin_real', None)
+            session.permanent = True
             session['usuario'] = usr['username']
             session['plan'] = usr.get('plan', 'Gratis')
             session['saldo'] = usr.get('saldo', 0.0)
