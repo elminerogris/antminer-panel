@@ -480,6 +480,98 @@
             white-space: nowrap;
         }
 
+        /* Modal Ping Pools */
+        .ping-modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(4px);
+            z-index: 99990;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .ping-modal-backdrop.open { display: flex; }
+        .ping-modal-box {
+            width: 100%;
+            max-width: 580px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.75);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .ping-modal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        .ping-modal-head h3 {
+            margin: 0;
+            font-size: 1.02em;
+            color: var(--text-main);
+        }
+        .ping-close-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            border-radius: 6px;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .ping-close-btn:hover { color: #fff; border-color: var(--accent-red); }
+        .ping-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .ping-select {
+            flex: 1;
+            min-width: 180px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            border-radius: 7px;
+            padding: 8px 10px;
+            font-size: 0.88em;
+            outline: none;
+        }
+        .ping-run-btn {
+            background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
+            color: #fff;
+            border: none;
+            border-radius: 7px;
+            padding: 8px 14px;
+            font-weight: bold;
+            font-size: 0.86em;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .ping-run-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .ping-terminal {
+            background: #07090f;
+            border: 1px solid var(--border-color);
+            color: #00e676;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.80em;
+            line-height: 1.5;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 0;
+            min-height: 150px;
+            max-height: 300px;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
@@ -504,6 +596,23 @@
     <div id="google_translate_element"></div>
     <div id="layoutToast" class="layout-toast" translate="no"></div>
     <div class="overlay" id="sidebarOverlay" onclick="toggleMenu()"></div>
+
+    <!-- Modal Diagnóstico Ping Pools -->
+    <div class="ping-modal-backdrop" id="pingPoolsModal" onclick="if(event.target===this) cerrarModalPingPools()">
+        <div class="ping-modal-box">
+            <div class="ping-modal-head">
+                <h3>📡 Diagnóstico de Latencia a Pools</h3>
+                <button type="button" class="ping-close-btn" onclick="cerrarModalPingPools()">✕</button>
+            </div>
+            <div class="ping-controls">
+                <select id="pingSedeSelect" class="ping-select">
+                    <option value="default">Cargando sedes...</option>
+                </select>
+                <button type="button" id="btnEjecutarPing" class="ping-run-btn" onclick="ejecutarPingPools()">▶ Probar Ping</button>
+            </div>
+            <pre id="pingTerminalOut" class="ping-terminal">Selecciona una sede y presiona "Probar Ping" para medir la latencia TCP real desde la red de tu granja hacia ViaBTC, Binance Pool, NiceHash, Braiins y F2Pool.</pre>
+        </div>
+    </div>
 
     <aside class="sidebar">
         <div class="logo-container">
@@ -606,6 +715,7 @@
             </div>
 
             <div class="top-bar-right">
+                <button type="button" class="top-btn" onclick="abrirModalPingPools()" title="Diagnóstico de Ping a Pools">📡</button>
                 <button type="button" class="top-btn" onclick="toggleTheme()" id="themeIcon" title="Cambiar tema claro/oscuro">☀️</button>
                 <select class="top-lang-select" id="langSelector" onchange="cambiarIdioma(this.value)" title="Cambiar idioma">
                     <option value="es">🌐 Español</option>
@@ -635,6 +745,95 @@
     </div>
 
     <script>
+        let pingPollTimer = null;
+
+        async function abrirModalPingPools() {
+            const modal = document.getElementById('pingPoolsModal');
+            const sel = document.getElementById('pingSedeSelect');
+            if (!modal || !sel) return;
+            modal.classList.add('open');
+            sel.innerHTML = '<option value="default">Cargando sedes...</option>';
+            try {
+                const r = await fetch('/api/panel/sedes');
+                const j = await r.json();
+                const sedes = (j && j.sedes) ? j.sedes : [];
+                if (sedes.length === 0) {
+                    sel.innerHTML = '<option value="default">Sede principal (default)</option>';
+                } else {
+                    sel.innerHTML = sedes.map(s => {
+                        const ciudad = s.ciudad ? ` - ${s.ciudad}` : '';
+                        return `<option value="${s.agent_id}">${s.agent_id}${ciudad} (${s.total} ASICs)</option>`;
+                    }).join('');
+                }
+            } catch (e) {
+                sel.innerHTML = '<option value="default">Sede principal (default)</option>';
+            }
+        }
+
+        function cerrarModalPingPools() {
+            const modal = document.getElementById('pingPoolsModal');
+            if (modal) modal.classList.remove('open');
+            if (pingPollTimer) {
+                clearInterval(pingPollTimer);
+                pingPollTimer = null;
+            }
+        }
+
+        async function ejecutarPingPools() {
+            const sel = document.getElementById('pingSedeSelect');
+            const btn = document.getElementById('btnEjecutarPing');
+            const out = document.getElementById('pingTerminalOut');
+            if (!sel || !btn || !out) return;
+
+            const agentId = sel.value || 'default';
+            btn.disabled = true;
+            btn.innerText = '⏳ Midiéndo...';
+            out.innerText = `📡 Enviando orden de diagnóstico a la sede ${agentId}...\nEsperando respuesta del Agente (puede tardar hasta 25 segundos)...`;
+
+            if (pingPollTimer) {
+                clearInterval(pingPollTimer);
+                pingPollTimer = null;
+            }
+
+            try {
+                const r = await fetch('/api/panel/ping_pools', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agent_id: agentId })
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+
+                let intentos = 0;
+                pingPollTimer = setInterval(async () => {
+                    intentos++;
+                    try {
+                        const rRes = await fetch('/api/panel/ping_pools_resultado?agent_id=' + encodeURIComponent(agentId), { cache: 'no-store' });
+                        const jRes = await rRes.json();
+                        if (jRes && jRes.ok && jRes.contenido) {
+                            clearInterval(pingPollTimer);
+                            pingPollTimer = null;
+                            out.innerText = jRes.contenido;
+                            btn.disabled = false;
+                            btn.innerText = '▶ Probar Ping';
+                            return;
+                        }
+                    } catch (e) {}
+
+                    if (intentos >= 18) {
+                        clearInterval(pingPollTimer);
+                        pingPollTimer = null;
+                        out.innerText = '⚠️ Tiempo de espera agotado.\nVerifica que el APK o Agente PC de esta sede esté en línea y actualizado.';
+                        btn.disabled = false;
+                        btn.innerText = '▶ Probar Ping';
+                    }
+                }, 2500);
+            } catch (e) {
+                out.innerText = '❌ Error al solicitar el diagnóstico de red.';
+                btn.disabled = false;
+                btn.innerText = '▶ Probar Ping';
+            }
+        }
+
         function toggleMenu() {
             document.querySelector('.sidebar').classList.toggle('active');
             document.getElementById('sidebarOverlay').classList.toggle('active');
