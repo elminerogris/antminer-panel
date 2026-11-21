@@ -132,7 +132,9 @@ def api_agente_login():
         "ok": True,
         "username": usr['username'],
         "api_key": api_k,
-        "subnet": usr.get('subnet') or '192.168.0'
+        "subnet": usr.get('subnet') or '192.168.0',
+        "miner_user": usr.get('miner_user') or 'root',
+        "miner_pass": usr.get('miner_pass') or ''
     }), 200
 
 @agente_bp.route('/api/agente/version')
@@ -306,9 +308,7 @@ def recibir_datos():
     dev_type = str(src_dev.get('device_type') or '').strip()
     run_mode = str(src_dev.get('run_mode') or '').strip()
     if not dev_type:
-        if agent_id.startswith('AND-'):
-            dev_type = 'Celular'
-        elif agent_id.startswith('TERMUX-'):
+        if agent_id.startswith('AND-') or agent_id.startswith('TERMUX-'):
             dev_type = 'Celular'
         else:
             dev_type = 'PC / Servidor'
@@ -799,7 +799,14 @@ def recibir_datos():
         except Exception as err_clean:
             print(f"Error en limpieza automática 30d: {err_clean}")
 
-    return jsonify({"status": "ok", "guardados": guardados_ok, "omitidos_por_plan": omitidos_por_plan, "ordenes": ordenes}), 200
+    return jsonify({
+        "status": "ok",
+        "guardados": guardados_ok,
+        "omitidos_por_plan": omitidos_por_plan,
+        "ordenes": ordenes,
+        "miner_user": u_cfg.get('miner_user') or 'root',
+        "miner_pass": u_cfg.get('miner_pass') or ''
+    }), 200
 
 # ==================== DIAGNÓSTICO DE RED (PING A POOLS) DESDE EL PANEL ====================
 @agente_bp.route('/api/panel/sedes', methods=['GET'])
