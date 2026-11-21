@@ -25,7 +25,6 @@ def normalizar_sn(sn_str):
     s = str(sn_str or '').strip().upper()
     if not s or s in ('-', 'NONE', 'NULL', 'UNKNOWN', 'N/A'):
         return ""
-    # Ignorar seriales ficticios generados con la IP por el agente
     if s.startswith('SN-') or s.startswith('WM-'):
         return ""
     if len(s) < 6:
@@ -249,7 +248,6 @@ def recibir_datos():
     ip_publica_agente = xff.split(',')[0].strip() if xff else (request.remote_addr or '')
     geo_granja = obtener_ubicacion_ip_agente(ip_publica_agente)
 
-    # Capa 2 (GPS Real del Agente): GPS APK > Wi-Fi PC > IP Pública
     lat_agente = a_float_seguro(datos.get('lat') if datos.get('lat') is not None else datos.get('farm_lat'), 0.0)
     lon_agente = a_float_seguro(datos.get('lon') if datos.get('lon') is not None else datos.get('farm_lon'), 0.0)
     if (-90.0 <= lat_agente <= 90.0) and (-180.0 <= lon_agente <= 180.0) and (abs(lat_agente) > 0.001 or abs(lon_agente) > 0.001):
@@ -277,8 +275,100 @@ def recibir_datos():
     owner_user = u_cfg['username']
     es_pro, limite_efectivo, _ = evaluar_plan_usuario(cur, u_cfg)
 
+    ahora_dt = datetime.utcnow()
+    ahora = ahora_dt.strftime("%Y-%m-%d %H:%M:%S")
+    ahora_minuto = ahora_dt.strftime("%Y-%m-%d %H:%M:00")
+    ahora_ts = time.time()
+
+    # ==================== CREACIÓN / ACTUALIZACIÓN AUTOMÁTICA DE LA GRANJA DEL AGENTE ====================
+    dev_info = datos.get('device') if isinstance(datos.get('device'), dict) else {}
+    phone_info = datos.get('phone') if isinstance(datos.get('phone'), dict) else {}
+    src_dev = dev_info if dev_info else phone_info
+
+    dev_type = str(src_dev.get('device_type') or '').strip()
+    run_mode = str(src_dev.get('run_mode') or '').strip()
+    if not dev_type:
+        if agent_id.startswith('AND-'):
+            dev_type = 'Celular'
+        elif agent_id.startswith('TERMUX-'):
+            dev_type = 'Celular'
+        else:
+            dev_type = 'PC / Servidor'
+    if not run_mode:
+        if agent_id.startswith('AND-'):
+            run_mode = 'APK Directo'
+        elif agent_id.startswith('TERMUX-'):
+            run_mode = 'Termux'
+        else:
+            run_mode = 'Python PC'
+
+    dev_brand = str(src_dev.get('brand') or '').strip()[:40]
+    dev_model = str(src_dev.get('model') or '').strip()[:80]
+    dev_local_ip = str(src_dev.get('local_ip') or '').strip()[:45]
+    dev_os = str(src_dev.get('os_info') or (f"Android {src_dev.get('android')}" if src_dev.get('android') else '')).strip()[:60]
+    batt_pct = a_int_seguro(src_dev.get('battery_pct'), -1)
+    has_batt = 1 if (src_dev.get('has_battery') is True or batt_pct >= 0) else 0
+    batt_charging = 1 if bool(src_dev.get('charging')) else 0
+    batt_temp = a_float_seguro(src_dev.get('battery_temp_c'), 0.0)
+
+    mineros_payload = datos.get('mineros', [])
+    subred_detectada = ""
+    gw_detectado = ""
+    for mp in mineros_payload:
+        if not isinstance(mp, dict):
+            continue
+        ip_p = str(mp.get('ip') or '').strip()
+        if '.' in ip_p and not subred_detectada:
+            subred_detectada = ".".join(ip_p.split('.')[:3]) + ".x"
+        gw_p = str(mp.get('gateway') or '').strip()
+        if gw_p and gw_p != ip_p and not gw_detectado:
+            gw_detectado = gw_p
+        if subred_detectada and gw_detectado:
+            break
+
+    if not subred_detectada and '.' in dev_local_ip:
+        subred_detectada = ".".join(dev_local_ip.split('.')[:3]) + ".x"
+    if not subred_detectada:
+        subred_detectada = (u_cfg.get('subnet') or '192.168.0') + ".x"
+    if not gw_detectado:
+        gw_detectado = subred_detectada.replace('.x', '.1') if subred_detectada.endswith('.x') else '192.168.0.1'
+
+    nombre_defecto_granja = f"Granja {f_city} ({agent_id})"
+    tarifa_defecto = a_float_seguro(u_cfg.get('tarifa_kwh'), 0.06)
+
+    try:
+        cur.execute("""
+            INSERT INTO granjas_sedes (
+                owner, farm_id, agent_id, nombre, ciudad, subred, gateway, cap_kw, tarifa_kwh,
+                device_type, run_mode, brand, model, local_ip, has_battery, battery_pct, charging,
+                battery_temp_c, os_info, ultima_act
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, 50.0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (owner, farm_id) DO UPDATE SET
+                agent_id=EXCLUDED.agent_id,
+                ciudad=CASE WHEN granjas_sedes.ciudad IS NULL OR granjas_sedes.ciudad='' THEN EXCLUDED.ciudad ELSE granjas_sedes.ciudad END,
+                subred=EXCLUDED.subred,
+                gateway=CASE WHEN EXCLUDED.gateway != '' THEN EXCLUDED.gateway ELSE granjas_sedes.gateway END,
+                device_type=EXCLUDED.device_type,
+                run_mode=EXCLUDED.run_mode,
+                brand=CASE WHEN EXCLUDED.brand != '' THEN EXCLUDED.brand ELSE granjas_sedes.brand END,
+                model=CASE WHEN EXCLUDED.model != '' THEN EXCLUDED.model ELSE granjas_sedes.model END,
+                local_ip=CASE WHEN EXCLUDED.local_ip != '' THEN EXCLUDED.local_ip ELSE granjas_sedes.local_ip END,
+                has_battery=EXCLUDED.has_battery,
+                battery_pct=EXCLUDED.battery_pct,
+                charging=EXCLUDED.charging,
+                battery_temp_c=EXCLUDED.battery_temp_c,
+                os_info=CASE WHEN EXCLUDED.os_info != '' THEN EXCLUDED.os_info ELSE granjas_sedes.os_info END,
+                ultima_act=EXCLUDED.ultima_act
+        """, (
+            owner_user, agent_id, agent_id, nombre_defecto_granja, f_city, subred_detectada, gw_detectado,
+            tarifa_defecto, dev_type, run_mode, dev_brand, dev_model, dev_local_ip, has_batt,
+            batt_pct, batt_charging, batt_temp, dev_os, ahora
+        ))
+    except Exception as err_gs:
+        print(f"Error actualizando granjas_sedes ({agent_id}): {err_gs}")
+
     cur.execute("""
-        SELECT agent_id, ip, miner_uid, mac, serial, corte_activo, corte_temp, watchdog_activo,
+        SELECT agent_id, farm_id, ip, miner_uid, mac, serial, corte_activo, corte_temp, watchdog_activo,
                wd_fallo_desde, wd_motivo_fallo, wd_ultimo_reinicio, wd_reinicios_seguidos,
                wd_cuarentena, placas_normales, prot_sleep_desde, prot_motivo,
                farm_lat, farm_lon, farm_city, gps_manual, ultima_act
@@ -286,7 +376,6 @@ def recibir_datos():
     """, (owner_user,))
     rows_exist = cur.fetchall()
 
-    # Índices en memoria para enlazar por MAC (principal) y SN real (secundario)
     por_mac = {}
     por_sn = {}
     por_ip_agent = {}
@@ -326,29 +415,19 @@ def recibir_datos():
     ordenes = [{"ip": c['ip'], "comando": c['comando']} for c in pend]
     for c in pend: cur.execute("UPDATE cola_comandos SET estado='enviado' WHERE id=%s", (c['id'],))
 
-    ahora_dt = datetime.utcnow()
-    ahora = ahora_dt.strftime("%Y-%m-%d %H:%M:%S")
-    ahora_minuto = ahora_dt.strftime("%Y-%m-%d %H:%M:00")
-    ahora_ts = time.time()
-
     umbral_t = a_int_seguro(u_cfg.get('umbral_temp'), 80)
     umbral_h = a_float_seguro(u_cfg.get('umbral_hr'), 50.0)
     alertas_on = bool(a_int_seguro(u_cfg.get('alertas_activas'), 0) == 1)
     tg_tok = (u_cfg.get('tg_token') or '')
     tg_cid = (u_cfg.get('tg_chat_id') or '')
 
-    # Telemetría del celular agente (batería baja sin cargar / sobrecalentamiento)
-    phone_info = datos.get('phone')
-    if isinstance(phone_info, dict):
+    # Alertas de batería baja o sobrecalentamiento del dispositivo agente (Celular / Laptop)
+    if has_batt == 1:
         try:
-            batt_pct = a_int_seguro(phone_info.get('battery_pct'), -1)
-            batt_charging = bool(phone_info.get('charging'))
-            batt_temp = a_float_seguro(phone_info.get('battery_temp_c'), 0.0)
-            phone_model = str(phone_info.get('model') or 'Celular Agente').strip()
-
-            if 0 <= batt_pct < 20 and not batt_charging:
+            nombre_dev = f"{dev_brand} {dev_model}".strip() or dev_type
+            if 0 <= batt_pct < 20 and batt_charging == 0:
                 if not alerta_en_enfriamiento(cur, owner_user, agent_id, 'CELULAR_BATERIA', 1800):
-                    msg_bat = f"🔋 Batería baja en {phone_model} ({agent_id}): {batt_pct}% y NO está cargando."
+                    msg_bat = f"🔋 Batería baja en {nombre_dev} ({agent_id}): {batt_pct}% y NO está cargando."
                     cur.execute(
                         "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'CELULAR_BATERIA', %s, %s)",
                         (owner_user, agent_id, msg_bat, ahora)
@@ -356,12 +435,12 @@ def recibir_datos():
                     if alertas_on:
                         enviar_telegram(
                             tg_tok, tg_cid,
-                            f"🔋 <b>ALERTA: BATERÍA BAJA EN CELULAR AGENTE</b>\nSede: <b>{agent_id}</b> ({phone_model})\nBatería: <b>{batt_pct}%</b> (Desconectado del cargador)\nRevisa el cargador o posible corte de energía."
+                            f"🔋 <b>ALERTA: BATERÍA BAJA EN AGENTE ({dev_type.upper()})</b>\nSede: <b>{agent_id}</b> ({nombre_dev})\nBatería: <b>{batt_pct}%</b> (Desconectado del cargador)\nRevisa el cargador o posible corte de energía."
                         )
 
             if batt_temp >= 45.0:
                 if not alerta_en_enfriamiento(cur, owner_user, agent_id, 'CELULAR_TEMP', 1800):
-                    msg_pt = f"🌡️ Sobrecalentamiento en {phone_model} ({agent_id}): batería a {batt_temp:.1f}°C ({batt_pct}%)."
+                    msg_pt = f"🌡️ Sobrecalentamiento en {nombre_dev} ({agent_id}): batería a {batt_temp:.1f}°C ({batt_pct}%)."
                     cur.execute(
                         "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'CELULAR_TEMP', %s, %s)",
                         (owner_user, agent_id, msg_pt, ahora)
@@ -369,10 +448,10 @@ def recibir_datos():
                     if alertas_on:
                         enviar_telegram(
                             tg_tok, tg_cid,
-                            f"🌡️ <b>ALERTA: CELULAR AGENTE SOBRECALENTADO</b>\nSede: <b>{agent_id}</b> ({phone_model})\nTemperatura batería: <b>{batt_temp:.1f}°C</b>\nBatería: {batt_pct}% ({'Cargando' if batt_charging else 'Sin cargar'})"
+                            f"🌡️ <b>ALERTA: DISPOSITIVO AGENTE SOBRECALENTADO</b>\nSede: <b>{agent_id}</b> ({nombre_dev})\nTemperatura batería: <b>{batt_temp:.1f}°C</b>\nBatería: {batt_pct}% ({'Cargando' if batt_charging else 'Sin cargar'})"
                         )
         except Exception as err_ph:
-            print(f"Error procesando telemetría celular {agent_id}: {err_ph}")
+            print(f"Error procesando telemetría agente {agent_id}: {err_ph}")
 
     wd_activo = bool(a_int_seguro(u_cfg.get('wd_activo'), 0) == 1)
     wd_alcance = (u_cfg.get('wd_alcance') or 'all')
@@ -410,7 +489,7 @@ def recibir_datos():
     guardados_ok = 0
     omitidos_por_plan = 0
 
-    for m in datos.get('mineros', []):
+    for m in mineros_payload:
         try:
             ip_m = str(m.get('ip') or '').strip()
             if not ip_m: continue
@@ -420,7 +499,6 @@ def recibir_datos():
             mac_norm = normalizar_mac(mc)
             sn_norm = normalizar_sn(sr)
 
-            # 1. Identificación inteligente: MAC principal -> SN real secundario -> IP respaldo
             prev_m = None
             if mac_norm and mac_norm in por_mac:
                 prev_m = por_mac[mac_norm]
@@ -446,7 +524,8 @@ def recibir_datos():
             else:
                 miner_uid = (prev_m.get('miner_uid') if prev_m else '') or f"IP:{agent_id}:{ip_m}"
 
-            # Si el minero existía bajo otra IP o agent_id, fusionar y limpiar duplicados
+            farm_id_asignada = (prev_m.get('farm_id') if prev_m and prev_m.get('farm_id') else '') or agent_id
+
             if prev_m is not None:
                 old_ip = prev_m['ip']
                 old_ag = str(prev_m.get('agent_id') or 'default')
@@ -503,8 +582,9 @@ def recibir_datos():
                 cadenas_list = []
             cadenas_json = json.dumps(cadenas_list)
 
-            cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, miner_uid, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
+            cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, farm_id, miner_uid, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
+                            farm_id=CASE WHEN mineros_activos.farm_id IS NOT NULL AND mineros_activos.farm_id != '' THEN mineros_activos.farm_id ELSE EXCLUDED.farm_id END,
                             miner_uid=EXCLUDED.miner_uid, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_activos.mac END, serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_activos.serial END, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns,
                             farm_lat=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lat ELSE EXCLUDED.farm_lat END,
                             farm_lon=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lon ELSE EXCLUDED.farm_lon END,
@@ -513,7 +593,7 @@ def recibir_datos():
                             real_lat=EXCLUDED.real_lat,
                             real_lon=EXCLUDED.real_lon,
                             real_source=EXCLUDED.real_source''',
-                        (ip_m, owner_user, agent_id, miner_uid, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
+                        (ip_m, owner_user, agent_id, farm_id_asignada, miner_uid, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
 
             cur.execute("SELECT id, hashrate, temp_max FROM historial_nube WHERE owner=%s AND ip=%s AND fecha=%s LIMIT 1", (owner_user, ip_m, ahora_minuto))
             row_min = cur.fetchone()
