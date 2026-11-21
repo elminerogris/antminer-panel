@@ -15,6 +15,74 @@
         box-sizing: border-box;
     }
 
+    /* Barra superior de acceso al Proxy Web Local del Antminer */
+    .proxy-quick-bar {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 11px 16px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .proxy-quick-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        font-size: 0.84em;
+        color: var(--text-muted);
+    }
+    .proxy-quick-info b {
+        color: var(--text-main);
+        font-family: monospace;
+    }
+    .proxy-btn-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .btn-proxy-open {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.14) 100%);
+        border: 1px solid rgba(96, 165, 250, 0.65);
+        color: #60a5fa;
+        padding: 6px 13px;
+        border-radius: 6px;
+        font-size: 0.82em;
+        font-weight: bold;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.18s ease;
+    }
+    .btn-proxy-open:hover {
+        background: rgba(51, 102, 255, 0.35);
+        color: #fff;
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
+    }
+    .btn-proxy-ssl {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 0.78em;
+        font-weight: bold;
+        font-family: monospace;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.18s ease;
+    }
+    .btn-proxy-ssl:hover {
+        border-color: #38bdf8;
+        color: #38bdf8;
+    }
+
     /* Tarjeta Watchdog Individual (misma temática que el resto del panel) */
     .wd-card-pro {
         background: var(--bg-card);
@@ -159,6 +227,25 @@
 </style>
 
 <div class="miner-dashboard-stack">
+    <!-- Acceso directo a la Web Local del Antminer vía túnel -->
+    <div class="miner-section-wrap" data-no-live-patch="1">
+        <div class="proxy-quick-bar">
+            <div class="proxy-quick-info">
+                <span>🖥️ Interfaz Web Local:</span>
+                <b translate="no">http://{{ ip }}/</b>
+                <span style="opacity:0.75;">({{ modelo }})</span>
+            </div>
+            <div class="proxy-btn-group">
+                <a href="/proxy/{{ ip }}/" target="_blank" rel="noopener" class="btn-proxy-open">
+                    🌐 Abrir Web Local ↗
+                </a>
+                <a href="/proxy/{{ ip }}/?scheme=https" target="_blank" rel="noopener" class="btn-proxy-ssl" title="Abrir usando HTTPS local">
+                    🔒 HTTPS
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- 1. Encabezado y Tarjetas KPI Superiores -->
     <div class="miner-section-wrap">
         {% include "minero_partes/_tarjetas_top.html" %}
