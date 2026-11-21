@@ -203,6 +203,7 @@ def init_tunel(app):
             print(f"[WS] Agente desconectado: {owner} ({agent_id})")
 
     @app.route('/proxy/<ip>', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
+    @app.route('/proxy/<ip>/', defaults={'subpath': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
     @app.route('/proxy/<ip>/<path:subpath>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
     @login_required
     def proxy_web_local(ip, subpath):
