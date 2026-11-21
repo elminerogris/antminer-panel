@@ -1,0 +1,84 @@
+{% set ips_lista = g.mineros | map(attribute='ip') | list %}
+<div class="farm-card" data-farm-id="{{ g.farm_id }}">
+    <div class="farm-card-top">
+        <div>
+            <div class="farm-name">
+                <span>🏭</span>
+                <span translate="no">{{ g.nombre }}</span>
+                <button type="button" class="btn-inline-edit"
+                    onclick='editarGranjaModal({{ g.farm_id | tojson }}, {{ g.nombre | tojson }}, {{ g.ciudad | tojson }}, {{ g.cap_kw }}, {{ g.tarifa_kwh }}, {{ g.gateway | tojson }}, {{ g.notas | tojson }}, {{ g.es_manual | tojson }})'
+                    title="Editar nombre y configuración de esta granja">✏️ Editar</button>
+            </div>
+            <div class="farm-meta" translate="no">
+                <span>📍 {{ g.ciudad }}</span>
+                <span>·</span>
+                <span>🌐 {{ g.subred }}</span>
+                {% if g.notas %}
+                <span>·</span>
+                <span>📝 {{ g.notas }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% if g.offline > 0 or g.temp_max >= 85 %}
+            <span class="farm-pill-status crit">⚠️ Atención ({{ g.online }}/{{ g.total }})</span>
+        {% elif g.temp_max >= 75 %}
+            <span class="farm-pill-status warn">🔥 Caliente ({{ g.temp_max }}°C)</span>
+        {% else %}
+            <span class="farm-pill-status ok">● Óptima ({{ g.online }}/{{ g.total }})</span>
+        {% endif %}
+    </div>
+
+    <!-- KPIs de la Sede -->
+    <div class="farm-kpis" translate="no">
+        <div class="fk-item">
+            <div class="fk-label">Hashrate</div>
+            <div class="fk-val" style="color:#3b82f6;">{{ g.hashrate }} <span style="font-size:0.68em;color:var(--text-muted);">TH/s</span></div>
+        </div>
+        <div class="fk-item">
+            <div class="fk-label">Consumo</div>
+            <div class="fk-val" style="color:#c084fc;">{{ g.consumo_kw }} <span style="font-size:0.68em;color:var(--text-muted);">kW</span></div>
+        </div>
+        <div class="fk-item">
+            <div class="fk-label">Temp Pico</div>
+            <div class="fk-val" style="color:{{ '#ff5252' if g.temp_max >= 85 else ('#ffb300' if g.temp_max >= 75 else '#00e676') }};">{{ g.temp_max }}°C</div>
+        </div>
+        <div class="fk-item">
+            <div class="fk-label">Costo Luz/Día</div>
+            <div class="fk-val" style="color:#38bdf8;">${{ "%.2f"|format(g.costo_dia) }}</div>
+        </div>
+    </div>
+
+    <!-- Medidor de Carga Eléctrica -->
+    <div class="power-gauge-box" translate="no">
+        <div class="power-gauge-header">
+            <span style="color:var(--text-muted); font-weight:bold;">
+                ⚡ Carga Eléctrica: <b style="color:var(--text-main);">{{ g.consumo_kw }} / {{ g.cap_kw|int }} kW ({{ g.pct_carga }}%)</b>
+            </span>
+            <button type="button" class="btn-edit-cap"
+                onclick='editarGranjaModal({{ g.farm_id | tojson }}, {{ g.nombre | tojson }}, {{ g.ciudad | tojson }}, {{ g.cap_kw }}, {{ g.tarifa_kwh }}, {{ g.gateway | tojson }}, {{ g.notas | tojson }}, {{ g.es_manual | tojson }})'>
+                ⚙️ Ajustar kW
+            </button>
+        </div>
+        <div class="power-bar-bg">
+            <div class="power-bar-fill" style="width: {{ g.pct_carga }}%; background: {{ '#ff5252' if g.pct_carga >= 85 else ('#ffb300' if g.pct_carga >= 70 else '#00e676') }};"></div>
+        </div>
+    </div>
+
+    <!-- Telemetría del Dispositivo Agente -->
+    {% include "granjas_partes/_agente_info.html" %}
+
+    <!-- Bloque Router / Gateway -->
+    {% include "granjas_partes/_router_bloque.html" %}
+
+    <!-- Mapa Térmico de ASICs (con botón Editar/Mover) -->
+    {% include "granjas_partes/_rack_mineros.html" %}
+
+    <!-- Acciones Rápidas por Granja -->
+    <div class="farm-actions-bar">
+        <button type="button" class="btn-farm-cmd scan" onclick="escanearRedLocal(this)" title="Buscar equipos nuevos en {{ g.subred }}">🔍 Escanear</button>
+        <button type="button" class="btn-farm-cmd eco" onclick='comandoGranja("profile|low", {{ ips_lista | tojson }}, {{ g.nombre | tojson }})'>❄️ Eco</button>
+        <button type="button" class="btn-farm-cmd sleep" onclick='comandoGranja("sleep", {{ ips_lista | tojson }}, {{ g.nombre | tojson }})'>😴 Reposo</button>
+        <button type="button" class="btn-farm-cmd" onclick='comandoGranja("normal", {{ ips_lista | tojson }}, {{ g.nombre | tojson }})'>▶ Normal</button>
+        <button type="button" class="btn-farm-cmd reboot" onclick='comandoGranja("restart", {{ ips_lista | tojson }}, {{ g.nombre | tojson }})'>🔄 Reiniciar</button>
+    </div>
+</div>
