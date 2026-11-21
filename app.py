@@ -30,10 +30,23 @@ try:
 except ImportError:
     pass
 
-# Registrar los módulos (Blueprints)
+# Registrar los módulos principales (Blueprints)
 app.register_blueprint(admin_bp)
 app.register_blueprint(panel_bp)
 app.register_blueprint(agente_bp)
+
+# Registrar módulos Pro (Racks, Hosting, Técnicos) y Pagos USDT si están presentes
+try:
+    from rutas_pro import pro_bp
+    app.register_blueprint(pro_bp)
+except ImportError:
+    pass
+
+try:
+    from rutas_pagos import pagos_bp
+    app.register_blueprint(pagos_bp)
+except ImportError:
+    pass
 
 # Inicializar túnel WebSocket para comandos en tiempo real
 init_tunel(app)
@@ -87,7 +100,7 @@ def asegurar_bd():
                     con = get_db()
                     con.autocommit = True
                     cur = con.cursor()
-                    usr_real = session.get('admin_real') or session.get('usuario')
+                    usr_real = session.get('admin_real') or session.get('usuario_real') or session.get('usuario')
                     cur.execute(
                         "UPDATE usuarios SET ultima_conexion=%s WHERE username=%s",
                         (datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), usr_real)
@@ -103,6 +116,7 @@ def inyectar_globales():
     saldo_bonus_u = 0.0
     pro_dias_u = None
     limite_efectivo_u = LIMITE_MINEROS_GRATIS
+    es_tecnico_u = (str(session.get('rol') or 'owner').lower() == 'tecnico')
     try:
         if 'usuario' in session and DB_URL:
             con = get_db()
@@ -131,6 +145,7 @@ def inyectar_globales():
         'anuncio_global': anuncio,
         'en_modo_soporte': bool(str(session.get('admin_real') or '').lower() == 'admin'),
         'es_super_admin': es_super_admin(),
+        'es_tecnico': es_tecnico_u,
         'mineros_omitidos': omitidos_u,
         'es_pro_actual': es_pro_u,
         'limite_gratis': LIMITE_MINEROS_GRATIS,
