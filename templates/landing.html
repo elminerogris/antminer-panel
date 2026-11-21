@@ -8,6 +8,7 @@
     <meta name="keywords" content="monitoreo antminer, controlar antminer remoto, panel mineria asic, watchdog antminer, monitoreo whatsminer, acceso remoto antminer sin vpn, el minero gris">
     <link rel="canonical" href="https://elminerogris.com/">
     <meta name="robots" content="index, follow">
+    <link rel="icon" type="image/png" href="/static/logo.png">
 
     <!-- Open Graph (WhatsApp, Telegram, Facebook) -->
     <meta property="og:type" content="website">
@@ -15,6 +16,15 @@
     <meta property="og:title" content="El Minero Gris — Controla tu Granja ASIC desde el Celular">
     <meta property="og:description" content="Hashrate en vivo, temperaturas, alertas Telegram, Watchdog, Horarios de Tarifa Pico y acceso web local a tus Antminer y Router sin abrir puertos.">
     <meta property="og:site_name" content="El Minero Gris">
+    <meta property="og:image" content="https://elminerogris.com/static/og-preview.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="El Minero Gris — Controla tu Granja ASIC desde el Celular">
+    <meta name="twitter:description" content="Monitoreo 24/7, Watchdog, Telegram y Proxy Web Local para Antminer y WhatsMiner sin VPN ni abrir puertos.">
+    <meta name="twitter:image" content="https://elminerogris.com/static/og-preview.png">
 
     <!-- Datos estructurados para Google (Schema.org) -->
     <script type="application/ld+json">
@@ -25,6 +35,7 @@
       "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "Web, Android, Windows, Linux",
       "url": "https://elminerogris.com/",
+      "image": "https://elminerogris.com/static/og-preview.png",
       "description": "Plataforma en la nube para monitorear y controlar mineros ASIC Antminer y WhatsMiner de forma remota sin VPN ni abrir puertos.",
       "offers": {
         "@type": "Offer",
@@ -79,7 +90,7 @@
             display: flex; align-items: center; justify-content: center;
             font-weight: 900; box-shadow: 0 0 16px rgba(51, 102, 255, 0.45);
         }
-        .nav-links { display: flex; align-items: center; gap: 22px; font-size: 0.9em; color: var(--text-muted); }
+        .nav-links { display: flex; align-items: center; gap: 20px; font-size: 0.9em; color: var(--text-muted); }
         .nav-links a:hover { color: #fff; }
         .nav-cta { display: flex; align-items: center; gap: 10px; }
         .btn {
@@ -213,7 +224,6 @@
         }
         .footer-links a:hover { color: var(--blue-light); text-decoration: underline; }
 
-        /* Botón flotante de Soporte WhatsApp */
         .wa-float-btn {
             position: fixed;
             bottom: 22px;
@@ -236,7 +246,7 @@
             box-shadow: 0 12px 28px rgba(0, 0, 0, 0.65), 0 0 22px rgba(37, 211, 102, 0.7);
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 960px) {
             .hero-grid { grid-template-columns: 1fr; }
             .nav-links { display: none; }
             .hero-metrics { grid-template-columns: repeat(2, 1fr); }
@@ -253,8 +263,9 @@
             <nav class="nav-links">
                 <a href="#como-funciona">Cómo funciona</a>
                 <a href="#funciones">Funciones</a>
+                <a href="/compatibilidad">Compatibilidad</a>
+                <a href="/guia">Guía</a>
                 <a href="#precios">Precios</a>
-                <a href="#faq">Preguntas</a>
             </nav>
             <div class="nav-cta">
                 <a href="/login" class="btn btn-outline">Iniciar sesión</a>
@@ -274,7 +285,7 @@
                     </p>
                     <div class="hero-actions">
                         <a href="/register" class="btn btn-primary">Crear cuenta gratis →</a>
-                        <a href="#como-funciona" class="btn btn-outline">Ver cómo funciona</a>
+                        <a href="/guia" class="btn btn-outline">Ver guía paso a paso</a>
                     </div>
                     <div class="hero-checks">
                         <span><b>✓</b> Gratis hasta 3 mineros</span>
@@ -456,7 +467,7 @@
                     </details>
                     <details class="faq-item">
                         <summary>¿Qué modelos de mineros son compatibles?</summary>
-                        <p>Es compatible con la mayoría de equipos Bitmain Antminer (S19, S19k Pro, S19 XP, S21, S21+, S23, Hydro, L7, L9, Z15, KS3/KS5) y MicroBT WhatsMiner (M30, M50, M60 y series Hydro).</p>
+                        <p>Es compatible con la mayoría de equipos Bitmain Antminer (S19, S19k Pro, S19 XP, S21, S21+, S23, Hydro, L7, L9, Z15, KS3/KS5) y MicroBT WhatsMiner (M30, M50, M60 y series Hydro). <a href="/compatibilidad" style="color:var(--blue-light); text-decoration:underline;">Ver lista completa</a>.</p>
                     </details>
                     <details class="faq-item">
                         <summary>¿Puedo usar un celular Android viejo en lugar de una computadora?</summary>
@@ -471,6 +482,10 @@
         <div class="container">
             <p>© 2026 <b>El Minero Gris</b> — Monitoreo y Control Remoto de Granjas ASIC.</p>
             <div class="footer-links">
+                <a href="/compatibilidad">Mineros Compatibles</a>
+                <span>·</span>
+                <a href="/guia">Guía de Instalación</a>
+                <span>·</span>
                 <a href="/privacidad">Política de Privacidad</a>
                 <span>·</span>
                 <a href="/terminos">Términos de Servicio</a>
