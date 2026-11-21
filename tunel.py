@@ -142,6 +142,40 @@ def enviar_peticion_proxy(owner, ip, method, path, headers=None, body_b64="", sc
 
     return entry["resp"]
 
+def _construir_interceptor_js(prefix):
+    return f"""<script>
+(function(){{
+  var P = "{prefix}";
+  function fixUrl(u){{
+    if (typeof u !== "string") return u;
+    if (u.startsWith("/") && !u.startsWith("//") && !u.startsWith(P + "/") && u !== P) {{
+      return P + u;
+    }}
+    return u;
+  }}
+  var origOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url){{
+    var args = Array.prototype.slice.call(arguments);
+    args[1] = fixUrl(url);
+    return origOpen.apply(this, args);
+  }};
+  if (window.fetch) {{
+    var origFetch = window.fetch;
+    window.fetch = function(input, init){{
+      if (typeof input === "string") {{
+        input = fixUrl(input);
+      }} else if (input && typeof input.url === "string") {{
+        var fixed = fixUrl(input.url);
+        if (fixed !== input.url) {{
+          input = new Request(fixed, input);
+        }}
+      }}
+      return origFetch.call(this, input, init);
+    }};
+  }}
+}})();
+</script>"""
+
 def _reescribir_contenido_proxy(body_bytes, content_type, prefix):
     ct = (content_type or "").lower()
     if not any(t in ct for t in ("text/html", "text/css", "javascript", "application/json")):
@@ -151,11 +185,19 @@ def _reescribir_contenido_proxy(body_bytes, content_type, prefix):
         if "text/html" in ct:
             txt = re.sub(r'(?i)(href|src|action)=([\'"])/(?!/)', rf'\1=\2{prefix}/', txt)
             txt = re.sub(r'(?i)url\(([\'"]?)/(?!/)', rf'url(\1{prefix}/', txt)
-            txt = txt.replace('"/cgi-bin/', f'"{prefix}/cgi-bin/').replace("'/cgi-bin/", f"'{prefix}/cgi-bin/")
+            txt = re.sub(r'(?i)(content=[\'"][^\'"]*url=)/(?!/)', rf'\1{prefix}/', txt)
+            for ruta in ('/cgi-bin/', '/webpages/', '/data/'):
+                txt = txt.replace(f'"{ruta}', f'"{prefix}{ruta}').replace(f"'{ruta}", f"'{prefix}{ruta}")
+            interceptor = _construir_interceptor_js(prefix)
+            if re.search(r'(?i)<head[^>]*>', txt):
+                txt = re.sub(r'(?i)(<head[^>]*>)', rf'\1{interceptor}', txt, count=1)
+            else:
+                txt = interceptor + txt
         elif "text/css" in ct:
             txt = re.sub(r'(?i)url\(([\'"]?)/(?!/)', rf'url(\1{prefix}/', txt)
         elif "javascript" in ct:
-            txt = txt.replace('"/cgi-bin/', f'"{prefix}/cgi-bin/').replace("'/cgi-bin/", f"'{prefix}/cgi-bin/")
+            for ruta in ('/cgi-bin/', '/webpages/', '/data/'):
+                txt = txt.replace(f'"{ruta}', f'"{prefix}{ruta}').replace(f"'{ruta}", f"'{prefix}{ruta}")
         return txt.encode("utf-8")
     except Exception:
         return body_bytes
@@ -303,7 +345,10 @@ def init_tunel(app):
                 for ck in cookies_list:
                     ck_clean = re.sub(r'(?i);\s*Domain=[^;]+', '', str(ck))
                     ck_clean = re.sub(r'(?i);\s*Secure\b', '', ck_clean)
-                    ck_clean = re.sub(r'(?i);\s*Path=[^;]+', f'; Path={prefix}/', ck_clean)
+                    if re.search(r'(?i);\s*Path=', ck_clean):
+                        ck_clean = re.sub(r'(?i);\s*Path=[^;]+', f'; Path={prefix}/', ck_clean)
+                    else:
+                        ck_clean = f"{ck_clean}; Path={prefix}/"
                     flask_resp.headers.add("Set-Cookie", ck_clean)
             elif kl in ("www-authenticate", "cache-control", "etag"):
                 flask_resp.headers[k] = str(v)
