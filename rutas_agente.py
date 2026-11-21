@@ -337,6 +337,43 @@ def recibir_datos():
     tg_tok = (u_cfg.get('tg_token') or '')
     tg_cid = (u_cfg.get('tg_chat_id') or '')
 
+    # Telemetría del celular agente (batería baja sin cargar / sobrecalentamiento)
+    phone_info = datos.get('phone')
+    if isinstance(phone_info, dict):
+        try:
+            batt_pct = a_int_seguro(phone_info.get('battery_pct'), -1)
+            batt_charging = bool(phone_info.get('charging'))
+            batt_temp = a_float_seguro(phone_info.get('battery_temp_c'), 0.0)
+            phone_model = str(phone_info.get('model') or 'Celular Agente').strip()
+
+            if 0 <= batt_pct < 20 and not batt_charging:
+                if not alerta_en_enfriamiento(cur, owner_user, agent_id, 'CELULAR_BATERIA', 1800):
+                    msg_bat = f"🔋 Batería baja en {phone_model} ({agent_id}): {batt_pct}% y NO está cargando."
+                    cur.execute(
+                        "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'CELULAR_BATERIA', %s, %s)",
+                        (owner_user, agent_id, msg_bat, ahora)
+                    )
+                    if alertas_on:
+                        enviar_telegram(
+                            tg_tok, tg_cid,
+                            f"🔋 <b>ALERTA: BATERÍA BAJA EN CELULAR AGENTE</b>\nSede: <b>{agent_id}</b> ({phone_model})\nBatería: <b>{batt_pct}%</b> (Desconectado del cargador)\nRevisa el cargador o posible corte de energía."
+                        )
+
+            if batt_temp >= 45.0:
+                if not alerta_en_enfriamiento(cur, owner_user, agent_id, 'CELULAR_TEMP', 1800):
+                    msg_pt = f"🌡️ Sobrecalentamiento en {phone_model} ({agent_id}): batería a {batt_temp:.1f}°C ({batt_pct}%)."
+                    cur.execute(
+                        "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'CELULAR_TEMP', %s, %s)",
+                        (owner_user, agent_id, msg_pt, ahora)
+                    )
+                    if alertas_on:
+                        enviar_telegram(
+                            tg_tok, tg_cid,
+                            f"🌡️ <b>ALERTA: CELULAR AGENTE SOBRECALENTADO</b>\nSede: <b>{agent_id}</b> ({phone_model})\nTemperatura batería: <b>{batt_temp:.1f}°C</b>\nBatería: {batt_pct}% ({'Cargando' if batt_charging else 'Sin cargar'})"
+                        )
+        except Exception as err_ph:
+            print(f"Error procesando telemetría celular {agent_id}: {err_ph}")
+
     wd_activo = bool(a_int_seguro(u_cfg.get('wd_activo'), 0) == 1)
     wd_alcance = (u_cfg.get('wd_alcance') or 'all')
     try: wd_granjas_list = json.loads((u_cfg.get('wd_granjas') or '[]'))
