@@ -18,6 +18,20 @@ CREDENCIALES_HTTP = [
     ("root", "admin")
 ]
 
+def actualizar_credenciales_http(usr, pwd):
+    """Agrega la clave personalizada del usuario al inicio de la lista sin duplicados."""
+    u = str(usr or "").strip()
+    p = str(pwd or "").strip()
+    if not u or not p:
+        return
+    par = (u, p)
+    if par in CREDENCIALES_HTTP:
+        if CREDENCIALES_HTTP[0] != par:
+            CREDENCIALES_HTTP.remove(par)
+            CREDENCIALES_HTTP.insert(0, par)
+    else:
+        CREDENCIALES_HTTP.insert(0, par)
+
 IPS_BASE = [
     f"{SUBNET}.11",
     f"{SUBNET}.12",
@@ -385,7 +399,7 @@ def peticion_4028(ip, comando, parametro=""):
 def peticion_http(ip, endpoint, metodo="GET", payload=None, timeout_sec=4.5):
     url = f"http://{ip}/cgi-bin/{endpoint}"
     headers = {'User-Agent': 'Mozilla/5.0', 'Referer': f'http://{ip}/'}
-    for usr, pwd in CREDENCIALES_HTTP:
+    for usr, pwd in list(CREDENCIALES_HTTP):
         auth = HTTPDigestAuth(usr, pwd)
         try:
             if metodo == "GET":
@@ -1142,6 +1156,7 @@ def recolectar_y_enviar():
         r = requests.post(URL_NUBE, json=datos, timeout=15)
         if r.status_code == 200:
             resp_json = r.json()
+            actualizar_credenciales_http(resp_json.get("miner_user"), resp_json.get("miner_pass"))
             print(f"[NUBE OK 200] {len(datos['mineros'])} mineros actualizados en línea (Sede: {AGENT_ID}).")
             ordenes = resp_json.get("ordenes", [])
             if ordenes:
