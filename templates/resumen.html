@@ -91,6 +91,123 @@
         vertical-align: middle;
     }
 
+    /* Tarjeta de Primeros Pasos (Onboarding cuando totales == 0) */
+    .onboarding-card {
+        background: var(--bg-card);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        border-radius: 12px;
+        padding: 26px 24px;
+        box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4), 0 0 24px rgba(51, 102, 255, 0.12);
+    }
+    .onboarding-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 22px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .onboarding-head h2 {
+        margin: 0 0 6px 0;
+        font-size: 1.32em;
+        color: var(--text-main);
+    }
+    .onboarding-head p {
+        margin: 0;
+        font-size: 0.88em;
+        color: var(--text-muted);
+    }
+    .onboarding-wait-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(51, 102, 255, 0.14);
+        border: 1px solid rgba(96, 165, 250, 0.45);
+        color: #93c5fd;
+        padding: 7px 13px;
+        border-radius: 20px;
+        font-size: 0.78em;
+        font-weight: bold;
+        font-family: monospace;
+    }
+    .ob-pulse-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #38bdf8;
+        animation: obPulse 1.5s infinite;
+    }
+    @keyframes obPulse {
+        0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.75); }
+        70% { box-shadow: 0 0 0 7px rgba(56, 189, 248, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+    }
+    .onboarding-steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 16px;
+    }
+    .ob-step {
+        background: rgba(10, 12, 18, 0.48);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .ob-step-num {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        background: rgba(51, 102, 255, 0.2);
+        border: 1px solid rgba(96, 165, 250, 0.5);
+        color: #60a5fa;
+        font-weight: 800;
+        font-family: monospace;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .ob-step h3 {
+        margin: 0;
+        font-size: 1.0em;
+        color: var(--text-main);
+    }
+    .ob-step p {
+        margin: 0;
+        font-size: 0.84em;
+        color: var(--text-muted);
+        line-height: 1.5;
+        flex: 1;
+    }
+    .ob-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 4px;
+    }
+    .btn-ob-primary {
+        background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
+        color: #fff;
+        border: 1px solid #60a5fa;
+        padding: 8px 13px;
+        border-radius: 7px;
+        font-size: 0.80em;
+        font-weight: bold;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        transition: 0.18s;
+    }
+    .btn-ob-primary:hover {
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.6);
+        transform: translateY(-1px);
+    }
+
     /* Barra de Calculadora Eléctrica y Acciones Masivas */
     .calc-bar {
         background: var(--bg-card);
@@ -342,6 +459,51 @@
     </div>
 </div>
 
+{% if totales == 0 %}
+<!-- Tarjeta Guiada de Primeros Pasos (solo visible cuando no hay mineros aún) -->
+<div class="onboarding-card" id="onboardingCard" data-no-live-patch="1">
+    <div class="onboarding-head">
+        <div>
+            <h2>🚀 ¡Bienvenido a El Minero Gris! Conecta tu granja en 3 pasos</h2>
+            <p>Sin abrir puertos, sin VPN y sin IP fija. Tus Antminer y WhatsMiner aparecerán aquí solos.</p>
+        </div>
+        <span class="onboarding-wait-pill">
+            <span class="ob-pulse-dot"></span>
+            <span>Esperando primer reporte del Agente...</span>
+        </span>
+    </div>
+
+    <div class="onboarding-steps">
+        <div class="ob-step">
+            <div class="ob-step-num">1</div>
+            <h3>Descarga el Agente</h3>
+            <p>Instala nuestra app oficial en cualquier celular Android conectado al Wi-Fi de tu granja, o descarga el agente para Windows / Linux / Raspberry Pi.</p>
+            <div class="ob-actions">
+                <a href="https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris-Agente.apk" target="_blank" rel="noopener" class="btn-ob-primary">📱 Descargar APK Android</a>
+                <a href="/descargar_agente" class="btn-action">💻 Agente PC (.zip)</a>
+            </div>
+        </div>
+
+        <div class="ob-step">
+            <div class="ob-step-num">2</div>
+            <h3>Inicia sesión con tu cuenta</h3>
+            <p>Abre el APK e inicia sesión con tu mismo usuario y contraseña. Si usas el Agente PC, ya viene preconfigurado con tu API Key lista para ejecutar.</p>
+            <div class="ob-actions">
+                <a href="/ajustes" class="btn-action">⚙️ Ver mi API Key y Subred</a>
+            </div>
+        </div>
+
+        <div class="ob-step">
+            <div class="ob-step-num">3</div>
+            <h3>Espera 30 segundos</h3>
+            <p>El agente escaneará automáticamente tu red local y creará tu sede. Esta pantalla cambiará sola en cuanto detecte tu primer equipo en línea.</p>
+            <div class="ob-actions">
+                <a href="/alertas" class="btn-action">🔔 Configurar Telegram</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
 <!-- 2. Calculadora de Rentabilidad y Acciones Masivas -->
 <div class="calc-bar">
     <div class="calc-group">
@@ -418,6 +580,7 @@
         </tbody>
     </table>
 </div>
+{% endif %}
 
 <script>
     const ingresoBrutoDia = parseFloat("{{ flota.ingreso_dia }}") || 0;
@@ -443,7 +606,9 @@
     }
 
     function recalcularCostos() {
-        let valStr = document.getElementById('tarifaKwh').value;
+        const tarifaEl = document.getElementById('tarifaKwh');
+        if (!tarifaEl) return;
+        let valStr = tarifaEl.value;
         let tarifa = parseFloat(valStr) || 0;
         try { localStorage.setItem('emg_tarifa_kwh', valStr); } catch(e) {}
 
@@ -452,10 +617,14 @@
         let netoDia = ingresoBrutoDia - costoDia;
         let netoMes = netoDia * 30;
 
-        document.getElementById('resumenLuzDia').innerText = `Luz: $${costoDia.toFixed(2)}/día ($${costoMes.toFixed(0)}/mes)`;
+        const luzEl = document.getElementById('resumenLuzDia');
+        if (luzEl) luzEl.innerText = `Luz: $${costoDia.toFixed(2)}/día ($${costoMes.toFixed(0)}/mes)`;
+
         let cardEl = document.getElementById('gananciaNetaCard');
-        cardEl.innerText = (netoDia < 0 ? '-$' : '$') + Math.abs(netoDia).toFixed(2);
-        cardEl.style.color = netoDia < 0 ? '#ff5252' : '#00e676';
+        if (cardEl) {
+            cardEl.innerText = (netoDia < 0 ? '-$' : '$') + Math.abs(netoDia).toFixed(2);
+            cardEl.style.color = netoDia < 0 ? '#ff5252' : '#00e676';
+        }
 
         let subMes = document.getElementById('subProyeccionMes');
         if (subMes) {
@@ -488,7 +657,8 @@
                 tr.classList.remove('selected-row');
             }
         });
-        document.getElementById('resSelCount').innerText = count;
+        const selCountEl = document.getElementById('resSelCount');
+        if (selCountEl) selCountEl.innerText = count;
         const badge = document.getElementById('resSelBadge');
         if (badge) badge.classList.toggle('has-sel', count > 0);
         document.querySelectorAll('.res-bulk-btn').forEach(b => b.classList.toggle('dimmed', count === 0));
@@ -511,20 +681,24 @@
         document.getElementById('resConfirmModal').style.display = 'none';
     }
 
-    document.getElementById('btnResConfirmExec').addEventListener('click', function() {
-        if (!accionPendienteResumen) return;
-        const { accion, ips } = accionPendienteResumen;
-        cerrarResConfirm();
-        fetch('/cmd_bulk', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({accion: accion, ips: ips})
-        }).then(() => mostrarResToast(`Orden "${accion}" enviada a ${ips.length} minero(s).`));
-    });
+    const btnExec = document.getElementById('btnResConfirmExec');
+    if (btnExec) {
+        btnExec.addEventListener('click', function() {
+            if (!accionPendienteResumen) return;
+            const { accion, ips } = accionPendienteResumen;
+            cerrarResConfirm();
+            fetch('/cmd_bulk', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({accion: accion, ips: ips})
+            }).then(() => mostrarResToast(`Orden "${accion}" enviada a ${ips.length} minero(s).`));
+        });
+    }
 
     let ordenResAsc = false;
     function ordenarTablaResumen(colIdx) {
         let tbody = document.querySelector('#tablaResumen tbody');
+        if (!tbody) return;
         let filas = Array.from(tbody.querySelectorAll('tr'));
         ordenResAsc = !ordenResAsc;
         filas.sort((a, b) => {
@@ -540,11 +714,20 @@
         filas.forEach(f => tbody.appendChild(f));
     }
 
+    // Si el usuario estaba en Primeros Pasos y llega su primer minero en vivo, recarga sola
+    window.addEventListener('emg:live-update', function(ev) {
+        const ob = document.getElementById('onboardingCard');
+        if (ob && ev.detail && ev.detail.doc && ev.detail.doc.querySelector('#tablaResumen')) {
+            window.location.reload();
+        }
+    });
+
     window.addEventListener('load', function() {
         try {
+            const tarifaEl = document.getElementById('tarifaKwh');
             let guardada = localStorage.getItem('emg_tarifa_kwh');
-            if (guardada !== null && guardada !== '') {
-                document.getElementById('tarifaKwh').value = guardada;
+            if (tarifaEl && guardada !== null && guardada !== '') {
+                tarifaEl.value = guardada;
                 recalcularCostos();
             }
         } catch(e) {}
