@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .pro-header {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 16px 20px;
+    }
+    .pro-header h1 { margin: 0; font-size: 1.35em; }
+    .pro-header p { margin: 4px 0 0 0; font-size: 0.84em; color: var(--text-muted); }
+
+    .alert-ok {
+        background: rgba(0, 230, 118, 0.12); border: 1px solid rgba(0, 230, 118, 0.4);
+        color: #69f0ae; padding: 11px 15px; border-radius: 8px;
+        margin-bottom: 16px; font-size: 0.86em; font-weight: 600;
+    }
+
+    .grid-2 {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 18px; align-items: start;
+    }
+    .card-box {
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 18px;
+    }
+    .card-box h2 { margin: 0 0 12px 0; font-size: 1.05em; }
+    .lbl {
+        display: block; font-size: 0.74em; color: var(--text-muted);
+        text-transform: uppercase; font-weight: bold; margin-bottom: 6px;
+    }
+    .inp {
+        width: 100%; background: var(--bg-input); border: 1px solid var(--border-color);
+        color: var(--text-main); padding: 9px 12px; border-radius: 7px;
+        font-size: 0.88em; margin-bottom: 14px; outline: none;
+    }
+    .btn-primary {
+        width: 100%; background: linear-gradient(135deg, #3366ff, #2563eb);
+        color: #fff; border: 1px solid #60a5fa; padding: 10px;
+        border-radius: 7px; font-weight: bold; font-size: 0.88em; cursor: pointer;
+    }
+
+    .perm-box {
+        background: rgba(10, 12, 18, 0.5); border: 1px solid var(--border-color);
+        border-radius: 8px; padding: 12px; margin-bottom: 14px;
+        font-size: 0.82em; line-height: 1.6; color: #cbd5e1;
+    }
+
+    .tec-item {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; padding: 12px; border-radius: 8px;
+        background: rgba(10, 12, 18, 0.55); border: 1px solid var(--border-color);
+        margin-bottom: 10px;
+    }
+    .btn-del {
+        background: rgba(255, 82, 82, 0.12); color: #ff8a80;
+        border: 1px solid rgba(255, 82, 82, 0.4);
+        padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.78em;
+        cursor: pointer;
+    }
+</style>
+
+<div class="pro-header">
+    <div>
+        <h1>👷 Sub-cuentas con Rol Técnico</h1>
+        <p>Crea accesos seguros para tus empleados de mantenimiento sin exponer tus pools, billetera ni ajustes.</p>
+    </div>
+</div>
+
+{% if msg %}
+<div class="alert-ok">✅ {{ msg }}</div>
+{% endif %}
+
+<div class="grid-2">
+    <div class="card-box">
+        <h2>➕ Crear Cuenta de Técnico</h2>
+        <div class="perm-box">
+            <div><b style="color:#00e676;">✓ Permitido:</b> Ver Resumen, Mineros, Racks, Granjas, temperaturas, logs, reiniciar y prender LED (Blink).</div>
+            <div style="margin-top:4px;"><b style="color:#ff5252;">✕ Bloqueado:</b> Cambiar pools/wallets, cambiar IPs, Factory Reset, borrar equipos, Billetera y Ajustes.</div>
+        </div>
+        <form method="POST" action="/tecnicos">
+            <input type="hidden" name="accion" value="crear_tecnico">
+            <label class="lbl">Usuario del Técnico</label>
+            <input type="text" name="username" class="inp" placeholder="Ej: tecnico_turno1" minlength="3" maxlength="30" required>
+
+            <label class="lbl">Contraseña</label>
+            <input type="password" name="password" class="inp" placeholder="Mínimo 6 caracteres" minlength="6" required>
+
+            <button type="submit" class="btn-primary">👷 Crear Sub-cuenta Técnico</button>
+        </form>
+    </div>
+
+    <div class="card-box">
+        <h2>📋 Técnicos Activos ({{ tecnicos|length }})</h2>
+        {% if tecnicos|length == 0 %}
+            <p style="color:var(--text-muted); font-size:0.86em;">No tienes sub-cuentas creadas. Los técnicos inician sesión en <code>/login</code> igual que cualquier usuario.</p>
+        {% else %}
+            {% for t in tecnicos %}
+            <div class="tec-item">
+                <div>
+                    <div style="font-weight:bold; font-size:0.94em;" translate="no">👷 {{ t.username }}</div>
+                    <div style="font-size:0.76em; color:var(--text-muted); font-family:monospace; margin-top:3px;">
+                        Creado: {{ t.fecha_registro or '-' }} · Último acceso: {{ t.ultima_conexion or 'Nunca' }}
+                    </div>
+                </div>
+                <form method="POST" action="/tecnicos" onsubmit="return confirm('¿Eliminar el acceso del técnico {{ t.username }}?');" style="margin:0;">
+                    <input type="hidden" name="accion" value="eliminar_tecnico">
+                    <input type="hidden" name="tec_id" value="{{ t.id }}">
+                    <button type="submit" class="btn-del">🗑️ Eliminar</button>
+                </form>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
