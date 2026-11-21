@@ -1,5 +1,5 @@
 from flask import Blueprint, redirect, request, session, jsonify, Response
-import psycopg2.extras, json, time, io, hashlib, zipfile, re, urllib.request
+import psycopg2.extras, json, time, io, hashlib, zipfile, re, urllib.request, threading
 from datetime import datetime, timedelta
 
 from db import get_db
@@ -14,6 +14,19 @@ from utils import (
 agente_bp = Blueprint('agente_bp', __name__)
 ultima_limpieza_bd = 0
 _cache_apk_version = {"ts": 0, "data": None}
+_ag_rate_lock = threading.Lock()
+_ag_rate_buckets = {}
+
+def _verificar_rate_limit_agente(clave, max_intentos=10, ventana_seg=300):
+    ahora = time.time()
+    with _ag_rate_lock:
+        hist = [ts for ts in _ag_rate_buckets.get(clave, []) if ahora - ts < ventana_seg]
+        if len(hist) >= max_intentos:
+            _ag_rate_buckets[clave] = hist
+            return True
+        hist.append(ahora)
+        _ag_rate_buckets[clave] = hist
+        return False
 
 def normalizar_mac(mac_str):
     s = re.sub(r'[^0-9A-Fa-f]', '', str(mac_str or '')).upper()
@@ -86,6 +99,11 @@ def api_agente_apk_version():
 
 @agente_bp.route('/api/agente/login', methods=['POST'])
 def api_agente_login():
+    xff = request.headers.get('X-Forwarded-For', '')
+    ip_cli = xff.split(',')[0].strip() if xff else (request.remote_addr or 'unknown')
+    if _verificar_rate_limit_agente(f"ag_login:{ip_cli}", max_intentos=10, ventana_seg=300):
+        return jsonify({"ok": False, "msg": "Demasiados intentos. Espera 5 minutos."}), 429
+
     data = request.get_json(silent=True) or {}
     u = (data.get('username') or '').strip()
     p = data.get('password') or ''
@@ -421,7 +439,6 @@ def recibir_datos():
     tg_tok = (u_cfg.get('tg_token') or '')
     tg_cid = (u_cfg.get('tg_chat_id') or '')
 
-    # Alertas de batería baja o sobrecalentamiento del dispositivo agente (Celular / Laptop)
     if has_batt == 1:
         try:
             nombre_dev = f"{dev_brand} {dev_model}".strip() or dev_type
