@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, request, session
+from flask import Blueprint, redirect, request, session, Response
 from werkzeug.security import generate_password_hash
 import psycopg2.extras, json
 from datetime import datetime, timedelta
@@ -11,6 +11,43 @@ from utils import (
 )
 
 admin_bp = Blueprint('admin_bp', __name__)
+
+@admin_bp.route('/admin/respaldo_json')
+@login_required
+def admin_respaldo_json():
+    if not es_super_admin():
+        return redirect('/')
+
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    respaldo = {
+        "generado_utc": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "tablas": {}
+    }
+
+    tablas = [
+        ("usuarios", "SELECT id, username, email, fecha_registro, suspendido, plan, saldo, saldo_bonus, pro_hasta, limite_mineros, notas_admin, ultima_conexion, subnet, tarifa_kwh, tg_chat_id, umbral_temp, umbral_hr, alertas_activas, miner_user FROM usuarios ORDER BY id ASC"),
+        ("granjas_sedes", "SELECT * FROM granjas_sedes ORDER BY id ASC"),
+        ("mineros_activos", "SELECT * FROM mineros_activos ORDER BY owner, ip ASC"),
+        ("nombres_mineros", "SELECT * FROM nombres_mineros ORDER BY owner, ip ASC"),
+        ("movimientos_saldo", "SELECT * FROM movimientos_saldo ORDER BY id DESC LIMIT 500"),
+        ("config_global", "SELECT * FROM config_global")
+    ]
+
+    for nombre_t, sql_t in tablas:
+        try:
+            cur.execute(sql_t)
+            respaldo["tablas"][nombre_t] = cur.fetchall()
+        except Exception as e:
+            respaldo["tablas"][nombre_t] = {"error": str(e)}
+
+    fecha_arch = datetime.utcnow().strftime("%Y%m%d_%H%M")
+    contenido = json.dumps(respaldo, indent=2, ensure_ascii=False, default=str)
+    return Response(
+        contenido,
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment;filename=Respaldo_ElMineroGris_{fecha_arch}.json"}
+    )
 
 @admin_bp.route('/admin/soporte/<int:uid>')
 @login_required
@@ -103,10 +140,10 @@ def admin_panel():
                         if cur.fetchone():
                             raise Exception("Ese nombre de usuario ya está en uso.")
                         cur.execute("UPDATE usuarios SET username=%s WHERE id=%s", (new_user, uid))
-                        for tbl, col in [('mineros_activos', 'owner'), ('nombres_mineros', 'owner'),
-                                         ('logs_mineros', 'owner'), ('historial_nube', 'owner'),
-                                         ('cola_comandos', 'owner'), ('registro_alertas', 'owner'),
-                                         ('movimientos_saldo', 'username')]:
+                        for tbl, col in [('mineros_activos', 'owner'), ('granjas_sedes', 'owner'),
+                                         ('nombres_mineros', 'owner'), ('logs_mineros', 'owner'),
+                                         ('historial_nube', 'owner'), ('cola_comandos', 'owner'),
+                                         ('registro_alertas', 'owner'), ('movimientos_saldo', 'username')]:
                             cur.execute(f"UPDATE {tbl} SET {col}=%s WHERE {col}=%s", (new_user, old_user))
 
                     extra_plan_sql = ""
@@ -180,10 +217,10 @@ def admin_panel():
             if target and target['username'].lower() != 'admin':
                 uname_del = target['username']
                 for tbl, col in [
-                    ('mineros_activos', 'owner'), ('nombres_mineros', 'owner'),
-                    ('logs_mineros', 'owner'), ('historial_nube', 'owner'),
-                    ('cola_comandos', 'owner'), ('registro_alertas', 'owner'),
-                    ('movimientos_saldo', 'username')
+                    ('mineros_activos', 'owner'), ('granjas_sedes', 'owner'),
+                    ('nombres_mineros', 'owner'), ('logs_mineros', 'owner'),
+                    ('historial_nube', 'owner'), ('cola_comandos', 'owner'),
+                    ('registro_alertas', 'owner'), ('movimientos_saldo', 'username')
                 ]:
                     cur.execute(f"DELETE FROM {tbl} WHERE {col}=%s", (uname_del,))
                 cur.execute("DELETE FROM usuarios WHERE id=%s", (uid,))
@@ -319,7 +356,7 @@ def admin_panel():
         u['gasto_mes'] = round(a_float_seguro(fm.get('gasto_mes'), 0.0), 2)
         usuarios.append(u)
 
-    # 4. Métricas PostgreSQL (conteo rápido vía pg_class para escalar a millones de filas)
+    # 4. Métricas PostgreSQL
     db_mb, hist_filas = 0.0, 0
     try:
         cur.execute("SELECT pg_database_size(current_database()) AS db_bytes")
