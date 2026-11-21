@@ -1,6 +1,6 @@
 from flask import Flask, request, session
 import psycopg2.extras, os, time, traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from db import DB_URL, get_db, cerrar_conexion_bd, init_db, asegurar_bd_inicializada
 from utils import (
@@ -14,6 +14,15 @@ from monitor_offline import iniciar_monitor_offline
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.environ.get("SECRET_KEY", "super_secreta_antminer_tools")
+
+# Sesiones persistentes por 30 días (se renuevan automáticamente al usar el panel)
+app.permanent_session_lifetime = timedelta(days=30)
+app.config.update(
+    SESSION_REFRESH_EACH_REQUEST=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SECURE=bool(os.environ.get("RENDER") or os.environ.get("DATABASE_URL")),
+    SESSION_COOKIE_SAMESITE='Lax'
+)
 
 try:
     from flask_compress import Compress
@@ -68,21 +77,23 @@ def manejar_error_global(e):
 @app.before_request
 def asegurar_bd():
     asegurar_bd_inicializada()
-    if 'usuario' in session and DB_URL and not request.path.startswith('/static/'):
-        ahora_ts = time.time()
-        if ahora_ts - a_float_seguro(session.get('last_seen_ts'), 0) > 300:
-            session['last_seen_ts'] = ahora_ts
-            try:
-                con = get_db()
-                con.autocommit = True
-                cur = con.cursor()
-                usr_real = session.get('admin_real') or session.get('usuario')
-                cur.execute(
-                    "UPDATE usuarios SET ultima_conexion=%s WHERE username=%s",
-                    (datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), usr_real)
-                )
-            except:
-                pass
+    if 'usuario' in session:
+        session.permanent = True
+        if DB_URL and not request.path.startswith('/static/'):
+            ahora_ts = time.time()
+            if ahora_ts - a_float_seguro(session.get('last_seen_ts'), 0) > 300:
+                session['last_seen_ts'] = ahora_ts
+                try:
+                    con = get_db()
+                    con.autocommit = True
+                    cur = con.cursor()
+                    usr_real = session.get('admin_real') or session.get('usuario')
+                    cur.execute(
+                        "UPDATE usuarios SET ultima_conexion=%s WHERE username=%s",
+                        (datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), usr_real)
+                    )
+                except:
+                    pass
 
 @app.context_processor
 def inyectar_globales():
