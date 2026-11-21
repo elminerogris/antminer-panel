@@ -3,6 +3,7 @@ import psycopg2.extras, json, time, io, hashlib, zipfile, re, urllib.request, th
 from datetime import datetime, timedelta
 
 from db import get_db
+from tunel import enviar_orden_tunel
 from utils import (
     APK_VERSION_CODE, APK_VERSION_NAME, login_required, generar_api_key,
     verificar_password, a_int_seguro, a_float_seguro, evaluar_plan_usuario,
@@ -252,6 +253,73 @@ def recibir_logs():
     )
     return "OK", 200
 
+# ==================== APIs DE ZERO-TOUCH Y CAMBIO MASIVO DE CLAVE ====================
+@agente_bp.route('/api/granjas/zerotouch', methods=['POST'])
+@login_required
+def api_guardar_zerotouch():
+    owner = session.get('usuario', 'Admin')
+    data = request.get_json(silent=True) or {}
+    farm_id = str(data.get('farm_id') or '').strip()
+    if not farm_id:
+        return jsonify({"status": "error", "msg": "farm_id requerido"}), 400
+
+    zt_activo = 1 if a_int_seguro(data.get('zt_activo'), 0) == 1 else 0
+    zt_pool1 = str(data.get('zt_pool1') or '').strip()
+    zt_worker_prefix = str(data.get('zt_worker_prefix') or '').strip()
+    zt_pass1 = str(data.get('zt_pass1') or '123').strip()
+    zt_pool2 = str(data.get('zt_pool2') or '').strip()
+    zt_pool3 = str(data.get('zt_pool3') or '').strip()
+
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    cur.execute("""
+        UPDATE granjas_sedes
+        SET zt_activo=%s, zt_pool1=%s, zt_worker_prefix=%s, zt_pass1=%s, zt_pool2=%s, zt_pool3=%s
+        WHERE owner=%s AND farm_id=%s
+    """, (zt_activo, zt_pool1, zt_worker_prefix, zt_pass1, zt_pool2, zt_pool3, owner, farm_id))
+    return jsonify({"status": "ok", "zt_activo": zt_activo})
+
+@agente_bp.route('/api/mineros/cambiar_clave_masiva', methods=['POST'])
+@login_required
+def api_cambiar_clave_masiva():
+    if str(session.get('rol') or 'owner').lower() == 'tecnico':
+        return jsonify({"status": "error", "msg": "Permiso denegado para el rol Técnico."}), 403
+
+    owner = session.get('usuario', 'Admin')
+    data = request.get_json(silent=True) or {}
+    ips = data.get('ips', [])
+    old_pass = str(data.get('old_pass') or 'root').strip()
+    new_pass = str(data.get('new_pass') or '').strip()
+
+    if not ips or not isinstance(ips, list):
+        return jsonify({"status": "error", "msg": "Selecciona al menos un minero"}), 400
+    if len(new_pass) < 4 or '|' in new_pass:
+        return jsonify({"status": "error", "msg": "La nueva contraseña debe tener al menos 4 caracteres y no usar '|'"}), 400
+
+    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    cmd_str = f"change_pass|{old_pass}|{new_pass}"
+    con = get_db(); con.autocommit = True
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    enviados = 0
+    for ip in ips:
+        ip_c = str(ip or '').strip()
+        if not ip_c:
+            continue
+        cur.execute("SELECT agent_id FROM mineros_activos WHERE owner=%s AND ip=%s LIMIT 1", (owner, ip_c))
+        row_ag = cur.fetchone()
+        ag_id = str((row_ag or {}).get('agent_id') or 'default').strip()
+        ok_ws = enviar_orden_tunel(owner, ip_c, cmd_str, agent_id=ag_id)
+        estado = 'enviado' if ok_ws else 'pendiente'
+        cur.execute(
+            "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s)",
+            (owner, ag_id, ip_c, cmd_str, estado, ahora)
+        )
+        enviados += 1
+
+    # Guardar la nueva clave en el perfil para que el agente la use de inmediato
+    cur.execute("UPDATE usuarios SET miner_pass=%s WHERE username=%s", (new_pass, owner))
+    return jsonify({"status": "ok", "enviados": enviados})
+
 @agente_bp.route('/api/recibir_datos', methods=['POST'])
 def recibir_datos():
     global ultima_limpieza_bd
@@ -308,17 +376,9 @@ def recibir_datos():
     dev_type = str(src_dev.get('device_type') or '').strip()
     run_mode = str(src_dev.get('run_mode') or '').strip()
     if not dev_type:
-        if agent_id.startswith('AND-') or agent_id.startswith('TERMUX-'):
-            dev_type = 'Celular'
-        else:
-            dev_type = 'PC / Servidor'
+        dev_type = 'Celular' if (agent_id.startswith('AND-') or agent_id.startswith('TERMUX-')) else 'PC / Servidor'
     if not run_mode:
-        if agent_id.startswith('AND-'):
-            run_mode = 'APK Directo'
-        elif agent_id.startswith('TERMUX-'):
-            run_mode = 'Termux'
-        else:
-            run_mode = 'Python PC'
+        run_mode = 'APK Directo' if agent_id.startswith('AND-') else ('Termux' if agent_id.startswith('TERMUX-') else 'Python PC')
 
     dev_brand = str(src_dev.get('brand') or '').strip()[:40]
     dev_model = str(src_dev.get('model') or '').strip()[:80]
@@ -384,6 +444,14 @@ def recibir_datos():
         ))
     except Exception as err_gs:
         print(f"Error actualizando granjas_sedes ({agent_id}): {err_gs}")
+
+    # Leer configuración Zero-Touch de esta sede
+    cur.execute(
+        "SELECT zt_activo, zt_pool1, zt_worker_prefix, zt_pass1, zt_pool2, zt_pool3 FROM granjas_sedes WHERE owner=%s AND farm_id=%s LIMIT 1",
+        (owner_user, agent_id)
+    )
+    zt_cfg = cur.fetchone() or {}
+    zt_on = (a_int_seguro(zt_cfg.get('zt_activo'), 0) == 1) and bool(str(zt_cfg.get('zt_pool1') or '').strip())
 
     cur.execute("""
         SELECT agent_id, farm_id, ip, miner_uid, mac, serial, corte_activo, corte_temp, watchdog_activo,
@@ -530,7 +598,9 @@ def recibir_datos():
                 if (not mac_norm or not cand_mac or mac_norm == cand_mac) and (not sn_norm or not cand_sn or sn_norm == cand_sn):
                     prev_m = cand
 
-            if prev_m is None and limite_efectivo > 0 and total_existentes >= limite_efectivo:
+            es_minero_nuevo = (prev_m is None)
+
+            if es_minero_nuevo and limite_efectivo > 0 and total_existentes >= limite_efectivo:
                 omitidos_por_plan += 1
                 continue
 
@@ -578,6 +648,8 @@ def recibir_datos():
             unid = str(m.get('unidad') or 'TH/s')
 
             fw = str(m.get('firmware') or 'Desconocido')
+            fw_tipo = str(m.get('fw_tipo') or 'Stock')[:30]
+            perfil_oc = str(m.get('perfil_oc') or '')[:50]
             fs = str(m.get('fans') or '0 / 0 RPM')
             up = str(m.get('uptime') or 'En línea')
 
@@ -599,10 +671,10 @@ def recibir_datos():
                 cadenas_list = []
             cadenas_json = json.dumps(cadenas_list)
 
-            cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, farm_id, miner_uid, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
+            cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, farm_id, miner_uid, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fw_tipo, perfil_oc, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
                             farm_id=CASE WHEN mineros_activos.farm_id IS NOT NULL AND mineros_activos.farm_id != '' THEN mineros_activos.farm_id ELSE EXCLUDED.farm_id END,
-                            miner_uid=EXCLUDED.miner_uid, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_activos.mac END, serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_activos.serial END, firmware=EXCLUDED.firmware, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns,
+                            miner_uid=EXCLUDED.miner_uid, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_activos.mac END, serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_activos.serial END, firmware=EXCLUDED.firmware, fw_tipo=EXCLUDED.fw_tipo, perfil_oc=EXCLUDED.perfil_oc, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns,
                             farm_lat=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lat ELSE EXCLUDED.farm_lat END,
                             farm_lon=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lon ELSE EXCLUDED.farm_lon END,
                             farm_city=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_city ELSE EXCLUDED.farm_city END,
@@ -610,7 +682,23 @@ def recibir_datos():
                             real_lat=EXCLUDED.real_lat,
                             real_lon=EXCLUDED.real_lon,
                             real_source=EXCLUDED.real_source''',
-                        (ip_m, owner_user, agent_id, farm_id_asignada, miner_uid, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
+                        (ip_m, owner_user, agent_id, farm_id_asignada, miner_uid, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fw_tipo, perfil_oc, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
+
+            # ==================== ZERO-TOUCH ONBOARDING PARA EQUIPOS NUEVOS ====================
+            if es_minero_nuevo and zt_on:
+                zt_p1 = str(zt_cfg.get('zt_pool1') or '').strip()
+                zt_p2 = str(zt_cfg.get('zt_pool2') or '').strip()
+                zt_p3 = str(zt_cfg.get('zt_pool3') or '').strip()
+                zt_pref = str(zt_cfg.get('zt_worker_prefix') or owner_user).strip().rstrip('.')
+                zt_pas = str(zt_cfg.get('zt_pass1') or '123').strip()
+                octeto = ip_m.split('.')[-1] if '.' in ip_m else '1'
+                worker_auto = f"{zt_pref}.{octeto}"
+                cmd_zt = f"guardar_pools|{zt_p1}|{worker_auto}|{zt_pas}|{zt_p2}|{worker_auto}|{zt_pas}|{zt_p3}|{worker_auto}|{zt_pas}"
+                ordenes.append({"ip": ip_m, "comando": cmd_zt})
+                msg_zt = f"🤖 ZERO-TOUCH: Nuevo ASIC {mod_m} ({ip_m}) auto-configurado con worker {worker_auto}."
+                cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'ZERO_TOUCH', %s, %s)", (owner_user, ip_m, msg_zt, ahora))
+                if alertas_on:
+                    enviar_telegram(tg_tok, tg_cid, f"🤖 <b>ZERO-TOUCH ONBOARDING</b>\nNuevo equipo: <b>{mod_m}</b> ({ip_m})\nWorker asignado: <code>{worker_auto}</code>\nPool 1: <code>{zt_p1}</code>")
 
             cur.execute("SELECT id, hashrate, temp_max FROM historial_nube WHERE owner=%s AND ip=%s AND fecha=%s LIMIT 1", (owner_user, ip_m, ahora_minuto))
             row_min = cur.fetchone()
