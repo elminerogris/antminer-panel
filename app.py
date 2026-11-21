@@ -10,6 +10,7 @@ from rutas_admin import admin_bp
 from rutas_panel import panel_bp
 from rutas_agente import agente_bp
 from tunel import init_tunel
+from monitor_offline import iniciar_monitor_offline
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.environ.get("SECRET_KEY", "super_secreta_antminer_tools")
@@ -33,6 +34,9 @@ try:
     init_db()
 except Exception as e:
     print(f"Error init_db: {e}")
+
+# Iniciar vigilante en segundo plano para detectar cortes de luz o internet por sede
+iniciar_monitor_offline()
 
 @app.teardown_appcontext
 def teardown_db(exception=None):
