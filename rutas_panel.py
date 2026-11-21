@@ -1,6 +1,6 @@
 from flask import Blueprint, redirect, request, session, jsonify, Response
 from werkzeug.security import generate_password_hash
-import psycopg2.extras, json, time, calendar, csv, io
+import psycopg2.extras, json, time, calendar, csv, io, uuid
 from datetime import datetime
 
 from db import get_db
@@ -35,6 +35,78 @@ def despachar_comando(cur, owner, ip, comando, fecha=None):
         (owner, agent_id, ip, comando, estado, ahora)
     )
     return enviado
+
+# --- APIs de Granjas y Sedes ---
+@panel_bp.route('/api/granjas/guardar', methods=['POST'])
+@login_required
+def api_granjas_guardar():
+    usr_actual = session.get('usuario', 'Admin')
+    data = request.get_json(silent=True) or {}
+    farm_id = str(data.get('farm_id') or '').strip()
+    nombre = str(data.get('nombre') or '').strip()
+    ciudad = str(data.get('ciudad') or '').strip() or 'Santa Cruz de la Sierra'
+    cap_kw = max(1.0, a_float_seguro(data.get('cap_kw'), 50.0))
+    tarifa_kwh = max(0.0, a_float_seguro(data.get('tarifa_kwh'), 0.06))
+    gateway = str(data.get('gateway') or '').strip()
+    notas = str(data.get('notas') or '').strip()
+
+    if not nombre:
+        return jsonify({"status": "error", "msg": "El nombre de la granja es obligatorio"}), 400
+    if not farm_id:
+        farm_id = "SEDE-" + uuid.uuid4().hex[:8].upper()
+
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    cur.execute("""
+        INSERT INTO granjas_sedes (owner, farm_id, nombre, ciudad, gateway, cap_kw, tarifa_kwh, notas)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (owner, farm_id) DO UPDATE SET
+            nombre=EXCLUDED.nombre,
+            ciudad=EXCLUDED.ciudad,
+            gateway=CASE WHEN EXCLUDED.gateway != '' THEN EXCLUDED.gateway ELSE granjas_sedes.gateway END,
+            cap_kw=EXCLUDED.cap_kw,
+            tarifa_kwh=EXCLUDED.tarifa_kwh,
+            notas=EXCLUDED.notas
+    """, (usr_actual, farm_id, nombre, ciudad, gateway, cap_kw, tarifa_kwh, notas))
+    return jsonify({"status": "ok", "farm_id": farm_id, "nombre": nombre})
+
+@panel_bp.route('/api/granjas/eliminar', methods=['POST'])
+@login_required
+def api_granjas_eliminar():
+    usr_actual = session.get('usuario', 'Admin')
+    data = request.get_json(silent=True) or {}
+    farm_id = str(data.get('farm_id') or '').strip()
+    if not farm_id:
+        return jsonify({"status": "error", "msg": "farm_id requerido"}), 400
+
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    cur.execute("UPDATE mineros_activos SET farm_id=agent_id WHERE owner=%s AND farm_id=%s", (usr_actual, farm_id))
+    cur.execute("DELETE FROM granjas_sedes WHERE owner=%s AND farm_id=%s", (usr_actual, farm_id))
+    return jsonify({"status": "ok"})
+
+@panel_bp.route('/api/granjas/editar_minero', methods=['POST'])
+@login_required
+def api_granjas_editar_minero():
+    usr_actual = session.get('usuario', 'Admin')
+    data = request.get_json(silent=True) or {}
+    ip = str(data.get('ip') or '').strip()
+    nuevo_nombre = str(data.get('nombre') or '').strip()
+    nuevo_farm_id = str(data.get('farm_id') or '').strip()
+
+    if not ip:
+        return jsonify({"status": "error", "msg": "IP requerida"}), 400
+
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    if nuevo_nombre:
+        cur.execute(
+            "INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s) ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre",
+            (usr_actual, ip, nuevo_nombre)
+        )
+    if nuevo_farm_id:
+        cur.execute(
+            "UPDATE mineros_activos SET farm_id=%s WHERE owner=%s AND ip=%s",
+            (nuevo_farm_id, usr_actual, ip)
+        )
+    return jsonify({"status": "ok", "ip": ip, "nombre": nuevo_nombre, "farm_id": nuevo_farm_id})
 
 # --- APIs del Panel ---
 @panel_bp.route('/api/eliminar_mineros', methods=['POST'])
@@ -464,6 +536,10 @@ def granjas():
     usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute("SELECT * FROM granjas_sedes WHERE owner=%s ORDER BY id ASC", (usr_actual,))
+    sedes_db = cur.fetchall()
+
     cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
 
@@ -471,15 +547,47 @@ def granjas():
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
 
     grupos = {}
+    for s in sedes_db:
+        fid = str(s.get('farm_id') or '').strip()
+        if not fid:
+            continue
+        segs_ag = calcular_segundos_desconectado(s.get('ultima_act')) if s.get('ultima_act') else 999999
+        grupos[fid] = {
+            'farm_id': fid,
+            'agent_id': str(s.get('agent_id') or fid),
+            'nombre': str(s.get('nombre') or f"Sede {fid}"),
+            'ciudad': str(s.get('ciudad') or 'Santa Cruz de la Sierra'),
+            'subred': str(s.get('subred') or '192.168.0.x'),
+            'gateway': str(s.get('gateway') or '192.168.0.1'),
+            'cap_kw': a_float_seguro(s.get('cap_kw'), 50.0),
+            'tarifa_kwh': a_float_seguro(s.get('tarifa_kwh'), 0.06),
+            'notas': str(s.get('notas') or ''),
+            'device_type': str(s.get('device_type') or 'Desconocido'),
+            'run_mode': str(s.get('run_mode') or 'Agente'),
+            'brand': str(s.get('brand') or ''),
+            'model': str(s.get('model') or ''),
+            'local_ip': str(s.get('local_ip') or ''),
+            'has_battery': bool(a_int_seguro(s.get('has_battery'), 0) == 1),
+            'battery_pct': a_int_seguro(s.get('battery_pct'), -1),
+            'charging': bool(a_int_seguro(s.get('charging'), 0) == 1),
+            'battery_temp_c': a_float_seguro(s.get('battery_temp_c'), 0.0),
+            'os_info': str(s.get('os_info') or ''),
+            'agent_online': segs_ag < 300,
+            'es_manual': not bool(s.get('agent_id')),
+            'total': 0, 'online': 0, 'offline': 0,
+            'hashrate': 0.0, 'consumo_kw': 0.0, 'temp_max': 0, 'mineros': []
+        }
+
     for m in filas:
         ip = m['ip']
         ciudad = str(m.get('farm_city') or 'Santa Cruz de la Sierra')
         subred = ".".join(ip.split('.')[:3]) + ".x" if '.' in ip else "LAN"
-        clave = clave_granja_minero(ip, ciudad)
+        ag_id = str(m.get('agent_id') or 'default').strip() or 'default'
+        fid = str(m.get('farm_id') or ag_id).strip() or 'default'
+
         gw_reportado = str(m.get('gateway') or '').strip()
         gw_fallback = (".".join(ip.split('.')[:3]) + ".1") if '.' in ip else "192.168.0.1"
         gw_ip = gw_reportado if (gw_reportado and gw_reportado != ip) else gw_fallback
-        ag_id = str(m.get('agent_id') or 'default').strip() or 'default'
 
         segs = calcular_segundos_desconectado(m.get('ultima_act'))
         es_online = segs < 300
@@ -487,18 +595,24 @@ def granjas():
         cw = a_float_seguro(m.get('consumo_w'), 0.0) if es_online else 0.0
         tm = a_int_seguro(m.get('temp_max'), 0) if es_online else 0
 
-        if clave not in grupos:
-            grupos[clave] = {
-                'id': clave.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('.', '_'),
-                'clave': clave,
-                'nombre': f"Granja {ciudad}", 'ciudad': ciudad, 'subred': subred,
-                'gateway': gw_ip, 'agent_id': ag_id,
+        if fid not in grupos:
+            grupos[fid] = {
+                'farm_id': fid,
+                'agent_id': ag_id,
+                'nombre': f"Granja {ciudad} ({fid})",
+                'ciudad': ciudad, 'subred': subred, 'gateway': gw_ip,
+                'cap_kw': 50.0, 'tarifa_kwh': 0.06, 'notas': '',
+                'device_type': 'Celular' if ag_id.startswith('AND-') else 'PC / Servidor',
+                'run_mode': 'APK Directo' if ag_id.startswith('AND-') else ('Termux' if ag_id.startswith('TERMUX-') else 'Python PC'),
+                'brand': '', 'model': '', 'local_ip': '',
+                'has_battery': False, 'battery_pct': -1, 'charging': False, 'battery_temp_c': 0.0, 'os_info': '',
+                'agent_online': es_online, 'es_manual': False,
                 'total': 0, 'online': 0, 'offline': 0,
                 'hashrate': 0.0, 'consumo_kw': 0.0, 'temp_max': 0, 'mineros': []
             }
 
-        g = grupos[clave]
-        if gw_reportado and gw_reportado != ip:
+        g = grupos[fid]
+        if gw_reportado and gw_reportado != ip and (not g['gateway'] or g['gateway'] == '192.168.0.1'):
             g['gateway'] = gw_reportado
         g['total'] += 1
         if es_online:
@@ -510,12 +624,23 @@ def granjas():
             g['offline'] += 1
 
         g['mineros'].append({
-            'ip': ip, 'nombre': nombre_inteligente_minero(ip, nombres_dict, m.get('worker1')),
-            'modelo': m.get('modelo') or 'Antminer', 'online': es_online,
-            'hashrate': hr, 'unidad': m.get('unidad') or 'TH/s', 'temp_max': tm
+            'ip': ip,
+            'nombre': nombre_inteligente_minero(ip, nombres_dict, m.get('worker1')),
+            'modelo': m.get('modelo') or 'Antminer',
+            'online': es_online,
+            'hashrate': hr,
+            'unidad': m.get('unidad') or 'TH/s',
+            'temp_max': tm,
+            'farm_id': fid
         })
 
-    return render_seguro('granjas.html', active_page='granjas', granjas=list(grupos.values()))
+    lista_granjas = list(grupos.values())
+    for g in lista_granjas:
+        cap = max(1.0, g['cap_kw'])
+        g['pct_carga'] = min(100, int(round((g['consumo_kw'] / cap) * 100)))
+        g['costo_dia'] = round(g['consumo_kw'] * 24.0 * g['tarifa_kwh'], 2)
+
+    return render_seguro('granjas.html', active_page='granjas', granjas=lista_granjas)
 
 @panel_bp.route('/alertas', methods=['GET', 'POST'])
 @login_required
@@ -765,10 +890,10 @@ def ajustes():
                 else:
                     cur.execute("UPDATE usuarios SET username=%s WHERE username=%s", (nuevo_u, usr_actual))
                     for tbl, col in [
-                        ('mineros_activos', 'owner'), ('nombres_mineros', 'owner'),
-                        ('logs_mineros', 'owner'), ('historial_nube', 'owner'),
-                        ('cola_comandos', 'owner'), ('registro_alertas', 'owner'),
-                        ('movimientos_saldo', 'username')
+                        ('mineros_activos', 'owner'), ('granjas_sedes', 'owner'),
+                        ('nombres_mineros', 'owner'), ('logs_mineros', 'owner'),
+                        ('historial_nube', 'owner'), ('cola_comandos', 'owner'),
+                        ('registro_alertas', 'owner'), ('movimientos_saldo', 'username')
                     ]:
                         cur.execute(f"UPDATE {tbl} SET {col}=%s WHERE {col}=%s", (nuevo_u, usr_actual))
                     session['usuario'] = nuevo_u
