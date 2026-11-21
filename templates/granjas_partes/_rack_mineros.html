@@ -1,0 +1,25 @@
+<div class="rack-map-box">
+    <div class="rack-map-title">
+        <span>🗺️ Equipos ASIC ({{ g.total }})</span>
+        <span style="font-weight:normal; font-size:0.9em;">Clic en ✏️ para renombrar o mover</span>
+    </div>
+    {% if g.mineros %}
+    <div class="rack-tiles-grid" translate="no">
+        {% for m in g.mineros %}
+        {% set tile_cls = 'off' if not m.online else ('crit' if m.temp_max >= 85 else ('warn' if m.temp_max >= 75 else 'ok')) %}
+        <div class="rack-tile-wrap">
+            <a href="/minero/{{ m.ip }}" class="rack-tile {{ tile_cls }}" title="{{ m.nombre }} ({{ m.ip }}) - {{ m.hashrate }} {{ m.unidad }} - {{ m.temp_max }}°C">
+                <span class="rack-tile-name">{{ m.nombre }}</span>
+                <span>{{ (m.temp_max ~ '°C') if m.online else 'OFF' }}</span>
+            </a>
+            <button type="button" class="btn-asic-edit" title="Renombrar o mover {{ m.nombre }}"
+                onclick='abrirEditarMineroModal({{ m.ip | tojson }}, {{ m.nombre | tojson }}, {{ m.farm_id | tojson }})'>✏️</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="font-size:0.8em; color:var(--text-muted); padding:8px 0;">
+        Sin ASICs asignados todavía. Puedes mover equipos aquí usando el botón ✏️ de cualquier minero.
+    </div>
+    {% endif %}
+</div>
