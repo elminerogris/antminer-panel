@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 from datetime import datetime, timedelta
@@ -5,16 +6,150 @@ import psycopg2
 import psycopg2.extras
 
 from db import DB_URL
+from tunel import enviar_orden_tunel
 from utils import (
     a_float_seguro,
     a_int_seguro,
     alerta_en_enfriamiento,
     calcular_segundos_desconectado,
+    clave_granja_minero,
     enviar_telegram,
 )
 
 _monitor_iniciado = False
 _sedes_caidas = set()  # Guarda (owner, agent_id) en caída para avisar cuando vuelvan en línea
+
+
+def _hhmm_a_minutos(hhmm_str, defecto_min):
+    try:
+        partes = str(hhmm_str or "").strip().split(":")
+        h = int(partes[0])
+        m = int(partes[1])
+        if 0 <= h <= 23 and 0 <= m <= 59:
+            return h * 60 + m
+    except Exception:
+        pass
+    return defecto_min
+
+
+def _en_rango_horario(min_actual, min_ini, min_fin):
+    if min_ini == min_fin:
+        return False
+    if min_ini < min_fin:
+        return min_ini <= min_actual < min_fin
+    # Rango nocturno que cruza medianoche (ej. 22:00 a 06:00)
+    return min_actual >= min_ini or min_actual < min_fin
+
+
+def _procesar_curtailment(cur, ahora_utc_str, ahora_bo):
+    """Aplica reglas automáticas de Horario de Tarifa Pico (Curtailment) en hora de Bolivia (UTC-4)."""
+    cur.execute("""
+        SELECT username, tg_token, tg_chat_id, alertas_activas,
+               wd_alcance, wd_granjas, wd_mineros,
+               curt_inicio, curt_fin, curt_accion, curt_estado_actual
+        FROM usuarios
+        WHERE COALESCE(curt_activo, 0) = 1
+          AND COALESCE(suspendido, 0) = 0
+    """)
+    usuarios_curt = cur.fetchall()
+    min_actual = ahora_bo.hour * 60 + ahora_bo.minute
+
+    for u in usuarios_curt:
+        owner = u["username"]
+        ini_str = str(u.get("curt_inicio") or "18:00").strip()
+        fin_str = str(u.get("curt_fin") or "22:00").strip()
+        accion = str(u.get("curt_accion") or "profile|low").strip()
+        if accion not in ("profile|low", "sleep"):
+            accion = "profile|low"
+        estado_prev = str(u.get("curt_estado_actual") or "normal").strip().lower()
+
+        min_ini = _hhmm_a_minutos(ini_str, 18 * 60)
+        min_fin = _hhmm_a_minutos(fin_str, 22 * 60)
+        en_pico = _en_rango_horario(min_actual, min_ini, min_fin)
+
+        nuevo_estado = "pico" if en_pico else "normal"
+        if nuevo_estado == estado_prev:
+            continue
+
+        alcance = u.get("wd_alcance") or "all"
+        try:
+            granjas_sel = json.loads(u.get("wd_granjas") or "[]")
+        except Exception:
+            granjas_sel = []
+        try:
+            mineros_sel = json.loads(u.get("wd_mineros") or "[]")
+        except Exception:
+            mineros_sel = []
+
+        cur.execute(
+            "SELECT ip, agent_id, farm_city FROM mineros_activos WHERE owner=%s",
+            (owner,),
+        )
+        filas = cur.fetchall()
+        cmd_a_enviar = accion if en_pico else "normal"
+        afectados = 0
+
+        for fm in filas:
+            ip_m = fm["ip"]
+            ag_m = str(fm.get("agent_id") or "default").strip() or "default"
+            clave_g = clave_granja_minero(ip_m, fm.get("farm_city"))
+            aplica = (
+                alcance == "all"
+                or (alcance == "farms" and clave_g in granjas_sel)
+                or (alcance == "miners" and ip_m in mineros_sel)
+            )
+            if not aplica:
+                continue
+
+            enviado = enviar_orden_tunel(owner, ip_m, cmd_a_enviar, agent_id=ag_m)
+            est_cmd = "enviado" if enviado else "pendiente"
+            cur.execute(
+                "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                (owner, ag_m, ip_m, cmd_a_enviar, est_cmd, ahora_utc_str),
+            )
+            afectados += 1
+
+        cur.execute(
+            "UPDATE usuarios SET curt_estado_actual=%s WHERE username=%s",
+            (nuevo_estado, owner),
+        )
+
+        alertas_on = bool(a_int_seguro(u.get("alertas_activas"), 0) == 1)
+        tg_tok = (u.get("tg_token") or "").strip()
+        tg_cid = (u.get("tg_chat_id") or "").strip()
+        etiqueta_acc = "LOW POWER" if accion == "profile|low" else "SLEEP (REPOSO)"
+
+        if en_pico:
+            msg_db = f"⚡ TARIFA PICO ({ini_str}-{fin_str}): {afectados} equipo(s) pasados a {etiqueta_acc}."
+            cur.execute(
+                "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) "
+                "VALUES (%s, 'TARIFA_PICO', 'HORARIO_PICO', %s, %s)",
+                (owner, msg_db, ahora_utc_str),
+            )
+            if alertas_on and tg_tok and tg_cid:
+                enviar_telegram(
+                    tg_tok,
+                    tg_cid,
+                    f"⚡ <b>HORARIO DE TARIFA PICO ACTIVADO</b>\n"
+                    f"Horario: <b>{ini_str} a {fin_str}</b> (Hora Bolivia)\n"
+                    f"Acción aplicada: <b>{etiqueta_acc}</b>\n"
+                    f"Equipos actualizados: <b>{afectados}</b>",
+                )
+        else:
+            msg_db = f"🟢 FIN TARIFA PICO ({fin_str}): {afectados} equipo(s) devueltos a NORMAL."
+            cur.execute(
+                "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) "
+                "VALUES (%s, 'TARIFA_PICO', 'HORARIO_NORMAL', %s, %s)",
+                (owner, msg_db, ahora_utc_str),
+            )
+            if alertas_on and tg_tok and tg_cid:
+                enviar_telegram(
+                    tg_tok,
+                    tg_cid,
+                    f"🟢 <b>FIN DE TARIFA PICO — MODO NORMAL</b>\n"
+                    f"Equipos restaurados a <b>NORMAL</b>: <b>{afectados}</b>",
+                )
 
 
 def _enviar_resumen_diario(cur, owner, tg_tok, tg_cid, umbral_t, ahora_utc_str, ahora_bo):
@@ -120,6 +255,17 @@ def _ciclo_vigilancia():
             con.autocommit = True
             cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+            ahora_utc = datetime.utcnow()
+            ahora_str = ahora_utc.strftime("%Y-%m-%d %H:%M:%S")
+            ahora_bo = ahora_utc - timedelta(hours=4)  # Bolivia (UTC-4)
+            es_hora_resumen = (ahora_bo.hour == 8 and ahora_bo.minute < 30)
+
+            # 0. Horarios de Energía (Tarifa Pico / Curtailment)
+            try:
+                _procesar_curtailment(cur, ahora_str, ahora_bo)
+            except Exception as err_curt:
+                print(f"[Curtailment] Error en ciclo: {err_curt}")
+
             cur.execute("""
                 SELECT username, tg_token, tg_chat_id, umbral_temp
                 FROM usuarios
@@ -129,11 +275,6 @@ def _ciclo_vigilancia():
                   AND tg_chat_id IS NOT NULL AND tg_chat_id != ''
             """)
             usuarios = cur.fetchall()
-
-            ahora_utc = datetime.utcnow()
-            ahora_str = ahora_utc.strftime("%Y-%m-%d %H:%M:%S")
-            ahora_bo = ahora_utc - timedelta(hours=4)  # Bolivia (UTC-4)
-            es_hora_resumen = (ahora_bo.hour == 8 and ahora_bo.minute < 30)
 
             for u in usuarios:
                 owner = u["username"]
