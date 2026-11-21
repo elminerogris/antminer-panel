@@ -476,6 +476,10 @@ def granjas():
         ciudad = str(m.get('farm_city') or 'Santa Cruz de la Sierra')
         subred = ".".join(ip.split('.')[:3]) + ".x" if '.' in ip else "LAN"
         clave = clave_granja_minero(ip, ciudad)
+        gw_reportado = str(m.get('gateway') or '').strip()
+        gw_fallback = (".".join(ip.split('.')[:3]) + ".1") if '.' in ip else "192.168.0.1"
+        gw_ip = gw_reportado if (gw_reportado and gw_reportado != ip) else gw_fallback
+        ag_id = str(m.get('agent_id') or 'default').strip() or 'default'
 
         segs = calcular_segundos_desconectado(m.get('ultima_act'))
         es_online = segs < 300
@@ -488,11 +492,14 @@ def granjas():
                 'id': clave.lower().replace(' ', '_').replace('(', '').replace(')', '').replace('.', '_'),
                 'clave': clave,
                 'nombre': f"Granja {ciudad}", 'ciudad': ciudad, 'subred': subred,
+                'gateway': gw_ip, 'agent_id': ag_id,
                 'total': 0, 'online': 0, 'offline': 0,
                 'hashrate': 0.0, 'consumo_kw': 0.0, 'temp_max': 0, 'mineros': []
             }
 
         g = grupos[clave]
+        if gw_reportado and gw_reportado != ip:
+            g['gateway'] = gw_reportado
         g['total'] += 1
         if es_online:
             g['online'] += 1
