@@ -1,0 +1,207 @@
+<!-- Modal 1: Crear / Editar Granja -->
+<div class="farm-modal-overlay" id="farmModal">
+    <div class="farm-modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px; margin-bottom:16px;">
+            <span style="font-weight:bold; font-size:1.08em;" id="farmModalTitle">🏭 Nueva Granja / Sede</span>
+            <button type="button" class="btn-edit-cap" onclick="cerrarFarmModal()">✖</button>
+        </div>
+        <input type="hidden" id="fm_id">
+        <div class="fm-group">
+            <label>Nombre de la Granja / Galpón</label>
+            <input type="text" id="fm_nombre" class="fm-input" placeholder="Ej: Galpón Norte - Santa Cruz">
+        </div>
+        <div class="fm-group">
+            <label>Ciudad / Ubicación</label>
+            <input type="text" id="fm_ciudad" class="fm-input" placeholder="Ej: Santa Cruz de la Sierra">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="fm-group">
+                <label>Capacidad Transformador (kW)</label>
+                <input type="number" id="fm_cap_kw" class="fm-input" value="50" min="1">
+            </div>
+            <div class="fm-group">
+                <label>Tarifa Eléctrica (USD/kWh)</label>
+                <input type="number" step="0.01" id="fm_tarifa" class="fm-input" value="0.06" min="0">
+            </div>
+        </div>
+        <div class="fm-group">
+            <label>IP del Router / Gateway</label>
+            <input type="text" id="fm_gateway" class="fm-input" placeholder="Ej: 192.168.0.1 o 192.168.0.125">
+        </div>
+        <div class="fm-group">
+            <label>Notas del Técnico</label>
+            <input type="text" id="fm_notas" class="fm-input" placeholder="Ej: Transformador 75 kVA · Rack A">
+        </div>
+        <div style="display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:18px;">
+            <button type="button" id="btnEliminarGranja" class="btn-farm-cmd reboot" style="flex:0 0 auto; padding:8px 12px; display:none;" onclick="eliminarGranjaActual()">🗑️ Eliminar</button>
+            <div style="display:flex; gap:10px; margin-left:auto;">
+                <button type="button" class="btn-farm-cmd" style="flex:0 0 auto; padding:8px 14px;" onclick="cerrarFarmModal()">Cancelar</button>
+                <button type="button" class="btn-new-farm" onclick="guardarConfigGranja()">💾 Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: Editar Nombre o Mover ASIC a otra Granja -->
+<div class="farm-modal-overlay" id="mineroMoveModal">
+    <div class="farm-modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px; margin-bottom:16px;">
+            <span style="font-weight:bold; font-size:1.08em;">✏️ Editar / Mover ASIC</span>
+            <button type="button" class="btn-edit-cap" onclick="cerrarMineroModal()">✖</button>
+        </div>
+        <input type="hidden" id="mm_ip">
+        <div class="fm-group">
+            <label>IP del Equipo</label>
+            <input type="text" id="mm_ip_display" class="fm-input" disabled style="opacity:0.75;">
+        </div>
+        <div class="fm-group">
+            <label>Nombre del ASIC</label>
+            <input type="text" id="mm_nombre" class="fm-input" placeholder="Ej: Rack-01-S21">
+        </div>
+        <div class="fm-group">
+            <label>Granja / Sede Asignada</label>
+            <select id="mm_farm_id" class="fm-input">
+                {% for g_opt in granjas %}
+                <option value="{{ g_opt.farm_id }}">{{ g_opt.nombre }} ({{ g_opt.ciudad }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+            <button type="button" class="btn-farm-cmd" style="flex:0 0 auto; padding:8px 14px;" onclick="cerrarMineroModal()">Cancelar</button>
+            <button type="button" class="btn-new-farm" onclick="guardarEdicionMinero()">💾 Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function mostrarFarmToast(msg) {
+        const t = document.getElementById('farmToast');
+        if (!t) return;
+        t.innerText = '✅ ' + msg;
+        t.style.display = 'block';
+        setTimeout(() => { t.style.display = 'none'; }, 3200);
+    }
+
+    function abrirNuevaGranjaModal() {
+        document.getElementById('farmModalTitle').innerText = '🏭 Nueva Granja / Sede';
+        document.getElementById('fm_id').value = '';
+        document.getElementById('fm_nombre').value = '';
+        document.getElementById('fm_ciudad').value = 'Santa Cruz de la Sierra';
+        document.getElementById('fm_cap_kw').value = 50;
+        document.getElementById('fm_tarifa').value = 0.06;
+        document.getElementById('fm_gateway').value = '192.168.0.1';
+        document.getElementById('fm_notas').value = '';
+        document.getElementById('btnEliminarGranja').style.display = 'none';
+        document.getElementById('farmModal').style.display = 'flex';
+    }
+
+    function editarGranjaModal(farmId, nombre, ciudad, capKw, tarifa, gateway, notas, esManual) {
+        document.getElementById('farmModalTitle').innerText = '⚙️ Configurar Granja';
+        document.getElementById('fm_id').value = farmId;
+        document.getElementById('fm_nombre').value = nombre || '';
+        document.getElementById('fm_ciudad').value = ciudad || '';
+        document.getElementById('fm_cap_kw').value = capKw || 50;
+        document.getElementById('fm_tarifa').value = tarifa !== undefined ? tarifa : 0.06;
+        document.getElementById('fm_gateway').value = gateway || '';
+        document.getElementById('fm_notas').value = notas || '';
+        document.getElementById('btnEliminarGranja').style.display = esManual ? 'inline-block' : 'none';
+        document.getElementById('farmModal').style.display = 'flex';
+    }
+
+    function cerrarFarmModal() {
+        document.getElementById('farmModal').style.display = 'none';
+    }
+
+    function guardarConfigGranja() {
+        const payload = {
+            farm_id: document.getElementById('fm_id').value.trim(),
+            nombre: document.getElementById('fm_nombre').value.trim(),
+            ciudad: document.getElementById('fm_ciudad').value.trim(),
+            cap_kw: parseFloat(document.getElementById('fm_cap_kw').value) || 50,
+            tarifa_kwh: parseFloat(document.getElementById('fm_tarifa').value) || 0,
+            gateway: document.getElementById('fm_gateway').value.trim(),
+            notas: document.getElementById('fm_notas').value.trim()
+        };
+        if (!payload.nombre) return;
+
+        fetch('/api/granjas/guardar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'ok') {
+                cerrarFarmModal();
+                mostrarFarmToast('Granja guardada correctamente.');
+                setTimeout(() => window.location.reload(), 650);
+            }
+        });
+    }
+
+    function eliminarGranjaActual() {
+        const farmId = document.getElementById('fm_id').value.trim();
+        if (!farmId) return;
+        if (!confirm('¿Eliminar esta granja manual? Los ASICs asignados volverán a la sede de su agente.')) return;
+
+        fetch('/api/granjas/eliminar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ farm_id: farmId })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'ok') {
+                cerrarFarmModal();
+                window.location.reload();
+            }
+        });
+    }
+
+    function abrirEditarMineroModal(ip, nombre, farmId) {
+        document.getElementById('mm_ip').value = ip;
+        document.getElementById('mm_ip_display').value = ip;
+        document.getElementById('mm_nombre').value = nombre || '';
+        const sel = document.getElementById('mm_farm_id');
+        if (sel && farmId) sel.value = farmId;
+        document.getElementById('mineroMoveModal').style.display = 'flex';
+    }
+
+    function cerrarMineroModal() {
+        document.getElementById('mineroMoveModal').style.display = 'none';
+    }
+
+    function guardarEdicionMinero() {
+        const ip = document.getElementById('mm_ip').value.trim();
+        const nombre = document.getElementById('mm_nombre').value.trim();
+        const farm_id = document.getElementById('mm_farm_id').value;
+        if (!ip) return;
+
+        fetch('/api/granjas/editar_minero', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip, nombre, farm_id })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'ok') {
+                cerrarMineroModal();
+                mostrarFarmToast(`ASIC ${ip} actualizado.`);
+                setTimeout(() => window.location.reload(), 650);
+            }
+        });
+    }
+
+    function comandoGranja(accion, ips, nombreGranja) {
+        if (!ips || ips.length === 0) return;
+        if (!confirm(`¿Ejecutar "${accion}" en los ${ips.length} mineros de ${nombreGranja}?`)) return;
+
+        fetch('/cmd_bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accion: accion, ips: ips })
+        }).then(() => {
+            mostrarFarmToast(`Orden "${accion}" enviada a ${ips.length} equipos de ${nombreGranja}.`);
+        });
+    }
+</script>
