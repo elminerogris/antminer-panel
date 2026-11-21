@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Minero Gris — Monitoreo y Control Remoto de Antminer y WhatsMiner</title>
+    <meta name="description" content="Monitorea y controla tu granja de Antminer y WhatsMiner desde cualquier lugar sin VPN ni abrir puertos. Funciona desde un celular Android (APK) o PC. Empieza gratis.">
+    <meta name="keywords" content="monitoreo antminer, controlar antminer remoto, panel mineria asic, watchdog antminer, monitoreo whatsminer, acceso remoto antminer sin vpn, el minero gris">
+    <link rel="canonical" href="https://elminerogris.com/">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph (WhatsApp, Telegram, Facebook) -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://elminerogris.com/">
+    <meta property="og:title" content="El Minero Gris — Controla tu Granja ASIC desde el Celular">
+    <meta property="og:description" content="Hashrate en vivo, temperaturas, alertas Telegram, Watchdog, Horarios de Tarifa Pico y acceso web local a tus Antminer y Router sin abrir puertos.">
+    <meta property="og:site_name" content="El Minero Gris">
+
+    <!-- Datos estructurados para Google (Schema.org) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "El Minero Gris",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Web, Android, Windows, Linux",
+      "url": "https://elminerogris.com/",
+      "description": "Plataforma en la nube para monitorear y controlar mineros ASIC Antminer y WhatsMiner de forma remota sin VPN ni abrir puertos.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+
+    <style>
+        :root {
+            --bg-main: #090b12;
+            --bg-card: #111420;
+            --bg-soft: #161b2c;
+            --border: rgba(255, 255, 255, 0.09);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --blue: #3366ff;
+            --blue-light: #60a5fa;
+            --green: #00e676;
+            --amber: #ffb300;
+            --red: #ff5252;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+            background: radial-gradient(circle at 20% 0%, rgba(51, 102, 255, 0.14), transparent 40%), var(--bg-main);
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+        a { text-decoration: none; color: inherit; }
+        .container { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+
+        /* Navbar */
+        .nav {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(9, 11, 18, 0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-inner {
+            display: flex; align-items: center; justify-content: space-between;
+            height: 68px; gap: 16px;
+        }
+        .brand {
+            display: flex; align-items: center; gap: 10px;
+            font-weight: 800; font-size: 1.12em; letter-spacing: -0.3px;
+        }
+        .brand-logo {
+            width: 34px; height: 34px; border-radius: 8px;
+            background: linear-gradient(135deg, var(--blue), #1d4ed8);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; box-shadow: 0 0 16px rgba(51, 102, 255, 0.45);
+        }
+        .nav-links { display: flex; align-items: center; gap: 22px; font-size: 0.9em; color: var(--text-muted); }
+        .nav-links a:hover { color: #fff; }
+        .nav-cta { display: flex; align-items: center; gap: 10px; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 0.9em;
+            transition: all 0.2s ease; cursor: pointer; border: 1px solid transparent;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--blue), #2563eb);
+            color: #fff; border-color: var(--blue-light);
+            box-shadow: 0 0 18px rgba(51, 102, 255, 0.4);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 26px rgba(59, 130, 246, 0.65); }
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.03); color: #e2e8f0; border-color: var(--border);
+        }
+        .btn-outline:hover { border-color: var(--blue-light); color: #fff; }
+
+        /* Hero */
+        .hero { padding: 72px 0 64px 0; }
+        .hero-grid {
+            display: grid; grid-template-columns: 1.08fr 0.92fr; gap: 42px; align-items: center;
+        }
+        .pill {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 5px 12px; border-radius: 999px;
+            background: rgba(51, 102, 255, 0.14); border: 1px solid rgba(96, 165, 250, 0.35);
+            color: var(--blue-light); font-size: 0.76em; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 18px;
+        }
+        .hero h1 {
+            font-size: clamp(2.1rem, 4.2vw, 3.25rem);
+            line-height: 1.12; font-weight: 850; letter-spacing: -1px; margin-bottom: 18px;
+        }
+        .hero h1 span { color: var(--blue-light); }
+        .hero-sub { font-size: 1.05em; color: var(--text-muted); margin-bottom: 26px; max-width: 540px; }
+        .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+        .hero-checks {
+            display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.82em; color: #cbd5e1; margin-bottom: 28px;
+        }
+        .hero-checks span b { color: var(--green); }
+        .hero-metrics {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+            padding-top: 22px; border-top: 1px solid var(--border);
+        }
+        .hm-val { font-size: 1.35em; font-weight: 800; color: var(--blue-light); font-family: monospace; }
+        .hm-lbl { font-size: 0.72em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+
+        /* Vista previa estilizada del panel */
+        .mockup {
+            background: var(--bg-card); border: 1px solid rgba(96, 165, 250, 0.28);
+            border-radius: 14px; padding: 16px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 40px rgba(51, 102, 255, 0.14);
+        }
+        .mk-top {
+            display: flex; align-items: center; justify-content: space-between;
+            padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border);
+            font-size: 0.78em; font-family: monospace; color: var(--text-muted);
+        }
+        .mk-dots { display: flex; gap: 6px; }
+        .mk-dots i { width: 9px; height: 9px; border-radius: 50%; display: block; background: #334155; }
+        .mk-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+        .mk-kpi {
+            background: rgba(9, 11, 18, 0.65); border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px;
+        }
+        .mk-kpi small { font-size: 0.68em; color: var(--text-muted); text-transform: uppercase; display: block; }
+        .mk-kpi strong { font-size: 1.1em; font-family: monospace; }
+        .mk-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 9px 10px; border-radius: 7px; background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04); margin-bottom: 7px;
+            font-family: monospace; font-size: 0.8em;
+        }
+        .mk-alert {
+            margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+            background: rgba(0, 230, 118, 0.08); border: 1px solid rgba(0, 230, 118, 0.35);
+            font-size: 0.78em; color: #a7f3d0; display: flex; align-items: center; gap: 8px;
+        }
+
+        /* Secciones */
+        section { padding: 64px 0; }
+        .sec-head { text-align: center; max-width: 680px; margin: 0 auto 40px auto; }
+        .sec-head h2 { font-size: clamp(1.6rem, 3vw, 2.3rem); margin-bottom: 10px; letter-spacing: -0.5px; }
+        .sec-head p { color: var(--text-muted); font-size: 0.98em; }
+
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+        .card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 22px; transition: 0.2s ease;
+        }
+        .card:hover { border-color: rgba(96, 165, 250, 0.45); transform: translateY(-2px); }
+        .step-num {
+            width: 32px; height: 32px; border-radius: 8px;
+            background: rgba(51, 102, 255, 0.18); border: 1px solid rgba(96, 165, 250, 0.45);
+            color: var(--blue-light); font-weight: 800; font-family: monospace;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+        }
+        .card h3 { font-size: 1.06em; margin-bottom: 8px; }
+        .card p { font-size: 0.88em; color: var(--text-muted); }
+
+        /* Precios */
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; max-width: 780px; margin: 0 auto; }
+        .price-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 14px; padding: 28px; display: flex; flex-direction: column;
+        }
+        .price-card.pro {
+            border-color: rgba(96, 165, 250, 0.65);
+            box-shadow: 0 0 32px rgba(51, 102, 255, 0.16);
+        }
+        .price-val { font-size: 2.2em; font-weight: 850; margin: 10px 0 4px 0; font-family: monospace; }
+        .price-list { list-style: none; margin: 18px 0 24px 0; flex: 1; }
+        .price-list li { padding: 6px 0; font-size: 0.9em; color: #cbd5e1; }
+        .price-list li::before { content: "✓ "; color: var(--green); font-weight: bold; }
+
+        /* FAQ */
+        .faq-list { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+        details.faq-item {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px 18px;
+        }
+        details.faq-item summary { font-weight: 700; cursor: pointer; list-style: none; }
+        details.faq-item p { margin-top: 10px; font-size: 0.9em; color: var(--text-muted); }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border); padding: 32px 0;
+            color: var(--text-muted); font-size: 0.85em; text-align: center;
+        }
+
+        @media (max-width: 900px) {
+            .hero-grid { grid-template-columns: 1fr; }
+            .nav-links { display: none; }
+            .hero-metrics { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <div class="container nav-inner">
+            <a href="/" class="brand">
+                <div class="brand-logo">MG</div>
+                <span>El Minero Gris</span>
+            </a>
+            <nav class="nav-links">
+                <a href="#como-funciona">Cómo funciona</a>
+                <a href="#funciones">Funciones</a>
+                <a href="#precios">Precios</a>
+                <a href="#faq">Preguntas</a>
+            </nav>
+            <div class="nav-cta">
+                <a href="/login" class="btn btn-outline">Iniciar sesión</a>
+                <a href="/register" class="btn btn-primary">Crear cuenta gratis</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- HERO -->
+        <section class="hero">
+            <div class="container hero-grid">
+                <div>
+                    <div class="pill">● Monitoreo de Flota ASIC en Tiempo Real</div>
+                    <h1>Monitorea y controla tus <span>Antminer y WhatsMiner</span> desde cualquier lugar</h1>
+                    <p class="hero-sub">
+                        Hashrate en vivo, temperaturas, reinicio remoto, alertas por Telegram y acceso directo a la web local de tus equipos y router. Sin abrir puertos, sin VPN y sin IP fija.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="/register" class="btn btn-primary">Crear cuenta gratis →</a>
+                        <a href="#como-funciona" class="btn btn-outline">Ver cómo funciona</a>
+                    </div>
+                    <div class="hero-checks">
+                        <span><b>✓</b> Gratis hasta 3 mineros</span>
+                        <span><b>✓</b> Funciona con CGNAT y Starlink</span>
+                        <span><b>✓</b> Corre en celular Android o PC</span>
+                    </div>
+                    <div class="hero-metrics">
+                        <div>
+                            <div class="hm-val">25s</div>
+                            <div class="hm-lbl">Actualización</div>
+                        </div>
+                        <div>
+                            <div class="hm-val">&lt;1s</div>
+                            <div class="hm-lbl">Comandos Túnel</div>
+                        </div>
+                        <div>
+                            <div class="hm-val">24/7</div>
+                            <div class="hm-lbl">Watchdog &amp; Alertas</div>
+                        </div>
+                        <div>
+                            <div class="hm-val">2 min</div>
+                            <div class="hm-lbl">Instalación</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VISTA PREVIA DEL DASHBOARD -->
+                <div class="mockup" aria-label="Vista previa del panel El Minero Gris">
+                    <div class="mk-top">
+                        <div class="mk-dots"><i></i><i></i><i></i></div>
+                        <span style="color:var(--green);">● En vivo · Túnel WebSocket Activo</span>
+                    </div>
+                    <div class="mk-kpis">
+                        <div class="mk-kpi">
+                            <small>Hashrate Total</small>
+                            <strong style="color:var(--blue-light);">1,403.5 TH/s</strong>
+                        </div>
+                        <div class="mk-kpi">
+                            <small>Consumo</small>
+                            <strong style="color:#c084fc;">28.9 kW</strong>
+                        </div>
+                        <div class="mk-kpi">
+                            <small>Temp. Máx</small>
+                            <strong style="color:var(--green);">68 °C</strong>
+                        </div>
+                    </div>
+                    <div class="mk-row">
+                        <span><b style="color:#fff;">001</b> · Antminer S21+</span>
+                        <span style="color:var(--blue-light);">227.4 TH/s</span>
+                        <span style="color:var(--green);">66°C ●</span>
+                    </div>
+                    <div class="mk-row">
+                        <span><b style="color:#fff;">002</b> · Antminer S19k Pro</span>
+                        <span style="color:var(--blue-light);">121.8 TH/s</span>
+                        <span style="color:var(--green);">68°C ●</span>
+                    </div>
+                    <div class="mk-row">
+                        <span><b style="color:#fff;">003</b> · WhatsMiner M50</span>
+                        <span style="color:var(--blue-light);">118.2 TH/s</span>
+                        <span style="color:var(--amber);">74°C ●</span>
+                    </div>
+                    <div class="mk-alert">
+                        <span>📱</span>
+                        <span><b>Agente APK activo (Xiaomi Mi A2 Lite)</b> · Batería 98% ⚡ · Proxy Web Local listo</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CÓMO FUNCIONA -->
+        <section id="como-funciona">
+            <div class="container">
+                <div class="sec-head">
+                    <div class="pill">Fácil para principiantes</div>
+                    <h2>En línea en 3 pasos — sin saber de redes</h2>
+                    <p>Tus mineros nunca quedan expuestos a internet. Un agente liviano en tu red local crea un túnel saliente seguro hacia tu panel.</p>
+                </div>
+                <div class="grid-3">
+                    <div class="card">
+                        <div class="step-num">1</div>
+                        <h3>Crea tu cuenta gratuita</h3>
+                        <p>Regístrate en segundos sin tarjeta de crédito. Obtienes tu API Key privada al instante desde Ajustes.</p>
+                    </div>
+                    <div class="card">
+                        <div class="step-num">2</div>
+                        <h3>Conecta un celular viejo o PC</h3>
+                        <p>Instala nuestra app Android (APK) en cualquier celular conectado al Wi-Fi de tu granja, o ejecuta el agente en Windows, Linux, Raspberry Pi o TV Box.</p>
+                    </div>
+                    <div class="card">
+                        <div class="step-num">3</div>
+                        <h3>Controla todo desde donde estés</h3>
+                        <p>El agente detecta automáticamente tus Antminer y WhatsMiner. Revisa métricas, recibe alertas en Telegram y entra a su web local con datos móviles.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FUNCIONES -->
+        <section id="funciones">
+            <div class="container">
+                <div class="sec-head">
+                    <div class="pill">Todo incluido</div>
+                    <h2>Herramientas profesionales hechas simples</h2>
+                    <p>Diseñado para proteger tu inversión, ahorrar electricidad y evitar viajes innecesarios a la granja.</p>
+                </div>
+                <div class="grid-3">
+                    <div class="card">
+                        <h3>📱 Agente en Android, PC o TV Box</h3>
+                        <p>No necesitas dejar una computadora costosa encendida. Usa un celular Android con nuestro APK, Termux, Raspberry Pi o Windows con monitoreo de batería.</p>
+                    </div>
+                    <div class="card">
+                        <h3>🌐 Proxy Web Local (ASIC y Router)</h3>
+                        <p>Abre la página interna original de cada Antminer y de tu router local desde cualquier lugar sin AnyDesk, TeamViewer ni VPN.</p>
+                    </div>
+                    <div class="card">
+                        <h3>🛡️ Watchdog y Protección Térmica</h3>
+                        <p>Reinicio automático por 0 TH/s o placa caída, cuarentena anti-bucle y modo Sleep automático por sobrecalentamiento o clima exterior.</p>
+                    </div>
+                    <div class="card">
+                        <h3>⏰ Horarios de Tarifa Pico</h3>
+                        <p>Automatiza el cambio a Low Power o Sleep en las horas de electricidad cara (ej. 18:00 a 22:00) y vuelve a Normal automáticamente.</p>
+                    </div>
+                    <div class="card">
+                        <h3>📲 Alertas Instantáneas en Telegram</h3>
+                        <p>Avisos en tiempo real por corte de luz/internet en la sede, temperatura alta, caída de hashrate, batería baja del celular y resumen diario.</p>
+                    </div>
+                    <div class="card">
+                        <h3>🏭 Gestión Multi-Granja</h3>
+                        <p>Organiza tus equipos por sede, supervisa la carga del transformador (kW), calcula el costo eléctrico diario y envía órdenes masivas en 1 clic.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PRECIOS -->
+        <section id="precios">
+            <div class="container">
+                <div class="sec-head">
+                    <div class="pill">Planes transparentes</div>
+                    <h2>Empieza gratis y escala cuando quieras</h2>
+                    <p>Prueba todas las bases sin compromiso con tus primeros equipos.</p>
+                </div>
+                <div class="pricing-grid">
+                    <div class="price-card">
+                        <h3>Plan Gratis</h3>
+                        <div class="price-val">$0 <span style="font-size:0.42em; color:var(--text-muted);">/mes</span></div>
+                        <p style="font-size:0.86em; color:var(--text-muted);">Ideal para empezar a monitorear tus primeros equipos.</p>
+                        <ul class="price-list">
+                            <li>Hasta 3 mineros ASIC activos</li>
+                            <li>Agente Android APK y Python PC</li>
+                            <li>Alertas en Telegram y Watchdog</li>
+                            <li>Proxy Web Local para ASIC y Router</li>
+                            <li>Historial de 24 horas</li>
+                        </ul>
+                        <a href="/register" class="btn btn-outline" style="width:100%;">Empezar Gratis</a>
+                    </div>
+                    <div class="price-card pro">
+                        <h3 style="color:var(--blue-light);">Plan Pro</h3>
+                        <div class="price-val">Escalable <span style="font-size:0.42em; color:var(--text-muted);">por flota</span></div>
+                        <p style="font-size:0.86em; color:var(--text-muted);">Para granjas en crecimiento y operadores profesionales.</p>
+                        <ul class="price-list">
+                            <li>Mineros y sedes ilimitados</li>
+                            <li>Acciones masivas en 1 clic por granja</li>
+                            <li>Historial extendido de 30 días</li>
+                            <li>Exportación de reportes CSV</li>
+                            <li>Soporte prioritario</li>
+                        </ul>
+                        <a href="/register" class="btn btn-primary" style="width:100%;">Crear cuenta y probar</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ -->
+        <section id="faq">
+            <div class="container">
+                <div class="sec-head">
+                    <h2>Preguntas frecuentes</h2>
+                </div>
+                <div class="faq-list">
+                    <details class="faq-item">
+                        <summary>¿Necesito abrir puertos en mi router o tener IP fija?</summary>
+                        <p>No. El agente (APK Android o PC) crea una conexión saliente segura hacia El Minero Gris. Funciona perfectamente detrás de Starlink, 4G/5G y proveedores con CGNAT.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>¿Qué modelos de mineros son compatibles?</summary>
+                        <p>Es compatible con la mayoría de equipos Bitmain Antminer (S19, S19k Pro, S19 XP, S21, S21+, S23, Hydro, L7, L9, Z15, KS3/KS5) y MicroBT WhatsMiner (M30, M50, M60 y series Hydro).</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>¿Puedo usar un celular Android viejo en lugar de una computadora?</summary>
+                        <p>Sí. Solo conectas el celular al Wi-Fi de la granja, instalas nuestro APK oficial e inicias sesión. Incluso te avisará por Telegram si el cargador se desconecta o la batería baja del 20%.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2026 <b>El Minero Gris</b> — Monitoreo y Control Remoto de Granjas ASIC.</p>
+        </div>
+    </footer>
+</body>
+</html>
