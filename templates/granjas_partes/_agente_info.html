@@ -1,0 +1,49 @@
+{% set dt_low = g.device_type | lower %}
+{% if 'celular' in dt_low or 'phone' in dt_low %}
+    {% set dev_icon = '📱' %}
+{% elif 'tv' in dt_low or 'box' in dt_low %}
+    {% set dev_icon = '📺' %}
+{% elif 'raspberry' in dt_low %}
+    {% set dev_icon = '🍓' %}
+{% elif 'laptop' in dt_low or 'portátil' in dt_low or 'portatil' in dt_low %}
+    {% set dev_icon = '💻' %}
+{% else %}
+    {% set dev_icon = '🖥️' %}
+{% endif %}
+
+<div class="agent-info-box" translate="no">
+    <div class="agent-info-top">
+        <div class="agent-dev-title">
+            <span style="font-size:1.15em;">{{ dev_icon }}</span>
+            <span>{{ g.device_type }}</span>
+            <span style="color:{{ '#00e676' if g.agent_online else '#ff5252' }}; font-size:0.8em;">
+                {{ '● Online' if g.agent_online else '○ Offline' }}
+            </span>
+        </div>
+        <span class="agent-mode-badge">{{ g.run_mode }}</span>
+    </div>
+
+    <div class="agent-specs-row">
+        {% if g.brand or g.model %}
+        <span class="agent-chip">🏷️ {{ (g.brand ~ ' ' ~ g.model).strip() }}</span>
+        {% endif %}
+
+        {% if g.local_ip %}
+        <span class="agent-chip">📶 IP Agente: {{ g.local_ip }}</span>
+        {% endif %}
+
+        {% if g.has_battery and g.battery_pct >= 0 %}
+            {% set batt_cls = 'batt-crit' if (g.battery_pct < 20 and not g.charging) else ('batt-warn' if g.battery_pct < 40 else 'batt-ok') %}
+            <span class="agent-chip {{ batt_cls }}">
+                🔋 {{ g.battery_pct }}% · {{ '⚡ Cargando' if g.charging else '🔌 Sin cargador' }}
+                {% if g.battery_temp_c and g.battery_temp_c > 0 %}
+                    ({{ "%.1f"|format(g.battery_temp_c) }}°C)
+                {% endif %}
+            </span>
+        {% endif %}
+
+        {% if g.os_info %}
+        <span class="agent-chip">⚙️ {{ g.os_info }}</span>
+        {% endif %}
+    </div>
+</div>
