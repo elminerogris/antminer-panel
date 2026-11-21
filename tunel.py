@@ -11,6 +11,21 @@ agentes_conectados = {}
 # Peticiones HTTP en vuelo por el túnel: { req_id: {"event": Event, "resp": dict|None} }
 _proxy_pendientes = {}
 
+def tunel_esta_activo(owner, agent_id='default', estricto=False):
+    """Retorna True si el agente tiene el túnel WebSocket activo en este momento."""
+    owner_k = str(owner or 'Admin').strip().lower()
+    ag_k = str(agent_id or 'default').strip()
+    with _lock:
+        if ag_k and ag_k != 'default':
+            if (owner_k, ag_k) in agentes_conectados:
+                return True
+            if estricto:
+                return False
+        for k in agentes_conectados.keys():
+            if k[0] == owner_k:
+                return True
+    return False
+
 def _es_ip_local_privada(ip_str):
     try:
         ip_obj = ipaddress.ip_address(str(ip_str or '').strip())
@@ -263,7 +278,6 @@ def init_tunel(app):
 
         agent_id = (request.args.get('agent_id') or '').strip() or _resolver_agent_id_para_ip(owner, ip)
 
-        # Limpiar parámetros internos del proxy antes de reenviar al equipo local
         qs_pairs = [(k, v) for k, v in request.args.items(multi=True) if k not in ('scheme', 'agent_id')]
         qs_clean = "&".join(f"{k}={v}" for k, v in qs_pairs)
         target_path = "/" + subpath + (f"?{qs_clean}" if qs_clean else "")
