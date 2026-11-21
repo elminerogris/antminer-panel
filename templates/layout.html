@@ -135,7 +135,6 @@
             font-size: 0.80em;
             font-weight: 600;
         }
-
         .net-offline-bar {
             display: none;
             background: rgba(255, 82, 82, 0.16);
@@ -640,12 +639,20 @@
             <div class="menu-section-label">Operación</div>
             <a href="/resumen" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
             <a href="/mineros" class="{{ 'active' if active_page == 'mineros' else '' }}">⛏️ Mineros</a>
+            <a href="/racks" class="{{ 'active' if active_page == 'racks' else '' }}">🗂️ Mapa de Racks</a>
             <a href="/granjas" class="{{ 'active' if active_page == 'granjas' else '' }}">🏭 Granjas</a>
             <a href="/alertas" class="{{ 'active' if active_page == 'alertas' else '' }}">🔔 Alertas</a>
+
+            {% if not es_tecnico %}
+            <div class="menu-section-label" style="margin-top:8px;">Gestión Pro</div>
+            <a href="/hosting" class="{{ 'active' if active_page == 'hosting' else '' }}">🔗 Hosting (Clientes)</a>
+            <a href="/tecnicos" class="{{ 'active' if active_page == 'tecnicos' else '' }}">👷 Técnicos</a>
 
             <div class="menu-section-label" style="margin-top:8px;">Cuenta</div>
             <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a>
             <a href="/ajustes" class="{{ 'active' if active_page == 'ajustes' else '' }}">⚙️ Ajustes</a>
+            {% endif %}
+
             <a href="https://wa.me/59160805856?text=Hola%2C%20necesito%20ayuda%20con%20El%20Minero%20Gris" target="_blank" rel="noopener" class="wa-support-link">💬 Soporte WhatsApp</a>
             {% if es_super_admin %}
             <a href="/admin" class="{{ 'active' if active_page == 'admin' else '' }}" style="color:#00e676;">🛡️ Panel Admin</a>
@@ -654,30 +661,35 @@
 
         <div class="sidebar-bottom">
             <div class="user-wallet-box">
-                <a href="/plan" title="Ir a Billetera y Planes">
-                    <div class="user-name-row" translate="no">👤 {{ session['usuario'] }}</div>
-                    <div class="user-balance-row" translate="no" style="margin-top:4px;">
-                        <span>${{ "%.2f"|format(session.get('saldo', 0.0)) }} USDT</span>
-                        <span style="font-size:0.78em; color:var(--accent-blue-light);">+ Recargar</span>
-                    </div>
-                </a>
+                {% if es_tecnico %}
+                    <div class="user-name-row" translate="no">👷 {{ session.get('usuario_real', 'Técnico') }}</div>
+                    <div style="font-size:0.74em; color:#60a5fa; font-family:monospace;">Rol Técnico · Solo operación</div>
+                {% else %}
+                    <a href="/plan" title="Ir a Billetera y Planes">
+                        <div class="user-name-row" translate="no">👤 {{ session['usuario'] }}</div>
+                        <div class="user-balance-row" translate="no" style="margin-top:4px;">
+                            <span>${{ "%.2f"|format(session.get('saldo', 0.0)) }} USDT</span>
+                            <span style="font-size:0.78em; color:var(--accent-blue-light);">+ Recargar</span>
+                        </div>
+                    </a>
 
-                {% if saldo_bonus_actual and saldo_bonus_actual > 0 %}
-                <div class="promo-credit-pill" onclick="this.classList.toggle('show-tt')">
-                    <span translate="no">🎁 Promo: ${{ "%.2f"|format(saldo_bonus_actual) }}</span>
-                    <span>ⓘ</span>
-                    <div class="promo-tooltip-box">
-                        <b style="color:#ffd54f;">🎁 Crédito Promocional</b><br>
-                        Saldo de cortesía otorgado por El Minero Gris. Se descuenta automáticamente al activar o renovar tu Plan Pro.<br>
-                        <span style="color:#ff8a80;">⚠️ No reembolsable, ni transferible a otras cuentas ni retirable en efectivo/USDT.</span>
+                    {% if saldo_bonus_actual and saldo_bonus_actual > 0 %}
+                    <div class="promo-credit-pill" onclick="this.classList.toggle('show-tt')">
+                        <span translate="no">🎁 Promo: ${{ "%.2f"|format(saldo_bonus_actual) }}</span>
+                        <span>ⓘ</span>
+                        <div class="promo-tooltip-box">
+                            <b style="color:#ffd54f;">🎁 Crédito Promocional</b><br>
+                            Saldo de cortesía otorgado por El Minero Gris. Se descuenta automáticamente al activar o renovar tu Plan Pro.<br>
+                            <span style="color:#ff8a80;">⚠️ No reembolsable, ni transferible a otras cuentas ni retirable en efectivo/USDT.</span>
+                        </div>
                     </div>
-                </div>
-                {% endif %}
+                    {% endif %}
 
-                {% if pro_dias_restantes is not none and pro_dias_restantes > 0 %}
-                <div class="pro-days-chip" translate="no">
-                    🎁 Pro: {{ pro_dias_restantes }}d · {{ (limite_efectivo ~ ' ASICs') if limite_efectivo > 0 else 'Ilimitado' }}
-                </div>
+                    {% if pro_dias_restantes is not none and pro_dias_restantes > 0 %}
+                    <div class="pro-days-chip" translate="no">
+                        🎁 Pro: {{ pro_dias_restantes }}d · {{ (limite_efectivo ~ ' ASICs') if limite_efectivo > 0 else 'Ilimitado' }}
+                    </div>
+                    {% endif %}
                 {% endif %}
             </div>
             <a href="/logout" class="btn-logout-pro">🚪 Cerrar Sesión</a>
@@ -692,7 +704,7 @@
         </div>
         {% endif %}
 
-        {% if mineros_omitidos > 0 and (not es_pro_actual or limite_efectivo > 0) %}
+        {% if mineros_omitidos > 0 and (not es_pro_actual or limite_efectivo > 0) and not es_tecnico %}
         <div class="plan-limit-bar">
             <span>⚠️ <b>Límite de Plan ({{ limite_efectivo }}/{{ limite_efectivo }} activos):</b> Detectamos <b>{{ mineros_omitidos }}</b> equipo(s) adicional(es) en tu red que no se están monitoreando.</span>
             <a href="/plan" class="plan-upgrade-btn">🚀 Ampliar a Pro</a>
@@ -919,7 +931,7 @@
         }
 
         const LIVE_INTERVAL_SEC = 20;
-        const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan', '/admin'];
+        const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan', '/admin', '/hosting', '/tecnicos'];
         let liveSegundos = LIVE_INTERVAL_SEC;
         let livePausadoUsuario = (localStorage.getItem('emg_live_paused') === '1');
         let ultimaVistaOculta = 0;
