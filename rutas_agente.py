@@ -1,5 +1,5 @@
 from flask import Blueprint, redirect, request, session, jsonify, Response
-import psycopg2.extras, json, time, io, hashlib, zipfile, re
+import psycopg2.extras, json, time, io, hashlib, zipfile, re, urllib.request
 from datetime import datetime, timedelta
 
 from db import get_db
@@ -13,6 +13,7 @@ from utils import (
 
 agente_bp = Blueprint('agente_bp', __name__)
 ultima_limpieza_bd = 0
+_cache_apk_version = {"ts": 0, "data": None}
 
 def normalizar_mac(mac_str):
     s = re.sub(r'[^0-9A-Fa-f]', '', str(mac_str or '')).upper()
@@ -51,11 +52,38 @@ def migrar_ip_en_tablas(cur, owner, ip_vieja, ip_nueva):
 
 @agente_bp.route('/api/agente/apk_version')
 def api_agente_apk_version():
-    return jsonify({
-        "version_code": APK_VERSION_CODE,
-        "version_name": APK_VERSION_NAME,
-        "apk_url": "https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris-Agente.apk"
-    }), 200
+    ahora = time.time()
+    if _cache_apk_version["data"] and (ahora - _cache_apk_version["ts"]) < 300:
+        return jsonify(_cache_apk_version["data"]), 200
+
+    version_code = APK_VERSION_CODE
+    version_name = APK_VERSION_NAME
+    apk_url = "https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris-Agente.apk"
+    version_json_url = "https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/version.json"
+
+    try:
+        req = urllib.request.Request(
+            version_json_url,
+            headers={"User-Agent": "ElMineroGris-Server/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status == 200:
+                info = json.loads(resp.read().decode('utf-8'))
+                if info.get("version_code"):
+                    version_code = int(info["version_code"])
+                if info.get("version_name"):
+                    version_name = str(info["version_name"])
+    except Exception:
+        pass
+
+    resultado = {
+        "version_code": version_code,
+        "version_name": version_name,
+        "apk_url": apk_url
+    }
+    _cache_apk_version["ts"] = ahora
+    _cache_apk_version["data"] = resultado
+    return jsonify(resultado), 200
 
 @agente_bp.route('/api/agente/login', methods=['POST'])
 def api_agente_login():
