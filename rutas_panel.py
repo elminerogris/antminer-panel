@@ -572,6 +572,13 @@ def alertas():
             prot_wakeup_on = 1 if request.form.get('prot_wakeup_on') == '1' else 0
             prot_wakeup_min = max(5, min(360, a_int_seguro(request.form.get('prot_wakeup_min'), 30)))
 
+            curt_activo = 1 if request.form.get('curt_activo') == '1' else 0
+            curt_inicio = (request.form.get('curt_inicio') or '18:00').strip()[:5]
+            curt_fin = (request.form.get('curt_fin') or '22:00').strip()[:5]
+            curt_accion = request.form.get('curt_accion', 'profile|low')
+            if curt_accion not in ('profile|low', 'sleep'):
+                curt_accion = 'profile|low'
+
             cur.execute("""
                 UPDATE usuarios
                 SET wd_activo=%s, wd_alcance=%s, wd_granjas=%s, wd_mineros=%s,
@@ -581,14 +588,17 @@ def alertas():
                     prot_activo=%s, prot_temp_on=%s, prot_temp_val=%s, prot_temp_accion=%s,
                     prot_clima_on=%s, prot_clima_val=%s, prot_clima_accion=%s,
                     prot_net_on=%s, prot_net_rej_pct=%s, prot_net_accion=%s,
-                    prot_fan_on=%s, prot_fan_accion=%s, prot_wakeup_on=%s, prot_wakeup_min=%s
+                    prot_fan_on=%s, prot_fan_accion=%s, prot_wakeup_on=%s, prot_wakeup_min=%s,
+                    curt_activo=%s, curt_inicio=%s, curt_fin=%s, curt_accion=%s,
+                    curt_estado_actual=CASE WHEN %s = 0 THEN 'normal' ELSE curt_estado_actual END
                 WHERE username=%s
             """, (wd_activo, wd_alcance, wd_granjas, wd_mineros, wd_zero_hr, wd_cold_on, wd_cold_temp,
                   wd_amb_cold_on, wd_amb_cold_temp, wd_dead_board, wd_gracia_min, wd_cooldown_min,
                   wd_cuarentena_on, wd_max_reinicios, prot_activo, prot_temp_on, prot_temp_val, prot_temp_accion,
                   prot_clima_on, prot_clima_val, prot_clima_accion, prot_net_on, prot_net_rej_pct, prot_net_accion,
-                  prot_fan_on, prot_fan_accion, prot_wakeup_on, prot_wakeup_min, usr_actual))
-            msg = "Reglas de Protección y Watchdog guardadas correctamente."
+                  prot_fan_on, prot_fan_accion, prot_wakeup_on, prot_wakeup_min,
+                  curt_activo, curt_inicio, curt_fin, curt_accion, curt_activo, usr_actual))
+            msg = "Reglas de Protección, Watchdog y Horarios de Energía guardadas correctamente."
         elif accion == 'liberar_cuarentena':
             ip_lib = (request.form.get('ip') or '').strip()
             if ip_lib:
@@ -621,7 +631,8 @@ def alertas():
                prot_activo, prot_temp_on, prot_temp_val, prot_temp_accion,
                prot_clima_on, prot_clima_val, prot_clima_accion,
                prot_net_on, prot_net_rej_pct, prot_net_accion,
-               prot_fan_on, prot_fan_accion, prot_wakeup_on, prot_wakeup_min
+               prot_fan_on, prot_fan_accion, prot_wakeup_on, prot_wakeup_min,
+               curt_activo, curt_inicio, curt_fin, curt_accion, curt_estado_actual
         FROM usuarios WHERE username=%s
     """, (usr_actual,))
     row_u = cur.fetchone() or {}
@@ -665,7 +676,12 @@ def alertas():
         'prot_fan_on': bool(a_int_seguro(row_u.get('prot_fan_on'), 0) == 1),
         'prot_fan_accion': row_u.get('prot_fan_accion') or 'sleep',
         'prot_wakeup_on': bool(a_int_seguro(row_u.get('prot_wakeup_on'), 0) == 1),
-        'prot_wakeup_min': a_int_seguro(row_u.get('prot_wakeup_min'), 30)
+        'prot_wakeup_min': a_int_seguro(row_u.get('prot_wakeup_min'), 30),
+        'curt_activo': bool(a_int_seguro(row_u.get('curt_activo'), 0) == 1),
+        'curt_inicio': row_u.get('curt_inicio') or '18:00',
+        'curt_fin': row_u.get('curt_fin') or '22:00',
+        'curt_accion': row_u.get('curt_accion') or 'profile|low',
+        'curt_estado_actual': row_u.get('curt_estado_actual') or 'normal'
     }
 
     cur.execute("SELECT ip, modelo, worker1, farm_city, watchdog_activo, wd_cuarentena, wd_reinicios_seguidos, wd_motivo_fallo, prot_sleep_desde, prot_motivo FROM mineros_activos WHERE owner=%s", (usr_actual,))
