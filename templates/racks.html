@@ -1,0 +1,235 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .racks-header {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 16px 20px;
+    }
+    .racks-header h1 { margin: 0; font-size: 1.35em; }
+    .racks-header p { margin: 4px 0 0 0; font-size: 0.84em; color: var(--text-muted); }
+
+    .btn-rk-primary {
+        background: linear-gradient(135deg, #3366ff, #2563eb);
+        color: #fff; border: 1px solid #60a5fa;
+        padding: 9px 15px; border-radius: 7px; font-weight: bold; font-size: 0.85em;
+        cursor: pointer;
+    }
+    .btn-rk-danger {
+        background: rgba(255, 82, 82, 0.12); color: #ff8a80;
+        border: 1px solid rgba(255, 82, 82, 0.4);
+        padding: 6px 11px; border-radius: 6px; font-weight: bold; font-size: 0.78em;
+        cursor: pointer;
+    }
+
+    .rack-card {
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 18px; margin-bottom: 20px;
+    }
+    .rack-top {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
+        padding-bottom: 10px; border-bottom: 1px solid var(--border-color);
+    }
+    .rack-title { font-size: 1.1em; font-weight: bold; }
+    .rack-meta { font-size: 0.8em; color: var(--text-muted); font-family: monospace; }
+
+    .rack-grid-wrap { overflow-x: auto; padding-bottom: 6px; }
+    .rack-row {
+        display: flex; gap: 8px; margin-bottom: 8px;
+    }
+    .rack-slot {
+        flex: 1; min-width: 118px; min-height: 76px;
+        border-radius: 8px; padding: 8px 10px;
+        border: 1px dashed rgba(255, 255, 255, 0.14);
+        background: rgba(10, 12, 18, 0.45);
+        cursor: pointer; transition: 0.18s;
+        display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .rack-slot:hover { border-color: #60a5fa; transform: translateY(-1px); }
+    .slot-coord { font-size: 0.68em; color: var(--text-muted); font-family: monospace; }
+
+    .slot-ok { border: 1px solid rgba(0, 230, 118, 0.5); background: rgba(0, 230, 118, 0.10); }
+    .slot-warn { border: 1px solid rgba(255, 179, 0, 0.55); background: rgba(255, 179, 0, 0.12); }
+    .slot-crit { border: 1px solid rgba(255, 82, 82, 0.65); background: rgba(255, 82, 82, 0.16); }
+    .slot-off { border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(148, 163, 184, 0.08); }
+
+    .slot-name { font-weight: bold; font-size: 0.84em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .slot-stats { font-size: 0.75em; font-family: monospace; color: #cbd5e1; margin-top: 3px; }
+
+    /* Modales */
+    .rk-modal-bg {
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+        z-index: 9999; align-items: center; justify-content: center; padding: 16px;
+    }
+    .rk-modal-bg.open { display: flex; }
+    .rk-modal {
+        width: 100%; max-width: 420px; background: var(--bg-card);
+        border: 1px solid var(--border-color); border-radius: 12px; padding: 20px;
+    }
+    .rk-modal h3 { margin: 0 0 12px 0; font-size: 1.08em; }
+    .rk-input, .rk-select {
+        width: 100%; background: var(--bg-input); border: 1px solid var(--border-color);
+        color: var(--text-main); padding: 9px 11px; border-radius: 7px;
+        margin-bottom: 12px; font-size: 0.9em; outline: none;
+    }
+    .rk-lbl { display: block; font-size: 0.74em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
+</style>
+
+<div class="racks-header">
+    <div>
+        <h1>🗂️ Mapa Visual de Racks</h1>
+        <p>Ubica tus equipos por estante, fila y posición. Verde = Óptimo · Amarillo = ≥75°C · Rojo = ≥85°C o 0 TH/s · Gris = Offline.</p>
+    </div>
+    <button type="button" class="btn-rk-primary" onclick="document.getElementById('modalCrearRack').classList.add('open')">+ Nuevo Estante / Rack</button>
+</div>
+
+{% if racks|length == 0 %}
+<div class="rack-card" style="text-align:center; padding:36px 20px;">
+    <h3 style="margin-bottom:8px;">Aún no has creado ningún Estante / Rack</h3>
+    <p style="color:var(--text-muted); font-size:0.88em; margin-bottom:16px;">Crea tu primer estante (ej. "Estante A", 4 filas × 6 columnas) y asigna tus mineros tocando cada espacio.</p>
+    <button type="button" class="btn-rk-primary" onclick="document.getElementById('modalCrearRack').classList.add('open')">+ Crear Primer Rack</button>
+</div>
+{% endif %}
+
+{% for rk in racks %}
+<div class="rack-card">
+    <div class="rack-top">
+        <div>
+            <div class="rack-title">🗄️ {{ rk.nombre }}</div>
+            <div class="rack-meta">{{ rk.ocupados }} / {{ rk.capacidad }} espacios ocupados · {{ rk.filas }} filas × {{ rk.columnas }} columnas</div>
+        </div>
+        <button type="button" class="btn-rk-danger" onclick="eliminarRack('{{ rk.nombre }}')">🗑️ Eliminar Rack</button>
+    </div>
+
+    <div class="rack-grid-wrap">
+        {% for fila in rk.matriz %}
+        <div class="rack-row">
+            {% for celda in fila %}
+                {% if celda.minero %}
+                <div class="rack-slot {{ celda.minero.color_cls }}" onclick="abrirAsignar('{{ rk.nombre }}', {{ celda.fila }}, {{ celda.col }}, '{{ celda.minero.ip }}')">
+                    <div class="slot-coord">F{{ celda.fila }}-P{{ celda.col }}</div>
+                    <div class="slot-name" translate="no">{{ celda.minero.nombre }}</div>
+                    <div class="slot-stats" translate="no">
+                        {% if celda.minero.online %}
+                            {{ celda.minero.hashrate }} {{ celda.minero.unidad }} · {{ celda.minero.temp }}°C
+                        {% else %}
+                            Offline
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="rack-slot" onclick="abrirAsignar('{{ rk.nombre }}', {{ celda.fila }}, {{ celda.col }}, '')">
+                    <div class="slot-coord">F{{ celda.fila }}-P{{ celda.col }}</div>
+                    <div style="font-size:0.76em; color:var(--text-muted); text-align:center;">+ Asignar</div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Crear Rack -->
+<div class="rk-modal-bg" id="modalCrearRack" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="rk-modal">
+        <h3>➕ Crear Estante / Rack</h3>
+        <label class="rk-lbl">Nombre del Estante</label>
+        <input type="text" id="rkNombre" class="rk-input" placeholder="Ej: Estante A">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div>
+                <label class="rk-lbl">Filas (1–12)</label>
+                <input type="number" id="rkFilas" class="rk-input" value="4" min="1" max="12">
+            </div>
+            <div>
+                <label class="rk-lbl">Posiciones por fila (1–16)</label>
+                <input type="number" id="rkCols" class="rk-input" value="6" min="1" max="16">
+            </div>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button type="button" class="btn-rk-danger" onclick="document.getElementById('modalCrearRack').classList.remove('open')">Cancelar</button>
+            <button type="button" class="btn-rk-primary" onclick="crearRack()">Guardar Rack</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Asignar / Ver Posición -->
+<div class="rk-modal-bg" id="modalAsignar" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="rk-modal">
+        <h3 id="asigTitulo">Asignar Minero</h3>
+        <label class="rk-lbl">Seleccionar Minero</label>
+        <select id="asigSelectIp" class="rk-select">
+            <option value="">-- Dejar espacio vacío --</option>
+            {% for m in mineros %}
+            <option value="{{ m.ip }}">{{ m.nombre }} ({{ m.ip }}) — {{ m.modelo }}</option>
+            {% endfor %}
+        </select>
+        <div id="asigLinkWrap" style="margin-bottom:12px; display:none;">
+            <a id="asigLinkMinero" href="#" class="btn-rk-primary" style="display:block; text-align:center;">🔍 Abrir Detalle del Minero</a>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button type="button" class="btn-rk-danger" onclick="document.getElementById('modalAsignar').classList.remove('open')">Cerrar</button>
+            <button type="button" class="btn-rk-primary" onclick="guardarAsignacion()">Guardar Posición</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selRack = '', selFila = 0, selCol = 0;
+
+    function crearRack() {
+        const nombre = document.getElementById('rkNombre').value.trim();
+        const filas = parseInt(document.getElementById('rkFilas').value) || 4;
+        const columnas = parseInt(document.getElementById('rkCols').value) || 6;
+        if (!nombre) return alert('Escribe un nombre para el estante.');
+        fetch('/api/racks/crear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, filas, columnas })
+        }).then(r => r.json()).then(d => {
+            if (d.status === 'ok') window.location.reload();
+            else alert(d.msg || 'Error creando rack');
+        });
+    }
+
+    function eliminarRack(nombre) {
+        if (!confirm(`¿Eliminar el estante "${nombre}"? Tus mineros no se borrarán, solo quedarán sin posición.`)) return;
+        fetch('/api/racks/eliminar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre })
+        }).then(() => window.location.reload());
+    }
+
+    function abrirAsignar(rack, fila, col, ipActual) {
+        selRack = rack; selFila = fila; selCol = col;
+        document.getElementById('asigTitulo').innerText = `📍 ${rack} · Fila ${fila}, Posición ${col}`;
+        document.getElementById('asigSelectIp').value = ipActual || '';
+        const linkWrap = document.getElementById('asigLinkWrap');
+        const linkEl = document.getElementById('asigLinkMinero');
+        if (ipActual) {
+            linkWrap.style.display = 'block';
+            linkEl.href = '/minero/' + ipActual;
+        } else {
+            linkWrap.style.display = 'none';
+        }
+        document.getElementById('modalAsignar').classList.add('open');
+    }
+
+    function guardarAsignacion() {
+        const ip = document.getElementById('asigSelectIp').value;
+        fetch('/api/racks/asignar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ip: ip,
+                rack_nombre: ip ? selRack : '',
+                fila: ip ? selFila : 0,
+                col: ip ? selCol : 0
+            })
+        }).then(() => window.location.reload());
+    }
+</script>
+{% endblock %}
