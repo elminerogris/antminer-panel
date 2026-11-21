@@ -47,7 +47,6 @@ def resolver_nombre_dispositivo(brand, model, device_type):
     if m_up in MODELOS_COMERCIALES:
         return MODELOS_COMERCIALES[m_up]
 
-    # Si model ya incluye la marca (ej: "Xiaomi Mi A2 Lite" o "Samsung SM-A107M")
     if b and m_up.startswith(b.upper() + " "):
         solo_m = m[len(b):].strip()
         if solo_m.upper() in MODELOS_COMERCIALES:
@@ -83,6 +82,47 @@ def despachar_comando(cur, owner, ip, comando, fecha=None):
         (owner, agent_id, ip, comando, estado, ahora)
     )
     return enviado
+
+# --- Portada Pública y SEO ---
+@panel_bp.route('/')
+def landing_o_resumen():
+    if 'usuario' in session:
+        return redirect('/resumen')
+    return render_seguro('landing.html')
+
+@panel_bp.route('/robots.txt')
+def robots_txt():
+    contenido = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /api/\n"
+        "Disallow: /proxy/\n"
+        "Disallow: /cmd/\n"
+        "Sitemap: https://elminerogris.com/sitemap.xml\n"
+    )
+    return Response(contenido, mimetype="text/plain")
+
+@panel_bp.route('/sitemap.xml')
+def sitemap_xml():
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://elminerogris.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://elminerogris.com/login</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://elminerogris.com/register</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>"""
+    return Response(xml, mimetype="application/xml")
 
 # --- APIs de Granjas y Sedes ---
 @panel_bp.route('/api/granjas/guardar', methods=['POST'])
@@ -258,7 +298,6 @@ def api_guardar_gps():
     return jsonify({"status": "ok", "lat": lat, "lon": lon, "ciudad": ciudad, "pais": pais, "owner": owner_target})
 
 # --- Vistas Principales ---
-@panel_bp.route('/')
 @panel_bp.route('/resumen')
 @login_required
 def index():
@@ -1018,7 +1057,7 @@ def login():
             session['plan'] = usr.get('plan', 'Gratis')
             session['saldo'] = usr.get('saldo', 0.0)
             session['last_seen_ts'] = time.time()
-            return redirect('/')
+            return redirect('/resumen')
         return render_seguro('login.html', error='Credenciales incorrectas', mode='login')
     return render_seguro('login.html', mode='login')
 
@@ -1048,7 +1087,7 @@ def register():
 @panel_bp.route('/logout')
 def logout():
     session.clear()
-    return redirect('/login')
+    return redirect('/')
 
 # --- Comandos, Logs, Exportación y Live ---
 @panel_bp.route('/guardar_nombre', methods=['POST'])
