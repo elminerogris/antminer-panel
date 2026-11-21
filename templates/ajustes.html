@@ -1,7 +1,6 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    /* Encabezado de Ajustes */
     .settings-header {
         display: flex;
         align-items: center;
@@ -42,7 +41,6 @@
         box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
     }
 
-    /* Notificación Flash del Servidor */
     .alert-msg-pro {
         background: linear-gradient(90deg, rgba(0, 230, 118, 0.14) 0%, rgba(0, 230, 118, 0.04) 100%);
         border: 1px solid rgba(0, 230, 118, 0.45);
@@ -58,7 +56,6 @@
         box-shadow: 0 0 14px rgba(0, 230, 118, 0.18);
     }
 
-    /* Grilla Principal */
     .grid-ajustes {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -87,9 +84,7 @@
         font-size: 1.02em;
         color: var(--text-main);
     }
-    .card-pro-body {
-        padding: 18px;
-    }
+    .card-pro-body { padding: 18px; }
     .panel-sub {
         color: var(--text-muted);
         font-size: 0.83em;
@@ -97,7 +92,6 @@
         line-height: 1.45;
     }
 
-    /* Caja de API Key */
     .api-box-pro {
         background: rgba(10, 12, 18, 0.85);
         border: 1px solid rgba(59, 130, 246, 0.45);
@@ -114,16 +108,8 @@
         margin-bottom: 16px;
         box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 12px rgba(59, 130, 246, 0.15);
     }
-    .api-key-val {
-        word-break: break-all;
-        letter-spacing: 0.5px;
-    }
-    .api-actions {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-shrink: 0;
-    }
+    .api-key-val { word-break: break-all; letter-spacing: 0.5px; }
+    .api-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .btn-mini-icon {
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid var(--border-color);
@@ -141,7 +127,6 @@
         color: #fff;
     }
 
-    /* Formularios */
     .form-group { margin-bottom: 14px; }
     .form-label {
         display: block;
@@ -152,11 +137,7 @@
         text-transform: uppercase;
         letter-spacing: 0.4px;
     }
-    .input-wrap {
-        position: relative;
-        display: flex;
-        align-items: center;
-    }
+    .input-wrap { position: relative; display: flex; align-items: center; }
     .form-input {
         width: 100%;
         background: rgba(10, 12, 18, 0.7);
@@ -188,13 +169,7 @@
     }
     .btn-eye:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
 
-    /* Píldoras rápidas de Subred */
-    .subnet-presets {
-        display: flex;
-        gap: 5px;
-        margin-top: 6px;
-        flex-wrap: wrap;
-    }
+    .subnet-presets { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
     .sub-pill {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border-color);
@@ -213,12 +188,26 @@
         background: rgba(51, 102, 255, 0.16);
     }
 
-    /* Botones con Neon Glow */
-    .btn-row {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
+    .asic-cred-box {
+        background: rgba(10, 12, 18, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 14px;
     }
+    .asic-cred-title {
+        font-size: 0.78em;
+        font-weight: bold;
+        color: #60a5fa;
+        margin-bottom: 4px;
+    }
+    .asic-cred-sub {
+        font-size: 0.74em;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+    }
+
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
     .btn-main-pro {
         background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
         color: #fff;
@@ -237,10 +226,7 @@
         box-shadow: 0 0 14px rgba(59, 130, 246, 0.4);
         flex: 1 1 auto;
     }
-    .btn-main-pro:hover {
-        box-shadow: 0 0 22px rgba(59, 130, 246, 0.75);
-        transform: translateY(-1px);
-    }
+    .btn-main-pro:hover { box-shadow: 0 0 22px rgba(59, 130, 246, 0.75); transform: translateY(-1px); }
     .btn-android-pro {
         background: linear-gradient(135deg, rgba(0, 230, 118, 0.20) 0%, rgba(16, 185, 129, 0.14) 100%);
         color: #00e676;
@@ -282,11 +268,7 @@
         text-decoration: none;
         flex: 1 1 auto;
     }
-    .btn-outline-pro:hover {
-        border-color: #3b82f6;
-        background: rgba(51, 102, 255, 0.16);
-        color: #fff;
-    }
+    .btn-outline-pro:hover { border-color: #3b82f6; background: rgba(51, 102, 255, 0.16); color: #fff; }
     .btn-danger-pro {
         background: rgba(255, 82, 82, 0.08);
         color: #ff5252;
@@ -309,7 +291,6 @@
         box-shadow: 0 0 14px rgba(255, 82, 82, 0.45);
     }
 
-    /* Guía de Instalación con Pestañas */
     .guide-box {
         margin-top: 20px;
         padding-top: 16px;
@@ -372,7 +353,6 @@
         min-height: 15px;
     }
 
-    /* Toast */
     .settings-toast {
         position: fixed;
         bottom: 22px;
@@ -392,7 +372,6 @@
 
 <div id="settingsToast" class="settings-toast" translate="no"></div>
 
-<!-- Encabezado -->
 <div class="settings-header">
     <div>
         <h1>⚙️ Ajustes del Sistema y Agente</h1>
@@ -444,6 +423,26 @@
                         <input type="number" step="0.001" min="0" name="tarifa_kwh" class="form-input" value="{{ user.tarifa_kwh }}" placeholder="0.08" required>
                     </div>
                 </div>
+
+                <!-- Credenciales HTTP personalizadas de los ASICs -->
+                <div class="asic-cred-box">
+                    <div class="asic-cred-title">🔐 Clave personalizada de tus Antminer (Opcional)</div>
+                    <div class="asic-cred-sub">Si cambiaste la contraseña de fábrica (<code>root/root</code>), ingrésala aquí para que el agente pueda reiniciar y leer la red de tus equipos.</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <div>
+                            <label class="form-label">Usuario ASIC</label>
+                            <input type="text" name="miner_user" class="form-input" value="{{ user.miner_user or 'root' }}" placeholder="root" translate="no">
+                        </div>
+                        <div>
+                            <label class="form-label">Contraseña ASIC</label>
+                            <div class="input-wrap">
+                                <input type="password" id="minerPassInput" name="miner_pass" class="form-input with-eye" value="{{ user.miner_pass or '' }}" placeholder="root (de fábrica)">
+                                <button type="button" class="btn-eye" onclick="togglePassField('minerPassInput', this)">👁️</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="btn-row" style="margin-bottom: 10px;">
                     <button type="submit" class="btn-outline-pro" style="width:100%;">💾 Guardar Preferencias</button>
                 </div>
@@ -467,7 +466,6 @@
             <span style="font-size:0.74em; color:var(--text-muted); font-family:monospace;" translate="no">{{ user.username }}</span>
         </div>
         <div class="card-pro-body">
-            <!-- Editar Nombre de Usuario -->
             <form action="/ajustes" method="POST" style="margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
                 <input type="hidden" name="accion" value="cambiar_username">
                 <div class="form-group">
@@ -481,7 +479,6 @@
                 {% endif %}
             </form>
 
-            <!-- Editar Contraseña -->
             <form action="/ajustes" method="POST" onsubmit="return validarClavesAntesDeEnviar();">
                 <input type="hidden" name="accion" value="cambiar_password">
                 <div class="form-group">
@@ -502,7 +499,6 @@
                 <button type="submit" class="btn-main-pro" style="width:100%;">🔐 Actualizar Contraseña</button>
             </form>
 
-            <!-- Guía rápida con pestañas actualizadas -->
             <div class="guide-box">
                 <div style="font-weight:bold; font-size:0.88em; margin-bottom:10px; color:var(--text-main);">🚀 Instalación Rápida del Agente</div>
                 <div class="guide-tabs">
