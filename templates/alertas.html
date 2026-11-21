@@ -51,6 +51,11 @@
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid var(--border-color);
     }
+    .wd-status-badge.pico {
+        color: #ffd54f;
+        background: rgba(255, 179, 0, 0.16);
+        border: 1px solid rgba(255, 179, 0, 0.45);
+    }
     .btn-guia-wd {
         background: rgba(56, 189, 248, 0.10);
         border: 1px solid rgba(56, 189, 248, 0.35);
@@ -394,6 +399,7 @@
     .sel-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: #00e676; }
 
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .three-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 
     .hist-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .hist-table-pro { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 0.83em; }
@@ -418,7 +424,8 @@
         font-family: monospace;
     }
     .badge-TEMP, .badge-CORTE_TERMICO { background: rgba(255, 82, 82, 0.14); color: #ff8a80; border: 1px solid rgba(255, 82, 82, 0.4); }
-    .badge-HASHRATE { background: rgba(255, 179, 0, 0.14); color: #ffd54f; border: 1px solid rgba(255, 179, 0, 0.4); }
+    .badge-HASHRATE, .badge-HORARIO_PICO { background: rgba(255, 179, 0, 0.14); color: #ffd54f; border: 1px solid rgba(255, 179, 0, 0.4); }
+    .badge-HORARIO_NORMAL, .badge-GRANJA_ONLINE { background: rgba(0, 230, 118, 0.14); color: #69f0ae; border: 1px solid rgba(0, 230, 118, 0.4); }
     .badge-WATCHDOG_REBOOT { background: rgba(51, 102, 255, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.45); }
     .badge-WATCHDOG_CUARENTENA { background: rgba(168, 85, 247, 0.20); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.5); }
 
@@ -490,7 +497,7 @@
     <div class="wd-card-pro">
         <div class="wd-header-pro">
             <div class="wd-title-group">
-                <span class="wd-title-txt">🎯 Alcance de Automatización (Protección y Watchdog)</span>
+                <span class="wd-title-txt">🎯 Alcance de Automatización (Protección, Watchdog y Horarios)</span>
                 <button type="button" class="btn-guia-wd" onclick="toggleGuiaWd()">💡 ¿Cómo funciona?</button>
             </div>
             <button type="submit" class="btn-neon-save" id="btnGuardarAutoTop">
@@ -500,9 +507,10 @@
 
         <div id="wdBeginnerGuide" class="wd-beginner-guide">
             <b>👋 Todo inicia desactivado por seguridad:</b><br>
-            1. Elige aquí si las reglas aplican a <b>Toda tu cuenta</b>, solo a <b>una Granja</b> o a <b>Mineros específicos</b>.<br>
-            2. A la izquierda configura <b>Protección y Apagado</b> (calor del ASIC, clima exterior, internet inestable, ventilador 0 RPM y auto-despertar).<br>
-            3. A la derecha configura <b>Watchdog / Auto-Reinicio</b> (0 TH/s, temp. fría de chips o ambiente, placa caída y cuarentena anti-bucle), y presiona <b>Guardar</b>.
+1. Elige aquí si las reglas aplican a <b>Toda tu cuenta</b>, solo a <b>una Granja</b> o a <b>Mineros específicos</b>.<br>
+2. A la izquierda configura <b>Protección y Apagado</b> (calor del ASIC, clima exterior, internet inestable, ventilador 0 RPM y auto-despertar).<br>
+3. A la derecha configura <b>Watchdog / Auto-Reinicio</b> (0 TH/s, temp. fría de chips o ambiente, placa caída y cuarentena anti-bucle).<br>
+4. Abajo puedes programar <b>Horarios de Energía (Tarifa Pico)</b> para bajar potencia o dormir equipos automáticamente en horas caras y despertarlos al terminar.
         </div>
 
         <div class="wd-subbar" translate="no">
@@ -758,6 +766,52 @@
             </div>
         </div>
     </div>
+
+    <!-- BLOQUE 3: HORARIOS DE ENERGÍA (TARIFA PICO / CURTAILMENT) -->
+    <div class="wd-card-pro">
+        <div class="wd-header-pro">
+            <div class="wd-title-group">
+                <span class="wd-title-txt">⏰ Horarios de Energía (Tarifa Pico / Curtailment)</span>
+                <span class="wd-status-badge {{ 'on' if wd.curt_activo else 'off' }}">
+                    {{ '● ACTIVO' if wd.curt_activo else '○ OFF' }}
+                </span>
+                {% if wd.curt_activo and wd.curt_estado_actual == 'pico' %}
+                <span class="wd-status-badge pico">⚡ EN HORA PICO</span>
+                {% endif %}
+            </div>
+            <button type="submit" class="btn-neon-save">
+                <span>💾</span><span class="txt-guardar-auto">Guardar Horario</span>
+            </button>
+        </div>
+
+        <div class="wd-body">
+            <div class="rule-row-pro" style="border-color: {{ 'rgba(255,179,0,0.45)' if wd.curt_activo else 'var(--border-color)' }}; margin-bottom:12px;">
+                <label class="rule-left">
+                    <input type="checkbox" name="curt_activo" id="curt_activo" value="1" {% if wd.curt_activo %}checked{% endif %} onchange="marcarAutoEditado()">
+                    <span>Activar ahorro automático en Horario de Tarifa Pico (Hora Bolivia, UTC-4)</span>
+                </label>
+                <span class="info-dot" data-wd-tt="curt_master">i</span>
+            </div>
+
+            <div class="three-col">
+                <div>
+                    <div class="wd-section-lbl" style="margin-top:0;">Hora Inicio (Pico)</div>
+                    <input type="time" name="curt_inicio" id="curt_inicio" class="input-pro-dark" value="{{ wd.curt_inicio }}" onchange="marcarAutoEditado()">
+                </div>
+                <div>
+                    <div class="wd-section-lbl" style="margin-top:0;">Hora Fin (Vuelve a Normal)</div>
+                    <input type="time" name="curt_fin" id="curt_fin" class="input-pro-dark" value="{{ wd.curt_fin }}" onchange="marcarAutoEditado()">
+                </div>
+                <div>
+                    <div class="wd-section-lbl" style="margin-top:0;">Acción en Hora Pico</div>
+                    <select name="curt_accion" id="curt_accion" class="input-pro-dark" onchange="marcarAutoEditado()">
+                        <option value="profile|low" {% if wd.curt_accion == 'profile|low' %}selected{% endif %}>🔋 Low Power (Bajo Consumo)</option>
+                        <option value="sleep" {% if wd.curt_accion == 'sleep' %}selected{% endif %}>🌙 Sleep (Reposo Total)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
 </form>
 
 <!-- TARJETA TELEGRAM -->
@@ -874,7 +928,8 @@
         'rule_gracia': { titulo: '⏱️ Tiempo de Gracia', desc: 'Minutos seguidos de fallo antes de actuar, para no interrumpir arranques normales.', rango: 'Recomendado: 5 a 10 min' },
         'rule_cooldown': { titulo: '🧊 Espera entre Reinicios', desc: 'Tiempo mínimo entre reinicios de una misma máquina.', rango: 'Recomendado: 30 min' },
         'rule_cuarentena': { titulo: '🔒 Cuarentena Anti-Bucle', desc: 'Si tras N reinicios sigue fallando, lo pone en Sleep para evitar bucles infinitos.', rango: 'Recomendado: 3 intentos' },
-        'tg_info': { titulo: '📲 Notificaciones Telegram', desc: 'Recibe avisos en tiempo real cuando se active una protección, reinicio o cuarentena.', rango: 'Configura Token y Chat ID' },
+        'curt_master': { titulo: '⏰ Horario de Tarifa Pico', desc: 'Pasa automáticamente tus equipos a Low Power o Sleep durante el horario eléctrico más caro y los devuelve a Normal al terminar.', rango: 'Ej: 18:00 a 22:00 (UTC-4)' },
+        'tg_info': { titulo: '📲 Notificaciones Telegram', desc: 'Recibe avisos en tiempo real cuando se active una protección, reinicio, cuarentena o cambio de horario.', rango: 'Configura Token y Chat ID' },
         'presets_wd': { titulo: '⚡ Perfiles Rápidos', desc: 'Marca o desmarca reglas de ejemplo sin guardar hasta que presiones Guardar.', rango: 'Solo prepara el formulario' },
         'stat_granjas': { titulo: '🏭 Granjas', desc: 'Agrupadas según la ubicación GPS y subred de tus equipos.', rango: 'Filtrables en Alcance' },
         'stat_mineros': { titulo: '⛏️ Equipos', desc: 'Total de mineros en tu cuenta.', rango: 'Seleccionables uno a uno' },
@@ -900,7 +955,7 @@
     function aplicarPerfilAuto(tipo) {
         if (tipo === 'apagar_todo') {
             ['prot_activo','prot_temp_on','prot_clima_on','prot_net_on','prot_fan_on','prot_wakeup_on',
-             'wd_activo','wd_zero_hr','wd_cold_on','wd_amb_cold_on','wd_dead_board','wd_cuarentena_on'].forEach(id => {
+             'wd_activo','wd_zero_hr','wd_cold_on','wd_amb_cold_on','wd_dead_board','wd_cuarentena_on','curt_activo'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.checked = false;
             });
