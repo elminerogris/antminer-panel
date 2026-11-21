@@ -1,7 +1,6 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    /* Encabezado de Gestión de Granjas */
     .farms-header {
         display: flex;
         align-items: center;
@@ -47,10 +46,9 @@
         transform: translateY(-1px);
     }
 
-    /* Grilla de Tarjetas de Granjas */
     .farms-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
         gap: 20px;
     }
     @media (max-width: 500px) {
@@ -71,7 +69,6 @@
         box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
     }
 
-    /* Cabecera de cada Granja */
     .farm-card-top {
         padding: 16px 18px;
         background: rgba(255, 255, 255, 0.015);
@@ -82,12 +79,28 @@
         gap: 10px;
     }
     .farm-name {
-        font-size: 1.15em;
+        font-size: 1.12em;
         font-weight: bold;
         color: var(--text-main);
         display: flex;
         align-items: center;
         gap: 8px;
+        flex-wrap: wrap;
+    }
+    .btn-inline-edit {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        border-radius: 5px;
+        padding: 2px 7px;
+        font-size: 0.72em;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+    .btn-inline-edit:hover {
+        color: #fff;
+        border-color: #60a5fa;
+        background: rgba(59, 130, 246, 0.2);
     }
     .farm-meta {
         font-size: 0.78em;
@@ -111,7 +124,6 @@
     .farm-pill-status.warn { background: rgba(255, 179, 0, 0.14); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.4); }
     .farm-pill-status.crit { background: rgba(255, 82, 82, 0.15); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); }
 
-    /* KPIs internos de la Granja */
     .farm-kpis {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -129,9 +141,8 @@
         padding: 8px 10px;
     }
     .fk-label { font-size: 0.68em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
-    .fk-val { font-size: 1.08em; font-weight: bold; font-family: monospace; margin-top: 3px; color: var(--text-main); }
+    .fk-val { font-size: 1.05em; font-weight: bold; font-family: monospace; margin-top: 3px; color: var(--text-main); }
 
-    /* Medidor de Carga del Transformador (Power Capacity) */
     .power-gauge-box {
         padding: 12px 18px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -167,7 +178,60 @@
     }
     .btn-edit-cap:hover { color: #fff; border-color: #3b82f6; }
 
-    /* Bloque Router / Gateway de la Sede */
+    /* Bloque Telemetría del Agente */
+    .agent-info-box {
+        padding: 12px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(15, 23, 42, 0.35);
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+    }
+    .agent-info-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .agent-dev-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.85em;
+        font-weight: bold;
+        color: var(--text-main);
+    }
+    .agent-mode-badge {
+        background: rgba(56, 189, 248, 0.14);
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        color: #38bdf8;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.72em;
+        font-family: monospace;
+        font-weight: bold;
+    }
+    .agent-specs-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        font-size: 0.76em;
+        font-family: monospace;
+        color: var(--text-muted);
+    }
+    .agent-chip {
+        background: rgba(10, 12, 18, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        padding: 3px 8px;
+        border-radius: 5px;
+        color: #cbd5e1;
+    }
+    .agent-chip.batt-ok { border-color: rgba(0, 230, 118, 0.35); color: #00e676; }
+    .agent-chip.batt-warn { border-color: rgba(255, 179, 0, 0.45); color: #ffb300; }
+    .agent-chip.batt-crit { border-color: rgba(255, 82, 82, 0.5); color: #ff5252; }
+
+    /* Bloque Router */
     .router-card-box {
         padding: 12px 18px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -178,14 +242,10 @@
         gap: 12px;
         flex-wrap: wrap;
     }
-    .router-left {
-        display: flex;
-        align-items: center;
-        gap: 11px;
-    }
+    .router-left { display: flex; align-items: center; gap: 11px; }
     .router-art {
-        width: 46px;
-        height: 40px;
+        width: 44px;
+        height: 38px;
         border-radius: 8px;
         background: rgba(51, 102, 255, 0.12);
         border: 1px solid rgba(96, 165, 250, 0.35);
@@ -194,41 +254,21 @@
         justify-content: center;
         flex-shrink: 0;
     }
-    .router-title {
-        font-size: 0.86em;
-        font-weight: bold;
-        color: var(--text-main);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .router-sub {
-        font-size: 0.75em;
-        color: var(--text-muted);
-        font-family: monospace;
-        margin-top: 2px;
-    }
-    .router-actions {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
+    .router-title { font-size: 0.85em; font-weight: bold; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
+    .router-sub { font-size: 0.74em; color: var(--text-muted); font-family: monospace; margin-top: 2px; }
+    .router-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .btn-router-enter {
         background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
         color: #fff;
         border: 1px solid #60a5fa;
-        padding: 6px 12px;
+        padding: 6px 11px;
         border-radius: 6px;
-        font-size: 0.78em;
+        font-size: 0.76em;
         font-weight: bold;
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        transition: 0.18s;
-    }
-    .btn-router-enter:hover {
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.55);
+        text-decoration: none;
     }
     .btn-router-ssl {
         background: rgba(255, 255, 255, 0.03);
@@ -236,20 +276,15 @@
         color: var(--text-muted);
         padding: 6px 9px;
         border-radius: 6px;
-        font-size: 0.74em;
+        font-size: 0.73em;
         font-weight: bold;
         font-family: monospace;
+        text-decoration: none;
     }
-    .btn-router-ssl:hover {
-        border-color: #38bdf8;
-        color: #38bdf8;
-    }
+    .btn-router-ssl:hover { border-color: #38bdf8; color: #38bdf8; }
 
-    /* Mapa Térmico Visual de Rack (Live Grid) */
-    .rack-map-box {
-        padding: 12px 18px;
-        flex: 1;
-    }
+    /* Mapa Térmico de Rack */
+    .rack-map-box { padding: 12px 18px; flex: 1; }
     .rack-map-title {
         font-size: 0.75em;
         color: var(--text-muted);
@@ -262,15 +297,16 @@
     }
     .rack-tiles-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
         gap: 7px;
     }
+    .rack-tile-wrap { position: relative; }
     .rack-tile {
-        padding: 7px 6px;
+        padding: 8px 6px 7px 6px;
         border-radius: 6px;
         text-align: center;
         font-family: monospace;
-        font-size: 0.76em;
+        font-size: 0.75em;
         border: 1px solid transparent;
         text-decoration: none;
         transition: all 0.18s ease;
@@ -278,17 +314,28 @@
         flex-direction: column;
         gap: 2px;
     }
-    .rack-tile:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    }
+    .rack-tile:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }
     .rack-tile.ok { background: rgba(0, 230, 118, 0.10); border-color: rgba(0, 230, 118, 0.35); color: #00e676; }
     .rack-tile.warn { background: rgba(255, 179, 0, 0.14); border-color: rgba(255, 179, 0, 0.45); color: #ffb300; }
     .rack-tile.crit { background: rgba(255, 82, 82, 0.16); border-color: rgba(255, 82, 82, 0.5); color: #ff5252; }
-    .rack-tile.off { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.12); color: var(--text-muted); opacity: 0.7; }
-    .rack-tile-name { font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rack-tile.off { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.12); color: var(--text-muted); opacity: 0.75; }
+    .rack-tile-name { font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
+    .btn-asic-edit {
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        background: rgba(10, 12, 18, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: #cbd5e1;
+        border-radius: 4px;
+        font-size: 0.65em;
+        padding: 1px 4px;
+        cursor: pointer;
+        line-height: 1.2;
+    }
+    .btn-asic-edit:hover { background: #2563eb; color: #fff; border-color: #60a5fa; }
 
-    /* Botonera de Acciones Rápidas de Granja (1-Clic) */
+    /* Botonera de Acciones */
     .farm-actions-bar {
         padding: 12px 18px;
         background: rgba(10, 12, 18, 0.5);
@@ -303,9 +350,9 @@
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border-color);
         color: var(--text-main);
-        padding: 6px 11px;
+        padding: 6px 10px;
         border-radius: 6px;
-        font-size: 0.78em;
+        font-size: 0.77em;
         font-weight: bold;
         cursor: pointer;
         transition: all 0.18s ease;
@@ -314,15 +361,11 @@
     }
     .btn-farm-cmd:hover { border-color: #3b82f6; background: rgba(51, 102, 255, 0.18); color: #fff; }
     .btn-farm-cmd.scan { color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); }
-    .btn-farm-cmd.scan:hover { background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #fff; }
     .btn-farm-cmd.eco { color: #00e676; border-color: rgba(0, 230, 118, 0.35); }
-    .btn-farm-cmd.eco:hover { background: rgba(0, 230, 118, 0.2); border-color: #00e676; color: #fff; }
     .btn-farm-cmd.sleep { color: #ffb300; border-color: rgba(255, 179, 0, 0.35); }
-    .btn-farm-cmd.sleep:hover { background: rgba(255, 179, 0, 0.2); border-color: #ffb300; color: #fff; }
     .btn-farm-cmd.reboot { color: #ff5252; border-color: rgba(255, 82, 82, 0.35); }
-    .btn-farm-cmd.reboot:hover { background: rgba(255, 82, 82, 0.22); border-color: #ff5252; color: #fff; }
 
-    /* Modal para Crear / Editar Granja */
+    /* Modales */
     .farm-modal-overlay {
         display: none;
         position: fixed;
@@ -339,12 +382,12 @@
         border: 1px solid rgba(59, 130, 246, 0.4);
         border-radius: 10px;
         padding: 22px;
-        max-width: 440px;
+        max-width: 450px;
         width: 100%;
         box-shadow: 0 14px 40px rgba(0, 0, 0, 0.75);
     }
-    .fm-group { margin-bottom: 14px; }
-    .fm-group label { display: block; font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
+    .fm-group { margin-bottom: 13px; }
+    .fm-group label { display: block; font-size: 0.74em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
     .fm-input {
         width: 100%;
         background: rgba(10, 12, 18, 0.75);
@@ -355,6 +398,7 @@
         font-family: monospace;
         font-size: 0.9em;
         outline: none;
+        box-sizing: border-box;
     }
     .fm-input:focus { border-color: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.35); }
 
@@ -377,330 +421,24 @@
 
 <div id="farmToast" class="farm-toast" translate="no"></div>
 
-<!-- Modal: Nueva Granja / Configurar Capacidad -->
-<div class="farm-modal-overlay" id="farmModal">
-    <div class="farm-modal-box">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px; margin-bottom:16px;">
-            <span style="font-weight:bold; font-size:1.1em;" id="farmModalTitle">🏭 Nueva Granja / Sede</span>
-            <button type="button" class="btn-edit-cap" onclick="cerrarFarmModal()">✖</button>
-        </div>
-        <input type="hidden" id="fm_id">
-        <div class="fm-group">
-            <label>Nombre de la Granja / Galpón</label>
-            <input type="text" id="fm_nombre" class="fm-input" placeholder="Ej: Galpón Norte - Santa Cruz">
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-            <div class="fm-group">
-                <label>Capacidad Transformador (kW)</label>
-                <input type="number" id="fm_cap_kw" class="fm-input" value="50" min="1">
-            </div>
-            <div class="fm-group">
-                <label>Tarifa Eléctrica (USD/kWh)</label>
-                <input type="number" step="0.01" id="fm_tarifa" class="fm-input" value="0.06" min="0">
-            </div>
-        </div>
-        <div class="fm-group">
-            <label>IP del Router / Gateway (opcional si ya auto-detecta)</label>
-            <input type="text" id="fm_gateway" class="fm-input" placeholder="Ej: 192.168.0.125 o 192.168.1.200">
-        </div>
-        <div class="fm-group">
-            <label>Subred / Notas del Técnico</label>
-            <input type="text" id="fm_notas" class="fm-input" placeholder="Ej: 192.168.1.x · Transformador 75 kVA">
-        </div>
-        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
-            <button type="button" class="btn-farm-cmd" style="flex:0 0 auto; padding:8px 14px;" onclick="cerrarFarmModal()">Cancelar</button>
-            <button type="button" class="btn-new-farm" onclick="guardarConfigGranja()">💾 Guardar Sede</button>
-        </div>
-    </div>
-</div>
+{% include "granjas_partes/_header.html" %}
 
-<!-- Encabezado -->
-<div class="farms-header">
-    <div>
-        <h1>🏭 Gestión de Granjas y Sedes</h1>
-        <p>Supervisa la carga eléctrica de tus transformadores, entra al router local y controla tus equipos por sede.</p>
-    </div>
-    <button type="button" class="btn-new-farm" onclick="abrirNuevaGranjaModal()">＋ Nueva Granja</button>
-</div>
-
-<!-- Grilla de Granjas Activas (Detectadas automáticamente + Personalizadas) -->
 <div class="farms-grid" id="farmsGridContainer">
     {% for g in granjas %}
-    {% set ips_lista = g.mineros | map(attribute='ip') | list %}
-    <div class="farm-card" data-farm-id="{{ g.id }}" data-consumo-kw="{{ g.consumo_kw }}" data-default-gw="{{ g.gateway }}" data-agent-id="{{ g.agent_id }}">
-        <div class="farm-card-top">
-            <div>
-                <div class="farm-name">
-                    <span>🏭</span>
-                    <span class="farm-name-label" translate="no">{{ g.nombre }}</span>
-                </div>
-                <div class="farm-meta" translate="no">
-                    <span>📍 {{ g.ciudad }}</span>
-                    <span>·</span>
-                    <span>🌐 {{ g.subred }}</span>
-                </div>
-            </div>
-            {% if g.offline > 0 or g.temp_max >= 85 %}
-                <span class="farm-pill-status crit">⚠️ Atención ({{ g.online }}/{{ g.total }})</span>
-            {% elif g.temp_max >= 75 %}
-                <span class="farm-pill-status warn">🔥 Caliente ({{ g.temp_max }}°C)</span>
-            {% else %}
-                <span class="farm-pill-status ok">● Óptima ({{ g.online }}/{{ g.total }})</span>
-            {% endif %}
-        </div>
-
-        <!-- KPIs de la Sede -->
-        <div class="farm-kpis" translate="no">
-            <div class="fk-item">
-                <div class="fk-label">Hashrate</div>
-                <div class="fk-val" style="color:#3b82f6;">{{ g.hashrate }} <span style="font-size:0.68em;color:var(--text-muted);">TH/s</span></div>
-            </div>
-            <div class="fk-item">
-                <div class="fk-label">Consumo</div>
-                <div class="fk-val" style="color:#c084fc;">{{ g.consumo_kw }} <span style="font-size:0.68em;color:var(--text-muted);">kW</span></div>
-            </div>
-            <div class="fk-item">
-                <div class="fk-label">Temp Pico</div>
-                <div class="fk-val" style="color:{{ '#ff5252' if g.temp_max >= 85 else ('#ffb300' if g.temp_max >= 75 else '#00e676') }};">{{ g.temp_max }}°C</div>
-            </div>
-            <div class="fk-item">
-                <div class="fk-label">Costo Luz/Día</div>
-                <div class="fk-val farm-cost-day" style="color:#38bdf8;">$0.00</div>
-            </div>
-        </div>
-
-        <!-- Medidor de Carga del Transformador -->
-        <div class="power-gauge-box" translate="no">
-            <div class="power-gauge-header">
-                <span style="color:var(--text-muted); font-weight:bold;">⚡ Carga Eléctrica: <b class="farm-cap-txt" style="color:var(--text-main);">{{ g.consumo_kw }} / 50 kW (0%)</b></span>
-                <button type="button" class="btn-edit-cap" onclick="editarCapacidadGranja('{{ g.id }}', '{{ g.nombre }}')">⚙️ Ajustar kW</button>
-            </div>
-            <div class="power-bar-bg">
-                <div class="power-bar-fill farm-cap-bar" style="width: 10%; background: #00e676;"></div>
-            </div>
-        </div>
-
-        <!-- Bloque Router / Gateway de la Sede -->
-        <div class="router-card-box" translate="no">
-            <div class="router-left">
-                <div class="router-art" aria-hidden="true">
-                    <svg width="26" height="22" viewBox="0 0 26 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M7 6C8.8 4.2 17.2 4.2 19 6" stroke="#60a5fa" stroke-width="1.8" stroke-linecap="round"/>
-                        <path d="M9.5 8.5C10.9 7.2 15.1 7.2 16.5 8.5" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
-                        <rect x="2" y="11" width="22" height="8" rx="2.5" fill="#1e293b" stroke="#60a5fa" stroke-width="1.5"/>
-                        <circle cx="6.5" cy="15" r="1.4" fill="#00e676"/>
-                        <circle cx="10.5" cy="15" r="1.4" fill="#38bdf8"/>
-                    </svg>
-                </div>
-                <div>
-                    <div class="router-title">
-                        <span>Router / Gateway</span>
-                        <span class="router-ip-badge" style="color:#60a5fa; font-family:monospace;">{{ g.gateway }}</span>
-                    </div>
-                    <div class="router-sub">
-                        Sede: {{ g.agent_id }} · Red {{ g.subred }}
-                    </div>
-                </div>
-            </div>
-            <div class="router-actions">
-                <a href="/proxy/{{ g.gateway }}/?agent_id={{ g.agent_id }}" target="_blank" rel="noopener" class="btn-router-enter router-link-http">
-                    🌐 Entrar al Router ↗
-                </a>
-                <a href="/proxy/{{ g.gateway }}/?scheme=https&agent_id={{ g.agent_id }}" target="_blank" rel="noopener" class="btn-router-ssl router-link-https" title="Entrar al router usando HTTPS local">
-                    🔒 HTTPS
-                </a>
-            </div>
-        </div>
-
-        <!-- Mapa Térmico Visual de Rack (Live Grid) -->
-        <div class="rack-map-box">
-            <div class="rack-map-title">
-                <span>🗺️ Mapa Térmico de Equipos ({{ g.total }})</span>
-                <span style="font-weight:normal; font-size:0.9em;">Clic para abrir minero</span>
-            </div>
-            <div class="rack-tiles-grid" translate="no">
-                {% for m in g.mineros %}
-                {% set tile_cls = 'off' if not m.online else ('crit' if m.temp_max >= 85 else ('warn' if m.temp_max >= 75 else 'ok')) %}
-                <a href="/minero/{{ m.ip }}" class="rack-tile {{ tile_cls }}" title="{{ m.nombre }} ({{ m.ip }}) - {{ m.hashrate }} {{ m.unidad }} - {{ m.temp_max }}°C">
-                    <span class="rack-tile-name">{{ m.nombre }}</span>
-                    <span>{{ (m.temp_max ~ '°C') if m.online else 'OFF' }}</span>
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Acciones Rápidas por Granja -->
-        <div class="farm-actions-bar">
-            <button type="button" class="btn-farm-cmd scan" onclick="escanearRedLocal(this)" title="Buscar equipos nuevos en {{ g.subred }}">🔍 Escanear</button>
-            <button type="button" class="btn-farm-cmd eco" onclick='comandoGranja("profile|low", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>❄️ Modo Eco</button>
-            <button type="button" class="btn-farm-cmd sleep" onclick='comandoGranja("sleep", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>😴 Reposo</button>
-            <button type="button" class="btn-farm-cmd" onclick='comandoGranja("normal", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>▶ Normal</button>
-            <button type="button" class="btn-farm-cmd reboot" onclick='comandoGranja("restart", {{ ips_lista | tojson }}, "{{ g.nombre }}")'>🔄 Reiniciar</button>
-        </div>
-    </div>
+        {% include "granjas_partes/_tarjeta_granja.html" %}
     {% else %}
     <div class="farm-card" style="padding:36px; text-align:center;">
         <div style="font-size:2.4em; margin-bottom:10px;">🏭</div>
         <h3 style="margin:0 0 8px 0;">Aún no hay granjas activas detectadas</h3>
         <p style="color:var(--text-muted); font-size:0.88em; margin-bottom:18px;">
-            En cuanto tu <code>agente.py</code> o APK Android transmitan datos, tus sedes aparecerán automáticamente aquí, o puedes buscar equipos ahora.
+            En cuanto tu <code>agente.py</code> o APK Android transmitan datos, su sede aparecerá automáticamente aquí con todos sus ASICs.
         </p>
         <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-            <button type="button" class="btn-farm-cmd scan" style="flex:0 0 auto; padding:9px 16px;" onclick="escanearRedLocal(this)">🔍 Buscar Mineros</button>
             <button type="button" class="btn-new-farm" onclick="abrirNuevaGranjaModal()">＋ Crear Primera Granja</button>
         </div>
     </div>
     {% endfor %}
 </div>
 
-<script>
-    function mostrarFarmToast(msg) {
-        const t = document.getElementById('farmToast');
-        if (!t) return;
-        t.innerText = '✅ ' + msg;
-        t.style.display = 'block';
-        setTimeout(() => { t.style.display = 'none'; }, 3500);
-    }
-
-    function obtenerConfigGranjas() {
-        try { return JSON.parse(localStorage.getItem('emg_granjas_cfg') || '{}'); }
-        catch(e) { return {}; }
-    }
-
-    function guardarConfigGranjasStorage(obj) {
-        try { localStorage.setItem('emg_granjas_cfg', JSON.stringify(obj)); } catch(e) {}
-    }
-
-    function aplicarDatosLocalesGranjas() {
-        const cfg = obtenerConfigGranjas();
-        document.querySelectorAll('.farm-card[data-farm-id]').forEach(card => {
-            const id = card.getAttribute('data-farm-id');
-            const kw = parseFloat(card.getAttribute('data-consumo-kw') || '0');
-            const defGw = card.getAttribute('data-default-gw') || '192.168.0.1';
-            const agId = card.getAttribute('data-agent-id') || 'default';
-            const c = cfg[id] || { cap_kw: 50, tarifa: 0.06 };
-
-            if (c.nombre) {
-                const lbl = card.querySelector('.farm-name-label');
-                if (lbl) lbl.innerText = c.nombre;
-            }
-
-            const gwFinal = (c.gateway && c.gateway.trim()) ? c.gateway.trim() : defGw;
-            const gwBadge = card.querySelector('.router-ip-badge');
-            const linkHttp = card.querySelector('.router-link-http');
-            const linkHttps = card.querySelector('.router-link-https');
-            if (gwBadge) gwBadge.innerText = gwFinal;
-            if (linkHttp) linkHttp.href = `/proxy/${encodeURIComponent(gwFinal)}/?agent_id=${encodeURIComponent(agId)}`;
-            if (linkHttps) linkHttps.href = `/proxy/${encodeURIComponent(gwFinal)}/?scheme=https&agent_id=${encodeURIComponent(agId)}`;
-
-            const cap = Math.max(1, parseFloat(c.cap_kw || 50));
-            const tarifa = parseFloat(c.tarifa || 0.06);
-            const pct = Math.min(100, Math.round((kw / cap) * 100));
-            const costoDia = kw * 24 * tarifa;
-
-            const txtCap = card.querySelector('.farm-cap-txt');
-            const barCap = card.querySelector('.farm-cap-bar');
-            const txtCost = card.querySelector('.farm-cost-day');
-
-            if (txtCap) txtCap.innerText = `${kw.toFixed(1)} / ${cap} kW (${pct}%)`;
-            if (barCap) {
-                barCap.style.width = pct + '%';
-                barCap.style.background = pct >= 85 ? '#ff5252' : (pct >= 70 ? '#ffb300' : '#00e676');
-            }
-            if (txtCost) txtCost.innerText = `$${costoDia.toFixed(2)}`;
-        });
-    }
-
-    function editarCapacidadGranja(id, nombreActual) {
-        const card = document.querySelector(`.farm-card[data-farm-id="${id}"]`);
-        const defGw = card ? (card.getAttribute('data-default-gw') || '192.168.0.1') : '192.168.0.1';
-        const cfg = obtenerConfigGranjas()[id] || {};
-        document.getElementById('farmModalTitle').innerText = '⚙️ Configurar Sede';
-        document.getElementById('fm_id').value = id;
-        document.getElementById('fm_nombre').value = cfg.nombre || nombreActual;
-        document.getElementById('fm_cap_kw').value = cfg.cap_kw || 50;
-        document.getElementById('fm_tarifa').value = cfg.tarifa !== undefined ? cfg.tarifa : 0.06;
-        document.getElementById('fm_gateway').value = cfg.gateway || defGw;
-        document.getElementById('fm_notas').value = cfg.notas || '';
-        document.getElementById('farmModal').style.display = 'flex';
-    }
-
-    function abrirNuevaGranjaModal() {
-        document.getElementById('farmModalTitle').innerText = '🏭 Nueva Granja / Sede';
-        document.getElementById('fm_id').value = 'custom_' + Date.now();
-        document.getElementById('fm_nombre').value = '';
-        document.getElementById('fm_cap_kw').value = 50;
-        document.getElementById('fm_tarifa').value = 0.06;
-        document.getElementById('fm_gateway').value = '192.168.0.1';
-        document.getElementById('fm_notas').value = '';
-        document.getElementById('farmModal').style.display = 'flex';
-    }
-
-    function cerrarFarmModal() {
-        document.getElementById('farmModal').style.display = 'none';
-    }
-
-    function guardarConfigGranja() {
-        const id = document.getElementById('fm_id').value;
-        const nombre = document.getElementById('fm_nombre').value.trim();
-        const cap_kw = parseFloat(document.getElementById('fm_cap_kw').value) || 50;
-        const tarifa = parseFloat(document.getElementById('fm_tarifa').value) || 0;
-        const gateway = document.getElementById('fm_gateway').value.trim();
-        const notas = document.getElementById('fm_notas').value.trim();
-
-        if (!nombre) return;
-        const cfg = obtenerConfigGranjas();
-        cfg[id] = { nombre, cap_kw, tarifa, gateway, notas };
-        guardarConfigGranjasStorage(cfg);
-
-        if (id.startsWith('custom_') && !document.querySelector(`.farm-card[data-farm-id="${id}"]`)) {
-            const grid = document.getElementById('farmsGridContainer');
-            const div = document.createElement('div');
-            div.className = 'farm-card';
-            div.setAttribute('data-farm-id', id);
-            div.setAttribute('data-consumo-kw', '0');
-            div.setAttribute('data-default-gw', gateway || '192.168.0.1');
-            div.setAttribute('data-agent-id', 'default');
-            div.innerHTML = `
-                <div class="farm-card-top">
-                    <div>
-                        <div class="farm-name"><span>🏭</span><span class="farm-name-label">${nombre}</span></div>
-                        <div class="farm-meta"><span>📝 ${notas || 'Sede lista para conectar agente'}</span></div>
-                    </div>
-                    <span class="farm-pill-status ok">● Lista (0/0)</span>
-                </div>
-                <div class="power-gauge-box">
-                    <div class="power-gauge-header">
-                        <span style="color:var(--text-muted); font-weight:bold;">⚡ Carga Eléctrica: <b class="farm-cap-txt" style="color:var(--text-main);">0.0 / ${cap_kw} kW (0%)</b></span>
-                        <button type="button" class="btn-edit-cap" onclick="editarCapacidadGranja('${id}', '${nombre}')">⚙️ Ajustar kW</button>
-                    </div>
-                    <div class="power-bar-bg"><div class="power-bar-fill farm-cap-bar" style="width:0%; background:#00e676;"></div></div>
-                </div>
-                <div class="rack-map-box" style="color:var(--text-muted); font-size:0.84em;">
-                    Descarga tu <b>agente</b> desde <a href="/ajustes" style="color:#60a5fa; text-decoration:underline;">Ajustes</a> e instálalo en esta sede para vincular sus mineros.
-                </div>
-            `;
-            grid.appendChild(div);
-        }
-
-        cerrarFarmModal();
-        aplicarDatosLocalesGranjas();
-        mostrarFarmToast(`Configuración guardada para "${nombre}".`);
-    }
-
-    function comandoGranja(accion, ips, nombreGranja) {
-        if (!ips || ips.length === 0) return;
-        if (!confirm(`¿Ejecutar "${accion}" en los ${ips.length} mineros de ${nombreGranja}?`)) return;
-
-        fetch('/cmd_bulk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accion: accion, ips: ips })
-        }).then(() => {
-            mostrarFarmToast(`Orden "${accion}" enviada a ${ips.length} equipos de ${nombreGranja}.`);
-        });
-    }
-
-    window.addEventListener('load', aplicarDatosLocalesGranjas);
-</script>
+{% include "granjas_partes/_modales_js.html" %}
 {% endblock %}
