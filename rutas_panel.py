@@ -4,7 +4,7 @@ import psycopg2.extras, json, time, calendar, csv, io, uuid, secrets, threading
 from datetime import datetime
 
 from db import get_db
-from tunel import enviar_orden_tunel
+from tunel import enviar_orden_tunel, tunel_esta_activo
 from resolver_modelos import resolver_nombre_dispositivo
 from utils import (
     login_required, es_super_admin, es_cuenta_pro, generar_api_key,
@@ -534,9 +534,12 @@ def detalle_minero(ip):
     if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
     disp = {'eficiencia': eficiencia_val}
 
+    ag_minero = str(m.get('agent_id') or 'default').strip() or 'default'
+    tunel_ok = tunel_esta_activo(usr_actual, agent_id=ag_minero)
+
     return render_seguro(
         'minero.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str,
-        ultimo=dt, extra=extra, dispositivo=disp, offline=offline,
+        ultimo=dt, extra=extra, dispositivo=disp, offline=offline, tunel_activo=tunel_ok,
         graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g),
         graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g),
         graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas),
@@ -636,10 +639,11 @@ def granjas():
         dev_brand = str(s.get('brand') or '')
         dev_model = str(s.get('model') or '')
         dev_comercial, dev_code = resolver_nombre_dispositivo(dev_brand, dev_model, dev_type)
+        ag_sede = str(s.get('agent_id') or fid)
 
         grupos[fid] = {
             'farm_id': fid,
-            'agent_id': str(s.get('agent_id') or fid),
+            'agent_id': ag_sede,
             'nombre': str(s.get('nombre') or f"Sede {fid}"),
             'ciudad': str(s.get('ciudad') or 'Santa Cruz de la Sierra'),
             'subred': str(s.get('subred') or '192.168.0.x'),
@@ -660,6 +664,7 @@ def granjas():
             'battery_temp_c': a_float_seguro(s.get('battery_temp_c'), 0.0),
             'os_info': str(s.get('os_info') or ''),
             'agent_online': segs_ag < 300,
+            'tunel_activo': tunel_esta_activo(usr_actual, agent_id=ag_sede, estricto=True),
             'es_manual': not bool(s.get('agent_id')),
             'total': 0, 'online': 0, 'offline': 0,
             'hashrate': 0.0, 'consumo_kw': 0.0, 'temp_max': 0, 'mineros': []
@@ -696,7 +701,9 @@ def granjas():
                 'run_mode': 'APK Directo' if ag_id.startswith('AND-') else ('Termux' if ag_id.startswith('TERMUX-') else 'Python PC'),
                 'brand': '', 'model': '', 'local_ip': '',
                 'has_battery': False, 'battery_pct': -1, 'charging': False, 'battery_temp_c': 0.0, 'os_info': '',
-                'agent_online': es_online, 'es_manual': False,
+                'agent_online': es_online,
+                'tunel_activo': tunel_esta_activo(usr_actual, agent_id=ag_id, estricto=True),
+                'es_manual': False,
                 'total': 0, 'online': 0, 'offline': 0,
                 'hashrate': 0.0, 'consumo_kw': 0.0, 'temp_max': 0, 'mineros': []
             }
