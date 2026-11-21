@@ -1294,4 +1294,4 @@ def api_live_minero(ip):
             "cadenas": cads
         })
 
-    return jsonify({"ok": True, "puntos": puntos}
+    return jsonify({"ok": True, "puntos": puntos})
