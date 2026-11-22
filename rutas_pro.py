@@ -15,7 +15,8 @@ pro_bp = Blueprint('pro_bp', __name__)
 # ==================== CONTROL DE ROL TÉCNICO (SIN TOCAR RUTAS_PANEL.PY) ====================
 RUTAS_BLOQUEADAS_TECNICO = (
     '/plan', '/ajustes', '/hosting', '/tecnicos', '/admin',
-    '/api/eliminar_mineros', '/api/granjas/eliminar', '/api/guardar_tarifa'
+    '/api/eliminar_mineros', '/api/granjas/eliminar', '/api/guardar_tarifa',
+    '/hosting/cuentas', '/firmware', '/api/firmware'
 )
 
 @pro_bp.before_app_request

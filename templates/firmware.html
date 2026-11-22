@@ -1,0 +1,492 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .pro-header {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 16px 20px;
+    }
+    .pro-header h1 { margin: 0; font-size: 1.35em; }
+    .pro-header p { margin: 4px 0 0 0; font-size: 0.84em; color: var(--text-muted); }
+
+    /* KPIs */
+    .fw-kpis {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px; margin-bottom: 18px;
+    }
+    .fw-kpi {
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 12px 14px; text-align: center;
+    }
+    .fw-kpi small { display: block; font-size: 0.70em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
+    .fw-kpi strong { display: block; font-size: 1.5em; font-family: monospace; margin-top: 4px; }
+
+    .grid-2 {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 18px; align-items: start;
+    }
+    .card-box {
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 18px;
+    }
+    .card-box h2 { margin: 0 0 14px 0; font-size: 1.08em; display:flex; align-items:center; gap:8px; }
+
+    .lbl {
+        display: block; font-size: 0.74em; color: var(--text-muted);
+        text-transform: uppercase; font-weight: bold; margin-bottom: 6px;
+    }
+    .inp {
+        width: 100%; background: var(--bg-input); border: 1px solid var(--border-color);
+        color: var(--text-main); padding: 9px 12px; border-radius: 7px;
+        font-size: 0.88em; margin-bottom: 14px; outline: none;
+    }
+    .inp:focus { border-color: #3b82f6; }
+    select.inp { cursor: pointer; }
+
+    /* Drag & drop upload */
+    .upload-zone {
+        border: 2px dashed var(--border-color);
+        border-radius: 10px; padding: 28px 16px;
+        text-align: center; cursor: pointer;
+        margin-bottom: 14px; transition: all 0.25s;
+        background: rgba(10, 12, 18, 0.5);
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+        border-color: #3b82f6;
+        background: rgba(51, 102, 255, 0.08);
+        box-shadow: 0 0 20px rgba(51, 102, 255, 0.15);
+    }
+    .upload-zone .upload-icon { font-size: 2.2em; margin-bottom: 8px; }
+    .upload-zone .upload-text { font-size: 0.86em; color: var(--text-muted); }
+    .upload-zone .upload-text strong { color: var(--text-main); }
+    .upload-zone .file-name {
+        font-family: monospace; font-size: 0.84em; color: #00e676;
+        margin-top: 8px; font-weight: bold; display: none;
+    }
+
+    .btn-primary {
+        width: 100%; background: linear-gradient(135deg, #3366ff, #2563eb);
+        color: #fff; border: 1px solid #60a5fa; padding: 10px;
+        border-radius: 7px; font-weight: bold; font-size: 0.88em; cursor: pointer;
+    }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Firmware items list */
+    .fw-item {
+        background: rgba(10, 12, 18, 0.55); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 14px; margin-bottom: 10px;
+    }
+    .fw-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; margin-bottom: 8px; flex-wrap: wrap;
+    }
+    .fw-name { font-weight: bold; font-size: 0.95em; }
+    .fw-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.78em; }
+    .fw-chip {
+        background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color);
+        padding: 3px 9px; border-radius: 6px; font-family: monospace;
+    }
+    .fw-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .btn-sm {
+        padding: 5px 10px; border-radius: 6px; font-size: 0.78em;
+        font-weight: bold; cursor: pointer; border: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.04); color: var(--text-main);
+    }
+    .btn-sm:hover { border-color: #60a5fa; color: #fff; }
+    .btn-sm.del { color: #ff8a80; border-color: rgba(255, 82, 82, 0.4); background: rgba(255, 82, 82, 0.1); }
+    .btn-sm.flash { color: #ffd54f; border-color: rgba(255, 179, 0, 0.4); background: rgba(255, 179, 0, 0.1); }
+
+    /* Flash modal */
+    .modal-backdrop {
+        display: none; position: fixed; inset: 0;
+        background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(4px);
+        z-index: 99990; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+        width: 100%; max-width: 620px;
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 12px; padding: 20px;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.75);
+    }
+    .modal-head {
+        display: flex; align-items: center; justify-content: space-between;
+        border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 14px;
+    }
+    .modal-head h3 { margin: 0; font-size: 1.08em; }
+    .close-btn {
+        background: transparent; border: 1px solid var(--border-color);
+        color: var(--text-muted); border-radius: 6px; width: 32px; height: 32px;
+        cursor: pointer; font-weight: bold; font-size: 1.1em;
+    }
+    .close-btn:hover { color: #fff; border-color: #ff5252; }
+
+    .miners-pick {
+        max-height: 240px; overflow-y: auto;
+        background: rgba(10, 12, 18, 0.5); border: 1px solid var(--border-color);
+        border-radius: 8px; padding: 10px; margin-bottom: 14px;
+    }
+    .pick-item {
+        display: flex; align-items: center; gap: 9px;
+        padding: 6px 8px; border-radius: 6px; font-size: 0.84em;
+        cursor: pointer; background: rgba(255, 255, 255, 0.02);
+    }
+    .pick-item:hover { background: rgba(51, 102, 255, 0.12); }
+    .pick-controls { display: flex; gap: 8px; margin-bottom: 10px; }
+
+    /* Job status table */
+    .job-table { width: 100%; border-collapse: collapse; }
+    .job-table th {
+        text-align: left; padding: 10px 12px; font-size: 0.72em;
+        color: var(--text-muted); text-transform: uppercase;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .job-table td {
+        padding: 8px 12px; font-size: 0.82em;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .job-table tr:last-child td { border-bottom: none; }
+    .status-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 3px 10px; border-radius: 999px; font-size: 0.78em; font-weight: bold;
+    }
+    .st-pendiente { background: rgba(148,163,184,0.15); color: #94a3b8; }
+    .st-en_progreso { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    .st-completado { background: rgba(0,230,118,0.15); color: #00e676; }
+    .st-error { background: rgba(255,82,82,0.15); color: #ff5252; }
+
+    .progress-bar-wrap {
+        background: rgba(255,255,255,0.06); border-radius: 4px;
+        height: 6px; width: 80px; overflow: hidden;
+    }
+    .progress-bar-fill {
+        height: 100%; border-radius: 4px;
+        background: linear-gradient(90deg, #3366ff, #60a5fa);
+        transition: width 0.5s ease;
+    }
+
+    .empty-state {
+        color: var(--text-muted); font-size: 0.86em;
+        text-align: center; padding: 20px 10px;
+    }
+
+    @media (max-width: 768px) {
+        .grid-2 { grid-template-columns: 1fr; }
+    }
+</style>
+
+<div class="pro-header">
+    <div>
+        <h1>📦 Actualización de Firmware (OTA)</h1>
+        <p>Sube archivos de firmware y flashea múltiples ASICs remotamente en 1 clic a través del agente local.</p>
+    </div>
+</div>
+
+<!-- KPIs -->
+<div class="fw-kpis">
+    <div class="fw-kpi"><small>Firmwares Subidos</small><strong style="color:#60a5fa;">{{ firmwares|length }}</strong></div>
+    <div class="fw-kpi"><small>En Cola</small><strong style="color:#94a3b8;">{{ stats.pendiente }}</strong></div>
+    <div class="fw-kpi"><small>En Progreso</small><strong style="color:#ffb300;">{{ stats.en_progreso }}</strong></div>
+    <div class="fw-kpi"><small>Completados</small><strong style="color:#00e676;">{{ stats.completado }}</strong></div>
+    <div class="fw-kpi"><small>Errores</small><strong style="color:#ff5252;">{{ stats.error }}</strong></div>
+</div>
+
+<div class="grid-2">
+    <!-- SUBIR FIRMWARE -->
+    <div class="card-box">
+        <h2>📤 Subir Nuevo Firmware</h2>
+        <form id="fwUploadForm" enctype="multipart/form-data">
+            <label class="lbl">Nombre descriptivo</label>
+            <input type="text" name="nombre" class="inp" placeholder="Ej: Braiins OS+ para S19j Pro" required>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                    <label class="lbl">Modelo compatible</label>
+                    <input type="text" name="modelo_compatible" class="inp" placeholder="Ej: S19j Pro" style="margin-bottom:0;">
+                </div>
+                <div>
+                    <label class="lbl">Versión</label>
+                    <input type="text" name="version" class="inp" placeholder="Ej: v24.11" style="margin-bottom:0;">
+                </div>
+            </div>
+            <div style="margin-bottom:14px;"></div>
+
+            <label class="lbl">Archivo de firmware</label>
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fwFile').click()">
+                <div class="upload-icon">📦</div>
+                <div class="upload-text">
+                    <strong>Arrastra o haz clic</strong> para seleccionar<br>
+                    <span style="font-size:0.82em;">.tar.gz · .img · .bin · .swu · .zip — Máx 300 MB</span>
+                </div>
+                <div class="file-name" id="fileName"></div>
+                <input type="file" name="archivo" id="fwFile" accept=".tar.gz,.img,.bin,.swu,.zip,.tar" style="display:none;" onchange="mostrarArchivo(this)">
+            </div>
+
+            <label class="lbl">Notas (opcional)</label>
+            <input type="text" name="notas" class="inp" placeholder="Incluye overclock preconfigurado, requiere Xilinx...">
+
+            <button type="submit" class="btn-primary" id="btnSubir">📤 Subir Firmware</button>
+            <div id="uploadProgress" style="display:none; margin-top:10px; text-align:center;">
+                <div class="progress-bar-wrap" style="width:100%; height:8px;">
+                    <div class="progress-bar-fill" id="uploadBar" style="width:0%;"></div>
+                </div>
+                <span id="uploadPct" style="font-size:0.78em; color:var(--text-muted); font-family:monospace;">0%</span>
+            </div>
+        </form>
+    </div>
+
+    <!-- FIRMWARES DISPONIBLES -->
+    <div class="card-box">
+        <h2>📋 Firmwares Disponibles ({{ firmwares|length }})</h2>
+        {% if firmwares|length == 0 %}
+            <div class="empty-state">No hay firmwares subidos. Sube uno para comenzar a flashear equipos remotamente.</div>
+        {% else %}
+            {% for fw in firmwares %}
+            <div class="fw-item">
+                <div class="fw-head">
+                    <span class="fw-name">📦 {{ fw.nombre }}</span>
+                    {% if fw.version %}<span class="fw-chip" style="color:#c084fc;">v{{ fw.version }}</span>{% endif %}
+                </div>
+                <div class="fw-meta">
+                    {% if fw.modelo_compatible %}<span class="fw-chip">🔧 {{ fw.modelo_compatible }}</span>{% endif %}
+                    <span class="fw-chip">💾 {{ fw.tamano_mb }} MB</span>
+                    <span class="fw-chip" title="{{ fw.checksum_sha256 }}">🔑 SHA256: {{ fw.checksum_sha256[:12] }}…</span>
+                    <span class="fw-chip">📅 {{ fw.fecha_subida }}</span>
+                </div>
+                {% if fw.notas %}
+                <div style="font-size:0.76em; color:var(--text-muted); margin-top:6px; padding:5px 8px; background:rgba(255,255,255,0.03); border-radius:5px;">📝 {{ fw.notas }}</div>
+                {% endif %}
+                <div class="fw-actions">
+                    <button class="btn-sm flash" onclick="abrirModalFlash({{ fw.id }}, '{{ fw.nombre }}', '{{ fw.modelo_compatible }}')">⚡ Flashear Equipos</button>
+                    <button class="btn-sm del" onclick="eliminarFirmware({{ fw.id }}, '{{ fw.nombre }}')">🗑️ Eliminar</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- HISTORIAL DE JOBS -->
+<div class="card-box" style="margin-top:18px;">
+    <h2>📊 Progreso de Actualizaciones</h2>
+    <div style="overflow-x:auto;">
+        <table class="job-table" id="jobsTable">
+            <thead>
+                <tr>
+                    <th>IP</th>
+                    <th>Firmware</th>
+                    <th>Estado</th>
+                    <th>Progreso</th>
+                    <th>Mensaje</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if jobs|length == 0 %}
+                <tr><td colspan="7" class="empty-state">Sin actualizaciones recientes.</td></tr>
+                {% else %}
+                {% for j in jobs %}
+                <tr>
+                    <td style="font-family:monospace; font-weight:bold;">{{ j.ip }}</td>
+                    <td>{{ j.fw_nombre or '—' }} <span style="color:var(--text-muted); font-size:0.8em;">{{ j.fw_version or '' }}</span></td>
+                    <td><span class="status-badge st-{{ j.estado }}">{{ j.estado|upper }}</span></td>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:{{ j.progreso }}%;"></div></div>
+                            <span style="font-family:monospace; font-size:0.78em;">{{ j.progreso }}%</span>
+                        </div>
+                    </td>
+                    <td style="font-size:0.78em; color:var(--text-muted); max-width:200px; overflow:hidden; text-overflow:ellipsis;" title="{{ j.mensaje }}">{{ j.mensaje }}</td>
+                    <td style="font-size:0.76em; font-family:monospace;">{{ j.fecha_creacion or '' }}</td>
+                    <td style="font-size:0.76em; font-family:monospace;">{{ j.fecha_fin or '—' }}</td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- MODAL FLASH -->
+<div class="modal-backdrop" id="flashModal" onclick="if(event.target===this) cerrarModal()">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3>⚡ Flashear Firmware: <span id="flashFwName"></span></h3>
+            <button type="button" class="close-btn" onclick="cerrarModal()">✕</button>
+        </div>
+        <input type="hidden" id="flashFwId">
+
+        <label class="lbl">Selecciona los equipos a actualizar</label>
+        <div class="pick-controls">
+            <button type="button" class="btn-sm" onclick="toggleAllMiners(true)">☑️ Todos</button>
+            <button type="button" class="btn-sm" onclick="toggleAllMiners(false)">☐ Ninguno</button>
+            <span id="flashModelFilter" style="font-size:0.78em; color:var(--text-muted); margin-left:auto;"></span>
+        </div>
+        <div class="miners-pick" id="flashMinersPick">
+            {% for m in mineros_disp %}
+            <label class="pick-item" data-modelo="{{ m.modelo }}">
+                <input type="checkbox" class="flash-cb" value="{{ m.ip }}">
+                <span style="font-weight:bold;" translate="no">{{ m.nombre }}</span>
+                <span style="color:var(--text-muted); font-family:monospace; font-size:0.84em;" translate="no">({{ m.ip }} · {{ m.modelo }})</span>
+                <span style="font-size:0.72em; color:#c084fc; margin-left:auto;">{{ m.fw_tipo }} {{ m.firmware[:15] }}</span>
+            </label>
+            {% endfor %}
+        </div>
+
+        <div style="background:rgba(255,179,0,0.1); border:1px solid rgba(255,179,0,0.3); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:0.82em; color:#ffd54f;">
+            ⚠️ <strong>Advertencia:</strong> El flasheo de firmware reiniciará cada equipo. Los ASICs estarán offline durante 3-10 minutos. Asegúrate de que el firmware sea compatible con el modelo del equipo.
+        </div>
+
+        <button type="button" class="btn-primary" onclick="iniciarFlash()" id="btnFlash">⚡ Iniciar Flasheo Masivo</button>
+    </div>
+</div>
+
+<script>
+/* ===== Upload Drag & Drop ===== */
+const zone = document.getElementById('uploadZone');
+const fwFile = document.getElementById('fwFile');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length > 0) { fwFile.files = e.dataTransfer.files; mostrarArchivo(fwFile); }
+});
+
+function mostrarArchivo(input) {
+    const fn = document.getElementById('fileName');
+    if (input.files.length > 0) {
+        const f = input.files[0];
+        fn.style.display = 'block';
+        fn.textContent = `✅ ${f.name} (${(f.size / 1024 / 1024).toFixed(1)} MB)`;
+    }
+}
+
+/* ===== Upload con progreso ===== */
+document.getElementById('fwUploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const form = new FormData(this);
+    const btn = document.getElementById('btnSubir');
+    const prog = document.getElementById('uploadProgress');
+    const bar = document.getElementById('uploadBar');
+    const pct = document.getElementById('uploadPct');
+
+    if (!fwFile.files.length) { alert('Selecciona un archivo de firmware.'); return; }
+    btn.disabled = true; btn.textContent = '⏳ Subiendo...';
+    prog.style.display = 'block';
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/firmware/subir');
+    xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+            const p = Math.round(e.loaded / e.total * 100);
+            bar.style.width = p + '%'; pct.textContent = p + '%';
+        }
+    };
+    xhr.onload = () => {
+        btn.disabled = false; btn.textContent = '📤 Subir Firmware';
+        try {
+            const j = JSON.parse(xhr.responseText);
+            if (j.status === 'ok') { location.reload(); }
+            else { alert(j.msg || 'Error al subir'); prog.style.display = 'none'; }
+        } catch { alert('Error inesperado'); prog.style.display = 'none'; }
+    };
+    xhr.onerror = () => { btn.disabled = false; btn.textContent = '📤 Subir Firmware'; alert('Error de red'); prog.style.display = 'none'; };
+    xhr.send(form);
+});
+
+/* ===== Modal Flash ===== */
+function abrirModalFlash(fwId, fwName, modelo) {
+    document.getElementById('flashFwId').value = fwId;
+    document.getElementById('flashFwName').textContent = fwName;
+    document.getElementById('flashModal').classList.add('open');
+    const filter = document.getElementById('flashModelFilter');
+    if (modelo) {
+        filter.textContent = `Recomendado: ${modelo}`;
+    } else {
+        filter.textContent = '';
+    }
+}
+
+function cerrarModal() { document.getElementById('flashModal').classList.remove('open'); }
+
+function toggleAllMiners(state) {
+    document.querySelectorAll('.flash-cb').forEach(cb => cb.checked = state);
+}
+
+async function eliminarFirmware(fwId, nombre) {
+    if (!confirm(`¿Eliminar firmware "${nombre}"? Se borrarán también los jobs pendientes.`)) return;
+    try {
+        const r = await fetch('/api/firmware/eliminar', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({firmware_id: fwId})
+        });
+        const j = await r.json();
+        if (j.status === 'ok') location.reload();
+        else alert(j.msg || 'Error');
+    } catch(e) { alert('Error de conexión'); }
+}
+
+async function iniciarFlash() {
+    const fwId = parseInt(document.getElementById('flashFwId').value);
+    const ips = [...document.querySelectorAll('.flash-cb:checked')].map(cb => cb.value);
+
+    if (ips.length === 0) { alert('Selecciona al menos un equipo.'); return; }
+    if (!confirm(`¿Flashear ${ips.length} equipo(s)? Los ASICs se reiniciarán durante el proceso.`)) return;
+
+    const btn = document.getElementById('btnFlash');
+    btn.disabled = true; btn.textContent = '⏳ Enviando...';
+
+    try {
+        const r = await fetch('/api/firmware/flashear', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({firmware_id: fwId, ips: ips})
+        });
+        const j = await r.json();
+        btn.disabled = false; btn.textContent = '⚡ Iniciar Flasheo Masivo';
+        if (j.status === 'ok') {
+            cerrarModal();
+            location.reload();
+        } else { alert(j.msg || 'Error'); }
+    } catch(e) {
+        btn.disabled = false; btn.textContent = '⚡ Iniciar Flasheo Masivo';
+        alert('Error de conexión');
+    }
+}
+
+/* ===== Auto-refresh jobs ===== */
+let jobPollTimer = null;
+function iniciarPollJobs() {
+    jobPollTimer = setInterval(async () => {
+        try {
+            const r = await fetch('/api/firmware/jobs');
+            const j = await r.json();
+            if (!j.ok) return;
+            const tbody = document.querySelector('#jobsTable tbody');
+            if (j.jobs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Sin actualizaciones recientes.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = j.jobs.map(job => `
+                <tr>
+                    <td style="font-family:monospace; font-weight:bold;">${job.ip}</td>
+                    <td>${job.fw_nombre || '—'} <span style="color:var(--text-muted); font-size:0.8em;">${job.fw_version || ''}</span></td>
+                    <td><span class="status-badge st-${job.estado}">${job.estado.toUpperCase()}</span></td>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${job.progreso}%;"></div></div>
+                            <span style="font-family:monospace; font-size:0.78em;">${job.progreso}%</span>
+                        </div>
+                    </td>
+                    <td style="font-size:0.78em; color:var(--text-muted); max-width:200px; overflow:hidden; text-overflow:ellipsis;" title="${job.mensaje || ''}">${job.mensaje || ''}</td>
+                    <td style="font-size:0.76em; font-family:monospace;">${job.fecha_creacion || ''}</td>
+                    <td style="font-size:0.76em; font-family:monospace;">${job.fecha_fin || '—'}</td>
+                </tr>
+            `).join('');
+        } catch {}
+    }, 8000);
+}
+iniciarPollJobs();
+</script>
+{% endblock %}

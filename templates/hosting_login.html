@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <title>Hosting Login — El Minero Gris</title>
+    <style>
+        :root {
+            --bg-main: #0a0c12;
+            --bg-card: #121521;
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --blue: #3366ff;
+            --blue-light: #60a5fa;
+            --green: #00e676;
+            --red: #ff5252;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .login-box {
+            width: 100%; max-width: 420px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 28px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+        .login-logo {
+            text-align: center; margin-bottom: 24px;
+        }
+        .login-logo img { height: 48px; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(51, 102, 255, 0.4)); }
+        .login-logo h1 { font-size: 1.3em; }
+        .login-logo p { font-size: 0.84em; color: var(--text-muted); margin-top: 4px; }
+        .login-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(51, 102, 255, 0.12); border: 1px solid rgba(59, 130, 246, 0.35);
+            padding: 5px 14px; border-radius: 999px; font-weight: bold; font-size: 0.78em;
+            color: var(--blue-light); margin-top: 8px;
+        }
+
+        .inp-group { margin-bottom: 16px; }
+        .inp-group label {
+            display: block; font-size: 0.74em; color: var(--text-muted);
+            text-transform: uppercase; font-weight: bold; margin-bottom: 6px;
+        }
+        .inp-group input {
+            width: 100%; background: rgba(10, 12, 18, 0.7); border: 1px solid var(--border);
+            color: var(--text-main); padding: 11px 14px; border-radius: 8px;
+            font-size: 0.92em; outline: none;
+        }
+        .inp-group input:focus { border-color: var(--blue); box-shadow: 0 0 10px rgba(51, 102, 255, 0.2); }
+
+        .btn-login {
+            width: 100%; background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
+            color: #fff; border: 1px solid var(--blue-light); padding: 12px;
+            border-radius: 8px; font-weight: bold; font-size: 0.95em; cursor: pointer;
+            margin-top: 4px; transition: all 0.2s;
+        }
+        .btn-login:hover { box-shadow: 0 0 20px rgba(51, 102, 255, 0.4); transform: translateY(-1px); }
+
+        .error-box {
+            background: rgba(255, 82, 82, 0.12); border: 1px solid rgba(255, 82, 82, 0.4);
+            color: #ff8a80; padding: 10px 14px; border-radius: 8px;
+            margin-bottom: 16px; font-size: 0.84em; font-weight: 600;
+        }
+        .foot { text-align: center; margin-top: 20px; font-size: 0.78em; color: var(--text-muted); }
+        .foot a { color: var(--blue-light); text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="login-logo">
+            <img src="/static/logo.png" alt="Logo" onerror="this.outerHTML='<span style=\'font-size:2em;\'>⛏️</span>'">
+            <h1>Portal de Cliente</h1>
+            <p>Monitoreo de tus equipos de minería en tiempo real</p>
+            <span class="login-badge">🔒 Acceso Seguro · Hosting</span>
+        </div>
+
+        {% if error %}
+        <div class="error-box">⚠️ {{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/hosting/login">
+            <div class="inp-group">
+                <label>Usuario</label>
+                <input type="text" name="username" placeholder="Tu usuario de hosting" required autofocus>
+            </div>
+            <div class="inp-group">
+                <label>Contraseña</label>
+                <input type="password" name="password" placeholder="Tu contraseña" required>
+            </div>
+            <button type="submit" class="btn-login">🔐 Ingresar a Mi Panel</button>
+        </form>
+
+        <div class="foot">
+            Panel impulsado por <a href="https://elminerogris.com" target="_blank" rel="noopener">El Minero Gris</a>
+        </div>
+    </div>
+</body>
+</html>

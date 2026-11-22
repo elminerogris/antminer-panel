@@ -104,6 +104,50 @@ def init_db():
             fecha_pago TEXT DEFAULT ''
         )''')
 
+        # --- Tabla de Clientes Hosting con Login Propio y Permisos Granulares ---
+        c.execute('''CREATE TABLE IF NOT EXISTS hosting_cuentas (
+            id SERIAL PRIMARY KEY,
+            owner TEXT NOT NULL,
+            username TEXT NOT NULL,
+            password TEXT NOT NULL,
+            nombre_display TEXT DEFAULT 'Cliente',
+            email TEXT DEFAULT '',
+            ips_json TEXT DEFAULT '[]',
+            permisos_json TEXT DEFAULT '{"ver_estado":true,"ver_logs":false,"reiniciar":false,"cambiar_pools":false,"blink_led":false}',
+            activo INTEGER DEFAULT 1,
+            ultimo_acceso TEXT DEFAULT '',
+            fecha_creacion TEXT DEFAULT '',
+            notas TEXT DEFAULT ''
+        )''')
+
+        # --- Tabla de Firmwares subidos para OTA masivo ---
+        c.execute('''CREATE TABLE IF NOT EXISTS firmware_ota (
+            id SERIAL PRIMARY KEY,
+            owner TEXT NOT NULL,
+            nombre TEXT NOT NULL,
+            nombre_archivo TEXT NOT NULL,
+            modelo_compatible TEXT DEFAULT '',
+            version TEXT DEFAULT '',
+            tamano_mb REAL DEFAULT 0.0,
+            checksum_sha256 TEXT DEFAULT '',
+            notas TEXT DEFAULT '',
+            fecha_subida TEXT DEFAULT ''
+        )''')
+
+        # --- Tabla de Trabajos OTA (cada flash individual) ---
+        c.execute('''CREATE TABLE IF NOT EXISTS firmware_ota_jobs (
+            id SERIAL PRIMARY KEY,
+            owner TEXT NOT NULL,
+            firmware_id INTEGER NOT NULL,
+            agent_id TEXT DEFAULT 'default',
+            ip TEXT NOT NULL,
+            estado TEXT DEFAULT 'pendiente',
+            progreso INTEGER DEFAULT 0,
+            mensaje TEXT DEFAULT '',
+            fecha_creacion TEXT DEFAULT '',
+            fecha_fin TEXT DEFAULT ''
+        )''')
+
         columnas_nuevas = [
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS agent_id TEXT DEFAULT 'default'",
@@ -283,6 +327,10 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_mineros_owner_farm ON mineros_activos (owner, farm_id)",
             "CREATE INDEX IF NOT EXISTS idx_hosting_owner ON enlaces_hosting (owner)",
             "CREATE INDEX IF NOT EXISTS idx_pagos_user ON pagos_usdt (username, id DESC)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_hosting_cuentas_owner_user ON hosting_cuentas (owner, LOWER(username))",
+            "CREATE INDEX IF NOT EXISTS idx_hosting_cuentas_owner ON hosting_cuentas (owner)",
+            "CREATE INDEX IF NOT EXISTS idx_firmware_ota_owner ON firmware_ota (owner, id DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_firmware_jobs_owner ON firmware_ota_jobs (owner, estado, id DESC)",
             "ALTER TABLE nombres_mineros DROP CONSTRAINT IF EXISTS nombres_mineros_ip_key",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_nombres_owner_ip ON nombres_mineros (owner, ip)",
             "ALTER TABLE logs_mineros DROP CONSTRAINT IF EXISTS logs_mineros_ip_key",

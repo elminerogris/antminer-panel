@@ -645,8 +645,10 @@
 
             {% if not es_tecnico %}
             <div class="menu-section-label" style="margin-top:8px;">Gestión Pro</div>
-            <a href="/hosting" class="{{ 'active' if active_page == 'hosting' else '' }}">🔗 Hosting (Clientes)</a>
+            <a href="/hosting" class="{{ 'active' if active_page == 'hosting' else '' }}">🔗 Hosting (Enlaces)</a>
+            <a href="/hosting/cuentas" class="{{ 'active' if active_page == 'hosting_cuentas' else '' }}">👥 Hosting (Cuentas)</a>
             <a href="/tecnicos" class="{{ 'active' if active_page == 'tecnicos' else '' }}">👷 Técnicos</a>
+            <a href="/firmware" class="{{ 'active' if active_page == 'firmware' else '' }}">📦 Firmware OTA</a>
 
             <div class="menu-section-label" style="margin-top:8px;">Cuenta</div>
             <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a>

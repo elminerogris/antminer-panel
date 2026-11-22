@@ -1,0 +1,291 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .pro-header {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 16px 20px;
+    }
+    .pro-header h1 { margin: 0; font-size: 1.35em; }
+    .pro-header p { margin: 4px 0 0 0; font-size: 0.84em; color: var(--text-muted); }
+
+    .alert-ok {
+        background: rgba(0, 230, 118, 0.12); border: 1px solid rgba(0, 230, 118, 0.4);
+        color: #69f0ae; padding: 11px 15px; border-radius: 8px;
+        margin-bottom: 16px; font-size: 0.86em; font-weight: 600;
+    }
+    .alert-error {
+        background: rgba(255, 82, 82, 0.12); border: 1px solid rgba(255, 82, 82, 0.4);
+        color: #ff8a80; padding: 11px 15px; border-radius: 8px;
+        margin-bottom: 16px; font-size: 0.86em; font-weight: 600;
+    }
+    .grid-2 {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 18px; align-items: start;
+    }
+    .card-box {
+        background: var(--bg-card); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 18px;
+    }
+    .card-box h2 { margin: 0 0 14px 0; font-size: 1.08em; display:flex; align-items:center; gap:8px; }
+    .lbl {
+        display: block; font-size: 0.74em; color: var(--text-muted);
+        text-transform: uppercase; font-weight: bold; margin-bottom: 6px;
+    }
+    .inp {
+        width: 100%; background: var(--bg-input); border: 1px solid var(--border-color);
+        color: var(--text-main); padding: 9px 12px; border-radius: 7px;
+        font-size: 0.88em; margin-bottom: 14px; outline: none;
+    }
+    .inp:focus { border-color: #3b82f6; }
+
+    .miners-pick {
+        max-height: 240px; overflow-y: auto;
+        background: rgba(10, 12, 18, 0.5); border: 1px solid var(--border-color);
+        border-radius: 8px; padding: 10px; margin-bottom: 14px;
+        display: flex; flex-direction: column; gap: 4px;
+    }
+    .pick-item {
+        display: flex; align-items: center; gap: 9px;
+        padding: 6px 8px; border-radius: 6px; font-size: 0.84em;
+        cursor: pointer; background: rgba(255, 255, 255, 0.02);
+    }
+    .pick-item:hover { background: rgba(51, 102, 255, 0.12); }
+
+    .permisos-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+        background: rgba(10, 12, 18, 0.5); border: 1px solid var(--border-color);
+        border-radius: 8px; padding: 12px; margin-bottom: 14px;
+    }
+    .perm-item {
+        display: flex; align-items: center; gap: 8px; font-size: 0.84em;
+        padding: 4px 6px; border-radius: 5px; cursor: pointer;
+    }
+    .perm-item:hover { background: rgba(51, 102, 255, 0.08); }
+    .perm-item input[type="checkbox"] { accent-color: #3366ff; width: 16px; height: 16px; }
+    .perm-desc { font-size: 0.72em; color: var(--text-muted); display: block; }
+
+    .btn-primary {
+        width: 100%; background: linear-gradient(135deg, #3366ff, #2563eb);
+        color: #fff; border: 1px solid #60a5fa; padding: 10px;
+        border-radius: 7px; font-weight: bold; font-size: 0.88em; cursor: pointer;
+    }
+
+    .cuenta-item {
+        background: rgba(10, 12, 18, 0.55); border: 1px solid var(--border-color);
+        border-radius: 10px; padding: 14px; margin-bottom: 12px;
+    }
+    .cuenta-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; margin-bottom: 10px; flex-wrap:wrap;
+    }
+    .cuenta-head .user-badge {
+        display: inline-flex; align-items: center; gap: 7px;
+        background: rgba(51, 102, 255, 0.12); border: 1px solid rgba(59, 130, 246, 0.35);
+        padding: 5px 12px; border-radius: 999px; font-weight: bold; font-size: 0.88em;
+        color: #60a5fa;
+    }
+    .cuenta-status-on {
+        background: rgba(0, 230, 118, 0.12); border: 1px solid rgba(0, 230, 118, 0.4);
+        color: #00e676; padding: 3px 10px; border-radius: 999px;
+        font-size: 0.72em; font-weight: bold;
+    }
+    .cuenta-status-off {
+        background: rgba(255, 82, 82, 0.12); border: 1px solid rgba(255, 82, 82, 0.4);
+        color: #ff5252; padding: 3px 10px; border-radius: 999px;
+        font-size: 0.72em; font-weight: bold;
+    }
+    .cuenta-info { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.82em; margin-bottom: 10px; }
+    .cuenta-info .info-chip {
+        background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color);
+        padding: 4px 10px; border-radius: 6px; font-family: monospace;
+    }
+    .perms-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+    .perm-pill {
+        font-size: 0.72em; padding: 3px 8px; border-radius: 5px;
+        font-weight: bold; border: 1px solid;
+    }
+    .perm-on { background: rgba(0, 230, 118, 0.1); border-color: rgba(0, 230, 118, 0.4); color: #69f0ae; }
+    .perm-off { background: rgba(255, 82, 82, 0.08); border-color: rgba(255, 82, 82, 0.3); color: #ff8a80; }
+
+    .cuenta-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-sm {
+        padding: 5px 10px; border-radius: 6px; font-size: 0.78em;
+        font-weight: bold; cursor: pointer; border: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.04); color: var(--text-main);
+        text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .btn-sm:hover { border-color: #60a5fa; color: #fff; }
+    .btn-sm.del { color: #ff8a80; border-color: rgba(255, 82, 82, 0.4); background: rgba(255, 82, 82, 0.1); }
+    .btn-sm.warn { color: #ffb300; border-color: rgba(255, 179, 0, 0.4); background: rgba(255, 179, 0, 0.1); }
+
+    .login-url-box {
+        background: #07090f; border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px; padding: 10px 14px; margin: 12px 0 0 0;
+        font-family: monospace; font-size: 0.82em; color: #38bdf8;
+        word-break: break-all; display:flex; align-items:center; justify-content:space-between; gap:8px;
+    }
+
+    @media (max-width: 768px) {
+        .grid-2 { grid-template-columns: 1fr; }
+        .permisos-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+<div class="pro-header">
+    <div>
+        <h1>👥 Cuentas de Hosting con Login</h1>
+        <p>Crea cuentas con usuario y contraseña para tus clientes de hosting. Cada uno ve SOLO sus equipos con permisos que tú controlas.</p>
+    </div>
+</div>
+
+{% if msg %}
+<div class="alert-{{ msg_tipo or 'ok' }}">{{ msg }}</div>
+{% endif %}
+
+<div class="login-url-box" style="margin-bottom:16px;">
+    <span>🔗 URL de login para clientes: <strong id="hostingLoginUrl">{{ request.url_root.rstrip('/') }}/hosting/login</strong></span>
+    <button type="button" class="btn-sm" onclick="copiarUrl()">📋 Copiar</button>
+</div>
+
+<div class="grid-2">
+    <!-- FORMULARIO CREAR CUENTA -->
+    <div class="card-box">
+        <h2>➕ Crear Nueva Cuenta de Cliente</h2>
+        <form method="POST" action="/hosting/cuentas">
+            <input type="hidden" name="accion" value="crear_cuenta">
+
+            <label class="lbl">Nombre del Cliente</label>
+            <input type="text" name="nombre_display" class="inp" placeholder="Ej: Juan Pérez — Inversionista" required>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                    <label class="lbl">Usuario de acceso</label>
+                    <input type="text" name="username" class="inp" placeholder="juan_perez" required minlength="3" maxlength="30" style="margin-bottom:0;">
+                </div>
+                <div>
+                    <label class="lbl">Contraseña</label>
+                    <input type="password" name="password" class="inp" placeholder="Mínimo 6 caracteres" required minlength="6" style="margin-bottom:0;">
+                </div>
+            </div>
+            <div style="margin-bottom:14px;"></div>
+
+            <label class="lbl">Email (opcional)</label>
+            <input type="email" name="email" class="inp" placeholder="cliente@email.com">
+
+            <label class="lbl">Equipos que podrá ver</label>
+            <div class="miners-pick">
+                {% if mineros_disp|length == 0 %}
+                    <div style="color:var(--text-muted); font-size:0.84em; padding:8px;">No hay mineros registrados todavía.</div>
+                {% else %}
+                    {% for m in mineros_disp %}
+                    <label class="pick-item">
+                        <input type="checkbox" name="ips" value="{{ m.ip }}">
+                        <span style="font-weight:bold;" translate="no">{{ m.nombre }}</span>
+                        <span style="color:var(--text-muted); font-family:monospace; font-size:0.88em;" translate="no">({{ m.ip }} · {{ m.modelo }})</span>
+                    </label>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <label class="lbl">Permisos del Cliente</label>
+            <div class="permisos-grid">
+                <label class="perm-item" style="opacity:0.5;">
+                    <input type="checkbox" checked disabled>
+                    <div>Ver Estado<span class="perm-desc">Siempre activo</span></div>
+                </label>
+                <label class="perm-item">
+                    <input type="checkbox" name="perm_ver_logs">
+                    <div>Ver Logs<span class="perm-desc">Kernel log del ASIC</span></div>
+                </label>
+                <label class="perm-item">
+                    <input type="checkbox" name="perm_reiniciar">
+                    <div>Reiniciar<span class="perm-desc">Reboot del equipo</span></div>
+                </label>
+                <label class="perm-item">
+                    <input type="checkbox" name="perm_blink_led">
+                    <div>Blink LED<span class="perm-desc">Encender LED localizador</span></div>
+                </label>
+                <label class="perm-item">
+                    <input type="checkbox" name="perm_cambiar_pools">
+                    <div>Cambiar Pools<span class="perm-desc">⚠️ Permite cambiar pools/wallets</span></div>
+                </label>
+            </div>
+
+            <label class="lbl">Notas internas (el cliente no las ve)</label>
+            <input type="text" name="notas" class="inp" placeholder="Contrato vigente hasta marzo 2027...">
+
+            <button type="submit" class="btn-primary">👤 Crear Cuenta de Cliente</button>
+        </form>
+    </div>
+
+    <!-- CUENTAS EXISTENTES -->
+    <div class="card-box">
+        <h2>📋 Cuentas de Clientes ({{ cuentas|length }})</h2>
+        {% if cuentas|length == 0 %}
+            <p style="color:var(--text-muted); font-size:0.86em;">Aún no has creado cuentas de hosting. Cuando generes una, tu cliente podrá ingresar desde la URL de login.</p>
+        {% else %}
+            {% for c in cuentas %}
+            <div class="cuenta-item">
+                <div class="cuenta-head">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <span class="user-badge">👤 {{ c.username }}</span>
+                        <strong>{{ c.nombre_display }}</strong>
+                    </div>
+                    {% if c.activo == 1 %}
+                        <span class="cuenta-status-on">● Activa</span>
+                    {% else %}
+                        <span class="cuenta-status-off">● Suspendida</span>
+                    {% endif %}
+                </div>
+
+                <div class="cuenta-info">
+                    <span class="info-chip">⛏️ {{ c.ips_list|length }} equipo(s)</span>
+                    {% if c.email %}<span class="info-chip">📧 {{ c.email }}</span>{% endif %}
+                    {% if c.ultimo_acceso %}<span class="info-chip">🕐 Último acceso: {{ c.ultimo_acceso }}</span>{% endif %}
+                    <span class="info-chip">📅 Creada: {{ c.fecha_creacion }}</span>
+                </div>
+
+                <div class="perms-pills">
+                    <span class="perm-pill perm-on">👁️ Ver Estado</span>
+                    <span class="perm-pill {{ 'perm-on' if c.permisos.ver_logs else 'perm-off' }}">📄 Logs</span>
+                    <span class="perm-pill {{ 'perm-on' if c.permisos.reiniciar else 'perm-off' }}">🔄 Reiniciar</span>
+                    <span class="perm-pill {{ 'perm-on' if c.permisos.blink_led else 'perm-off' }}">💡 Blink</span>
+                    <span class="perm-pill {{ 'perm-on' if c.permisos.cambiar_pools else 'perm-off' }}">⛏️ Pools</span>
+                </div>
+
+                {% if c.notas %}
+                <div style="font-size:0.78em; color:var(--text-muted); margin-bottom:10px; padding:6px 10px; background:rgba(255,255,255,0.03); border-radius:6px;">📝 {{ c.notas }}</div>
+                {% endif %}
+
+                <div class="cuenta-actions">
+                    <form method="POST" action="/hosting/cuentas" style="margin:0;">
+                        <input type="hidden" name="accion" value="toggle_cuenta">
+                        <input type="hidden" name="cuenta_id" value="{{ c.id }}">
+                        <button type="submit" class="btn-sm warn">{{ '⏸️ Suspender' if c.activo == 1 else '▶️ Activar' }}</button>
+                    </form>
+                    <form method="POST" action="/hosting/cuentas" onsubmit="return confirm('¿Eliminar la cuenta de {{ c.username }}? No se puede deshacer.');" style="margin:0;">
+                        <input type="hidden" name="accion" value="eliminar_cuenta">
+                        <input type="hidden" name="cuenta_id" value="{{ c.id }}">
+                        <button type="submit" class="btn-sm del">🗑️ Eliminar</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function copiarUrl() {
+    const url = document.getElementById('hostingLoginUrl').innerText;
+    navigator.clipboard.writeText(url).then(() => {
+        const btn = event.target;
+        const orig = btn.innerText;
+        btn.innerText = '✅ Copiado';
+        setTimeout(() => { btn.innerText = orig; }, 2200);
+    });
+}
+</script>
+{% endblock %}

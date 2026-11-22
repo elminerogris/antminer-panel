@@ -48,6 +48,18 @@ try:
 except ImportError:
     pass
 
+try:
+    from rutas_hosting import hosting_bp
+    app.register_blueprint(hosting_bp)
+except ImportError:
+    pass
+
+try:
+    from rutas_firmware import firmware_bp
+    app.register_blueprint(firmware_bp)
+except ImportError:
+    pass
+
 # Inicializar túnel WebSocket para comandos en tiempo real
 init_tunel(app)
 

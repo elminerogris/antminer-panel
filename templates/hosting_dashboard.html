@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="30">
+    <link rel="icon" type="image/png" href="/static/logo.png">
+    <title>{{ titulo }} — Panel de Hosting | El Minero Gris</title>
+    <style>
+        :root {
+            --bg-main: #0a0c12; --bg-card: #121521; --border: rgba(255,255,255,0.08);
+            --text-main: #f8fafc; --text-muted: #94a3b8;
+            --blue: #60a5fa; --green: #00e676; --amber: #ffb300; --red: #ff5252;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main); color: var(--text-main);
+            padding: 22px 16px 44px 16px;
+        }
+        .wrap { max-width: 1200px; margin: 0 auto; }
+
+        .top-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px 20px;
+        }
+        .top-bar h1 { font-size: 1.3em; }
+        .top-user {
+            display: flex; align-items: center; gap: 10px; flex-wrap:wrap;
+        }
+        .user-pill {
+            display: inline-flex; align-items: center; gap: 7px;
+            background: rgba(51,102,255,0.12); border: 1px solid rgba(59,130,246,0.35);
+            padding: 5px 14px; border-radius: 999px; font-weight: bold; font-size: 0.84em; color: var(--blue);
+        }
+        .live-pill {
+            display: inline-flex; align-items: center; gap: 7px;
+            background: rgba(0, 230, 118, 0.12); border: 1px solid rgba(0, 230, 118, 0.4);
+            color: var(--green); padding: 5px 12px; border-radius: 999px;
+            font-size: 0.78em; font-weight: bold; font-family: monospace;
+        }
+        .btn-logout {
+            padding: 5px 12px; border-radius: 6px; font-size: 0.8em; font-weight: bold;
+            cursor: pointer; border: 1px solid rgba(255,82,82,0.4); background: rgba(255,82,82,0.1);
+            color: #ff8a80; text-decoration:none;
+        }
+        .btn-logout:hover { background: rgba(255,82,82,0.2); color:#fff; }
+
+        .kpis {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px; margin-bottom: 18px;
+        }
+        .kpi {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px 16px;
+        }
+        .kpi small { display: block; font-size: 0.72em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
+        .kpi strong { display: block; font-size: 1.45em; font-family: monospace; margin-top: 6px; }
+
+        .perms-bar {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+            padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 8px; font-size: 0.78em;
+        }
+        .perm-chip {
+            padding: 3px 10px; border-radius: 999px; font-weight: bold; border: 1px solid;
+        }
+        .perm-on { background: rgba(0,230,118,0.1); border-color: rgba(0,230,118,0.4); color: #69f0ae; }
+        .perm-off { background: rgba(255,82,82,0.08); border-color: rgba(255,82,82,0.3); color: #ff8a80; }
+
+        .table-wrap {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 10px; overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 780px; }
+        th {
+            text-align: left; padding: 12px 14px; font-size: 0.74em;
+            color: var(--text-muted); text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 10px 14px; font-size: 0.86em;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        tr:last-child td { border-bottom: none; }
+        .t-ok { color: var(--green); font-weight: bold; }
+        .t-warn { color: var(--amber); font-weight: bold; }
+        .t-crit { color: var(--red); font-weight: bold; }
+
+        .btn-action {
+            padding: 4px 8px; border-radius: 5px; font-size: 0.74em; font-weight: bold;
+            cursor: pointer; border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+            color: var(--text-main); margin-right: 4px;
+        }
+        .btn-action:hover { border-color: var(--blue); color: #fff; }
+        .btn-action:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .foot { text-align: center; margin-top: 22px; font-size: 0.8em; color: var(--text-muted); }
+        .foot a { color: var(--blue); text-decoration: none; font-weight: bold; }
+
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(10,12,18,0.96); border: 1px solid #3b82f6;
+            color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 0.85em;
+            font-weight: bold; box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+            z-index: 9999; display: none; align-items: center; gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="cmdToast" class="toast"></div>
+    <div class="wrap">
+        <div class="top-bar">
+            <div>
+                <h1>⛏️ {{ titulo }}</h1>
+                <div style="font-size:0.8em; color:var(--text-muted); margin-top:3px;">Panel de Hosting · Monitoreo en tiempo real</div>
+            </div>
+            <div class="top-user">
+                <span class="user-pill">👤 {{ username }}</span>
+                <span class="live-pill">● EN VIVO</span>
+                <a href="/hosting/logout" class="btn-logout">🚪 Salir</a>
+            </div>
+        </div>
+
+        <div class="kpis">
+            <div class="kpi"><small>Equipos Activos</small><strong style="color:var(--green);">{{ online }} / {{ totales }}</strong></div>
+            <div class="kpi"><small>Hashrate Total (SHA-256)</small><strong style="color:var(--blue);">{{ hashrate_total }} TH/s</strong></div>
+            <div class="kpi"><small>Consumo Total</small><strong style="color:#c084fc;">{{ consumo_kw }} kW</strong></div>
+        </div>
+
+        <div class="perms-bar">
+            <span style="color:var(--text-muted); font-weight:bold;">Tus permisos:</span>
+            <span class="perm-chip perm-on">👁️ Ver Estado</span>
+            <span class="perm-chip {{ 'perm-on' if permisos.ver_logs else 'perm-off' }}">📄 Logs</span>
+            <span class="perm-chip {{ 'perm-on' if permisos.reiniciar else 'perm-off' }}">🔄 Reiniciar</span>
+            <span class="perm-chip {{ 'perm-on' if permisos.blink_led else 'perm-off' }}">💡 Blink</span>
+            <span class="perm-chip {{ 'perm-on' if permisos.cambiar_pools else 'perm-off' }}">⛏️ Pools</span>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Equipo</th>
+                        <th>Modelo</th>
+                        <th>Estado</th>
+                        <th>Hashrate</th>
+                        <th>Temp</th>
+                        <th>Consumo</th>
+                        <th>Firmware</th>
+                        <th>Uptime</th>
+                        {% if permisos.reiniciar or permisos.blink_led %}<th>Acciones</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in mineros %}
+                    {% set t_cls = 't-crit' if m.temp >= 85 else ('t-warn' if m.temp >= 75 else 't-ok') %}
+                    <tr>
+                        <td style="font-weight:bold;">{{ m.nombre }}</td>
+                        <td>{{ m.modelo }}</td>
+                        <td>
+                            {% if m.online %}
+                                <span class="t-ok">● En línea</span>
+                            {% else %}
+                                <span class="t-crit">● Sin conexión</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-family:monospace; color:var(--blue); font-weight:bold;">{{ m.hashrate }} {{ m.unidad }}</td>
+                        <td style="font-family:monospace;" class="{{ t_cls if m.online else '' }}">{{ m.temp }}°C</td>
+                        <td style="font-family:monospace;">{{ m.consumo_kw }} kW</td>
+                        <td style="font-size:0.78em;">
+                            {{ m.fw_tipo }}
+                            <span style="color:var(--text-muted);">{{ m.firmware[:20] }}</span>
+                        </td>
+                        <td style="font-family:monospace; color:var(--text-muted);">{{ m.uptime }}</td>
+                        {% if permisos.reiniciar or permisos.blink_led %}
+                        <td>
+                            {% if permisos.reiniciar %}
+                            <button class="btn-action" onclick="ejecutarCmd('{{ m.ip }}', 'restart')" title="Reiniciar">🔄</button>
+                            {% endif %}
+                            {% if permisos.blink_led %}
+                            <button class="btn-action" onclick="ejecutarCmd('{{ m.ip }}', 'blink')" title="Blink LED">💡</button>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="foot">
+            Panel de hosting · <a href="https://elminerogris.com" target="_blank" rel="noopener">El Minero Gris</a>
+        </div>
+    </div>
+
+    <script>
+    async function ejecutarCmd(ip, accion) {
+        const toast = document.getElementById('cmdToast');
+        try {
+            const r = await fetch(`/hosting/cmd/${ip}/${accion}`, {method: 'POST', headers: {'Content-Type': 'application/json'}});
+            const j = await r.json();
+            toast.style.display = 'flex';
+            toast.style.borderColor = r.ok ? '#3b82f6' : '#ff5252';
+            toast.innerText = j.msg || (r.ok ? '✅ Comando enviado' : '❌ Error');
+            setTimeout(() => { toast.style.display = 'none'; }, 3500);
+        } catch(e) {
+            toast.style.display = 'flex';
+            toast.style.borderColor = '#ff5252';
+            toast.innerText = '❌ Error de conexión';
+            setTimeout(() => { toast.style.display = 'none'; }, 3500);
+        }
+    }
+    </script>
+</body>
+</html>

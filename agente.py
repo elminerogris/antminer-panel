@@ -1074,6 +1074,145 @@ def cambiar_modo_inteligente(ip_dest, modo):
         actualizar_config_minero_segura(ip_dest, {"bitmain-work-mode": "0", "miner-mode": 0})
         peticion_4028(ip_dest, "resume")
 
+# ========= FIRMWARE OTA: Descargar + Flashear =========
+def reportar_progreso_firmware(fw_id, ip, estado, progreso, mensaje=""):
+    """Reporta progreso de flash al servidor."""
+    try:
+        requests.post(
+            f"{URL_NUBE.replace('/api/recibir_datos', '')}/api/firmware/progreso",
+            json={
+                "api_key": API_KEY,
+                "firmware_id": fw_id,
+                "ip": ip,
+                "estado": estado,
+                "progreso": progreso,
+                "mensaje": mensaje
+            },
+            timeout=10
+        )
+    except Exception as e:
+        print(f"[FW-OTA] Error reportando progreso: {e}")
+
+def flash_firmware_a_minero(fw_id, checksum, api_key_fw, ip_dest):
+    """Descarga firmware del servidor y lo flashea al minero vía HTTP upload."""
+    import hashlib, tempfile
+    base_url = URL_NUBE.replace('/api/recibir_datos', '')
+
+    reportar_progreso_firmware(fw_id, ip_dest, "en_progreso", 5, "Descargando firmware...")
+
+    # 1) Descargar firmware del servidor
+    try:
+        r = requests.get(
+            f"{base_url}/api/firmware/descargar/{fw_id}",
+            headers={"api_key": api_key_fw},
+            timeout=120, stream=True
+        )
+        if r.status_code != 200:
+            reportar_progreso_firmware(fw_id, ip_dest, "error", 0, f"Error descarga: HTTP {r.status_code}")
+            return
+    except Exception as e:
+        reportar_progreso_firmware(fw_id, ip_dest, "error", 0, f"Error descarga: {e}")
+        return
+
+    reportar_progreso_firmware(fw_id, ip_dest, "en_progreso", 30, "Verificando checksum SHA256...")
+
+    # 2) Guardar en temporal y verificar checksum
+    try:
+        tmp_dir = tempfile.mkdtemp(prefix="fw_ota_")
+        nombre_archivo = r.headers.get('Content-Disposition', '').split('filename=')[-1].strip('"') or f"firmware_{fw_id}.tar.gz"
+        ruta_fw = os.path.join(tmp_dir, nombre_archivo)
+        sha256 = hashlib.sha256()
+        with open(ruta_fw, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=65536):
+                f.write(chunk)
+                sha256.update(chunk)
+        checksum_local = sha256.hexdigest()
+        if checksum and checksum_local != checksum:
+            reportar_progreso_firmware(fw_id, ip_dest, "error", 0, f"Checksum no coincide: {checksum_local[:12]}… ≠ {checksum[:12]}…")
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            return
+    except Exception as e:
+        reportar_progreso_firmware(fw_id, ip_dest, "error", 0, f"Error guardando archivo: {e}")
+        return
+
+    reportar_progreso_firmware(fw_id, ip_dest, "en_progreso", 50, "Subiendo firmware al ASIC...")
+
+    # 3) Flashear al minero — intentar múltiples métodos
+    exito = False
+    msg_final = ""
+
+    # Método A: HTTP upgrade endpoint (Antminer stock firmware)
+    for usr, pwd in list(CREDENCIALES_HTTP):
+        try:
+            auth = HTTPDigestAuth(usr, pwd)
+            with open(ruta_fw, 'rb') as fw_file:
+                # Antminer upgrade.cgi (firmware de stock)
+                r_up = requests.post(
+                    f"http://{ip_dest}/cgi-bin/upgrade.cgi",
+                    auth=auth,
+                    files={"datafile": (nombre_archivo, fw_file)},
+                    headers={'Referer': f'http://{ip_dest}/'},
+                    timeout=300
+                )
+                if r_up.status_code == 200:
+                    exito = True
+                    msg_final = "Firmware enviado OK vía HTTP upgrade.cgi"
+                    break
+        except Exception as e:
+            msg_final = f"HTTP upgrade falló ({usr}): {e}"
+            continue
+
+    # Método B: Braiins OS / sysupgrade via SSH (si HTTP no funcionó)
+    if not exito:
+        try:
+            es_termux = "ANDROID_ROOT" in os.environ or "TERMUX_VERSION" in os.environ
+            sshpass_bin = shutil.which("sshpass")
+            scp_bin = shutil.which("scp")
+            ssh_bin = shutil.which("ssh")
+
+            if sshpass_bin and scp_bin and ssh_bin:
+                for usr, pwd in list(CREDENCIALES_HTTP):
+                    reportar_progreso_firmware(fw_id, ip_dest, "en_progreso", 65, f"Intentando SSH ({usr})...")
+                    # SCP: subir firmware
+                    ret_scp = subprocess.run(
+                        [sshpass_bin, "-p", pwd, scp_bin,
+                         "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=15",
+                         ruta_fw, f"{usr}@{ip_dest}:/tmp/{nombre_archivo}"],
+                        capture_output=True, text=True, timeout=180
+                    )
+                    if ret_scp.returncode == 0:
+                        reportar_progreso_firmware(fw_id, ip_dest, "en_progreso", 80, "Ejecutando sysupgrade...")
+                        # SSH: ejecutar sysupgrade
+                        ret_ssh = subprocess.run(
+                            [sshpass_bin, "-p", pwd, ssh_bin,
+                             "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
+                             f"{usr}@{ip_dest}",
+                             f"nohup sysupgrade /tmp/{nombre_archivo} > /dev/null 2>&1 &"],
+                            capture_output=True, text=True, timeout=30
+                        )
+                        exito = True
+                        msg_final = f"Firmware enviado vía SSH+sysupgrade ({usr})"
+                        break
+                    else:
+                        msg_final = f"SCP falló ({usr}): {ret_scp.stderr[:120]}"
+            else:
+                msg_final = "SSH no disponible (sshpass/scp no encontrados)"
+        except subprocess.TimeoutExpired:
+            msg_final = "Timeout en transferencia SSH"
+        except Exception as e:
+            msg_final = f"Error SSH: {e}"
+
+    # 4) Limpiar y reportar resultado final
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    if exito:
+        reportar_progreso_firmware(fw_id, ip_dest, "completado", 100, msg_final)
+        print(f"[FW-OTA ✅] {ip_dest}: {msg_final}")
+    else:
+        reportar_progreso_firmware(fw_id, ip_dest, "error", 0, msg_final)
+        print(f"[FW-OTA ❌] {ip_dest}: {msg_final}")
+
+
 def procesar_comandos(ordenes):
     global ips_conocidas
     for cmd in ordenes:
@@ -1156,6 +1295,22 @@ def procesar_comandos(ordenes):
                         requests.post(URL_LOGS, json={"api_key": API_KEY, "ip": ip_dest, "log": log_txt}, timeout=6)
                     except:
                         pass
+        elif accion.startswith("flash_firmware|"):
+            partes = accion.split('|')
+            if len(partes) >= 4:
+                fw_id_str, fw_checksum, fw_api_key = partes[1], partes[2], partes[3]
+                print(f"[FW-OTA] Iniciando flash de firmware #{fw_id_str} en {ip_dest}")
+                try:
+                    import threading
+                    t = threading.Thread(
+                        target=flash_firmware_a_minero,
+                        args=(int(fw_id_str), fw_checksum, fw_api_key, ip_dest),
+                        daemon=True
+                    )
+                    t.start()
+                except Exception as e:
+                    print(f"[FW-OTA] Error lanzando thread: {e}")
+                    reportar_progreso_firmware(int(fw_id_str), ip_dest, "error", 0, f"Error lanzando flash: {e}")
 
 def recolectar_y_enviar():
     global ips_conocidas, ultimo_escaneo_auto
