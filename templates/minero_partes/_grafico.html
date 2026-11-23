@@ -1896,7 +1896,7 @@
                 y1Axis.ticks.forEach((t, idx) => {
                     const yPos = y1Axis.getPixelForTick(idx);
                     if (yPos >= ca.top - 2 && yPos <= ca.bottom + 2) {
-                        const offsetY = (idx === 0) ? -5 : (idx === yAxis.ticks.length - 1 ? 10 : -4);
+                        const offsetY = (idx === 0) ? -5 : (idx === y1Axis.ticks.length - 1 ? 10 : -4);
                         const txt = t.value + '°';
                         ctx.strokeText(txt, ca.right - 5, yPos + offsetY);
                         ctx.fillText(txt, ca.right - 5, yPos + offsetY);
@@ -2032,11 +2032,11 @@
                 if (meta.temp > 0) {
                     html += `<div class="${clsRow('tmax')}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${flechaFocus('tmax')}</div>`;
                 }
-                if (meta.clima !== null && meta.clima !== undefined) {
-                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
-                }
                 if (meta.sensacion !== null && meta.sensacion !== undefined) {
                     html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
+                }
+                if (meta.clima !== null && meta.clima !== undefined) {
+                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
                 }
                 html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Encendido sin minar</div>`;
             } else {
@@ -2068,11 +2068,11 @@
                 if (meta.amb && meta.amb > 0) {
                     html += `<div class="${clsRow('tamb')}"><span class="tt-box" style="background:#00e676;"></span>🍃 Entrada/Amb: <b translate="no">${meta.amb}°C</b>${flechaFocus('tamb')}</div>`;
                 }
-                if (meta.clima !== null && meta.clima !== undefined) {
-                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima (<span translate="no">${GRANJA_CIUDAD}</span>): <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
-                }
                 if (meta.sensacion !== null && meta.sensacion !== undefined) {
                     html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
+                }
+                if (meta.clima !== null && meta.clima !== undefined) {
+                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima (<span translate="no">${GRANJA_CIUDAD}</span>): <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
                 }
                 let errNuevos = meta.err || 0;
                 let ds = meta.deltaS || pasoAgrupacionActualSeg;
