@@ -17,6 +17,7 @@ ultima_limpieza_bd = 0
 _cache_apk_version = {"ts": 0, "data": None}
 _ag_rate_lock = threading.Lock()
 _ag_rate_buckets = {}
+_col_app_ver_ok = False
 
 def _verificar_rate_limit_agente(clave, max_intentos=10, ventana_seg=300):
     ahora = time.time()
@@ -327,7 +328,7 @@ def api_cambiar_clave_masiva():
 
 @agente_bp.route('/api/recibir_datos', methods=['POST'])
 def recibir_datos():
-    global ultima_limpieza_bd
+    global ultima_limpieza_bd, _col_app_ver_ok
     datos = request.get_json(silent=True)
     if not datos: return jsonify({"status": "error", "msg": "JSON invalido"}), 400
 
@@ -357,6 +358,13 @@ def recibir_datos():
 
     con = get_db(); con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    if not _col_app_ver_ok:
+        try:
+            cur.execute("ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS app_version TEXT DEFAULT ''")
+            _col_app_ver_ok = True
+        except Exception:
+            pass
 
     cur.execute("SELECT * FROM usuarios WHERE api_key=%s", (api_key_recibida,))
     u_cfg = cur.fetchone()
@@ -389,6 +397,12 @@ def recibir_datos():
     dev_model = str(src_dev.get('model') or '').strip()[:80]
     dev_local_ip = str(src_dev.get('local_ip') or '').strip()[:45]
     dev_os = str(src_dev.get('os_info') or (f"Android {src_dev.get('android')}" if src_dev.get('android') else '')).strip()[:60]
+    dev_app_ver = str(
+        datos.get('app_version')
+        or src_dev.get('app_version')
+        or src_dev.get('version')
+        or ''
+    ).strip()[:30]
     batt_pct = a_int_seguro(src_dev.get('battery_pct'), -1)
     has_batt = 1 if (src_dev.get('has_battery') is True or batt_pct >= 0) else 0
     batt_charging = 1 if bool(src_dev.get('charging')) else 0
@@ -468,8 +482,8 @@ def recibir_datos():
             INSERT INTO granjas_sedes (
                 owner, farm_id, agent_id, nombre, ciudad, subred, gateway, router_mac, cap_kw, tarifa_kwh,
                 device_type, run_mode, brand, model, local_ip, has_battery, battery_pct, charging,
-                battery_temp_c, os_info, ultima_act
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 50.0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                battery_temp_c, os_info, app_version, ultima_act
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 50.0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (owner, farm_id) DO UPDATE SET
                 agent_id=EXCLUDED.agent_id,
                 ciudad=CASE WHEN granjas_sedes.ciudad IS NULL OR granjas_sedes.ciudad='' THEN EXCLUDED.ciudad ELSE granjas_sedes.ciudad END,
@@ -486,11 +500,12 @@ def recibir_datos():
                 charging=EXCLUDED.charging,
                 battery_temp_c=EXCLUDED.battery_temp_c,
                 os_info=CASE WHEN EXCLUDED.os_info != '' THEN EXCLUDED.os_info ELSE granjas_sedes.os_info END,
+                app_version=CASE WHEN EXCLUDED.app_version != '' THEN EXCLUDED.app_version ELSE granjas_sedes.app_version END,
                 ultima_act=EXCLUDED.ultima_act
         """, (
             owner_user, farm_id_efectivo, agent_id, nombre_defecto_granja, f_city, subred_detectada, gw_detectado,
             router_mac_fmt, tarifa_defecto, dev_type, run_mode, dev_brand, dev_model, dev_local_ip, has_batt,
-            batt_pct, batt_charging, batt_temp, dev_os, ahora
+            batt_pct, batt_charging, batt_temp, dev_os, dev_app_ver, ahora
         ))
     except Exception as err_gs:
         print(f"Error actualizando granjas_sedes ({farm_id_efectivo}): {err_gs}")
