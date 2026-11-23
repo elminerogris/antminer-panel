@@ -353,6 +353,17 @@
         min-height: 15px;
     }
 
+    .backup-status-msg {
+        margin-top: 12px;
+        font-size: 0.82em;
+        font-family: monospace;
+        display: none;
+        padding: 9px 12px;
+        border-radius: 6px;
+        background: rgba(10, 12, 18, 0.65);
+        border: 1px solid var(--border-color);
+    }
+
     .settings-toast {
         position: fixed;
         bottom: 22px;
@@ -538,6 +549,25 @@
     </div>
 </div>
 
+<!-- TARJETA 3: RESPALDO Y RESTAURACIÓN EN JSON -->
+<div class="card-pro" style="margin-top: 20px;">
+    <div class="card-pro-header">
+        <span>💾 Respaldo y Restauración de Configuración (JSON)</span>
+        <span style="font-size:0.74em; color:#60a5fa; font-family:monospace;">1 Clic</span>
+    </div>
+    <div class="card-pro-body">
+        <div class="panel-sub">
+            Guarda una copia de seguridad de los <b>nombres de tus ASICs</b>, tus <b>granjas/sedes</b> (tarifas, capacidades y notas) y tus <b>reglas de Watchdog, Protección y Horarios</b>. No incluye contraseñas ni tu API Key.
+        </div>
+        <div class="btn-row">
+            <a href="/api/ajustes/exportar_backup" class="btn-main-pro">📥 Descargar Backup (.json)</a>
+            <button type="button" class="btn-outline-pro" onclick="document.getElementById('inputBackupJson').click()">📤 Restaurar desde Backup (.json)</button>
+            <input type="file" id="inputBackupJson" accept=".json,application/json" style="display:none;" onchange="subirBackupJson(this)">
+        </div>
+        <div id="backupStatusMsg" class="backup-status-msg"></div>
+    </div>
+</div>
+
 <script>
     let apiKeyOculta = false;
 
@@ -611,6 +641,59 @@
         document.getElementById('gpanel-win').style.display = (so === 'win') ? 'block' : 'none';
         document.getElementById('gpanel-android').style.display = (so === 'android') ? 'block' : 'none';
         document.getElementById('gpanel-linux').style.display = (so === 'linux') ? 'block' : 'none';
+    }
+
+    function subirBackupJson(inputEl) {
+        const file = inputEl.files && inputEl.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById('backupStatusMsg');
+
+        if (!confirm('¿Restaurar los nombres de ASICs, granjas y reglas desde este archivo Backup?')) {
+            inputEl.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            let parsed = null;
+            try {
+                parsed = JSON.parse(ev.target.result);
+            } catch (e) {
+                statusEl.style.display = 'block';
+                statusEl.style.color = '#ff5252';
+                statusEl.innerText = '❌ El archivo seleccionado no es un JSON válido.';
+                inputEl.value = '';
+                return;
+            }
+
+            statusEl.style.display = 'block';
+            statusEl.style.color = '#38bdf8';
+            statusEl.innerText = '⏳ Restaurando configuración...';
+
+            fetch('/api/ajustes/importar_backup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(parsed)
+            })
+            .then(r => r.json())
+            .then(d => {
+                inputEl.value = '';
+                if (d.status === 'ok') {
+                    statusEl.style.color = '#00e676';
+                    statusEl.innerText = `✅ Backup restaurado: ${d.granjas} granja(s), ${d.nombres} nombre(s) de mineros y reglas aplicadas.`;
+                    mostrarToastAjustes('Respaldo restaurado correctamente');
+                } else {
+                    statusEl.style.color = '#ff5252';
+                    statusEl.innerText = '❌ ' + (d.msg || 'No se pudo restaurar el backup.');
+                }
+            })
+            .catch(() => {
+                inputEl.value = '';
+                statusEl.style.color = '#ff5252';
+                statusEl.innerText = '❌ Error de conexión al restaurar el backup.';
+            });
+        };
+        reader.readAsText(file);
     }
 </script>
 {% endblock %}
