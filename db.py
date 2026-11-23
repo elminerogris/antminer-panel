@@ -56,6 +56,7 @@ def init_db():
             charging INTEGER DEFAULT 0,
             battery_temp_c REAL DEFAULT 0.0,
             os_info TEXT DEFAULT '',
+            app_version TEXT DEFAULT '',
             ultima_act TEXT DEFAULT '',
             zt_activo INTEGER DEFAULT 0,
             zt_pool1 TEXT DEFAULT '',
@@ -203,6 +204,7 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS prot_sleep_desde TEXT DEFAULT ''",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS prot_motivo TEXT DEFAULT ''",
             "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS router_mac TEXT DEFAULT ''",
+            "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS app_version TEXT DEFAULT ''",
             "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_activo INTEGER DEFAULT 0",
             "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_pool1 TEXT DEFAULT ''",
             "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_worker_prefix TEXT DEFAULT ''",
@@ -338,7 +340,8 @@ def init_db():
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_nombres_owner_ip ON nombres_mineros (owner, ip)",
             "ALTER TABLE logs_mineros DROP CONSTRAINT IF EXISTS logs_mineros_ip_key",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_logs_owner_ip ON logs_mineros (owner, ip)",
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_username_lower ON usuarios (LOWER(username))"
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_username_lower ON usuarios (LOWER(username))",
+            "CREATE INDEX IF NOT EXISTS idx_usuarios_api_key ON usuarios (api_key)"
         ]
         for m_sql in migraciones_unique:
             try: c.execute(m_sql)
@@ -349,6 +352,8 @@ def init_db():
         c.execute("CREATE INDEX IF NOT EXISTS idx_historial_fecha ON historial_nube (fecha)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_cola_estado_owner ON cola_comandos (estado, owner, agent_id)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_alertas_owner_ip_tipo ON registro_alertas (owner, ip, tipo, id DESC)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_alertas_owner_id ON registro_alertas (owner, id DESC)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_alertas_fecha ON registro_alertas (fecha)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_mov_saldo_user ON movimientos_saldo (username, id DESC)")
 
         c.execute("SELECT id FROM usuarios WHERE LOWER(username)='admin'")
