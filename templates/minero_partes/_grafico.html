@@ -64,9 +64,7 @@
         box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
         transform: translateY(-1px);
     }
-    .farm-gps-btn:active {
-        transform: translateY(0);
-    }
+    .farm-gps-btn:active { transform: translateY(0); }
     .farm-gps-edit-tag {
         display: inline-flex;
         align-items: center;
@@ -222,9 +220,7 @@
         box-shadow: 0 0 12px rgba(59, 130, 246, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.18);
         text-shadow: 0 0 6px rgba(96, 165, 250, 0.55);
     }
-    .btn-filter:active {
-        transform: scale(0.96);
-    }
+    .btn-filter:active { transform: scale(0.96); }
 
     .btn-reset-zoom {
         display: none;
@@ -392,11 +388,7 @@
         color: #e2e8f0;
         box-shadow: 0 18px 42px rgba(0, 0, 0, 0.9);
     }
-    .farm-loc-input-row {
-        display: flex;
-        gap: 6px;
-        margin-top: 10px;
-    }
+    .farm-loc-input-row { display: flex; gap: 6px; margin-top: 10px; }
     .farm-loc-input {
         flex: 1;
         background: rgba(255, 255, 255, 0.06);
@@ -408,14 +400,7 @@
         outline: none;
     }
     .farm-loc-input:focus { border-color: #38bdf8; }
-    .farm-loc-results {
-        margin-top: 8px;
-        max-height: 140px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
+    .farm-loc-results { margin-top: 8px; max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
     .farm-loc-item {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -425,10 +410,7 @@
         font-size: 12px;
         transition: 0.15s;
     }
-    .farm-loc-item:hover {
-        background: rgba(56, 189, 248, 0.18);
-        border-color: #38bdf8;
-    }
+    .farm-loc-item:hover { background: rgba(56, 189, 248, 0.18); border-color: #38bdf8; }
     .farm-map-container {
         width: 100%;
         height: 250px;
@@ -452,12 +434,7 @@
         gap: 8px;
         flex-wrap: wrap;
     }
-    .farm-loc-actions {
-        margin-top: 12px;
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-    }
+    .farm-loc-actions { margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px; }
 
     /* Contenedor Full-Bleed optimizado con aceleración GPU */
     .chart-edge-container {
@@ -468,11 +445,7 @@
         -webkit-user-select: none;
         user-select: none;
     }
-    .chart-canvas-box {
-        height: 312px;
-        position: relative;
-        width: 100%;
-    }
+    .chart-canvas-box { height: 312px; position: relative; width: 100%; }
 
     /* Brillo de tope derecho (En vivo) + Botón Ir a Ahora */
     .edge-live-glow {
@@ -489,9 +462,7 @@
         transition: opacity 0.22s ease;
         z-index: 30;
     }
-    .edge-live-glow.show {
-        opacity: 1;
-    }
+    .edge-live-glow.show { opacity: 1; }
     .edge-live-pill {
         position: absolute;
         top: 50%;
@@ -511,10 +482,7 @@
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), 0 0 12px rgba(0, 230, 118, 0.28);
         z-index: 35;
     }
-    .edge-live-pill.show {
-        opacity: 1;
-        transform: translateY(-50%) translateX(0);
-    }
+    .edge-live-pill.show { opacity: 1; transform: translateY(-50%) translateX(0); }
     .btn-ir-ahora {
         display: none;
         position: absolute;
@@ -532,11 +500,7 @@
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65), 0 0 10px rgba(0, 230, 118, 0.25);
         transition: all 0.18s ease;
     }
-    .btn-ir-ahora:hover {
-        background: rgba(0, 230, 118, 0.22);
-        color: #fff;
-        transform: translateY(-1px);
-    }
+    .btn-ir-ahora:hover { background: rgba(0, 230, 118, 0.22); color: #fff; transform: translateY(-1px); }
 
     /* Tooltip flotante en línea 0 debajo del gráfico */
     .custom-chart-tooltip {
@@ -590,15 +554,13 @@
         transition: background 0.12s ease, opacity 0.12s ease;
     }
     .tt-row.tt-focus {
-        background: rgba(56, 189, 248, 0.18);
+        background: rgba(56, 189, 248, 0.20);
         border-left: 3px solid #38bdf8;
         color: #ffffff;
         font-weight: 600;
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
     }
-    .tt-row.tt-dim {
-        opacity: 0.65;
-    }
+    .tt-row.tt-dim { opacity: 0.62; }
     .tt-focus-arrow {
         margin-left: auto;
         padding-left: 8px;
@@ -607,8 +569,19 @@
         font-weight: bold;
     }
     .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.95em; }
-    .tt-sub.tt-dim { opacity: 0.6; }
+    .tt-sub.tt-dim { opacity: 0.58; }
     .tt-box { width: 9px; height: 9px; display: inline-block; border-radius: 2px; flex-shrink: 0; }
+    .tt-event-box {
+        margin-top: 5px;
+        padding: 4px 7px;
+        border-radius: 4px;
+        background: rgba(56, 189, 248, 0.14);
+        border-left: 3px solid #38bdf8;
+        color: #bae6fd;
+        font-size: 0.90em;
+        white-space: normal;
+        max-width: 290px;
+    }
     .tt-badge-status {
         margin-top: 4px;
         padding: 3px 7px;
@@ -761,6 +734,7 @@
     const rawErr = {{ graf_errores | default('[]') | safe }};
     const rawCadHist = {{ graf_cadenas_hist | default('[]') | safe }};
     const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
+    const eventosGrafico = {{ eventos_graf_json | default('[]') | safe }};
     const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
 
     const TIENE_GRANJA_SERVIDOR = {{ 'true' if ultimo.farm_city is defined and ultimo.farm_city else 'false' }};
@@ -785,6 +759,7 @@
     let rangoActual = '24h';
     let cursorDentroArea = false;
     let cursorCanvasY = null;
+    let ultimoContextoTooltip = null;
     let mapaMetaPuntos = {};
     let cacheClimaExterior = [];
     let visibilidadCurvas = {};
@@ -811,6 +786,13 @@
     let ultimoAnchoTooltipCache = 235;
     let rectCanvasCache = null;
 
+    function estaGraficoConZoom(chart) {
+        if (!chart || !chart.scales || !chart.scales.x) return false;
+        const spanVis = chart.scales.x.max - chart.scales.x.min;
+        const spanTot = limiteDatosDerGlobal - limiteDatosIzqGlobal;
+        return spanTot > 0 && spanVis < (spanTot - 60);
+    }
+
     function mostrarTopeEnVivo() {
         const glow = document.getElementById('edgeLiveGlow');
         const pill = document.getElementById('edgeLivePill');
@@ -825,9 +807,7 @@
 
     function actualizarControlesZoomYScroll(chart) {
         if (!chart || !chart.scales || !chart.scales.x) return;
-        const spanVis = chart.scales.x.max - chart.scales.x.min;
-        const spanTot = limiteDatosDerGlobal - limiteDatosIzqGlobal;
-        const estaConZoom = spanTot > 0 && spanVis < (spanTot - 60);
+        const estaConZoom = estaGraficoConZoom(chart);
 
         const btnReset = document.getElementById('btnResetZoom');
         if (btnReset) btnReset.style.display = estaConZoom ? 'inline-block' : 'none';
@@ -836,10 +816,6 @@
         const lejosDeAhora = estaConZoom && (limiteDatosDerGlobal - chart.scales.x.max) > 180;
         if (btnAhora) btnAhora.style.display = lejosDeAhora ? 'inline-flex' : 'none';
 
-        // En celular: desactivar pan cuando está al 100% para que el scroll vertical nunca se atore
-        if (chart.options && chart.options.plugins && chart.options.plugins.zoom && chart.options.plugins.zoom.pan) {
-            chart.options.plugins.zoom.pan.enabled = estaConZoom;
-        }
         const wrapper = document.getElementById('chartWrapper');
         if (wrapper) {
             wrapper.style.touchAction = estaConZoom ? 'none' : 'pan-y';
@@ -955,7 +931,7 @@
         const dicStats = {
             'guia_rapida': {
                 titulo: '📖 Cómo leer este gráfico en 10 segundos',
-                desc: '• <b>Línea Azul (Izquierda):</b> Potencia del minero.<br>• <b>Línea Amarilla (Derecha):</b> Calor de los chips.<br>• <b>Barras Rojas:</b> Errores del equipo.<br>• <b>Zoom:</b> Usa la rueda del mouse o 2 dedos en celular.<br>• <b>Reiniciar vista:</b> Doble clic o doble toque.<br>• <b>Ocultar líneas:</b> Toca las píldoras de colores arriba.',
+                desc: '• <b>Línea Azul (Izquierda):</b> Potencia del minero.<br>• <b>Línea Amarilla (Derecha):</b> Calor de los chips.<br>• <b>Barras Rojas:</b> Errores del equipo.<br>• <b>Íconos arriba (🔄/🛡️/⚡):</b> Eventos automáticos.<br>• <b>Zoom:</b> Rueda del mouse o 2 dedos en celular.<br>• <b>Reiniciar vista:</b> Doble clic o doble toque.',
                 rango: 'Pasa el mouse sobre cualquier punto para resaltar su dato'
             },
             'tz_toggle': {
@@ -1010,36 +986,12 @@
     function obtenerInfoTooltipFiltro(key) {
         const txtHist = diasRealesGrabados >= 1 ? `Historial guardado: ${diasRealesGrabados} días.` : `Historial guardado: ${horasRealesGrabadas} horas.`;
         const dicFiltros = {
-            '6h': {
-                titulo: '⏱️ Últimas 6 Horas',
-                desc: 'Ideal para revisar cambios recientes, reinicios o ajustes que acabas de hacer.',
-                rango: `Detalle cada 3 min (con zoom llega a 1 min) | ${txtHist}`
-            },
-            '24h': {
-                titulo: '🕒 Últimas 24 Horas (Día Completo)',
-                desc: 'Vista recomendada para comparar cómo trabaja tu minero con el calor del día frente a la noche.',
-                rango: `Detalle cada 3 min (con zoom llega a 1 min) | ${txtHist}`
-            },
-            '7d': {
-                titulo: '📅 Últimos 7 Días (Semana)',
-                desc: 'Muestra la estabilidad de toda la semana con hora y fecha. Los días previos a conectar el equipo aparecen vacíos a la izquierda.',
-                rango: `Detalle cada 15 min | ${txtHist}`
-            },
-            '30d': {
-                titulo: '🗓️ Últimos 30 Días (Mes)',
-                desc: 'Resumen mensual completo para detectar desgaste gradual, suciedad o tendencias de calor.',
-                rango: `Detalle cada 30 min | ${txtHist}`
-            },
-            'reset_zoom': {
-                titulo: '🔍 Volver al Tamaño Normal (100%)',
-                desc: 'Quita el acercamiento actual y vuelve a mostrar todo el periodo seleccionado.',
-                rango: 'Atajo rápido: doble clic o doble toque sobre el gráfico'
-            },
-            'camara': {
-                titulo: '📷 Guardar Foto del Gráfico',
-                desc: 'Descarga una imagen limpia (PNG) lista para compartir por WhatsApp o enviar a soporte técnico.',
-                rango: 'Se guarda automáticamente en tus descargas'
-            }
+            '6h': { titulo: '⏱️ Últimas 6 Horas', desc: 'Ideal para revisar cambios recientes, reinicios o ajustes que acabas de hacer.', rango: `Detalle cada 3 min (con zoom llega a 1 min) | ${txtHist}` },
+            '24h': { titulo: '🕒 Últimas 24 Horas (Día Completo)', desc: 'Vista recomendada para comparar cómo trabaja tu minero con el calor del día frente a la noche.', rango: `Detalle cada 3 min (con zoom llega a 1 min) | ${txtHist}` },
+            '7d': { titulo: '📅 Últimos 7 Días (Semana)', desc: 'Muestra la estabilidad de toda la semana con hora y fecha. Los días previos a conectar el equipo aparecen vacíos a la izquierda.', rango: `Detalle cada 15 min | ${txtHist}` },
+            '30d': { titulo: '🗓️ Últimos 30 Días (Mes)', desc: 'Resumen mensual completo para detectar desgaste gradual, suciedad o tendencias de calor.', rango: `Detalle cada 30 min | ${txtHist}` },
+            'reset_zoom': { titulo: '🔍 Volver al Tamaño Normal (100%)', desc: 'Quita el acercamiento actual y vuelve a mostrar todo el periodo seleccionado.', rango: 'Atajo rápido: doble clic o doble toque sobre el gráfico' },
+            'camara': { titulo: '📷 Guardar Foto del Gráfico', desc: 'Descarga una imagen limpia (PNG) lista para compartir por WhatsApp o enviar a soporte técnico.', rango: 'Se guarda automáticamente en tus descargas' }
         };
         return dicFiltros[key];
     }
@@ -1062,12 +1014,8 @@
 
         let html = `<div class="pill-tt-header"><span>${infoObj.titulo}</span></div>`;
         html += `<div>${infoObj.desc}</div>`;
-        if (infoObj.rango) {
-            html += `<div class="pill-tt-range" translate="no">${infoObj.rango}</div>`;
-        }
-        if (infoObj.accion) {
-            html += `<div class="pill-tt-action">💡 ${infoObj.accion}</div>`;
-        }
+        if (infoObj.rango) html += `<div class="pill-tt-range" translate="no">${infoObj.rango}</div>`;
+        if (infoObj.accion) html += `<div class="pill-tt-action">💡 ${infoObj.accion}</div>`;
         html += `<div id="smartTtArrow" class="smart-tt-arrow bottom"></div>`;
 
         box.innerHTML = html;
@@ -1117,9 +1065,7 @@
 
         const btnGuia = document.getElementById('btnGuiaGrafico');
         if (btnGuia) {
-            btnGuia.addEventListener('mouseenter', function() {
-                mostrarSmartTooltip(btnGuia, obtenerInfoTooltipStat('guia_rapida'));
-            });
+            btnGuia.addEventListener('mouseenter', function() { mostrarSmartTooltip(btnGuia, obtenerInfoTooltipStat('guia_rapida')); });
             btnGuia.addEventListener('mouseleave', ocultarSmartTooltip);
             btnGuia.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -1130,17 +1076,13 @@
 
         const btnTz = document.getElementById('btnToggleTimezone');
         if (btnTz) {
-            btnTz.addEventListener('mouseenter', function() {
-                mostrarSmartTooltip(btnTz, obtenerInfoTooltipStat('tz_toggle'));
-            });
+            btnTz.addEventListener('mouseenter', function() { mostrarSmartTooltip(btnTz, obtenerInfoTooltipStat('tz_toggle')); });
             btnTz.addEventListener('mouseleave', ocultarSmartTooltip);
         }
 
         document.querySelectorAll('.stat-item[data-stat-key]').forEach(item => {
             const key = item.getAttribute('data-stat-key');
-            item.addEventListener('mouseenter', function() {
-                mostrarSmartTooltip(item, obtenerInfoTooltipStat(key));
-            });
+            item.addEventListener('mouseenter', function() { mostrarSmartTooltip(item, obtenerInfoTooltipStat(key)); });
             item.addEventListener('mouseleave', ocultarSmartTooltip);
             item.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -1151,25 +1093,19 @@
 
         document.querySelectorAll('[data-filter-key]').forEach(btn => {
             const key = btn.getAttribute('data-filter-key');
-            btn.addEventListener('mouseenter', function() {
-                mostrarSmartTooltip(btn, obtenerInfoTooltipFiltro(key));
-            });
+            btn.addEventListener('mouseenter', function() { mostrarSmartTooltip(btn, obtenerInfoTooltipFiltro(key)); });
             btn.addEventListener('mouseleave', ocultarSmartTooltip);
         });
 
         const badgeClima = document.getElementById('climaUbicacionBadge');
         if (badgeClima) {
-            badgeClima.addEventListener('mouseenter', function() {
-                mostrarSmartTooltip(badgeClima, obtenerInfoTooltipStat('gps_btn'));
-            });
+            badgeClima.addEventListener('mouseenter', function() { mostrarSmartTooltip(badgeClima, obtenerInfoTooltipStat('gps_btn')); });
             badgeClima.addEventListener('mouseleave', ocultarSmartTooltip);
         }
 
         const badgeLod = document.getElementById('lodResolutionBadge');
         if (badgeLod) {
-            badgeLod.addEventListener('mouseenter', function() {
-                mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info'));
-            });
+            badgeLod.addEventListener('mouseenter', function() { mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info')); });
             badgeLod.addEventListener('mouseleave', ocultarSmartTooltip);
             badgeLod.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -1215,9 +1151,7 @@
     }
 
     function formatearFechaTooltip(d) {
-        if (fmtFechaHoraCache) {
-            return fmtFechaHoraCache.format(d).replace(',', '');
-        }
+        if (fmtFechaHoraCache) return fmtFechaHoraCache.format(d).replace(',', '');
         let dia = String(d.getDate()).padStart(2, '0');
         let mes = String(d.getMonth() + 1).padStart(2, '0');
         let anio = String(d.getFullYear()).slice(-2);
@@ -1455,12 +1389,10 @@
             }).addTo(farmMap);
 
             farmMarker = L.marker([lat, lon], { draggable: true }).addTo(farmMap);
-
             farmMarker.on('dragend', function(e) {
                 const pos = e.target.getLatLng();
                 resolverNombrePorCoordenadas(pos.lat, pos.lng);
             });
-
             farmMap.on('click', function(e) {
                 farmMarker.setLatLng(e.latlng);
                 resolverNombrePorCoordenadas(e.latlng.lat, e.latlng.lng);
@@ -1470,9 +1402,7 @@
             farmMarker.setLatLng([lat, lon]);
         }
 
-        setTimeout(() => {
-            if (farmMap) farmMap.invalidateSize();
-        }, 160);
+        setTimeout(() => { if (farmMap) farmMap.invalidateSize(); }, 160);
     }
 
     function abrirModalUbicacionGranja() {
@@ -1529,10 +1459,7 @@
     }
 
     function confirmarUbicacionMapa() {
-        if (!tempLocSeleccionada) {
-            cerrarModalUbicacionGranja();
-            return;
-        }
+        if (!tempLocSeleccionada) { cerrarModalUbicacionGranja(); return; }
         GRANJA_LAT = tempLocSeleccionada.lat;
         GRANJA_LON = tempLocSeleccionada.lon;
         GRANJA_CIUDAD = tempLocSeleccionada.city;
@@ -1612,12 +1539,7 @@
                         let tReal = Math.round(Number(temps[i]));
                         let hum = (hums[i] !== undefined && hums[i] !== null) ? Number(hums[i]) : 60;
                         let stCalc = calcularSensacionTermicaNOAA(tReal, hum, appTemps[i]);
-
-                        cacheClimaExterior.push({
-                            ts: tsHora,
-                            temp: tReal,
-                            sensacion: stCalc
-                        });
+                        cacheClimaExterior.push({ ts: tsHora, temp: tReal, sensacion: stCalc });
                     }
                 }
 
@@ -1683,6 +1605,31 @@
         };
     }
 
+    function iconoEvento(tipo) {
+        if (tipo === 'WATCHDOG_REBOOT') return { ic: '🔄', col: 'rgba(96, 165, 250, 0.75)' };
+        if (tipo === 'WATCHDOG_CUARENTENA') return { ic: '🔒', col: 'rgba(192, 132, 252, 0.80)' };
+        if (tipo === 'CORTE_TERMICO') return { ic: '🛡️', col: 'rgba(255, 82, 82, 0.80)' };
+        if (tipo === 'HORARIO_PICO') return { ic: '⚡', col: 'rgba(255, 179, 0, 0.80)' };
+        if (tipo === 'HORARIO_NORMAL') return { ic: '🟢', col: 'rgba(0, 230, 118, 0.75)' };
+        return { ic: '•', col: 'rgba(148, 163, 184, 0.6)' };
+    }
+
+    function buscarEventoCercano(tsSegundos) {
+        if (!eventosGrafico || eventosGrafico.length === 0) return null;
+        const tolerancia = Math.max(180, pasoAgrupacionActualSeg);
+        let mejor = null;
+        let menorD = tolerancia;
+        for (let i = 0; i < eventosGrafico.length; i++) {
+            const ev = eventosGrafico[i];
+            const d = Math.abs(ev.ts - tsSegundos);
+            if (d <= menorD) {
+                menorD = d;
+                mejor = ev;
+            }
+        }
+        return mejor;
+    }
+
     const pluginNumerosDentroGrafico = {
         id: 'numerosDentroGrafico',
         beforeDatasetsDraw: function(chart) {
@@ -1729,6 +1676,34 @@
             if (!ca) return;
 
             ctx.save();
+
+            // Marcadores verticales de eventos automáticos (Watchdog / Corte Térmico / Tarifa Pico)
+            if (xAxis && eventosGrafico && eventosGrafico.length > 0) {
+                let ultimoXIcono = -999;
+                const visibles = eventosGrafico
+                    .filter(ev => ev.ts >= xAxis.min && ev.ts <= xAxis.max)
+                    .sort((a, b) => a.ts - b.ts);
+                visibles.forEach(ev => {
+                    const xEv = xAxis.getPixelForValue(ev.ts);
+                    if (xEv < ca.left + 10 || xEv > ca.right - 10) return;
+                    const infoEv = iconoEvento(ev.tipo);
+                    ctx.beginPath();
+                    ctx.setLineDash([2, 4]);
+                    ctx.moveTo(xEv, ca.top + 14);
+                    ctx.lineTo(xEv, ca.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = infoEv.col;
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    if (xEv - ultimoXIcono >= 18) {
+                        ctx.font = '11px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(infoEv.ic, xEv, ca.top + 11);
+                        ultimoXIcono = xEv;
+                    }
+                });
+            }
 
             if (xAxis && primerTsGrabadoGlobal > xAxis.min + 180) {
                 const xInicioDatos = xAxis.getPixelForValue(primerTsGrabadoGlobal);
@@ -1837,7 +1812,7 @@
                 y1Axis.ticks.forEach((t, idx) => {
                     const yPos = y1Axis.getPixelForTick(idx);
                     if (yPos >= ca.top - 2 && yPos <= ca.bottom + 2) {
-                        const offsetY = (idx === 0) ? -5 : (idx === y1Axis.ticks.length - 1 ? 10 : -4);
+                        const offsetY = (idx === 0) ? -5 : (idx === yAxis.ticks.length - 1 ? 10 : -4);
                         const txt = t.value + '°';
                         ctx.strokeText(txt, ca.right - 5, yPos + offsetY);
                         ctx.fillText(txt, ca.right - 5, yPos + offsetY);
@@ -1877,6 +1852,7 @@
     function ocultarTooltipGris() {
         cursorDentroArea = false;
         cursorCanvasY = null;
+        ultimoContextoTooltip = null;
         ultimoKeyTooltipRenderizado = null;
         const ttEl = document.getElementById('customChartTooltip');
         if (ttEl) ttEl.style.display = 'none';
@@ -1886,16 +1862,28 @@
         }
     }
 
-    function detectarCurvaEnfocada(dataPoints) {
-        if (cursorCanvasY === null || !dataPoints || dataPoints.length === 0) return null;
+    function detectarCurvaEnfocada(chart, dataPoints) {
+        if (cursorCanvasY === null || !dataPoints || dataPoints.length === 0 || !chart || !chart.chartArea) return null;
+        const bottomY = chart.chartArea.bottom;
         let mejorId = null;
-        let menorDist = 34;
+        let menorDist = 16; // Tolerancia estricta para no resaltar nada en espacios en blanco
+
         for (let i = 0; i < dataPoints.length; i++) {
             const dp = dataPoints[i];
             if (!dp || !dp.dataset || !dp.element || isNaN(dp.element.y)) continue;
+            if (!chart.isDatasetVisible(dp.datasetIndex)) continue;
             if (dp.parsed && (dp.parsed.y === null || dp.parsed.y === undefined)) continue;
+
+            // Para barras de Errores HW: solo resaltar si hay errores (> 0) y el cursor toca la barra vertical
+            if (dp.dataset.id === 'err') {
+                if (dp.parsed.y > 0 && cursorCanvasY >= (dp.element.y - 5) && cursorCanvasY <= bottomY) {
+                    return 'err';
+                }
+                continue;
+            }
+
             const dist = Math.abs(dp.element.y - cursorCanvasY);
-            if (dist < menorDist) {
+            if (dist <= menorDist) {
                 menorDist = dist;
                 mejorId = dp.dataset.id || null;
             }
@@ -1910,6 +1898,7 @@
 
         if (tooltip.opacity === 0 || !cursorDentroArea || !tooltip.dataPoints || tooltip.dataPoints.length === 0) {
             ttEl.style.display = 'none';
+            ultimoContextoTooltip = null;
             ultimoKeyTooltipRenderizado = null;
             return;
         }
@@ -1920,11 +1909,14 @@
 
         if (!meta || meta.esSeparadorCorte) {
             ttEl.style.display = 'none';
+            ultimoContextoTooltip = null;
             ultimoKeyTooltipRenderizado = null;
             return;
         }
 
-        const focusId = detectarCurvaEnfocada(tooltip.dataPoints);
+        ultimoContextoTooltip = { chart, tooltip };
+
+        const focusId = detectarCurvaEnfocada(chart, tooltip.dataPoints);
         const renderKey = tsSegundos + '|' + (focusId || '');
 
         function clsRow(ids) {
@@ -1998,6 +1990,11 @@
                 let ds = meta.deltaS || pasoAgrupacionActualSeg;
                 let porSeg = (errNuevos / ds).toFixed(2);
                 html += `<div class="${clsRow('err')}"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b translate="no">${errNuevos}</b> (<span translate="no">${porSeg}/s</span>)${flechaFocus('err')}</div>`;
+            }
+
+            const evCercano = buscarEventoCercano(tsSegundos);
+            if (evCercano) {
+                html += `<div class="tt-event-box">${evCercano.msg}</div>`;
             }
 
             ttEl.innerHTML = html;
@@ -2125,11 +2122,13 @@
             } else {
                 cursorDentroArea = true;
                 cursorCanvasY = y;
+                // Actualizar el resaltado en tiempo real al mover el mouse verticalmente
+                if (ultimoContextoTooltip) {
+                    renderizarTooltipExterno(ultimoContextoTooltip);
+                }
             }
         }
 
-        // Interceptar rueda en fase de captura: si el zoom está bloqueado por inercia de scroll,
-        // evitamos que Chart.js lo capture y dejamos que la página siga scrolleando libremente.
         if (wrapper) {
             wrapper.addEventListener('wheel', function(e) {
                 const enInerciaScroll = (Date.now() - ultimoScrollPaginaTs) <= 450;
@@ -2618,7 +2617,11 @@
                         zoom: {
                             limits: { x: { min: limiteIzq, max: limiteDer, minRange: 300 } },
                             pan: {
-                                enabled: false, mode: 'x',
+                                enabled: true, mode: 'x',
+                                onPanStart: function({chart}) {
+                                    // Solo permitir arrastrar si hay zoom activo (evita trabar el scroll en celular al 100%)
+                                    return estaGraficoConZoom(chart);
+                                },
                                 onPan: function({chart}) { forzarLimitesSinEspacioVacio(chart, true); },
                                 onPanComplete: function({chart}) {
                                     actualizarPuntosYResolucionSegunZoom(chart);
