@@ -289,7 +289,19 @@ def _ciclo_vigilancia():
                     except Exception as err_res:
                         print(f"[Resumen Diario] Error para {owner}: {err_res}")
 
-                # 2. Vigilancia de cortes de luz o internet por sede
+                # 2. Telemetría de los agentes (para diferenciar corte de luz vs. internet)
+                cur.execute("""
+                    SELECT agent_id, farm_id, nombre, has_battery, battery_pct, charging, ultima_act
+                    FROM granjas_sedes
+                    WHERE owner = %s
+                """, (owner,))
+                agentes_map = {}
+                for gs in cur.fetchall():
+                    ag_k = str(gs.get("agent_id") or gs.get("farm_id") or "").strip()
+                    if ag_k:
+                        agentes_map[ag_k] = gs
+
+                # 3. Vigilancia inteligente de cortes de luz o internet por sede
                 cur.execute("""
                     SELECT
                         COALESCE(NULLIF(agent_id, ''), 'default') AS sede,
@@ -313,34 +325,73 @@ def _ciclo_vigilancia():
                     segs = calcular_segundos_desconectado(ultimo_rep)
                     clave = (owner, sede)
 
-                    # Caída detectada: entre 5 min (300s) y 24 horas (86400s) sin reportes
+                    # Caída detectada: entre 5 min (300s) y 24 horas (86400s) sin reportes de ASICs
                     if 300 <= segs <= 86400:
                         if not alerta_en_enfriamiento(cur, owner, sede, "GRANJA_CAIDA", 3600):
                             mins = int(segs // 60)
-                            msg_db = (
-                                f"🚨 GRANJA SIN CONEXIÓN: Sede {sede} ({ciudad}) lleva {mins} min "
-                                f"sin reportar ({total_m} equipo(s)). Posible corte de luz o internet."
-                            )
+                            info_ag = agentes_map.get(sede) or {}
+                            nombre_sede = str(info_ag.get("nombre") or sede).strip()
+                            segs_ag = calcular_segundos_desconectado(info_ag.get("ultima_act")) if info_ag.get("ultima_act") else 999999
+                            agente_vivo = segs_ag < 300
+                            tiene_bat = a_int_seguro(info_ag.get("has_battery"), 0) == 1
+                            bat_pct = a_int_seguro(info_ag.get("battery_pct"), -1)
+                            cargando = a_int_seguro(info_ag.get("charging"), 0) == 1
+
+                            if agente_vivo and tiene_bat and not cargando:
+                                # Celular vivo con batería y sin cargador + ASICs caídos = Corte de luz
+                                bat_txt = f"{bat_pct}%" if bat_pct >= 0 else "N/D"
+                                msg_db = (
+                                    f"⚡ CORTE DE LUZ: Sede {nombre_sede} ({ciudad}). "
+                                    f"Agente en línea con batería ({bat_txt}, sin cargador), pero {total_m} ASIC(s) sin alimentación hace {mins} min."
+                                )
+                                msg_tg = (
+                                    f"⚡ <b>ALERTA: CORTE DE LUZ DETECTADO</b>\n"
+                                    f"Sede: <b>{nombre_sede}</b> ({ciudad})\n"
+                                    f"Estado Agente: <b>En línea con batería ({bat_txt}, sin cargador)</b>\n"
+                                    f"ASICs afectados: <b>{total_m} sin respuesta hace {mins} min</b>\n"
+                                    f"Diagnóstico: El internet sigue activo, pero se cortó la energía eléctrica."
+                                )
+                            elif agente_vivo:
+                                # Agente vivo (hay internet), pero los ASICs no responden
+                                msg_db = (
+                                    f"⚠️ ASICS SIN CONEXIÓN (AGENTE ONLINE): Sede {nombre_sede} ({ciudad}). "
+                                    f"Hay internet, pero {total_m} ASIC(s) llevan {mins} min sin responder."
+                                )
+                                msg_tg = (
+                                    f"⚠️ <b>ALERTA: ASICS CAÍDOS (INTERNET ACTIVO)</b>\n"
+                                    f"Sede: <b>{nombre_sede}</b> ({ciudad})\n"
+                                    f"Estado Agente: <b>Online</b>\n"
+                                    f"ASICs afectados: <b>{total_m} sin respuesta hace {mins} min</b>\n"
+                                    f"Diagnóstico: Revisa térmicos/breakers de los equipos o el switch de red local."
+                                )
+                            else:
+                                # Ni el agente ni los ASICs reportan
+                                msg_db = (
+                                    f"🚨 GRANJA SIN CONEXIÓN: Sede {nombre_sede} ({ciudad}) lleva {mins} min "
+                                    f"sin reportar ({total_m} equipo(s)). Posible caída de internet o apagón total."
+                                )
+                                msg_tg = (
+                                    f"🚨 <b>ALERTA: GRANJA SIN CONEXIÓN</b>\n"
+                                    f"Sede: <b>{nombre_sede}</b> ({ciudad})\n"
+                                    f"Equipos afectados: <b>{total_m}</b>\n"
+                                    f"Último reporte: <b>hace {mins} min</b>\n"
+                                    f"Diagnóstico: Posible caída de internet, apagón total o celular apagado."
+                                )
+
                             cur.execute(
                                 "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) "
                                 "VALUES (%s, %s, 'GRANJA_CAIDA', %s, %s)",
                                 (owner, sede, msg_db, ahora_str),
                             )
-                            enviar_telegram(
-                                tg_tok,
-                                tg_cid,
-                                f"🚨 <b>ALERTA: GRANJA SIN CONEXIÓN</b>\n"
-                                f"Sede: <b>{sede}</b> ({ciudad})\n"
-                                f"Equipos afectados: <b>{total_m}</b>\n"
-                                f"Último reporte: <b>hace {mins} min</b>\n"
-                                f"Posible corte de luz, caída de internet o celular apagado.",
-                            )
+                            enviar_telegram(tg_tok, tg_cid, msg_tg)
                             _sedes_caidas.add(clave)
 
                     # Recuperación detectada: volvió a reportar en los últimos 3 minutos
                     elif segs < 180 and clave in _sedes_caidas:
                         _sedes_caidas.discard(clave)
-                        msg_ok = f"🟢 GRANJA RECONECTADA: Sede {sede} ({ciudad}) volvió en línea ({total_m} equipo(s))."
+                        info_ag = agentes_map.get(sede) or {}
+                        nombre_sede = str(info_ag.get("nombre") or sede).strip()
+                        msg_ok = f"🟢 GRANJA RECONECTADA: Sede {nombre_sede} ({ciudad}) volvió en línea ({total_m} equipo(s))."
                         cur.execute(
                             "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) "
                             "VALUES (%s, %s, 'GRANJA_ONLINE', %s, %s)",
@@ -350,7 +401,7 @@ def _ciclo_vigilancia():
                             tg_tok,
                             tg_cid,
                             f"🟢 <b>GRANJA RECONECTADA</b>\n"
-                            f"Sede: <b>{sede}</b> ({ciudad})\n"
+                            f"Sede: <b>{nombre_sede}</b> ({ciudad})\n"
                             f"Equipos reportando: <b>{total_m}</b>",
                         )
 
