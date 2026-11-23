@@ -31,9 +31,14 @@ def _verificar_rate_limit_agente(clave, max_intentos=10, ventana_seg=300):
 
 def normalizar_mac(mac_str):
     s = re.sub(r'[^0-9A-Fa-f]', '', str(mac_str or '')).upper()
-    if len(s) != 12 or s in ('000000000000', 'FFFFFFFFFFFF'):
+    if len(s) != 12 or s in ('000000000000', 'FFFFFFFFFFFF', '020000000000'):
         return ""
     return s
+
+def formatear_mac(mac_norm):
+    if not mac_norm or len(mac_norm) != 12:
+        return ""
+    return ":".join(mac_norm[i:i+2] for i in range(0, 12, 2))
 
 def normalizar_sn(sn_str):
     s = str(sn_str or '').strip().upper()
@@ -368,7 +373,7 @@ def recibir_datos():
     ahora_minuto = ahora_dt.strftime("%Y-%m-%d %H:%M:00")
     ahora_ts = time.time()
 
-    # ==================== CREACIÓN / ACTUALIZACIÓN AUTOMÁTICA DE LA GRANJA DEL AGENTE ====================
+    # ==================== CREACIÓN / ACTUALIZACIÓN AUTOMÁTICA DE LA GRANJA POR ROUTER ====================
     dev_info = datos.get('device') if isinstance(datos.get('device'), dict) else {}
     phone_info = datos.get('phone') if isinstance(datos.get('phone'), dict) else {}
     src_dev = dev_info if dev_info else phone_info
@@ -388,6 +393,16 @@ def recibir_datos():
     has_batt = 1 if (src_dev.get('has_battery') is True or batt_pct >= 0) else 0
     batt_charging = 1 if bool(src_dev.get('charging')) else 0
     batt_temp = a_float_seguro(src_dev.get('battery_temp_c'), 0.0)
+
+    # Identificación del router por MAC / BSSID para evitar granjas duplicadas en el mismo Wi-Fi
+    router_mac_raw = (
+        datos.get('router_mac')
+        or src_dev.get('router_mac')
+        or src_dev.get('bssid')
+        or ''
+    )
+    router_mac_norm = normalizar_mac(router_mac_raw)
+    router_mac_fmt = formatear_mac(router_mac_norm)
 
     mineros_payload = datos.get('mineros', [])
     subred_detectada = ""
@@ -409,23 +424,58 @@ def recibir_datos():
     if not subred_detectada:
         subred_detectada = (u_cfg.get('subnet') or '192.168.0') + ".x"
     if not gw_detectado:
+        gw_detectado = str(datos.get('gateway') or src_dev.get('gateway') or '').strip()
+    if not gw_detectado:
         gw_detectado = subred_detectada.replace('.x', '.1') if subred_detectada.endswith('.x') else '192.168.0.1'
 
-    nombre_defecto_granja = f"Granja {f_city} ({agent_id})"
+    # Buscar si ya existe una granja para este mismo router (evita duplicados con 2 o 3 celulares en el mismo Wi-Fi)
+    farm_id_efectivo = agent_id
+    try:
+        if router_mac_fmt:
+            mac_prefijo_5 = router_mac_fmt[:14]  # Ej: "AA:BB:CC:DD:EE" (cubre 2.4GHz y 5GHz del mismo router)
+            cur.execute("""
+                SELECT farm_id FROM granjas_sedes
+                WHERE owner=%s
+                  AND (
+                      router_mac=%s
+                      OR (router_mac LIKE %s AND gateway=%s)
+                  )
+                ORDER BY id ASC
+                LIMIT 1
+            """, (owner_user, router_mac_fmt, mac_prefijo_5 + '%', gw_detectado))
+            row_rtr = cur.fetchone()
+            if row_rtr and row_rtr.get('farm_id'):
+                farm_id_efectivo = str(row_rtr['farm_id']).strip()
+            else:
+                # Si este agente ya tenía su propia granja sin MAC, reusarla y grabarle la MAC
+                cur.execute(
+                    "SELECT farm_id FROM granjas_sedes WHERE owner=%s AND (farm_id=%s OR agent_id=%s) ORDER BY id ASC LIMIT 1",
+                    (owner_user, agent_id, agent_id)
+                )
+                row_ag_exist = cur.fetchone()
+                if row_ag_exist and row_ag_exist.get('farm_id'):
+                    farm_id_efectivo = str(row_ag_exist['farm_id']).strip()
+                else:
+                    farm_id_efectivo = f"RTR-{router_mac_norm[-6:]}"
+    except Exception as err_rtr:
+        print(f"Error resolviendo granja por router_mac ({agent_id}): {err_rtr}")
+
+    nombre_defecto_granja = f"Granja {f_city} ({farm_id_efectivo})"
     tarifa_defecto = a_float_seguro(u_cfg.get('tarifa_kwh'), 0.06)
 
     try:
         cur.execute("""
             INSERT INTO granjas_sedes (
-                owner, farm_id, agent_id, nombre, ciudad, subred, gateway, cap_kw, tarifa_kwh,
+                owner, farm_id, agent_id, nombre, ciudad, subred, gateway, router_mac, cap_kw, tarifa_kwh,
                 device_type, run_mode, brand, model, local_ip, has_battery, battery_pct, charging,
                 battery_temp_c, os_info, ultima_act
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, 50.0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 50.0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (owner, farm_id) DO UPDATE SET
                 agent_id=EXCLUDED.agent_id,
                 ciudad=CASE WHEN granjas_sedes.ciudad IS NULL OR granjas_sedes.ciudad='' THEN EXCLUDED.ciudad ELSE granjas_sedes.ciudad END,
                 subred=EXCLUDED.subred,
                 gateway=CASE WHEN EXCLUDED.gateway != '' THEN EXCLUDED.gateway ELSE granjas_sedes.gateway END,
+                router_mac=CASE WHEN EXCLUDED.router_mac != '' THEN EXCLUDED.router_mac ELSE granjas_sedes.router_mac END,
                 device_type=EXCLUDED.device_type,
                 run_mode=EXCLUDED.run_mode,
                 brand=CASE WHEN EXCLUDED.brand != '' THEN EXCLUDED.brand ELSE granjas_sedes.brand END,
@@ -438,17 +488,17 @@ def recibir_datos():
                 os_info=CASE WHEN EXCLUDED.os_info != '' THEN EXCLUDED.os_info ELSE granjas_sedes.os_info END,
                 ultima_act=EXCLUDED.ultima_act
         """, (
-            owner_user, agent_id, agent_id, nombre_defecto_granja, f_city, subred_detectada, gw_detectado,
-            tarifa_defecto, dev_type, run_mode, dev_brand, dev_model, dev_local_ip, has_batt,
+            owner_user, farm_id_efectivo, agent_id, nombre_defecto_granja, f_city, subred_detectada, gw_detectado,
+            router_mac_fmt, tarifa_defecto, dev_type, run_mode, dev_brand, dev_model, dev_local_ip, has_batt,
             batt_pct, batt_charging, batt_temp, dev_os, ahora
         ))
     except Exception as err_gs:
-        print(f"Error actualizando granjas_sedes ({agent_id}): {err_gs}")
+        print(f"Error actualizando granjas_sedes ({farm_id_efectivo}): {err_gs}")
 
     # Leer configuración Zero-Touch de esta sede
     cur.execute(
         "SELECT zt_activo, zt_pool1, zt_worker_prefix, zt_pass1, zt_pool2, zt_pool3 FROM granjas_sedes WHERE owner=%s AND farm_id=%s LIMIT 1",
-        (owner_user, agent_id)
+        (owner_user, farm_id_efectivo)
     )
     zt_cfg = cur.fetchone() or {}
     zt_on = (a_int_seguro(zt_cfg.get('zt_activo'), 0) == 1) and bool(str(zt_cfg.get('zt_pool1') or '').strip())
@@ -611,7 +661,7 @@ def recibir_datos():
             else:
                 miner_uid = (prev_m.get('miner_uid') if prev_m else '') or f"IP:{agent_id}:{ip_m}"
 
-            farm_id_asignada = (prev_m.get('farm_id') if prev_m and prev_m.get('farm_id') else '') or agent_id
+            farm_id_asignada = (prev_m.get('farm_id') if prev_m and prev_m.get('farm_id') else '') or farm_id_efectivo
 
             if prev_m is not None:
                 old_ip = prev_m['ip']
