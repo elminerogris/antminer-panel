@@ -99,11 +99,11 @@
         border-radius: 6px;
         font-size: 0.75em;
     }
-    .stat-item { 
-        display: flex; 
-        align-items: center; 
-        gap: 4px; 
-        color: var(--text-muted); 
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--text-muted);
         position: relative;
         cursor: help;
         border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
@@ -270,15 +270,15 @@
         transition: all 0.2s ease;
         user-select: none;
     }
-    .legend-pill:hover, .legend-pill.tt-active { 
-        border-color: var(--accent-blue); 
+    .legend-pill:hover, .legend-pill.tt-active {
+        border-color: var(--accent-blue);
         background: rgba(51, 102, 255, 0.12);
         box-shadow: 0 0 10px rgba(51, 102, 255, 0.3);
     }
     .legend-pill.off { opacity: 0.35; }
     .legend-pill.off .legend-label-txt { text-decoration: line-through; }
     .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-    
+
     .legend-info-icon {
         display: inline-flex;
         align-items: center;
@@ -515,8 +515,35 @@
         justify-content: space-between;
         gap: 10px;
     }
-    .tt-row { display: flex; align-items: center; gap: 6px; }
+    .tt-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 5px;
+        margin: 1px -5px;
+        border-radius: 4px;
+        border-left: 2px solid transparent;
+        transition: background 0.12s ease, opacity 0.12s ease;
+    }
+    .tt-row.tt-focus {
+        background: rgba(56, 189, 248, 0.18);
+        border-left: 3px solid #38bdf8;
+        color: #ffffff;
+        font-weight: 600;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+    }
+    .tt-row.tt-dim {
+        opacity: 0.65;
+    }
+    .tt-focus-arrow {
+        margin-left: auto;
+        padding-left: 8px;
+        color: #38bdf8;
+        font-size: 0.95em;
+        font-weight: bold;
+    }
     .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.95em; }
+    .tt-sub.tt-dim { opacity: 0.6; }
     .tt-box { width: 9px; height: 9px; display: inline-block; border-radius: 2px; flex-shrink: 0; }
     .tt-badge-status {
         margin-top: 4px;
@@ -689,6 +716,7 @@
     let chartInstance = null;
     let rangoActual = '24h';
     let cursorDentroArea = false;
+    let cursorCanvasY = null;
     let mapaMetaPuntos = {};
     let cacheClimaExterior = [];
     let visibilidadCurvas = {};
@@ -703,7 +731,7 @@
     let promedioHrOperativoGlobal = 0;
     let diasRealesGrabados = 0;
     let horasRealesGrabadas = 0;
-    let ultimoTsTooltipRenderizado = null;
+    let ultimoKeyTooltipRenderizado = null;
     let ultimoAnchoTooltipCache = 235;
     let rectCanvasCache = null;
 
@@ -734,7 +762,7 @@
     function alternarZonaHorariaGrafico() {
         usarHoraGranja = !usarHoraGranja;
         reconstruirFormateadoresTiempo();
-        ultimoTsTooltipRenderizado = null;
+        ultimoKeyTooltipRenderizado = null;
         if (chartInstance) chartInstance.update('none');
     }
 
@@ -806,7 +834,7 @@
             'guia_rapida': {
                 titulo: '📖 Cómo leer este gráfico en 10 segundos',
                 desc: '• <b>Línea Azul (Izquierda):</b> Potencia del minero.<br>• <b>Línea Amarilla (Derecha):</b> Calor de los chips.<br>• <b>Barras Rojas:</b> Errores del equipo.<br>• <b>Zoom:</b> Usa la rueda del mouse o 2 dedos en celular.<br>• <b>Reiniciar vista:</b> Doble clic o doble toque.<br>• <b>Ocultar líneas:</b> Toca las píldoras de colores arriba.',
-                rango: 'Pasa el mouse o toca cualquier dato con (i) para ver qué significa'
+                rango: 'Pasa el mouse sobre cualquier punto para resaltar su dato'
             },
             'tz_toggle': {
                 titulo: '🕒 Zona Horaria del Gráfico',
@@ -1028,7 +1056,6 @@
             });
         }
 
-        // Redibujar la línea de Corte Térmico al instante si el usuario cambia el switch o la temperatura
         const inpCorte = document.getElementById('corteTempInput');
         const swCorte = document.getElementById('corteActivoSwitch');
         if (inpCorte) inpCorte.addEventListener('change', () => { if (chartInstance) chartInstance.update('none'); });
@@ -1713,13 +1740,31 @@
 
     function ocultarTooltipGris() {
         cursorDentroArea = false;
-        ultimoTsTooltipRenderizado = null;
+        cursorCanvasY = null;
+        ultimoKeyTooltipRenderizado = null;
         const ttEl = document.getElementById('customChartTooltip');
         if (ttEl) ttEl.style.display = 'none';
         if (chartInstance) {
             chartInstance.setActiveElements([]);
             chartInstance.update('none');
         }
+    }
+
+    function detectarCurvaEnfocada(dataPoints) {
+        if (cursorCanvasY === null || !dataPoints || dataPoints.length === 0) return null;
+        let mejorId = null;
+        let menorDist = 34; // px de tolerancia vertical para resaltar el punto tocado
+        for (let i = 0; i < dataPoints.length; i++) {
+            const dp = dataPoints[i];
+            if (!dp || !dp.dataset || !dp.element || isNaN(dp.element.y)) continue;
+            if (dp.parsed && (dp.parsed.y === null || dp.parsed.y === undefined)) continue;
+            const dist = Math.abs(dp.element.y - cursorCanvasY);
+            if (dist < menorDist) {
+                menorDist = dist;
+                mejorId = dp.dataset.id || null;
+            }
+        }
+        return mejorId;
     }
 
     function renderizarTooltipExterno(context) {
@@ -1729,7 +1774,7 @@
 
         if (tooltip.opacity === 0 || !cursorDentroArea || !tooltip.dataPoints || tooltip.dataPoints.length === 0) {
             ttEl.style.display = 'none';
-            ultimoTsTooltipRenderizado = null;
+            ultimoKeyTooltipRenderizado = null;
             return;
         }
 
@@ -1739,12 +1784,26 @@
 
         if (!meta || meta.esSeparadorCorte) {
             ttEl.style.display = 'none';
-            ultimoTsTooltipRenderizado = null;
+            ultimoKeyTooltipRenderizado = null;
             return;
         }
 
-        if (ultimoTsTooltipRenderizado !== tsSegundos) {
-            ultimoTsTooltipRenderizado = tsSegundos;
+        const focusId = detectarCurvaEnfocada(tooltip.dataPoints);
+        const renderKey = tsSegundos + '|' + (focusId || '');
+
+        function clsRow(ids) {
+            if (!focusId) return 'tt-row';
+            const lista = Array.isArray(ids) ? ids : [ids];
+            return lista.includes(focusId) ? 'tt-row tt-focus' : 'tt-row tt-dim';
+        }
+        function flechaFocus(ids) {
+            if (!focusId) return '';
+            const lista = Array.isArray(ids) ? ids : [ids];
+            return lista.includes(focusId) ? '<span class="tt-focus-arrow">◀</span>' : '';
+        }
+
+        if (ultimoKeyTooltipRenderizado !== renderKey) {
+            ultimoKeyTooltipRenderizado = renderKey;
 
             const titulo = formatearFechaTooltip(new Date(tsSegundos * 1000));
             let deltaT = "";
@@ -1757,13 +1816,13 @@
             let html = `<div class="tt-title"><span translate="no">${titulo}</span>${deltaT}</div>`;
 
             if (meta.estadoPunto === 'SIN_MINAR') {
-                html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;" translate="no">0 ${unidadMinero}</b> <span>(Detenido)</span></div>`;
+                html += `<div class="${clsRow('hr')}"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;" translate="no">0 ${unidadMinero}</b> <span>(Detenido)</span>${flechaFocus('hr')}</div>`;
                 if (meta.temp > 0) {
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b></div>`;
+                    html += `<div class="${clsRow(['tmax','tmin'])}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${flechaFocus(['tmax','tmin'])}</div>`;
                 }
                 if (meta.clima !== null && meta.clima !== undefined) {
                     let txtSens = (meta.sensacion !== null && meta.sensacion !== undefined) ? ` (Sensación: <b style="color:#c084fc;" translate="no">${meta.sensacion}°C</b>)` : '';
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b translate="no">${meta.clima}°C</b>${txtSens}</div>`;
+                    html += `<div class="${clsRow(['clima','sensacion'])}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b translate="no">${meta.clima}°C</b>${txtSens}${flechaFocus(['clima','sensacion'])}</div>`;
                 }
                 html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Encendido sin minar</div>`;
             } else {
@@ -1774,34 +1833,35 @@
                     let colP = pctVsProm >= -3 ? '#00e676' : '#ffb300';
                     diffPromTxt = ` <span style="color:${colP}; font-size:0.88em;" translate="no">(${signoP}${pctVsProm}%)</span>`;
                 }
-                html += `<div class="tt-row"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b translate="no">${meta.hr} ${unidadMinero}</b>${diffPromTxt}</div>`;
+                html += `<div class="${clsRow('hr')}"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b translate="no">${meta.hr} ${unidadMinero}</b>${diffPromTxt}${flechaFocus('hr')}</div>`;
                 if (meta.temp > 0) {
                     const corteCfg = obtenerCorteTempActual();
                     let estadoT = meta.temp >= corteCfg.temp ? 'Crítica' : (meta.temp >= 75 ? 'Alerta' : 'Normal');
                     let txtMin = (meta.tempMin && meta.tempMin > 0) ? ` / Mín PCB: <b translate="no">${meta.tempMin}°C</b>` : '';
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${txtMin} (${estadoT})</div>`;
+                    html += `<div class="${clsRow(['tmax','tmin'])}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${txtMin} (${estadoT})${flechaFocus(['tmax','tmin'])}</div>`;
                     let cads = meta.cadenas || cadenasActuales;
+                    const subDim = (focusId && focusId !== 'tmax' && focusId !== 'tmin') ? ' tt-dim' : '';
                     if (cads && cads.length > 0) {
                         for (let c = 0; c < cads.length; c++) {
                             if (cads[c].temp_c > 0 || cads[c].temp_p > 0) {
-                                html += `<div class="tt-sub" translate="no">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
+                                html += `<div class="tt-sub${subDim}" translate="no">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
                             }
                         }
                     }
                 }
                 if (meta.amb && meta.amb > 0) {
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#00e676;"></span>🍃 Entrada/Amb: <b translate="no">${meta.amb}°C</b></div>`;
+                    html += `<div class="${clsRow('tamb')}"><span class="tt-box" style="background:#00e676;"></span>🍃 Entrada/Amb: <b translate="no">${meta.amb}°C</b>${flechaFocus('tamb')}</div>`;
                 }
                 if (meta.clima !== null && meta.clima !== undefined) {
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima (<span translate="no">${GRANJA_CIUDAD}</span>): <b translate="no">${meta.clima}°C</b></div>`;
+                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima (<span translate="no">${GRANJA_CIUDAD}</span>): <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
                 }
                 if (meta.sensacion !== null && meta.sensacion !== undefined) {
-                    html += `<div class="tt-row"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b></div>`;
+                    html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
                 }
                 let errNuevos = meta.err || 0;
                 let ds = meta.deltaS || pasoAgrupacionActualSeg;
                 let porSeg = (errNuevos / ds).toFixed(2);
-                html += `<div class="tt-row"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b translate="no">${errNuevos}</b> (<span translate="no">${porSeg}/s</span>)</div>`;
+                html += `<div class="${clsRow('err')}"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b translate="no">${errNuevos}</b> (<span translate="no">${porSeg}/s</span>)${flechaFocus('err')}</div>`;
             }
 
             ttEl.innerHTML = html;
@@ -1927,6 +1987,7 @@
                 if (cursorDentroArea) ocultarTooltipGris();
             } else {
                 cursorDentroArea = true;
+                cursorCanvasY = y;
             }
         }
 
@@ -2088,7 +2149,7 @@
         let ptsH = [], ptsT = [], ptsTMin = [], ptsA = [], ptsClima = [], ptsSens = [], ptsE = [];
         let maxErrPeriodo = 0;
         mapaMetaPuntos = {};
-        ultimoTsTooltipRenderizado = null;
+        ultimoKeyTooltipRenderizado = null;
 
         if (limiteIzqForzado && (agrupados.length === 0 || agrupados[0].ts > limiteIzqForzado + 60)) {
             ptsH.push({ x: limiteIzqForzado, y: null });
@@ -2187,7 +2248,7 @@
                 estabaEnBordeDerecho = (limiteDatosDerGlobal - prevMaxZoom) <= 180;
             }
         }
-        
+
         let maxTsValido = 0;
         let minTsValidoGlobal = Infinity;
         for (let i = 0; i < rawFechas.length; i++) {
@@ -2232,7 +2293,7 @@
         actualizarBadgeLOD(pasoAgrupacionActualSeg);
 
         const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, maxErrPeriodo } = construirSeriesConPaso(crudosPorMinutoCache, pasoAgrupacionActualSeg, limiteIzq, limiteDer);
-        
+
         let valoresHr = base.valoresHr;
         let valoresTempMax = base.valoresTempMax;
         let valoresTempMin = base.valoresTempMin;
@@ -2347,20 +2408,20 @@
             chartInstance.update('none');
             if (!esActualizacionEnVivo) construirLeyendasPildora();
         } else {
-            chartInstance = new Chart(ctx, { 
-                type: 'line', 
+            chartInstance = new Chart(ctx, {
+                type: 'line',
                 data: { datasets: datasetsList },
                 plugins: [pluginNumerosDentroGrafico, pluginCrosshairVertical],
-                options: { 
+                options: {
                     animation: false,
                     normalized: true,
                     parsed: false,
                     responsive: true, maintainAspectRatio: false,
                     layout: { padding: { left: 14, right: 14, top: window.innerWidth <= 640 ? 6 : 40, bottom: 2 } },
                     interaction: { mode: 'index', axis: 'x', intersect: false },
-                    plugins: { 
+                    plugins: {
                         legend: { display: false },
-                        tooltip: { 
+                        tooltip: {
                             enabled: false,
                             external: renderizarTooltipExterno
                         },
@@ -2388,8 +2449,8 @@
                             }
                         }
                     },
-                    scales: { 
-                        x: { 
+                    scales: {
+                        x: {
                             type: 'linear', bounds: 'ticks', offset: false, min: limiteIzq, max: limiteDer,
                             grid: { color: 'rgba(255,255,255,0.05)' },
                             afterBuildTicks: function(axis) {
@@ -2415,7 +2476,7 @@
                                 nuevosTicks.push({ value: end });
                                 axis.ticks = nuevosTicks;
                             },
-                            ticks: { 
+                            ticks: {
                                 minRotation: 0, maxRotation: 0, autoSkip: false, align: 'inner',
                                 color: '#8b8d9c', font: { size: 10.5 },
                                 callback: function(value, index, ticksArr) {
@@ -2423,12 +2484,12 @@
                                     return formatearEtiquetaEjeX(new Date(value * 1000), rangoActual, spanVis);
                                 }
                             }
-                        }, 
-                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0, ticks: { display: false } }, 
+                        },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0, ticks: { display: false } },
                         y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100, ticks: { display: false, stepSize: 20 } },
                         y2: { display: false, min: 0, max: topeEjeErrores }
-                    } 
-                } 
+                    }
+                }
             });
             configurarEventosLimitesCanvas();
             construirLeyendasPildora();
