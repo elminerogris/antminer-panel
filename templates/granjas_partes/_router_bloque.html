@@ -16,14 +16,17 @@
             </div>
             <div class="router-sub">
                 Agente: {{ g.agent_id }} · Red {{ g.subred }}
+                {% if g.router_mac %}
+                <br><span style="color:#38bdf8;">MAC: {{ g.router_mac }}</span>
+                {% endif %}
             </div>
         </div>
     </div>
     <div class="router-actions">
-        <a href="/proxy/{{ g.gateway }}/?agent_id={{ g.agent_id }}" target="_blank" rel="noopener" class="btn-router-enter">
+        <a href="/proxy/{{ g.gateway }}/?scheme=http&agent_id={{ g.agent_id }}" target="_blank" rel="noopener" class="btn-router-enter" title="Abrir panel de administración del router (HTTP)">
             🌐 Entrar al Router ↗
         </a>
-        <a href="/proxy/{{ g.gateway }}/?scheme=https&agent_id={{ g.agent_id }}" target="_blank" rel="noopener" class="btn-router-ssl" title="Entrar al router usando HTTPS local">
+        <a href="/proxy/{{ g.gateway }}/?scheme=https&agent_id={{ g.agent_id }}" target="_blank" rel="noopener" class="btn-router-ssl" title="Abrir panel del router usando HTTPS seguro">
             🔒 HTTPS
         </a>
     </div>
