@@ -10,6 +10,21 @@ _lock = threading.Lock()
 agentes_conectados = {}
 # Peticiones HTTP en vuelo por el túnel: { req_id: {"event": Event, "resp": dict|None} }
 _proxy_pendientes = {}
+# Semáforo por agente para evitar saturar el celular puente (máx 4 peticiones simultáneas)
+_agent_semaphores = {}
+
+_EXT_ESTATICAS = (
+    '.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.ico',
+    '.svg', '.woff', '.woff2', '.ttf', '.eot', '.webp', '.bmp'
+)
+
+def _obtener_semaforo_agente(clave):
+    with _lock:
+        sem = _agent_semaphores.get(clave)
+        if sem is None:
+            sem = threading.BoundedSemaphore(4)
+            _agent_semaphores[clave] = sem
+        return sem
 
 def tunel_esta_activo(owner, agent_id='default', estricto=False):
     """Retorna True si el agente tiene el túnel WebSocket activo en este momento."""
@@ -100,7 +115,7 @@ def enviar_orden_tunel(owner, ip, comando, agent_id='default'):
     return enviado
 
 def enviar_peticion_proxy(owner, ip, method, path, headers=None, body_b64="", scheme="http", agent_id="default", timeout=18.0):
-    """Envía una petición HTTP local a través del túnel WebSocket y espera la respuesta del agente."""
+    """Envía una petición HTTP local a través del túnel WebSocket con control de saturación."""
     if not _es_ip_local_privada(ip):
         return {"error": "IP no permitida (solo red local privada)."}
 
@@ -123,44 +138,125 @@ def enviar_peticion_proxy(owner, ip, method, path, headers=None, body_b64="", sc
     if ws_destino is None:
         return {"error": "No hay ningún Agente Android conectado al túnel en tiempo real para esta cuenta."}
 
-    req_id = uuid.uuid4().hex
-    ev = threading.Event()
-    with _lock:
-        _proxy_pendientes[req_id] = {"event": ev, "resp": None}
-
-    payload = json.dumps({
-        "tipo": "http_req",
-        "req_id": req_id,
-        "ip": ip,
-        "scheme": "https" if scheme == "https" else "http",
-        "method": method,
-        "path": path,
-        "headers": headers or {},
-        "body_b64": body_b64 or ""
-    })
+    sem = _obtener_semaforo_agente(clave_destino)
+    adquirido = sem.acquire(timeout=10.0)
+    if not adquirido:
+        return {"error": "El celular puente está ocupado procesando otras peticiones. Espera unos segundos y recarga."}
 
     try:
-        ws_destino.send(payload)
-    except Exception:
+        req_id = uuid.uuid4().hex
+        ev = threading.Event()
         with _lock:
-            _proxy_pendientes.pop(req_id, None)
-            if clave_destino:
-                agentes_conectados.pop(clave_destino, None)
-        return {"error": "Se perdió la conexión con el túnel del Agente."}
+            _proxy_pendientes[req_id] = {"event": ev, "resp": None}
 
-    recibido = ev.wait(timeout)
-    with _lock:
-        entry = _proxy_pendientes.pop(req_id, None)
+        payload = json.dumps({
+            "tipo": "http_req",
+            "req_id": req_id,
+            "ip": ip,
+            "scheme": "https" if scheme == "https" else "http",
+            "method": method,
+            "path": path,
+            "headers": headers or {},
+            "body_b64": body_b64 or ""
+        })
 
-    if not recibido or not entry or not entry.get("resp"):
-        return {"error": "Tiempo de espera agotado esperando respuesta del equipo local."}
+        try:
+            ws_destino.send(payload)
+        except Exception:
+            with _lock:
+                _proxy_pendientes.pop(req_id, None)
+                if clave_destino:
+                    agentes_conectados.pop(clave_destino, None)
+            return {"error": "Se perdió la conexión con el túnel del Agente."}
 
-    return entry["resp"]
+        recibido = ev.wait(timeout)
+        with _lock:
+            entry = _proxy_pendientes.pop(req_id, None)
+
+        if not recibido or not entry or not entry.get("resp"):
+            return {"error": "Tiempo de espera agotado esperando respuesta del equipo local."}
+
+        return entry["resp"]
+    finally:
+        sem.release()
 
 def _construir_interceptor_js(prefix):
     return f"""<script>
 (function(){{
   var P = "{prefix}";
+  var MAX_TABS = 2;
+  var STORAGE_KEY = "emg_proxy_active_tabs_v1";
+  var TAB_ID = "tab_" + Math.random().toString(36).slice(2) + "_" + Date.now();
+  var bloqueado = false;
+
+  function leerTabs(){{
+    try {{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      var data = raw ? JSON.parse(raw) : {{}};
+      var ahora = Date.now();
+      var limpios = {{}};
+      Object.keys(data).forEach(function(k){{
+        if (ahora - data[k] < 5000) limpios[k] = data[k];
+      }});
+      return limpios;
+    }} catch(e) {{ return {{}}; }}
+  }}
+
+  function guardarTabs(data){{
+    try {{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }} catch(e) {{}}
+  }}
+
+  function mostrarPantallaLimite(){{
+    bloqueado = true;
+    var renderOverlay = function(){{
+      if (!document.body) {{ setTimeout(renderOverlay, 30); return; }}
+      document.title = "Límite de conexiones — El Minero Gris";
+      document.body.innerHTML =
+        '<div style="position:fixed;inset:0;background:#0b0f19;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px;z-index:2147483647;">' +
+          '<div style="max-width:460px;width:100%;background:#131a2a;border:1px solid rgba(59,130,246,0.45);border-radius:14px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,0.65);text-align:center;">' +
+            '<div style="font-size:42px;margin-bottom:10px;">🛡️</div>' +
+            '<h2 style="margin:0 0 10px 0;color:#ffffff;font-size:1.25rem;">Límite de ventanas activas (2 / 2)</h2>' +
+            '<p style="margin:0 0 14px 0;color:#94a3b8;font-size:0.93rem;line-height:1.55;">' +
+              'Para evitar saturar el <b style="color:#e2e8f0;">celular puente</b> y mantener estable el monitoreo 24/7 de tu granja, solo se permiten <b style="color:#60a5fa;">2 ventanas de acceso remoto abiertas al mismo tiempo</b>.' +
+            '</p>' +
+            '<div style="background:rgba(15,23,42,0.8);border:1px solid rgba(148,163,184,0.2);border-radius:9px;padding:12px;margin-bottom:20px;font-size:0.84rem;color:#cbd5e1;">' +
+              'Cierra una de las otras pestañas del router o ASIC que tienes abiertas y luego pulsa <b>Reintentar</b>.' +
+            '</div>' +
+            '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
+              '<button onclick="window.location.reload()" style="background:#2563eb;color:#fff;border:1px solid #60a5fa;padding:10px 18px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:0.9rem;">🔄 Reintentar</button>' +
+              '<a href="/granjas" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;padding:10px 18px;border-radius:8px;font-weight:bold;text-decoration:none;font-size:0.9rem;">↩ Volver a Granjas</a>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    }};
+    renderOverlay();
+  }}
+
+  // Solo aplicar el límite de pestañas en la ventana principal (no en iframes internos del router)
+  if (window.top === window.self) {{
+    var activos = leerTabs();
+    var otros = Object.keys(activos).filter(function(k){{ return k !== TAB_ID; }});
+    if (otros.length >= MAX_TABS) {{
+      mostrarPantallaLimite();
+    }} else {{
+      activos[TAB_ID] = Date.now();
+      guardarTabs(activos);
+      setInterval(function(){{
+        if (bloqueado) return;
+        var t = leerTabs();
+        t[TAB_ID] = Date.now();
+        guardarTabs(t);
+      }}, 1500);
+      var liberar = function(){{
+        var t = leerTabs();
+        delete t[TAB_ID];
+        guardarTabs(t);
+      }};
+      window.addEventListener("beforeunload", liberar);
+      window.addEventListener("pagehide", liberar);
+    }}
+  }}
+
   function fixUrl(u){{
     if (typeof u !== "string") return u;
     if (u.startsWith("/") && !u.startsWith("//") && !u.startsWith(P + "/") && u !== P) {{
@@ -170,6 +266,7 @@ def _construir_interceptor_js(prefix):
   }}
   var origOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url){{
+    if (bloqueado) throw new Error("Límite de ventanas proxy alcanzado");
     var args = Array.prototype.slice.call(arguments);
     args[1] = fixUrl(url);
     return origOpen.apply(this, args);
@@ -177,6 +274,7 @@ def _construir_interceptor_js(prefix):
   if (window.fetch) {{
     var origFetch = window.fetch;
     window.fetch = function(input, init){{
+      if (bloqueado) return Promise.reject(new Error("Límite de ventanas proxy alcanzado"));
       if (typeof input === "string") {{
         input = fixUrl(input);
       }} else if (input && typeof input.url === "string") {{
@@ -192,7 +290,6 @@ def _construir_interceptor_js(prefix):
 </script>"""
 
 def _reescribir_js_redirects(txt, prefix):
-    # Reescribe redirecciones JS comunes en routers (location.href="/...", window.location="/...", location.replace("/..."))
     txt = re.sub(
         r'((?:window|top|self|document)?\.?location(?:\.href)?\s*=\s*)([\'"])/(?!/)',
         rf'\1\2{prefix}/',
@@ -267,8 +364,8 @@ def init_tunel(app):
                             entry["event"].set()
                 except Exception:
                     pass
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[WS] Error en {clave}: {e}")
         finally:
             with _lock:
                 if agentes_conectados.get(clave) is ws:
@@ -362,6 +459,8 @@ def init_tunel(app):
         if content_type:
             flask_resp.headers["Content-Type"] = content_type
 
+        es_estatico = request.method == 'GET' and status_code == 200 and subpath.lower().endswith(_EXT_ESTATICAS)
+
         for k, v in resp_headers.items():
             kl = str(k).lower()
             if kl in ("content-type", "content-length", "transfer-encoding", "connection", "content-encoding"):
@@ -390,8 +489,14 @@ def init_tunel(app):
                     else:
                         ck_clean = f"{ck_clean}; Path={prefix}/"
                     flask_resp.headers.add("Set-Cookie", ck_clean)
-            elif kl in ("www-authenticate", "cache-control", "etag"):
+            elif kl in ("www-authenticate", "etag"):
                 flask_resp.headers[k] = str(v)
+            elif kl == "cache-control" and not es_estatico:
+                flask_resp.headers[k] = str(v)
+
+        # Caché agresiva de 24h en el navegador para archivos estáticos del router/ASIC
+        if es_estatico:
+            flask_resp.headers["Cache-Control"] = "private, max-age=86400"
 
         if request.args.get('scheme'):
             flask_resp.set_cookie('emg_proxy_scheme', scheme, path=f'{prefix}/', max_age=3600)
