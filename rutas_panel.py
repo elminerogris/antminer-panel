@@ -132,6 +132,175 @@ def sitemap_xml():
 </urlset>"""
     return Response(xml, mimetype="application/xml")
 
+# --- APIs de Backup y Restauración (JSON) ---
+@panel_bp.route('/api/ajustes/exportar_backup')
+@login_required
+def api_exportar_backup():
+    usr_actual = session.get('usuario', 'Admin')
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute("""
+        SELECT subnet, tarifa_kwh, umbral_temp, umbral_hr, alertas_activas,
+               wd_activo, wd_alcance, wd_granjas, wd_mineros, wd_zero_hr, wd_cold_on,
+               wd_cold_temp, wd_amb_cold_on, wd_amb_cold_temp, wd_dead_board,
+               wd_gracia_min, wd_cooldown_min, wd_cuarentena_on, wd_max_reinicios,
+               prot_activo, prot_temp_on, prot_temp_val, prot_temp_accion,
+               prot_clima_on, prot_clima_val, prot_clima_accion,
+               prot_net_on, prot_net_rej_pct, prot_net_accion,
+               prot_fan_on, prot_fan_accion, prot_wakeup_on, prot_wakeup_min,
+               curt_activo, curt_inicio, curt_fin, curt_accion
+        FROM usuarios WHERE username=%s
+    """, (usr_actual,))
+    prefs = dict(cur.fetchone() or {})
+
+    cur.execute("""
+        SELECT farm_id, nombre, ciudad, gateway, cap_kw, tarifa_kwh, notas
+        FROM granjas_sedes WHERE owner=%s ORDER BY id ASC
+    """, (usr_actual,))
+    granjas = [dict(r) for r in cur.fetchall()]
+
+    cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s ORDER BY ip ASC", (usr_actual,))
+    nombres = [dict(r) for r in cur.fetchall()]
+
+    backup = {
+        "app": "El Minero Gris",
+        "version": 1,
+        "fecha_utc": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "owner": usr_actual,
+        "preferencias": prefs,
+        "granjas": granjas,
+        "nombres_mineros": nombres
+    }
+    fecha_archivo = datetime.utcnow().strftime("%Y%m%d")
+    contenido = json.dumps(backup, indent=2, ensure_ascii=False)
+    return Response(
+        contenido,
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment;filename=Backup_ElMineroGris_{usr_actual}_{fecha_archivo}.json"}
+    )
+
+@panel_bp.route('/api/ajustes/importar_backup', methods=['POST'])
+@login_required
+def api_importar_backup():
+    usr_actual = session.get('usuario', 'Admin')
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or data.get("app") != "El Minero Gris":
+        return jsonify({"status": "error", "msg": "El archivo no es un respaldo válido de El Minero Gris."}), 400
+
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    restaurados_nombres = 0
+    restauradas_granjas = 0
+    restauradas_prefs = False
+
+    # 1. Restaurar nombres de mineros
+    nombres = data.get("nombres_mineros")
+    if isinstance(nombres, list):
+        for item in nombres:
+            if not isinstance(item, dict):
+                continue
+            ip = str(item.get("ip") or "").strip()
+            nom = str(item.get("nombre") or "").strip()
+            if ip and nom:
+                cur.execute(
+                    "INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s) ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre",
+                    (usr_actual, ip, nom)
+                )
+                restaurados_nombres += 1
+
+    # 2. Restaurar granjas / sedes
+    granjas = data.get("granjas")
+    if isinstance(granjas, list):
+        for g in granjas:
+            if not isinstance(g, dict):
+                continue
+            fid = str(g.get("farm_id") or "").strip()
+            nom = str(g.get("nombre") or "").strip()
+            if not fid or not nom:
+                continue
+            ciudad = str(g.get("ciudad") or "Santa Cruz de la Sierra").strip()
+            gw = str(g.get("gateway") or "").strip()
+            cap_kw = max(1.0, a_float_seguro(g.get("cap_kw"), 50.0))
+            tarifa_kwh = max(0.0, a_float_seguro(g.get("tarifa_kwh"), 0.06))
+            notas = str(g.get("notas") or "").strip()
+            cur.execute("""
+                INSERT INTO granjas_sedes (owner, farm_id, nombre, ciudad, gateway, cap_kw, tarifa_kwh, notas)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (owner, farm_id) DO UPDATE SET
+                    nombre=EXCLUDED.nombre,
+                    ciudad=EXCLUDED.ciudad,
+                    gateway=CASE WHEN EXCLUDED.gateway != '' THEN EXCLUDED.gateway ELSE granjas_sedes.gateway END,
+                    cap_kw=EXCLUDED.cap_kw,
+                    tarifa_kwh=EXCLUDED.tarifa_kwh,
+                    notas=EXCLUDED.notas
+            """, (usr_actual, fid, nom, ciudad, gw, cap_kw, tarifa_kwh, notas))
+            restauradas_granjas += 1
+
+    # 3. Restaurar preferencias y reglas de automatización
+    prefs = data.get("preferencias")
+    if isinstance(prefs, dict) and prefs:
+        cur.execute("""
+            UPDATE usuarios SET
+                subnet=%s, tarifa_kwh=%s, umbral_temp=%s, umbral_hr=%s, alertas_activas=%s,
+                wd_activo=%s, wd_alcance=%s, wd_granjas=%s, wd_mineros=%s,
+                wd_zero_hr=%s, wd_cold_on=%s, wd_cold_temp=%s,
+                wd_amb_cold_on=%s, wd_amb_cold_temp=%s, wd_dead_board=%s,
+                wd_gracia_min=%s, wd_cooldown_min=%s, wd_cuarentena_on=%s, wd_max_reinicios=%s,
+                prot_activo=%s, prot_temp_on=%s, prot_temp_val=%s, prot_temp_accion=%s,
+                prot_clima_on=%s, prot_clima_val=%s, prot_clima_accion=%s,
+                prot_net_on=%s, prot_net_rej_pct=%s, prot_net_accion=%s,
+                prot_fan_on=%s, prot_fan_accion=%s, prot_wakeup_on=%s, prot_wakeup_min=%s,
+                curt_activo=%s, curt_inicio=%s, curt_fin=%s, curt_accion=%s
+            WHERE username=%s
+        """, (
+            str(prefs.get('subnet') or '192.168.0').strip(),
+            max(0.0, a_float_seguro(prefs.get('tarifa_kwh'), 0.0)),
+            a_int_seguro(prefs.get('umbral_temp'), 80),
+            a_float_seguro(prefs.get('umbral_hr'), 50.0),
+            1 if a_int_seguro(prefs.get('alertas_activas'), 0) == 1 else 0,
+            1 if a_int_seguro(prefs.get('wd_activo'), 0) == 1 else 0,
+            str(prefs.get('wd_alcance') or 'all'),
+            str(prefs.get('wd_granjas') or '[]'),
+            str(prefs.get('wd_mineros') or '[]'),
+            1 if a_int_seguro(prefs.get('wd_zero_hr'), 0) == 1 else 0,
+            1 if a_int_seguro(prefs.get('wd_cold_on'), 0) == 1 else 0,
+            a_int_seguro(prefs.get('wd_cold_temp'), 31),
+            1 if a_int_seguro(prefs.get('wd_amb_cold_on'), 0) == 1 else 0,
+            a_int_seguro(prefs.get('wd_amb_cold_temp'), 18),
+            1 if a_int_seguro(prefs.get('wd_dead_board'), 0) == 1 else 0,
+            a_int_seguro(prefs.get('wd_gracia_min'), 5),
+            a_int_seguro(prefs.get('wd_cooldown_min'), 30),
+            1 if a_int_seguro(prefs.get('wd_cuarentena_on'), 0) == 1 else 0,
+            a_int_seguro(prefs.get('wd_max_reinicios'), 3),
+            1 if a_int_seguro(prefs.get('prot_activo'), 0) == 1 else 0,
+            1 if a_int_seguro(prefs.get('prot_temp_on'), 0) == 1 else 0,
+            a_int_seguro(prefs.get('prot_temp_val'), 85),
+            str(prefs.get('prot_temp_accion') or 'sleep'),
+            1 if a_int_seguro(prefs.get('prot_clima_on'), 0) == 1 else 0,
+            a_int_seguro(prefs.get('prot_clima_val'), 38),
+            str(prefs.get('prot_clima_accion') or 'sleep'),
+            1 if a_int_seguro(prefs.get('prot_net_on'), 0) == 1 else 0,
+            a_float_seguro(prefs.get('prot_net_rej_pct'), 5.0),
+            str(prefs.get('prot_net_accion') or 'sleep'),
+            1 if a_int_seguro(prefs.get('prot_fan_on'), 0) == 1 else 0,
+            str(prefs.get('prot_fan_accion') or 'sleep'),
+            1 if a_int_seguro(prefs.get('prot_wakeup_on'), 0) == 1 else 0,
+            a_int_seguro(prefs.get('prot_wakeup_min'), 30),
+            1 if a_int_seguro(prefs.get('curt_activo'), 0) == 1 else 0,
+            str(prefs.get('curt_inicio') or '18:00')[:5],
+            str(prefs.get('curt_fin') or '22:00')[:5],
+            str(prefs.get('curt_accion') or 'profile|low'),
+            usr_actual
+        ))
+        restauradas_prefs = True
+
+    return jsonify({
+        "status": "ok",
+        "nombres": restaurados_nombres,
+        "granjas": restauradas_granjas,
+        "prefs": restauradas_prefs
+    })
+
 # --- APIs de Granjas y Sedes ---
 @panel_bp.route('/api/granjas/actualizar_agente_remoto', methods=['POST'])
 @login_required
