@@ -401,6 +401,56 @@
     .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .three-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 
+    /* Panel de Ahorro Eléctrico en Dólares */
+    .curt-savings-box {
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, rgba(0, 230, 118, 0.08) 0%, rgba(56, 189, 248, 0.05) 100%);
+        border: 1px solid rgba(0, 230, 118, 0.30);
+    }
+    .curt-savings-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 6px;
+        font-size: 0.78em;
+        color: #94a3b8;
+        margin-bottom: 10px;
+    }
+    .curt-savings-head b { color: #69f0ae; }
+    .curt-savings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 10px;
+    }
+    .curt-kpi {
+        background: rgba(10, 12, 18, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 7px;
+        padding: 9px 12px;
+    }
+    .curt-kpi-lbl {
+        font-size: 0.70em;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+    }
+    .curt-kpi-val {
+        font-size: 1.18em;
+        font-weight: bold;
+        font-family: monospace;
+        color: #00e676;
+    }
+    .curt-kpi-sub {
+        font-size: 0.74em;
+        font-family: monospace;
+        color: #94a3b8;
+        margin-top: 2px;
+    }
+
     .hist-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .hist-table-pro { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 0.83em; }
     .hist-table-pro th {
@@ -810,6 +860,33 @@
                     </select>
                 </div>
             </div>
+
+            {% if ahorro_curt is defined %}
+            <!-- Resumen de Ahorro Eléctrico en Dólares -->
+            <div class="curt-savings-box" translate="no">
+                <div class="curt-savings-head">
+                    <span>💰 <b>Ahorro Eléctrico Estimado</b> ({{ ahorro_curt.horas_pico }}h/día · {{ ahorro_curt.kw_objetivo }} kW objetivo)</span>
+                    <span>Tarifa base: <b>${{ '%.3f'|format(ahorro_curt.tarifa_kwh) }}/kWh</b></span>
+                </div>
+                <div class="curt-savings-grid">
+                    <div class="curt-kpi">
+                        <div class="curt-kpi-lbl">Ahorro / Día</div>
+                        <div class="curt-kpi-val">${{ '%.2f'|format(ahorro_curt.usd_dia) }}</div>
+                        <div class="curt-kpi-sub">{{ ahorro_curt.kwh_dia }} kWh menos/día</div>
+                    </div>
+                    <div class="curt-kpi">
+                        <div class="curt-kpi-lbl">Proyección Mensual</div>
+                        <div class="curt-kpi-val" style="color:#38bdf8;">${{ '%.2f'|format(ahorro_curt.usd_mes) }}</div>
+                        <div class="curt-kpi-sub">{{ ahorro_curt.kwh_mes|int }} kWh menos/mes</div>
+                    </div>
+                    <div class="curt-kpi">
+                        <div class="curt-kpi-lbl">Ahorro Real (30 días)</div>
+                        <div class="curt-kpi-val" style="color:#ffd54f;">${{ '%.2f'|format(ahorro_curt.usd_real_30d) }}</div>
+                        <div class="curt-kpi-sub">{{ ahorro_curt.ejecuciones_30d }} ciclo(s) ejecutado(s)</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </form>
