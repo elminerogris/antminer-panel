@@ -42,6 +42,7 @@ def init_db():
             ciudad TEXT DEFAULT 'Santa Cruz de la Sierra',
             subred TEXT DEFAULT '192.168.0.x',
             gateway TEXT DEFAULT '192.168.0.1',
+            router_mac TEXT DEFAULT '',
             cap_kw REAL DEFAULT 50.0,
             tarifa_kwh REAL DEFAULT 0.06,
             notas TEXT DEFAULT '',
@@ -201,6 +202,7 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS placas_normales INTEGER DEFAULT 0",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS prot_sleep_desde TEXT DEFAULT ''",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS prot_motivo TEXT DEFAULT ''",
+            "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS router_mac TEXT DEFAULT ''",
             "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_activo INTEGER DEFAULT 0",
             "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_pool1 TEXT DEFAULT ''",
             "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_worker_prefix TEXT DEFAULT ''",
@@ -322,6 +324,7 @@ def init_db():
         migraciones_unique = [
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_mineros_owner_agent_ip ON mineros_activos (owner, agent_id, ip)",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_granjas_owner_farm_id ON granjas_sedes (owner, farm_id)",
+            "CREATE INDEX IF NOT EXISTS idx_granjas_owner_router_mac ON granjas_sedes (owner, router_mac)",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_racks_owner_nombre ON racks_sedes (owner, nombre)",
             "CREATE INDEX IF NOT EXISTS idx_mineros_owner_uid ON mineros_activos (owner, miner_uid)",
             "CREATE INDEX IF NOT EXISTS idx_mineros_owner_farm ON mineros_activos (owner, farm_id)",
