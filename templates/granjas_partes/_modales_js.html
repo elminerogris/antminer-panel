@@ -1,3 +1,48 @@
+<style>
+    .farm-card.drag-over-target {
+        outline: 2px dashed #3b82f6 !important;
+        outline-offset: 2px;
+        background: rgba(59, 130, 246, 0.08) !important;
+        box-shadow: 0 0 24px rgba(59, 130, 246, 0.25) !important;
+        transition: all 0.18s ease;
+    }
+    .asic-dragging {
+        opacity: 0.45 !important;
+        transform: scale(0.95);
+        cursor: grabbing !important;
+    }
+    .move-route-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        background: rgba(15, 23, 42, 0.75);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin: 12px 0;
+    }
+    .move-route-col {
+        flex: 1;
+        min-width: 0;
+    }
+    .move-route-lbl {
+        font-size: 0.72em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .move-route-val {
+        font-weight: bold;
+        font-size: 0.92em;
+        color: var(--text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 2px;
+    }
+</style>
+
 <!-- Modal 1: Crear / Editar Granja -->
 <div class="farm-modal-overlay" id="farmModal">
     <div class="farm-modal-box">
@@ -73,7 +118,37 @@
     </div>
 </div>
 
+<!-- Modal 3: Confirmación Profesional de Traslado (Drag & Drop) -->
+<div class="farm-modal-overlay" id="dragConfirmModal">
+    <div class="farm-modal-box" style="max-width:440px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px; margin-bottom:14px;">
+            <span style="font-weight:bold; font-size:1.06em;">🚚 Confirmar traslado de ASIC</span>
+            <button type="button" class="btn-edit-cap" onclick="cancelarTrasladoDrag()">✖</button>
+        </div>
+        <div style="font-size:0.92em; color:var(--text-muted); margin-bottom:8px;">
+            Estás por mover el equipo <b id="dc_asic_nombre" style="color:var(--text-main);"></b> (<span id="dc_asic_ip" style="font-family:monospace; color:#60a5fa;"></span>):
+        </div>
+        <div class="move-route-box">
+            <div class="move-route-col">
+                <div class="move-route-lbl">Origen</div>
+                <div class="move-route-val" id="dc_origen_nombre">-</div>
+            </div>
+            <div style="font-size:1.3em; color:#3b82f6; font-weight:bold;">➔</div>
+            <div class="move-route-col" style="text-align:right;">
+                <div class="move-route-lbl">Destino</div>
+                <div class="move-route-val" id="dc_destino_nombre" style="color:#34d399;">-</div>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+            <button type="button" class="btn-farm-cmd" style="flex:0 0 auto; padding:8px 16px;" onclick="cancelarTrasladoDrag()">Cancelar</button>
+            <button type="button" id="btnConfirmarTraslado" class="btn-new-farm" onclick="confirmarTrasladoDrag()">✅ Aceptar traslado</button>
+        </div>
+    </div>
+</div>
+
 <script>
+    let _dragPayload = null;
+
     function mostrarFarmToast(msg) {
         const t = document.getElementById('farmToast');
         if (!t) return;
@@ -198,6 +273,112 @@
             }
         });
     }
+
+    // ==================== DRAG & DROP PROFESIONAL DE ASICs ====================
+    function iniciarArrastreAsic(ev, ip, nombre, origenFarmId) {
+        const cardOrigen = ev.currentTarget.closest('.farm-card');
+        const nombreOrigen = cardOrigen
+            ? (cardOrigen.querySelector('.farm-name span[translate="no"]')?.innerText?.trim() || origenFarmId)
+            : origenFarmId;
+
+        _dragPayload = {
+            ip: ip,
+            nombre: nombre || ip,
+            origenFarmId: origenFarmId,
+            origenNombre: nombreOrigen
+        };
+        ev.dataTransfer.effectAllowed = 'move';
+        ev.dataTransfer.setData('text/plain', ip);
+        ev.currentTarget.classList.add('asic-dragging');
+    }
+
+    function finalizarArrastreAsic(ev) {
+        ev.currentTarget.classList.remove('asic-dragging');
+        document.querySelectorAll('.farm-card.drag-over-target').forEach(el => {
+            el.classList.remove('drag-over-target');
+        });
+    }
+
+    function cancelarTrasladoDrag() {
+        _dragPayload = null;
+        document.getElementById('dragConfirmModal').style.display = 'none';
+    }
+
+    function confirmarTrasladoDrag() {
+        if (!_dragPayload || !_dragPayload.destinoFarmId) return;
+        const btn = document.getElementById('btnConfirmarTraslado');
+        btn.disabled = true;
+        btn.innerText = '⏳ Moviendo...';
+
+        fetch('/api/granjas/editar_minero', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ip: _dragPayload.ip,
+                nombre: _dragPayload.nombre,
+                farm_id: _dragPayload.destinoFarmId
+            })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'ok') {
+                document.getElementById('dragConfirmModal').style.display = 'none';
+                mostrarFarmToast(`ASIC ${_dragPayload.nombre} movido a ${_dragPayload.destinoNombre}.`);
+                setTimeout(() => window.location.reload(), 550);
+            } else {
+                btn.disabled = false;
+                btn.innerText = '✅ Aceptar traslado';
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerText = '✅ Aceptar traslado';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.farm-card').forEach(card => {
+            card.addEventListener('dragover', (e) => {
+                if (!_dragPayload) return;
+                const targetId = card.getAttribute('data-farm-id');
+                if (targetId && targetId !== _dragPayload.origenFarmId) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    card.classList.add('drag-over-target');
+                }
+            });
+
+            card.addEventListener('dragleave', (e) => {
+                if (!card.contains(e.relatedTarget)) {
+                    card.classList.remove('drag-over-target');
+                }
+            });
+
+            card.addEventListener('drop', (e) => {
+                e.preventDefault();
+                card.classList.remove('drag-over-target');
+                if (!_dragPayload) return;
+
+                const destinoId = card.getAttribute('data-farm-id');
+                if (!destinoId || destinoId === _dragPayload.origenFarmId) return;
+
+                const destinoNombre = card.querySelector('.farm-name span[translate="no"]')?.innerText?.trim() || destinoId;
+                _dragPayload.destinoFarmId = destinoId;
+                _dragPayload.destinoNombre = destinoNombre;
+
+                document.getElementById('dc_asic_nombre').innerText = _dragPayload.nombre;
+                document.getElementById('dc_asic_ip').innerText = _dragPayload.ip;
+                document.getElementById('dc_origen_nombre').innerText = _dragPayload.origenNombre;
+                document.getElementById('dc_destino_nombre').innerText = _dragPayload.destinoNombre;
+
+                const btn = document.getElementById('btnConfirmarTraslado');
+                btn.disabled = false;
+                btn.innerText = '✅ Aceptar traslado';
+
+                document.getElementById('dragConfirmModal').style.display = 'flex';
+            });
+        });
+    });
 
     function comandoGranja(accion, ips, nombreGranja) {
         if (!ips || ips.length === 0) return;
