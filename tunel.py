@@ -191,6 +191,20 @@ def _construir_interceptor_js(prefix):
 }})();
 </script>"""
 
+def _reescribir_js_redirects(txt, prefix):
+    # Reescribe redirecciones JS comunes en routers (location.href="/...", window.location="/...", location.replace("/..."))
+    txt = re.sub(
+        r'((?:window|top|self|document)?\.?location(?:\.href)?\s*=\s*)([\'"])/(?!/)',
+        rf'\1\2{prefix}/',
+        txt
+    )
+    txt = re.sub(
+        r'(location\.(?:replace|assign)\s*\(\s*)([\'"])/(?!/)',
+        rf'\1\2{prefix}/',
+        txt
+    )
+    return txt
+
 def _reescribir_contenido_proxy(body_bytes, content_type, prefix):
     ct = (content_type or "").lower()
     if not any(t in ct for t in ("text/html", "text/css", "javascript", "application/json")):
@@ -201,7 +215,8 @@ def _reescribir_contenido_proxy(body_bytes, content_type, prefix):
             txt = re.sub(r'(?i)(href|src|action)=([\'"])/(?!/)', rf'\1=\2{prefix}/', txt)
             txt = re.sub(r'(?i)url\(([\'"]?)/(?!/)', rf'url(\1{prefix}/', txt)
             txt = re.sub(r'(?i)(content=[\'"][^\'"]*url=)/(?!/)', rf'\1{prefix}/', txt)
-            for ruta in ('/cgi-bin/', '/webpages/', '/data/'):
+            txt = _reescribir_js_redirects(txt, prefix)
+            for ruta in ('/cgi-bin/', '/webpages/', '/data/', '/api/', '/goform/', '/boaform/', '/luci-static/'):
                 txt = txt.replace(f'"{ruta}', f'"{prefix}{ruta}').replace(f"'{ruta}", f"'{prefix}{ruta}")
             interceptor = _construir_interceptor_js(prefix)
             if re.search(r'(?i)<head[^>]*>', txt):
@@ -211,7 +226,8 @@ def _reescribir_contenido_proxy(body_bytes, content_type, prefix):
         elif "text/css" in ct:
             txt = re.sub(r'(?i)url\(([\'"]?)/(?!/)', rf'url(\1{prefix}/', txt)
         elif "javascript" in ct:
-            for ruta in ('/cgi-bin/', '/webpages/', '/data/'):
+            txt = _reescribir_js_redirects(txt, prefix)
+            for ruta in ('/cgi-bin/', '/webpages/', '/data/', '/api/', '/goform/', '/boaform/', '/luci-static/'):
                 txt = txt.replace(f'"{ruta}', f'"{prefix}{ruta}').replace(f"'{ruta}", f"'{prefix}{ruta}")
         return txt.encode("utf-8")
     except Exception:
@@ -276,7 +292,11 @@ def init_tunel(app):
         if scheme not in ('http', 'https'):
             scheme = 'http'
 
-        agent_id = (request.args.get('agent_id') or '').strip() or _resolver_agent_id_para_ip(owner, ip)
+        agent_id = (
+            (request.args.get('agent_id') or '').strip()
+            or (request.cookies.get('emg_proxy_agent_id') or '').strip()
+            or _resolver_agent_id_para_ip(owner, ip)
+        )
 
         qs_pairs = [(k, v) for k, v in request.args.items(multi=True) if k not in ('scheme', 'agent_id')]
         qs_clean = "&".join(f"{k}={v}" for k, v in qs_pairs)
@@ -289,6 +309,7 @@ def init_tunel(app):
                 fwd_headers[h_name] = val
         fwd_headers['User-Agent'] = request.headers.get('User-Agent', 'Mozilla/5.0')
         fwd_headers['Referer'] = f'{scheme}://{ip}/'
+        fwd_headers['Origin'] = f'{scheme}://{ip}'
 
         raw_body = request.get_data() or b""
         body_b64 = base64.b64encode(raw_body).decode('ascii') if raw_body else ""
@@ -311,11 +332,11 @@ def init_tunel(app):
                 <h2 style="color:#ff5252;">⚠️ Proxy Web Local — {ip}</h2>
                 <p style="color:#9499b0;">{resp['error']}</p>
                 <p style="font-size:0.9em;color:#cbd5e1;">Si es un router que usa HTTPS, prueba cambiar el protocolo:</p>
-                <a href="/proxy/{ip}/?scheme={'http' if scheme=='https' else 'https'}" style="display:inline-block;background:#3366ff;color:#fff;padding:9px 16px;border-radius:6px;text-decoration:none;font-weight:bold;margin-right:8px;">
+                <a href="/proxy/{ip}/?scheme={'http' if scheme=='https' else 'https'}&agent_id={agent_id}" style="display:inline-block;background:#3366ff;color:#fff;padding:9px 16px;border-radius:6px;text-decoration:none;font-weight:bold;margin-right:8px;">
                     🔄 Probar con {'HTTP' if scheme=='https' else 'HTTPS'}
                 </a>
-                <a href="/" style="display:inline-block;background:#25283a;color:#fff;padding:9px 16px;border-radius:6px;text-decoration:none;">
-                    ↩ Volver al Panel
+                <a href="/granjas" style="display:inline-block;background:#25283a;color:#fff;padding:9px 16px;border-radius:6px;text-decoration:none;">
+                    ↩ Volver a Granjas
                 </a>
             </div>
             """
@@ -346,13 +367,18 @@ def init_tunel(app):
             if kl in ("content-type", "content-length", "transfer-encoding", "connection", "content-encoding"):
                 continue
             if kl == "location":
-                loc = str(v)
-                if loc.startswith(f"http://{ip}"):
-                    loc = prefix + loc[len(f"http://{ip}"):]
-                elif loc.startswith(f"https://{ip}"):
-                    loc = prefix + loc[len(f"https://{ip}"):] + ("&scheme=https" if "?" in loc else "?scheme=https")
+                loc = str(v).strip()
+                m_abs = re.match(rf'^(https?)://{re.escape(ip)}(?::\d+)?(/.*)?$', loc, re.IGNORECASE)
+                if m_abs:
+                    loc_scheme = m_abs.group(1).lower()
+                    loc_path = m_abs.group(2) or "/"
+                    loc = prefix + loc_path
+                    if loc_scheme == "https" and "scheme=" not in loc:
+                        loc += ("&scheme=https" if "?" in loc else "?scheme=https")
                 elif loc.startswith("/"):
                     loc = prefix + loc
+                elif not loc.startswith("http://") and not loc.startswith("https://"):
+                    loc = f"{prefix}/{loc.lstrip('./')}"
                 flask_resp.headers["Location"] = loc
             elif kl == "set-cookie":
                 cookies_list = v if isinstance(v, list) else [v]
@@ -369,5 +395,7 @@ def init_tunel(app):
 
         if request.args.get('scheme'):
             flask_resp.set_cookie('emg_proxy_scheme', scheme, path=f'{prefix}/', max_age=3600)
+        if request.args.get('agent_id'):
+            flask_resp.set_cookie('emg_proxy_agent_id', agent_id, path=f'{prefix}/', max_age=3600)
 
         return flask_resp
