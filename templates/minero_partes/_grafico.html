@@ -268,8 +268,8 @@
     }
     .legend-pill:hover, .legend-pill.tt-active {
         border-color: var(--accent-blue);
-        background: rgba(51, 102, 255, 0.12);
-        box-shadow: 0 0 10px rgba(51, 102, 255, 0.3);
+        background: rgba(51, 102, 255, 0.16);
+        box-shadow: 0 0 12px rgba(51, 102, 255, 0.4);
     }
     .legend-pill.off { opacity: 0.35; }
     .legend-pill.off .legend-label-txt { text-decoration: line-through; }
@@ -447,7 +447,7 @@
     }
     .chart-canvas-box { height: 312px; position: relative; width: 100%; }
 
-    /* Brillo de tope derecho (En vivo) + Botón Ir a Ahora */
+    /* Brillo de tope derecho (En vivo) e izquierdo (Inicio del periodo) + Botón Ir a Ahora */
     .edge-live-glow {
         position: absolute;
         top: 38px;
@@ -483,6 +483,43 @@
         z-index: 35;
     }
     .edge-live-pill.show { opacity: 1; transform: translateY(-50%) translateX(0); }
+
+    .edge-start-glow {
+        position: absolute;
+        top: 38px;
+        bottom: 24px;
+        left: 12px;
+        width: 26px;
+        border-radius: 6px 0 0 6px;
+        background: linear-gradient(270deg, rgba(56, 189, 248, 0) 0%, rgba(56, 189, 248, 0.34) 100%);
+        border-left: 2px solid rgba(56, 189, 248, 0.85);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.22s ease;
+        z-index: 30;
+    }
+    .edge-start-glow.show { opacity: 1; }
+    .edge-start-pill {
+        position: absolute;
+        top: 50%;
+        left: 24px;
+        transform: translateY(-50%) translateX(-8px);
+        background: rgba(10, 14, 22, 0.92);
+        border: 1px solid rgba(56, 189, 248, 0.6);
+        color: #7dd3fc;
+        padding: 5px 11px;
+        border-radius: 20px;
+        font-size: 0.75em;
+        font-weight: bold;
+        font-family: monospace;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.22s ease, transform 0.22s ease;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), 0 0 12px rgba(56, 189, 248, 0.28);
+        z-index: 35;
+    }
+    .edge-start-pill.show { opacity: 1; transform: translateY(-50%) translateX(0); }
+
     .btn-ir-ahora {
         display: none;
         position: absolute;
@@ -615,7 +652,7 @@
         .filter-divider { margin: 0 2px; }
         .farm-map-container { height: 210px; }
         .farm-gps-btn { font-size: 0.70em; padding: 3px 4px 3px 8px; }
-        .edge-live-glow { top: 6px; }
+        .edge-live-glow, .edge-start-glow { top: 6px; }
     }
 </style>
 
@@ -716,6 +753,8 @@
         </div>
         <div class="chart-canvas-box">
             <canvas id="hashrateChart"></canvas>
+            <div id="edgeStartGlow" class="edge-start-glow"></div>
+            <div id="edgeStartPill" class="edge-start-pill">⏮️ Inicio del periodo</div>
             <div id="edgeLiveGlow" class="edge-live-glow"></div>
             <div id="edgeLivePill" class="edge-live-pill">🟢 En vivo (hora actual)</div>
             <button type="button" id="btnIrAhora" class="btn-ir-ahora" onclick="irAHoraActualGrafico()">⏭️ Ir a Ahora</button>
@@ -765,6 +804,7 @@
     let visibilidadCurvas = {};
     let elementoTooltipActivo = null;
     let tooltipsInicializados = false;
+    let cargandoLiveGrafico = false;
 
     // Control de inercia de scroll + desbloqueo rápido al mover el mouse
     let ultimoScrollPaginaTs = 0;
@@ -773,6 +813,7 @@
     let mouseEntradaX = null;
     let mouseEntradaY = null;
     let timerTopeEnVivo = null;
+    let timerTopeInicio = null;
 
     let crudosPorMinutoCache = [];
     let pasoAgrupacionActualSeg = 180;
@@ -805,6 +846,18 @@
         }, 1100);
     }
 
+    function mostrarTopeInicio() {
+        const glow = document.getElementById('edgeStartGlow');
+        const pill = document.getElementById('edgeStartPill');
+        if (glow) glow.classList.add('show');
+        if (pill) pill.classList.add('show');
+        clearTimeout(timerTopeInicio);
+        timerTopeInicio = setTimeout(() => {
+            if (glow) glow.classList.remove('show');
+            if (pill) pill.classList.remove('show');
+        }, 1100);
+    }
+
     function actualizarControlesZoomYScroll(chart) {
         if (!chart || !chart.scales || !chart.scales.x) return;
         const estaConZoom = estaGraficoConZoom(chart);
@@ -831,6 +884,34 @@
         chartInstance.update('none');
         actualizarControlesZoomYScroll(chartInstance);
         mostrarTopeEnVivo();
+    }
+
+    // ==================== RESALTADO EN VIVO AL PASAR EL MOUSE POR PÍLDORAS ====================
+    function resaltarCurvaDesdeLeyenda(dsId) {
+        if (!chartInstance) return;
+        chartInstance.data.datasets.forEach((ds, idx) => {
+            if (!chartInstance.isDatasetVisible(idx)) return;
+            if (ds.id === dsId) {
+                ds.borderColor = ds._origBorderColor;
+                ds.backgroundColor = ds._origBgColor;
+                ds.borderWidth = ds.type === 'bar' ? 2 : Math.max(3.2, (ds._origBorderWidth || 1.8) + 1.4);
+            } else {
+                ds.borderColor = 'rgba(148, 163, 184, 0.16)';
+                ds.backgroundColor = ds.type === 'bar' ? 'rgba(148, 163, 184, 0.10)' : 'rgba(148, 163, 184, 0.02)';
+                ds.borderWidth = 1;
+            }
+        });
+        chartInstance.update('none');
+    }
+
+    function restaurarCurvasLeyenda() {
+        if (!chartInstance) return;
+        chartInstance.data.datasets.forEach(ds => {
+            if (ds._origBorderColor !== undefined) ds.borderColor = ds._origBorderColor;
+            if (ds._origBgColor !== undefined) ds.backgroundColor = ds._origBgColor;
+            if (ds._origBorderWidth !== undefined) ds.borderWidth = ds._origBorderWidth;
+        });
+        chartInstance.update('none');
     }
 
     function reconstruirFormateadoresTiempo() {
@@ -931,7 +1012,7 @@
         const dicStats = {
             'guia_rapida': {
                 titulo: '📖 Cómo leer este gráfico en 10 segundos',
-                desc: '• <b>Línea Azul (Izquierda):</b> Potencia del minero.<br>• <b>Línea Amarilla (Derecha):</b> Calor de los chips.<br>• <b>Barras Rojas:</b> Errores del equipo.<br>• <b>Íconos arriba (🔄/🛡️/⚡):</b> Eventos automáticos.<br>• <b>Zoom:</b> Rueda del mouse o 2 dedos en celular.<br>• <b>Reiniciar vista:</b> Doble clic o doble toque.',
+                desc: '• <b>Línea Azul (Izquierda):</b> Potencia del minero.<br>• <b>Línea Amarilla (Derecha):</b> Calor de los chips.<br>• <b>Barras Rojas:</b> Errores del equipo.<br>• <b>Íconos arriba (🔄/🛡️/⚡):</b> Eventos automáticos.<br>• <b>Zoom:</b> Rueda del mouse o 2 dedos en celular.<br>• <b>Ocultar líneas:</b> Pasa el mouse por las píldoras para ver cuál es y haz clic para ocultarla.',
                 rango: 'Pasa el mouse sobre cualquier punto para resaltar su dato'
             },
             'tz_toggle': {
@@ -1238,6 +1319,7 @@
         if (maxSpanTotal <= 0) return;
 
         let chocoDerecha = false;
+        let chocoIzquierda = false;
         if (span >= maxSpanTotal) {
             curMin = limiteDatosIzqGlobal;
             curMax = limiteDatosDerGlobal;
@@ -1247,7 +1329,8 @@
                 curMax = limiteDatosDerGlobal;
                 curMin = Math.max(limiteDatosIzqGlobal, curMax - span);
             }
-            if (curMin < limiteDatosIzqGlobal) {
+            if (curMin <= limiteDatosIzqGlobal + 2) {
+                chocoIzquierda = true;
                 curMin = limiteDatosIzqGlobal;
                 curMax = Math.min(limiteDatosDerGlobal, curMin + span);
             }
@@ -1257,8 +1340,9 @@
         chart.scales.x.options.min = curMin;
         chart.scales.x.options.max = curMax;
 
-        if (desdePan && chocoDerecha && span < maxSpanTotal - 60) {
-            mostrarTopeEnVivo();
+        if (desdePan && span < maxSpanTotal - 60) {
+            if (chocoDerecha) mostrarTopeEnVivo();
+            else if (chocoIzquierda) mostrarTopeInicio();
         }
     }
 
@@ -1866,7 +1950,7 @@
         if (cursorCanvasY === null || !dataPoints || dataPoints.length === 0 || !chart || !chart.chartArea) return null;
         const bottomY = chart.chartArea.bottom;
         let mejorId = null;
-        let menorDist = 16; // Tolerancia estricta para no resaltar nada en espacios en blanco
+        let menorDist = 16;
 
         for (let i = 0; i < dataPoints.length; i++) {
             const dp = dataPoints[i];
@@ -1946,11 +2030,13 @@
             if (meta.estadoPunto === 'SIN_MINAR') {
                 html += `<div class="${clsRow('hr')}"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;" translate="no">0 ${unidadMinero}</b> <span>(Detenido)</span>${flechaFocus('hr')}</div>`;
                 if (meta.temp > 0) {
-                    html += `<div class="${clsRow(['tmax','tmin'])}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${flechaFocus(['tmax','tmin'])}</div>`;
+                    html += `<div class="${clsRow('tmax')}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${flechaFocus('tmax')}</div>`;
                 }
                 if (meta.clima !== null && meta.clima !== undefined) {
-                    let txtSens = (meta.sensacion !== null && meta.sensacion !== undefined) ? ` (Sensación: <b style="color:#c084fc;" translate="no">${meta.sensacion}°C</b>)` : '';
-                    html += `<div class="${clsRow(['clima','sensacion'])}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b translate="no">${meta.clima}°C</b>${txtSens}${flechaFocus(['clima','sensacion'])}</div>`;
+                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
+                }
+                if (meta.sensacion !== null && meta.sensacion !== undefined) {
+                    html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
                 }
                 html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Encendido sin minar</div>`;
             } else {
@@ -1965,8 +2051,10 @@
                 if (meta.temp > 0) {
                     const corteCfg = obtenerCorteTempActual();
                     let estadoT = meta.temp >= corteCfg.temp ? 'Crítica' : (meta.temp >= 75 ? 'Alerta' : 'Normal');
-                    let txtMin = (meta.tempMin && meta.tempMin > 0) ? ` / Mín PCB: <b translate="no">${meta.tempMin}°C</b>` : '';
-                    html += `<div class="${clsRow(['tmax','tmin'])}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${txtMin} (${estadoT})${flechaFocus(['tmax','tmin'])}</div>`;
+                    html += `<div class="${clsRow('tmax')}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx (Chips): <b translate="no">${meta.temp}°C</b> (${estadoT})${flechaFocus('tmax')}</div>`;
+                    if (meta.tempMin && meta.tempMin > 0) {
+                        html += `<div class="${clsRow('tmin')}"><span class="tt-box" style="background:#fb923c;"></span>❄️ Temp Mín (PCB): <b translate="no">${meta.tempMin}°C</b>${flechaFocus('tmin')}</div>`;
+                    }
                     let cads = meta.cadenas || cadenasActuales;
                     const subDim = (focusId && focusId !== 'tmax' && focusId !== 'tmin') ? ' tt-dim' : '';
                     if (cads && cads.length > 0) {
@@ -2032,7 +2120,7 @@
             btn.className = 'legend-pill' + (isHidden ? ' off' : '');
 
             btn.innerHTML = `
-                <span class="legend-dot" style="background:${ds.borderColor};"></span>
+                <span class="legend-dot" style="background:${ds._origBorderColor || ds.borderColor};"></span>
                 <span class="legend-label-txt">${ds.label}</span>
                 <span class="legend-info-icon" data-info-btn="1">i</span>
             `;
@@ -2040,11 +2128,18 @@
             btn.addEventListener('mouseenter', function() {
                 const info = obtenerInfoTooltipCurva(ds.id, !chartInstance.isDatasetVisible(index));
                 mostrarSmartTooltip(btn, info);
+                if (chartInstance.isDatasetVisible(index)) {
+                    resaltarCurvaDesdeLeyenda(ds.id);
+                }
             });
-            btn.addEventListener('mouseleave', ocultarSmartTooltip);
+            btn.addEventListener('mouseleave', function() {
+                ocultarSmartTooltip();
+                restaurarCurvasLeyenda();
+            });
 
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
+                restaurarCurvasLeyenda();
                 const tocoIconoInfo = e.target && e.target.getAttribute('data-info-btn') === '1';
                 const esPantallaTactil = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
@@ -2122,7 +2217,6 @@
             } else {
                 cursorDentroArea = true;
                 cursorCanvasY = y;
-                // Actualizar el resaltado en tiempo real al mover el mouse verticalmente
                 if (ultimoContextoTooltip) {
                     renderizarTooltipExterno(ultimoContextoTooltip);
                 }
@@ -2409,6 +2503,15 @@
         return { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, maxErrPeriodo, primerTsReal, ultimoTsReal };
     }
 
+    function guardarEstilosOriginalesDatasets(lista) {
+        lista.forEach(ds => {
+            ds._origBorderColor = ds.borderColor;
+            ds._origBgColor = ds.backgroundColor;
+            ds._origBorderWidth = ds.borderWidth;
+        });
+        return lista;
+    }
+
     function updateChart(rango, esActualizacionEnVivo = false) {
         rangoActual = rango;
         if (!esActualizacionEnVivo) {
@@ -2577,6 +2680,8 @@
             hidden: visibilidadCurvas['err'] === false
         });
 
+        guardarEstilosOriginalesDatasets(datasetsList);
+
         const topeEjeErrores = Math.max(20, maxErrPeriodo * 4);
 
         if (chartInstance) {
@@ -2619,7 +2724,6 @@
                             pan: {
                                 enabled: true, mode: 'x',
                                 onPanStart: function({chart}) {
-                                    // Solo permitir arrastrar si hay zoom activo (evita trabar el scroll en celular al 100%)
                                     return estaGraficoConZoom(chart);
                                 },
                                 onPan: function({chart}) { forzarLimitesSinEspacioVacio(chart, true); },
@@ -2689,6 +2793,8 @@
     }
 
     async function actualizarGraficoEnVivoJSON() {
+        if (cargandoLiveGrafico) return;
+        cargandoLiveGrafico = true;
         try {
             const r = await fetch('/api/live/minero/{{ ip }}', { cache: 'no-store' });
             if (!r.ok) return;
@@ -2699,7 +2805,7 @@
             data.puntos.forEach(p => {
                 const idx = rawFechas.lastIndexOf(p.ts);
                 if (idx !== -1) {
-                    if (rawHr[idx] !== p.hr || rawTemp[idx] !== p.temp || rawErr[idx] !== p.err) {
+                    if (rawHr[idx] !== p.hr || rawTemp[idx] !== p.temp || rawAmb[idx] !== p.amb || rawErr[idx] !== p.err) {
                         rawHr[idx] = p.hr;
                         rawTemp[idx] = p.temp;
                         rawAmb[idx] = p.amb;
@@ -2719,16 +2825,26 @@
             });
 
             if (huboCambio && chartInstance) updateChart(rangoActual, true);
-        } catch (e) {}
+        } catch (e) {
+        } finally {
+            cargandoLiveGrafico = false;
+        }
     }
 
     window.addEventListener('emg:live-update', actualizarGraficoEnVivoJSON);
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) actualizarGraficoEnVivoJSON();
+    });
 
     function iniciarModuloGrafico() {
         reconstruirFormateadoresTiempo();
         inicializarEventosTooltips();
         updateChart('24h');
         cargarClimaDeLaGranja();
+        // Auto-actualización propia cada 30 segundos para que el gráfico nunca se congele
+        setInterval(function() {
+            if (!document.hidden) actualizarGraficoEnVivoJSON();
+        }, 30000);
     }
 
     if (document.readyState === 'loading') {
