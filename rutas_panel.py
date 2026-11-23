@@ -1,7 +1,7 @@
 from flask import Blueprint, redirect, request, session, jsonify, Response
 from werkzeug.security import generate_password_hash
 import psycopg2.extras, json, time, calendar, csv, io, uuid, secrets, threading
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from db import get_db
 from tunel import enviar_orden_tunel, tunel_esta_activo
@@ -54,6 +54,17 @@ def despachar_comando(cur, owner, ip, comando, fecha=None):
         (owner, agent_id, ip, comando, estado, ahora)
     )
     return enviado
+
+def _calcular_horas_rango(ini_str, fin_str):
+    try:
+        hi, mi = [int(x) for x in str(ini_str or '18:00').split(':')[:2]]
+        hf, mf = [int(x) for x in str(fin_str or '22:00').split(':')[:2]]
+        m1 = hi * 60 + mi
+        m2 = hf * 60 + mf
+        diff = (m2 - m1) if m2 > m1 else ((1440 - m1) + m2)
+        return max(0.0, round(diff / 60.0, 2))
+    except Exception:
+        return 4.0
 
 # --- Portada Pública, Legales y SEO ---
 @panel_bp.route('/')
@@ -193,7 +204,6 @@ def api_importar_backup():
     restauradas_granjas = 0
     restauradas_prefs = False
 
-    # 1. Restaurar nombres de mineros
     nombres = data.get("nombres_mineros")
     if isinstance(nombres, list):
         for item in nombres:
@@ -208,7 +218,6 @@ def api_importar_backup():
                 )
                 restaurados_nombres += 1
 
-    # 2. Restaurar granjas / sedes
     granjas = data.get("granjas")
     if isinstance(granjas, list):
         for g in granjas:
@@ -236,7 +245,6 @@ def api_importar_backup():
             """, (usr_actual, fid, nom, ciudad, gw, cap_kw, tarifa_kwh, notas))
             restauradas_granjas += 1
 
-    # 3. Restaurar preferencias y reglas de automatización
     prefs = data.get("preferencias")
     if isinstance(prefs, dict) and prefs:
         cur.execute("""
@@ -619,6 +627,27 @@ def detalle_minero(ip):
     """, (usr_actual, ip, limite_hist))
     hist = cur.fetchall()
 
+    # Eventos automáticos para dibujar marcadores sobre el gráfico
+    cur.execute("""
+        SELECT tipo, mensaje, fecha
+        FROM registro_alertas
+        WHERE owner=%s AND (ip=%s OR ip='TARIFA_PICO')
+          AND tipo IN ('WATCHDOG_REBOOT', 'WATCHDOG_CUARENTENA', 'CORTE_TERMICO', 'HORARIO_PICO', 'HORARIO_NORMAL')
+        ORDER BY id DESC
+        LIMIT 80
+    """, (usr_actual, ip))
+    eventos_graf = []
+    for ev in cur.fetchall():
+        try:
+            ts_ev = calendar.timegm(datetime.strptime(ev['fecha'], "%Y-%m-%d %H:%M:%S").timetuple())
+            eventos_graf.append({
+                "ts": ts_ev,
+                "tipo": str(ev.get('tipo') or ''),
+                "msg": str(ev.get('mensaje') or '')
+            })
+        except Exception:
+            continue
+
     mod_str = str(m.get('modelo') or 'Antminer')
     algoritmo_val = str(m.get('algoritmo') or ('Equihash' if 'z15' in mod_str.lower() else 'SHA-256'))
     moneda_val = str(m.get('moneda') or ('ZEC' if algoritmo_val == 'Equihash' else 'BTC'))
@@ -746,7 +775,8 @@ def detalle_minero(ip):
         graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g),
         graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g),
         graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas),
-        graf_cadenas_hist=json.dumps(cad_g), ips_ocupadas=json.dumps(ips_ocupadas)
+        graf_cadenas_hist=json.dumps(cad_g), ips_ocupadas=json.dumps(ips_ocupadas),
+        eventos_graf_json=json.dumps(eventos_graf)
     )
 
 @panel_bp.route('/mineros')
@@ -1059,7 +1089,7 @@ def alertas():
             msg = "Historial de incidentes limpiado."
 
     cur.execute("""
-        SELECT tg_token, tg_chat_id, umbral_temp, umbral_hr, alertas_activas,
+        SELECT tarifa_kwh, tg_token, tg_chat_id, umbral_temp, umbral_hr, alertas_activas,
                wd_activo, wd_alcance, wd_granjas, wd_mineros, wd_zero_hr, wd_cold_on,
                wd_cold_temp, wd_amb_cold_on, wd_amb_cold_temp, wd_dead_board,
                wd_gracia_min, wd_cooldown_min, wd_cuarentena_on, wd_max_reinicios,
@@ -1071,6 +1101,7 @@ def alertas():
         FROM usuarios WHERE username=%s
     """, (usr_actual,))
     row_u = cur.fetchone() or {}
+    tarifa_u = a_float_seguro(row_u.get('tarifa_kwh'), 0.06)
     cfg = {
         'tg_token': row_u.get('tg_token') or '', 'tg_chat_id': row_u.get('tg_chat_id') or '',
         'umbral_temp': a_int_seguro(row_u.get('umbral_temp'), 80),
@@ -1119,7 +1150,7 @@ def alertas():
         'curt_estado_actual': row_u.get('curt_estado_actual') or 'normal'
     }
 
-    cur.execute("SELECT ip, modelo, worker1, farm_city, watchdog_activo, wd_cuarentena, wd_reinicios_seguidos, wd_motivo_fallo, prot_sleep_desde, prot_motivo FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT ip, modelo, worker1, farm_city, consumo_w, watchdog_activo, wd_cuarentena, wd_reinicios_seguidos, wd_motivo_fallo, prot_sleep_desde, prot_motivo FROM mineros_activos WHERE owner=%s", (usr_actual,))
     filas_m = sorted(cur.fetchall(), key=ordenar_ip_key)
     cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
     nombres_dict = {r['ip']: r['nombre'] for r in cur.fetchall()}
@@ -1127,12 +1158,20 @@ def alertas():
     granjas_map = {}
     mineros_disp = []
     en_cuarentena = []
+    kw_flota_curt = 0.0
     for fm in filas_m:
         ip_m = fm['ip']
         clave_g = clave_granja_minero(ip_m, fm.get('farm_city'))
         granjas_map[clave_g] = granjas_map.get(clave_g, 0) + 1
         es_q = a_int_seguro(fm.get('wd_cuarentena'), 0) == 1
         es_psleep = bool(str(fm.get('prot_sleep_desde') or '').strip())
+        aplica_curt = (
+            wd['alcance'] == 'all'
+            or (wd['alcance'] == 'farms' and clave_g in wd['granjas_sel'])
+            or (wd['alcance'] == 'miners' and ip_m in wd['mineros_sel'])
+        )
+        if aplica_curt:
+            kw_flota_curt += a_float_seguro(fm.get('consumo_w'), 0.0) / 1000.0
         item_m = {
             'ip': ip_m,
             'nombre': nombre_inteligente_minero(ip_m, nombres_dict, fm.get('worker1')),
@@ -1150,10 +1189,38 @@ def alertas():
 
     granjas_disp = [{'clave': k, 'total': v} for k, v in granjas_map.items()]
 
+    # Cálculo de ahorro eléctrico estimado por Horario de Tarifa Pico
+    horas_pico = _calcular_horas_rango(wd['curt_inicio'], wd['curt_fin'])
+    factor_ahorro = 0.95 if wd['curt_accion'] == 'sleep' else 0.30
+    kwh_dia_ahorrados = round(kw_flota_curt * horas_pico * factor_ahorro, 1)
+    usd_dia_ahorrados = round(kwh_dia_ahorrados * tarifa_u, 2)
+    usd_mes_ahorrados = round(usd_dia_ahorrados * 30.0, 2)
+
+    fecha_30d = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute(
+        "SELECT COUNT(*) AS cnt FROM registro_alertas WHERE owner=%s AND tipo='HORARIO_PICO' AND fecha >= %s",
+        (usr_actual, fecha_30d)
+    )
+    row_cnt = cur.fetchone() or {}
+    ejecuciones_30d = a_int_seguro(row_cnt.get('cnt'), 0)
+
+    ahorro_curt = {
+        'horas_pico': horas_pico,
+        'kw_objetivo': round(kw_flota_curt, 2),
+        'tarifa_kwh': tarifa_u,
+        'kwh_dia': kwh_dia_ahorrados,
+        'kwh_mes': round(kwh_dia_ahorrados * 30.0, 0),
+        'usd_dia': usd_dia_ahorrados,
+        'usd_mes': usd_mes_ahorrados,
+        'ejecuciones_30d': ejecuciones_30d,
+        'usd_real_30d': round(usd_dia_ahorrados * ejecuciones_30d, 2)
+    }
+
     cur.execute("SELECT * FROM registro_alertas WHERE owner=%s ORDER BY id DESC LIMIT 100", (usr_actual,))
     historial = cur.fetchall()
     return render_seguro(
         'alertas.html', active_page='alertas', cfg=cfg, wd=wd,
+        ahorro_curt=ahorro_curt,
         granjas_disp=granjas_disp, mineros_disp=mineros_disp,
         en_cuarentena=en_cuarentena, historial=historial, msg=msg
     )
@@ -1453,6 +1520,84 @@ def exportar_csv():
     writer.writerow(['IP', 'Modelo', 'Algoritmo', 'Moneda', 'Hashrate', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
     for f in filas: writer.writerow([f['ip'], f['modelo'], f.get('algoritmo', 'SHA-256'), f.get('moneda', 'BTC'), f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition":"attachment;filename=Reporte_El_Minero_Gris.csv"})
+
+@panel_bp.route('/exportar_reporte_mensual')
+@login_required
+def exportar_reporte_mensual():
+    usr_actual = session.get('usuario', 'Admin')
+    plan_actual = session.get('plan', 'Gratis')
+    if not es_cuenta_pro(usr_actual, plan_actual) and not es_super_admin():
+        return redirect('/plan')
+
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT tarifa_kwh FROM usuarios WHERE username=%s", (usr_actual,))
+    u_row = cur.fetchone() or {}
+    tarifa = a_float_seguro(u_row.get('tarifa_kwh'), 0.06)
+
+    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    filas = sorted(cur.fetchall(), key=ordenar_ip_key)
+    cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
+    nombres_dict = {r['ip']: r['nombre'] for r in cur.fetchall()}
+
+    datos_red = obtener_datos_red()
+    output = io.StringIO()
+    output.write('\ufeff')  # BOM UTF-8 para abrir perfecto en Excel
+    writer = csv.writer(output)
+    writer.writerow([
+        'IP', 'Nombre', 'Modelo', 'Estado', 'Hashrate', 'Unidad',
+        'Consumo (kW)', 'kWh/Mes Est.', f'Costo Luz/Mes (USD @ {tarifa}/kWh)',
+        'Ingreso BTC/Mes Est. (USD)', 'Ganancia Neta/Mes Est. (USD)'
+    ])
+
+    tot_kw = 0.0
+    tot_kwh_mes = 0.0
+    tot_costo_mes = 0.0
+    tot_ing_mes = 0.0
+    tot_neto_mes = 0.0
+
+    for m in filas:
+        ip = m['ip']
+        nom = nombre_inteligente_minero(ip, nombres_dict, m.get('worker1'))
+        mod = m.get('modelo') or 'Antminer'
+        algo = m.get('algoritmo') or 'SHA-256'
+        unid = m.get('unidad') or 'TH/s'
+        online = calcular_segundos_desconectado(m.get('ultima_act')) < 300
+        hr = a_float_seguro(m.get('hashrate'), 0.0) if online else 0.0
+        kw = round(a_float_seguro(m.get('consumo_w'), 0.0) / 1000.0, 2) if online else 0.0
+        kwh_mes = round(kw * 24.0 * 30.0, 1)
+        costo_mes = round(kwh_mes * tarifa, 2)
+
+        ing_mes = 0.0
+        if online and unid == 'TH/s' and algo == 'SHA-256' and datos_red['dificultad_t'] > 0:
+            btc_dia = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)
+            ing_mes = round(btc_dia * datos_red['precio'] * 30.0, 2)
+        neto_mes = round(ing_mes - costo_mes, 2)
+
+        tot_kw += kw
+        tot_kwh_mes += kwh_mes
+        tot_costo_mes += costo_mes
+        tot_ing_mes += ing_mes
+        tot_neto_mes += neto_mes
+
+        writer.writerow([
+            ip, nom, mod, 'En linea' if online else 'Offline',
+            hr, unid, kw, kwh_mes, costo_mes, ing_mes, neto_mes
+        ])
+
+    writer.writerow([])
+    writer.writerow([
+        'TOTALES', f'{len(filas)} equipos', '', '', '', '',
+        round(tot_kw, 2), round(tot_kwh_mes, 1), round(tot_costo_mes, 2),
+        round(tot_ing_mes, 2), round(tot_neto_mes, 2)
+    ])
+
+    mes_str = datetime.utcnow().strftime("%Y-%m")
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment;filename=Reporte_Mensual_ElMineroGris_{mes_str}.csv"}
+    )
 
 @panel_bp.route('/api/ver_log/<ip>')
 @login_required
