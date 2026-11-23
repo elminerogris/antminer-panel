@@ -474,6 +474,70 @@
         width: 100%;
     }
 
+    /* Brillo de tope derecho (En vivo) + Botón Ir a Ahora */
+    .edge-live-glow {
+        position: absolute;
+        top: 38px;
+        bottom: 24px;
+        right: 12px;
+        width: 26px;
+        border-radius: 0 6px 6px 0;
+        background: linear-gradient(90deg, rgba(0, 230, 118, 0) 0%, rgba(0, 230, 118, 0.34) 100%);
+        border-right: 2px solid rgba(0, 230, 118, 0.85);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.22s ease;
+        z-index: 30;
+    }
+    .edge-live-glow.show {
+        opacity: 1;
+    }
+    .edge-live-pill {
+        position: absolute;
+        top: 50%;
+        right: 24px;
+        transform: translateY(-50%) translateX(8px);
+        background: rgba(10, 14, 22, 0.92);
+        border: 1px solid rgba(0, 230, 118, 0.6);
+        color: #69f0ae;
+        padding: 5px 11px;
+        border-radius: 20px;
+        font-size: 0.75em;
+        font-weight: bold;
+        font-family: monospace;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.22s ease, transform 0.22s ease;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), 0 0 12px rgba(0, 230, 118, 0.28);
+        z-index: 35;
+    }
+    .edge-live-pill.show {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+    }
+    .btn-ir-ahora {
+        display: none;
+        position: absolute;
+        bottom: 34px;
+        right: 22px;
+        z-index: 35;
+        background: rgba(13, 18, 30, 0.92);
+        border: 1px solid rgba(0, 230, 118, 0.65);
+        color: #00e676;
+        padding: 5px 11px;
+        border-radius: 18px;
+        font-size: 0.75em;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65), 0 0 10px rgba(0, 230, 118, 0.25);
+        transition: all 0.18s ease;
+    }
+    .btn-ir-ahora:hover {
+        background: rgba(0, 230, 118, 0.22);
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
     /* Tooltip flotante en línea 0 debajo del gráfico */
     .custom-chart-tooltip {
         --arrow-x: 50%;
@@ -578,6 +642,7 @@
         .filter-divider { margin: 0 2px; }
         .farm-map-container { height: 210px; }
         .farm-gps-btn { font-size: 0.70em; padding: 3px 4px 3px 8px; }
+        .edge-live-glow { top: 6px; }
     }
 </style>
 
@@ -678,6 +743,9 @@
         </div>
         <div class="chart-canvas-box">
             <canvas id="hashrateChart"></canvas>
+            <div id="edgeLiveGlow" class="edge-live-glow"></div>
+            <div id="edgeLivePill" class="edge-live-pill">🟢 En vivo (hora actual)</div>
+            <button type="button" id="btnIrAhora" class="btn-ir-ahora" onclick="irAHoraActualGrafico()">⏭️ Ir a Ahora</button>
             <div id="customChartTooltip" class="custom-chart-tooltip"></div>
         </div>
     </div>
@@ -723,6 +791,14 @@
     let elementoTooltipActivo = null;
     let tooltipsInicializados = false;
 
+    // Control de inercia de scroll + desbloqueo rápido al mover el mouse
+    let ultimoScrollPaginaTs = 0;
+    let zoomRuedaHabilitado = false;
+    let timerDesbloqueoZoom = null;
+    let mouseEntradaX = null;
+    let mouseEntradaY = null;
+    let timerTopeEnVivo = null;
+
     let crudosPorMinutoCache = [];
     let pasoAgrupacionActualSeg = 180;
     let limiteDatosIzqGlobal = 0;
@@ -734,6 +810,52 @@
     let ultimoKeyTooltipRenderizado = null;
     let ultimoAnchoTooltipCache = 235;
     let rectCanvasCache = null;
+
+    function mostrarTopeEnVivo() {
+        const glow = document.getElementById('edgeLiveGlow');
+        const pill = document.getElementById('edgeLivePill');
+        if (glow) glow.classList.add('show');
+        if (pill) pill.classList.add('show');
+        clearTimeout(timerTopeEnVivo);
+        timerTopeEnVivo = setTimeout(() => {
+            if (glow) glow.classList.remove('show');
+            if (pill) pill.classList.remove('show');
+        }, 1100);
+    }
+
+    function actualizarControlesZoomYScroll(chart) {
+        if (!chart || !chart.scales || !chart.scales.x) return;
+        const spanVis = chart.scales.x.max - chart.scales.x.min;
+        const spanTot = limiteDatosDerGlobal - limiteDatosIzqGlobal;
+        const estaConZoom = spanTot > 0 && spanVis < (spanTot - 60);
+
+        const btnReset = document.getElementById('btnResetZoom');
+        if (btnReset) btnReset.style.display = estaConZoom ? 'inline-block' : 'none';
+
+        const btnAhora = document.getElementById('btnIrAhora');
+        const lejosDeAhora = estaConZoom && (limiteDatosDerGlobal - chart.scales.x.max) > 180;
+        if (btnAhora) btnAhora.style.display = lejosDeAhora ? 'inline-flex' : 'none';
+
+        // En celular: desactivar pan cuando está al 100% para que el scroll vertical nunca se atore
+        if (chart.options && chart.options.plugins && chart.options.plugins.zoom && chart.options.plugins.zoom.pan) {
+            chart.options.plugins.zoom.pan.enabled = estaConZoom;
+        }
+        const wrapper = document.getElementById('chartWrapper');
+        if (wrapper) {
+            wrapper.style.touchAction = estaConZoom ? 'none' : 'pan-y';
+        }
+    }
+
+    function irAHoraActualGrafico() {
+        if (!chartInstance || !chartInstance.scales || !chartInstance.scales.x) return;
+        const span = chartInstance.scales.x.max - chartInstance.scales.x.min;
+        const nuevoMin = Math.max(limiteDatosIzqGlobal, limiteDatosDerGlobal - span);
+        fijarEscalaExactaEnChart(chartInstance, nuevoMin, limiteDatosDerGlobal);
+        actualizarPuntosYResolucionSegunZoom(chartInstance);
+        chartInstance.update('none');
+        actualizarControlesZoomYScroll(chartInstance);
+        mostrarTopeEnVivo();
+    }
 
     function reconstruirFormateadoresTiempo() {
         const tz = usarHoraGranja ? GRANJA_TIMEZONE : BROWSER_TIMEZONE;
@@ -1068,10 +1190,18 @@
                 ocultarTooltipGris();
             }
         });
-        window.addEventListener('scroll', function() {
+
+        function registrarScrollPagina() {
+            ultimoScrollPaginaTs = Date.now();
+            zoomRuedaHabilitado = false;
+            clearTimeout(timerDesbloqueoZoom);
             rectCanvasCache = null;
             ocultarSmartTooltip();
-        }, { passive: true });
+        }
+        window.addEventListener('scroll', registrarScrollPagina, { passive: true });
+        const mainScroll = document.getElementById('mainScrollArea');
+        if (mainScroll) mainScroll.addEventListener('scroll', registrarScrollPagina, { passive: true });
+
         window.addEventListener('resize', function() {
             rectCanvasCache = null;
             if (chartInstance && chartInstance.options && chartInstance.options.layout && chartInstance.options.layout.padding) {
@@ -1164,7 +1294,7 @@
         }
     }
 
-    function forzarLimitesSinEspacioVacio(chart) {
+    function forzarLimitesSinEspacioVacio(chart, desdePan = false) {
         if (!chart || !chart.scales || !chart.scales.x) return;
         const xAxis = chart.scales.x;
         let curMin = xAxis.min;
@@ -1173,11 +1303,13 @@
         const maxSpanTotal = limiteDatosDerGlobal - limiteDatosIzqGlobal;
         if (maxSpanTotal <= 0) return;
 
+        let chocoDerecha = false;
         if (span >= maxSpanTotal) {
             curMin = limiteDatosIzqGlobal;
             curMax = limiteDatosDerGlobal;
         } else {
-            if (curMax > limiteDatosDerGlobal) {
+            if (curMax >= limiteDatosDerGlobal - 2) {
+                chocoDerecha = true;
                 curMax = limiteDatosDerGlobal;
                 curMin = Math.max(limiteDatosIzqGlobal, curMax - span);
             }
@@ -1190,11 +1322,15 @@
         chart.options.scales.x.max = curMax;
         chart.scales.x.options.min = curMin;
         chart.scales.x.options.max = curMax;
+
+        if (desdePan && chocoDerecha && span < maxSpanTotal - 60) {
+            mostrarTopeEnVivo();
+        }
     }
 
     function actualizarPuntosYResolucionSegunZoom(chart) {
         if (!chart || !chart.scales || !chart.scales.x) return;
-        forzarLimitesSinEspacioVacio(chart);
+        forzarLimitesSinEspacioVacio(chart, false);
 
         const span = chart.scales.x.max - chart.scales.x.min;
         const nuevoPaso = calcularPasoAgrupacionLOD(span);
@@ -1753,7 +1889,7 @@
     function detectarCurvaEnfocada(dataPoints) {
         if (cursorCanvasY === null || !dataPoints || dataPoints.length === 0) return null;
         let mejorId = null;
-        let menorDist = 34; // px de tolerancia vertical para resaltar el punto tocado
+        let menorDist = 34;
         for (let i = 0; i < dataPoints.length; i++) {
             const dp = dataPoints[i];
             if (!dp || !dp.dataset || !dp.element || isNaN(dp.element.y)) continue;
@@ -1948,7 +2084,7 @@
         fijarEscalaExactaEnChart(chartInstance, limiteDatosIzqGlobal, limiteDatosDerGlobal);
         actualizarPuntosYResolucionSegunZoom(chartInstance);
         chartInstance.update('none');
-        document.getElementById('btnResetZoom').style.display = 'none';
+        actualizarControlesZoomYScroll(chartInstance);
     }
 
     function descargarCapturaGrafico() {
@@ -1970,6 +2106,7 @@
 
     function configurarEventosLimitesCanvas() {
         const canvas = document.getElementById('hashrateChart');
+        const wrapper = document.getElementById('chartWrapper');
         if (!canvas) return;
 
         function actualizarRectCache() {
@@ -1991,9 +2128,59 @@
             }
         }
 
-        canvas.addEventListener('mouseenter', actualizarRectCache, {passive: true});
-        canvas.addEventListener('mousemove', function(e) { validarPosicionCursor(e.clientX, e.clientY); }, {passive: true});
-        canvas.addEventListener('mouseleave', function() { ocultarTooltipGris(); }, {passive: true});
+        // Interceptar rueda en fase de captura: si el zoom está bloqueado por inercia de scroll,
+        // evitamos que Chart.js lo capture y dejamos que la página siga scrolleando libremente.
+        if (wrapper) {
+            wrapper.addEventListener('wheel', function(e) {
+                const enInerciaScroll = (Date.now() - ultimoScrollPaginaTs) <= 450;
+                if (!zoomRuedaHabilitado || enInerciaScroll) {
+                    ultimoScrollPaginaTs = Date.now();
+                    zoomRuedaHabilitado = false;
+                    clearTimeout(timerDesbloqueoZoom);
+                    e.stopPropagation();
+                }
+            }, { capture: true, passive: true });
+        }
+
+        canvas.addEventListener('mouseenter', function(e) {
+            actualizarRectCache();
+            zoomRuedaHabilitado = false;
+            mouseEntradaX = e.clientX;
+            mouseEntradaY = e.clientY;
+            clearTimeout(timerDesbloqueoZoom);
+            if ((Date.now() - ultimoScrollPaginaTs) > 450) {
+                timerDesbloqueoZoom = setTimeout(() => {
+                    if ((Date.now() - ultimoScrollPaginaTs) > 450) {
+                        zoomRuedaHabilitado = true;
+                    }
+                }, 700);
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('mousemove', function(e) {
+            validarPosicionCursor(e.clientX, e.clientY);
+            if (!zoomRuedaHabilitado && (Date.now() - ultimoScrollPaginaTs) > 450) {
+                if (mouseEntradaX === null || mouseEntradaY === null) {
+                    mouseEntradaX = e.clientX;
+                    mouseEntradaY = e.clientY;
+                } else {
+                    const dist = Math.hypot(e.clientX - mouseEntradaX, e.clientY - mouseEntradaY);
+                    if (dist >= 12) {
+                        zoomRuedaHabilitado = true;
+                        clearTimeout(timerDesbloqueoZoom);
+                    }
+                }
+            }
+        }, { passive: true });
+
+        canvas.addEventListener('mouseleave', function() {
+            zoomRuedaHabilitado = false;
+            mouseEntradaX = null;
+            mouseEntradaY = null;
+            clearTimeout(timerDesbloqueoZoom);
+            ocultarTooltipGris();
+        }, { passive: true });
+
         canvas.addEventListener('dblclick', function() { resetearZoomGrafico(); });
 
         let ultimoToqueTs = 0;
@@ -2010,7 +2197,7 @@
             } else {
                 ocultarTooltipGris();
             }
-        }, {passive: true});
+        }, { passive: true });
 
         canvas.addEventListener('touchmove', function(e) {
             if (e.touches && e.touches.length === 1) {
@@ -2025,7 +2212,7 @@
             } else {
                 ocultarTooltipGris();
             }
-        }, {passive: true});
+        }, { passive: true });
     }
 
     function extraerTempMinimaPlaca(cads, tempMaxFallback) {
@@ -2230,6 +2417,8 @@
             let btnR = document.getElementById('btn-' + rango);
             if (btnR) btnR.classList.add('active');
             document.getElementById('btnResetZoom').style.display = 'none';
+            const btnAhora = document.getElementById('btnIrAhora');
+            if (btnAhora) btnAhora.style.display = 'none';
             ocultarTooltipGris();
             ocultarSmartTooltip();
         }
@@ -2391,7 +2580,7 @@
 
         const topeEjeErrores = Math.max(20, maxErrPeriodo * 4);
 
-        if(chartInstance) {
+        if (chartInstance) {
             chartInstance.data.datasets = datasetsList;
             chartInstance.options.scales.y2.max = topeEjeErrores;
             if (estabaConZoom) {
@@ -2406,6 +2595,7 @@
             }
             actualizarPuntosYResolucionSegunZoom(chartInstance);
             chartInstance.update('none');
+            actualizarControlesZoomYScroll(chartInstance);
             if (!esActualizacionEnVivo) construirLeyendasPildora();
         } else {
             chartInstance = new Chart(ctx, {
@@ -2428,23 +2618,21 @@
                         zoom: {
                             limits: { x: { min: limiteIzq, max: limiteDer, minRange: 300 } },
                             pan: {
-                                enabled: true, mode: 'x',
-                                onPan: function({chart}) { forzarLimitesSinEspacioVacio(chart); },
+                                enabled: false, mode: 'x',
+                                onPan: function({chart}) { forzarLimitesSinEspacioVacio(chart, true); },
                                 onPanComplete: function({chart}) {
                                     actualizarPuntosYResolucionSegunZoom(chart);
                                     chart.update('none');
-                                    document.getElementById('btnResetZoom').style.display = 'inline-block';
+                                    actualizarControlesZoomYScroll(chart);
                                 }
                             },
                             zoom: {
                                 wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x',
-                                onZoom: function({chart}) { forzarLimitesSinEspacioVacio(chart); },
+                                onZoom: function({chart}) { forzarLimitesSinEspacioVacio(chart, false); },
                                 onZoomComplete: function({chart}) {
                                     actualizarPuntosYResolucionSegunZoom(chart);
                                     chart.update('none');
-                                    const spanVis = chart.scales.x.max - chart.scales.x.min;
-                                    const spanTot = limiteDatosDerGlobal - limiteDatosIzqGlobal;
-                                    document.getElementById('btnResetZoom').style.display = (spanVis < spanTot - 60) ? 'inline-block' : 'none';
+                                    actualizarControlesZoomYScroll(chart);
                                 }
                             }
                         }
@@ -2493,6 +2681,7 @@
             });
             configurarEventosLimitesCanvas();
             construirLeyendasPildora();
+            actualizarControlesZoomYScroll(chartInstance);
         }
     }
 
