@@ -185,9 +185,11 @@ def _construir_interceptor_js(prefix):
 (function(){{
   var P = "{prefix}";
   var MAX_TABS = 2;
+  var IDLE_MS = 10 * 60 * 1000; // 10 minutos de inactividad
   var STORAGE_KEY = "emg_proxy_active_tabs_v1";
   var TAB_ID = "tab_" + Math.random().toString(36).slice(2) + "_" + Date.now();
   var bloqueado = false;
+  var ultimaActividad = Date.now();
 
   function leerTabs(){{
     try {{
@@ -206,24 +208,27 @@ def _construir_interceptor_js(prefix):
     try {{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }} catch(e) {{}}
   }}
 
-  function mostrarPantallaLimite(){{
+  function liberarTab(){{
+    var t = leerTabs();
+    delete t[TAB_ID];
+    guardarTabs(t);
+  }}
+
+  function mostrarPantallaAviso(icono, titulo, mensaje, subtexto, btnTexto){{
     bloqueado = true;
+    liberarTab();
     var renderOverlay = function(){{
       if (!document.body) {{ setTimeout(renderOverlay, 30); return; }}
-      document.title = "Límite de conexiones — El Minero Gris";
+      document.title = titulo + " — El Minero Gris";
       document.body.innerHTML =
         '<div style="position:fixed;inset:0;background:#0b0f19;color:#e2e8f0;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px;z-index:2147483647;">' +
           '<div style="max-width:460px;width:100%;background:#131a2a;border:1px solid rgba(59,130,246,0.45);border-radius:14px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,0.65);text-align:center;">' +
-            '<div style="font-size:42px;margin-bottom:10px;">🛡️</div>' +
-            '<h2 style="margin:0 0 10px 0;color:#ffffff;font-size:1.25rem;">Límite de ventanas activas (2 / 2)</h2>' +
-            '<p style="margin:0 0 14px 0;color:#94a3b8;font-size:0.93rem;line-height:1.55;">' +
-              'Para evitar saturar el <b style="color:#e2e8f0;">celular puente</b> y mantener estable el monitoreo 24/7 de tu granja, solo se permiten <b style="color:#60a5fa;">2 ventanas de acceso remoto abiertas al mismo tiempo</b>.' +
-            '</p>' +
-            '<div style="background:rgba(15,23,42,0.8);border:1px solid rgba(148,163,184,0.2);border-radius:9px;padding:12px;margin-bottom:20px;font-size:0.84rem;color:#cbd5e1;">' +
-              'Cierra una de las otras pestañas del router o ASIC que tienes abiertas y luego pulsa <b>Reintentar</b>.' +
-            '</div>' +
+            '<div style="font-size:42px;margin-bottom:10px;">' + icono + '</div>' +
+            '<h2 style="margin:0 0 10px 0;color:#ffffff;font-size:1.25rem;">' + titulo + '</h2>' +
+            '<p style="margin:0 0 14px 0;color:#94a3b8;font-size:0.93rem;line-height:1.55;">' + mensaje + '</p>' +
+            '<div style="background:rgba(15,23,42,0.8);border:1px solid rgba(148,163,184,0.2);border-radius:9px;padding:12px;margin-bottom:20px;font-size:0.84rem;color:#cbd5e1;">' + subtexto + '</div>' +
             '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
-              '<button onclick="window.location.reload()" style="background:#2563eb;color:#fff;border:1px solid #60a5fa;padding:10px 18px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:0.9rem;">🔄 Reintentar</button>' +
+              '<button onclick="window.location.reload()" style="background:#2563eb;color:#fff;border:1px solid #60a5fa;padding:10px 18px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:0.9rem;">' + btnTexto + '</button>' +
               '<a href="/granjas" style="background:#1e293b;color:#e2e8f0;border:1px solid #334155;padding:10px 18px;border-radius:8px;font-weight:bold;text-decoration:none;font-size:0.9rem;">↩ Volver a Granjas</a>' +
             '</div>' +
           '</div>' +
@@ -232,28 +237,45 @@ def _construir_interceptor_js(prefix):
     renderOverlay();
   }}
 
-  // Solo aplicar el límite de pestañas en la ventana principal (no en iframes internos del router)
   if (window.top === window.self) {{
     var activos = leerTabs();
     var otros = Object.keys(activos).filter(function(k){{ return k !== TAB_ID; }});
     if (otros.length >= MAX_TABS) {{
-      mostrarPantallaLimite();
+      mostrarPantallaAviso(
+        "🛡️",
+        "Límite de ventanas activas (2 / 2)",
+        'Para evitar saturar el <b style="color:#e2e8f0;">celular puente</b> y mantener estable el monitoreo 24/7 de tu granja, solo se permiten <b style="color:#60a5fa;">2 ventanas de acceso remoto abiertas al mismo tiempo</b>.',
+        'Cierra una de las otras pestañas del router o ASIC que tienes abiertas y luego pulsa <b>Reintentar</b>.',
+        "🔄 Reintentar"
+      );
     }} else {{
       activos[TAB_ID] = Date.now();
       guardarTabs(activos);
+
+      var marcarActivo = function(){{ ultimaActividad = Date.now(); }};
+      ["mousemove", "mousedown", "keydown", "touchstart", "scroll"].forEach(function(ev){{
+        window.addEventListener(ev, marcarActivo, {{ passive: true }});
+      }});
+
       setInterval(function(){{
         if (bloqueado) return;
+        if (Date.now() - ultimaActividad >= IDLE_MS) {{
+          mostrarPantallaAviso(
+            "⏱️",
+            "Sesión pausada por inactividad",
+            'Esta ventana estuvo sin uso durante <b style="color:#60a5fa;">10 minutos</b>. Pausamos el túnel automáticamente para cuidar la batería y la memoria del <b style="color:#e2e8f0;">celular puente</b>.',
+            'Tu cupo de ventana ya fue liberado. Pulsa <b>Reconectar</b> si necesitas seguir configurando.',
+            "🔄 Reconectar"
+          );
+          return;
+        }}
         var t = leerTabs();
         t[TAB_ID] = Date.now();
         guardarTabs(t);
       }}, 1500);
-      var liberar = function(){{
-        var t = leerTabs();
-        delete t[TAB_ID];
-        guardarTabs(t);
-      }};
-      window.addEventListener("beforeunload", liberar);
-      window.addEventListener("pagehide", liberar);
+
+      window.addEventListener("beforeunload", liberarTab);
+      window.addEventListener("pagehide", liberarTab);
     }}
   }}
 
@@ -266,7 +288,7 @@ def _construir_interceptor_js(prefix):
   }}
   var origOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url){{
-    if (bloqueado) throw new Error("Límite de ventanas proxy alcanzado");
+    if (bloqueado) throw new Error("Proxy pausado");
     var args = Array.prototype.slice.call(arguments);
     args[1] = fixUrl(url);
     return origOpen.apply(this, args);
@@ -274,7 +296,7 @@ def _construir_interceptor_js(prefix):
   if (window.fetch) {{
     var origFetch = window.fetch;
     window.fetch = function(input, init){{
-      if (bloqueado) return Promise.reject(new Error("Límite de ventanas proxy alcanzado"));
+      if (bloqueado) return Promise.reject(new Error("Proxy pausado"));
       if (typeof input === "string") {{
         input = fixUrl(input);
       }} else if (input && typeof input.url === "string") {{
