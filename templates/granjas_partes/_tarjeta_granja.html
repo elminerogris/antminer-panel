@@ -6,8 +6,12 @@
                 <span>🏭</span>
                 <span translate="no">{{ g.nombre }}</span>
                 <button type="button" class="btn-inline-edit"
-                    onclick='editarGranjaModal({{ g.farm_id | tojson }}, {{ g.nombre | tojson }}, {{ g.ciudad | tojson }}, {{ g.cap_kw }}, {{ g.tarifa_kwh }}, {{ g.gateway | tojson }}, {{ g.notas | tojson }}, {{ g.es_manual | tojson }})'
+                    onclick='editarGranjaModal({{ g.farm_id | tojson }}, {{ g.nombre | tojson }}, {{ g.ciudad | tojson }}, {{ g.cap_kw }}, {{ g.tarifa_kwh }}, {{ g.gateway | tojson }}, {{ g.notas | tojson }}, true)'
                     title="Editar nombre y configuración de esta granja">✏️ Editar</button>
+                <button type="button" class="btn-inline-edit"
+                    style="color:#ff5252; border-color:rgba(255,82,82,0.35);"
+                    onclick='eliminarGranjaDirecto({{ g.farm_id | tojson }}, {{ g.nombre | tojson }})'
+                    title="Eliminar esta granja">🗑️</button>
             </div>
             <div class="farm-meta" translate="no">
                 <span>📍 {{ g.ciudad }}</span>
@@ -19,7 +23,9 @@
                 {% endif %}
             </div>
         </div>
-        {% if g.offline > 0 or g.temp_max >= 85 %}
+        {% if g.total == 0 %}
+            <span class="farm-pill-status" style="background:rgba(148,163,184,0.12); color:#94a3b8; border:1px solid rgba(148,163,184,0.35);">⚪ Sin equipos</span>
+        {% elif g.offline > 0 or g.temp_max >= 85 %}
             <span class="farm-pill-status crit">⚠️ Atención ({{ g.online }}/{{ g.total }})</span>
         {% elif g.temp_max >= 75 %}
             <span class="farm-pill-status warn">🔥 Caliente ({{ g.temp_max }}°C)</span>
@@ -44,7 +50,11 @@
         </div>
         <div class="fk-item">
             <div class="fk-label">Costo Luz/Día</div>
-            <div class="fk-val" style="color:#38bdf8;">${{ "%.2f"|format(g.costo_dia) }}</div>
+            {% if g.tarifa_kwh > 0 %}
+                <div class="fk-val" style="color:#38bdf8;">${{ "%.2f"|format(g.costo_dia) }}</div>
+            {% else %}
+                <div class="fk-val" style="color:var(--text-muted); font-size:0.85em;">Sin tarifa</div>
+            {% endif %}
         </div>
     </div>
 
@@ -55,7 +65,7 @@
                 ⚡ Carga Eléctrica: <b style="color:var(--text-main);">{{ g.consumo_kw }} / {{ g.cap_kw|int }} kW ({{ g.pct_carga }}%)</b>
             </span>
             <button type="button" class="btn-edit-cap"
-                onclick='editarGranjaModal({{ g.farm_id | tojson }}, {{ g.nombre | tojson }}, {{ g.ciudad | tojson }}, {{ g.cap_kw }}, {{ g.tarifa_kwh }}, {{ g.gateway | tojson }}, {{ g.notas | tojson }}, {{ g.es_manual | tojson }})'>
+                onclick='editarGranjaModal({{ g.farm_id | tojson }}, {{ g.nombre | tojson }}, {{ g.ciudad | tojson }}, {{ g.cap_kw }}, {{ g.tarifa_kwh }}, {{ g.gateway | tojson }}, {{ g.notas | tojson }}, true)'>
                 ⚙️ Ajustar kW
             </button>
         </div>
