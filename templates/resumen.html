@@ -253,6 +253,12 @@
         font-size: 0.80em;
         color: var(--text-muted);
     }
+    .tarifa-save-status {
+        font-family: monospace;
+        font-size: 0.75em;
+        color: #00e676;
+        min-width: 72px;
+    }
 
     .bulk-actions {
         display: flex;
@@ -454,7 +460,7 @@
 
     <div class="kpi-card" data-rtt="kpi_ganancia">
         <h4>💰 Ganancia Neta / Día</h4>
-        <div class="val" id="gananciaNetaCard" style="color:var(--accent-green);" translate="no">${{ flota.ingreso_dia }}</div>
+        <div class="val" id="gananciaNetaCard" style="color:var(--accent-green);" translate="no">{{ flota.ganancia_dia }}</div>
         <div class="sub" id="subProyeccionMes">Proy. mes: <span translate="no">${{ "%.0f"|format(flota.ingreso_dia|float * 30) }}</span></div>
     </div>
 </div>
@@ -505,11 +511,12 @@
 </div>
 {% else %}
 <!-- 2. Calculadora de Rentabilidad y Acciones Masivas -->
-<div class="calc-bar">
+<div class="calc-bar" data-no-live-patch="1">
     <div class="calc-group">
         <span style="font-weight:bold;font-size:0.84em; color:var(--text-main);">⚡ Tarifa (USD/kWh):</span>
-        <input type="number" step="0.01" min="0" id="tarifaKwh" class="calc-input" value="0.00" oninput="recalcularCostos()">
+        <input type="number" step="0.005" min="0" id="tarifaKwh" class="calc-input" value="{{ '%.3f'|format(flota.tarifa_kwh|float) }}" oninput="recalcularCostos(true)">
         <span class="calc-pill-summary" id="resumenLuzDia" translate="no">Luz: $0.00/día ($0/mes)</span>
+        <span class="tarifa-save-status" id="tarifaSaveStatus"></span>
     </div>
     <div class="bulk-actions">
         <span class="sel-badge" id="resSelBadge"><span id="resSelCount">0</span> sel.</span>
@@ -533,7 +540,7 @@
                 <th onclick="ordenarTablaResumen(5)">Temp Máx ↕</th>
                 <th onclick="ordenarTablaResumen(6)">Consumo ↕</th>
                 <th onclick="ordenarTablaResumen(7)">Eficiencia ↕</th>
-                <th onclick="ordenarTablaResumen(8)">Ingreso Est. / Día ↕</th>
+                <th onclick="ordenarTablaResumen(8)">Ganancia Neta / Día ↕</th>
             </tr>
         </thead>
         <tbody>
@@ -542,6 +549,8 @@
             {% set row_t_cls = 'badge-t-crit' if t_num >= 85 else ('badge-t-warn' if t_num >= 75 else 'badge-t-ok') %}
             {% set ip_parts = r.ip.split('.') %}
             {% set ip_num_sort = (ip_parts[0]|int * 16777216 + ip_parts[1]|int * 65536 + ip_parts[2]|int * 256 + ip_parts[3]|int) if ip_parts|length == 4 else 0 %}
+            {% set kw_num = r.consumo_kw.replace(' kW','') | float %}
+            {% set es_sha256_online = ('En línea' in r.estado) and (r.unidad == 'TH/s') and (r.algoritmo == 'SHA-256') %}
             <tr onclick="toggleFilaResumen(event, this)">
                 <td><input type="checkbox" class="miner-check" value="{{ r.ip }}" onchange="actualizarSeleccionResumen()"></td>
                 <td data-sort="{{ ip_num_sort }}">
@@ -572,9 +581,14 @@
                         <span style="color:var(--text-muted);font-family:monospace;">0°C</span>
                     {% endif %}
                 </td>
-                <td data-sort="{{ r.consumo_kw.replace(' kW','') | float }}" translate="no" style="font-family:monospace;">{{ r.consumo_kw }}</td>
+                <td data-sort="{{ kw_num }}" translate="no" style="font-family:monospace;">{{ r.consumo_kw }}</td>
                 <td data-sort="{{ r.eficiencia }}" translate="no" style="font-family:monospace; color:#c084fc;">{{ r.eficiencia }} {{ r.unidad_efi | default('J/TH') }}</td>
-                <td style="font-weight:bold;color:var(--accent-green);font-family:monospace;" translate="no">{{ r.ganancia_neta }}</td>
+                <td class="js-neto-cell"
+                    data-sha="{{ '1' if es_sha256_online else '0' }}"
+                    data-hr="{{ r.hashrate }}"
+                    data-kw="{{ kw_num }}"
+                    style="font-weight:bold;color:{{ '#ff5252' if '-' in r.ganancia_neta else 'var(--accent-green)' }};font-family:monospace;"
+                    translate="no">{{ r.ganancia_neta }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -585,7 +599,11 @@
 <script>
     const ingresoBrutoDia = parseFloat("{{ flota.ingreso_dia }}") || 0;
     const consumoKwTotal = parseFloat("{{ flota.consumo_kw }}") || 0;
+    const btcPrecioRaw = parseFloat("{{ flota.precio_btc_raw }}") || 0;
+    const btcDifT = parseFloat("{{ flota.dificultad_t }}") || 0;
+    const btcRecompensa = parseFloat("{{ flota.recompensa_bloque }}") || 3.125;
     let accionPendienteResumen = null;
+    let timerGuardarTarifa = null;
 
     const RESUMEN_TOOLTIPS = {
         'kpi_flota': { t: '🖥️ Disponibilidad de Flota', d: 'Cantidad de mineros transmitiendo en tiempo real frente al total registrado.' },
@@ -605,12 +623,10 @@
         setTimeout(() => { el.style.display = 'none'; }, 3500);
     }
 
-    function recalcularCostos() {
+    function recalcularCostos(guardarEnServidor = false) {
         const tarifaEl = document.getElementById('tarifaKwh');
         if (!tarifaEl) return;
-        let valStr = tarifaEl.value;
-        let tarifa = parseFloat(valStr) || 0;
-        try { localStorage.setItem('emg_tarifa_kwh', valStr); } catch(e) {}
+        let tarifa = Math.max(0, parseFloat(tarifaEl.value) || 0);
 
         let costoDia = consumoKwTotal * 24 * tarifa;
         let costoMes = costoDia * 30;
@@ -620,15 +636,55 @@
         const luzEl = document.getElementById('resumenLuzDia');
         if (luzEl) luzEl.innerText = `Luz: $${costoDia.toFixed(2)}/día ($${costoMes.toFixed(0)}/mes)`;
 
-        let cardEl = document.getElementById('gananciaNetaCard');
+        const cardEl = document.getElementById('gananciaNetaCard');
         if (cardEl) {
             cardEl.innerText = (netoDia < 0 ? '-$' : '$') + Math.abs(netoDia).toFixed(2);
             cardEl.style.color = netoDia < 0 ? '#ff5252' : '#00e676';
         }
 
-        let subMes = document.getElementById('subProyeccionMes');
+        const subMes = document.getElementById('subProyeccionMes');
         if (subMes) {
             subMes.innerText = `Proy. mes: ${netoMes < 0 ? '-$' : '$'}${Math.abs(netoMes).toFixed(0)}`;
+        }
+
+        // Recalcular cada fila SHA-256 en vivo
+        if (btcDifT > 0 && btcPrecioRaw > 0) {
+            document.querySelectorAll('.js-neto-cell').forEach(td => {
+                if (td.getAttribute('data-sha') !== '1') return;
+                const hr = parseFloat(td.getAttribute('data-hr')) || 0;
+                const kw = parseFloat(td.getAttribute('data-kw')) || 0;
+                const btcDia = (hr * btcRecompensa * 86400) / (btcDifT * 4294967296);
+                const ingresoEquipo = btcDia * btcPrecioRaw;
+                const costoEquipo = kw * 24 * tarifa;
+                const netoEq = ingresoEquipo - costoEquipo;
+                td.setAttribute('data-sort', netoEq.toFixed(4));
+                td.innerText = netoEq < 0 ? `-USD ${Math.abs(netoEq).toFixed(2)}` : `${netoEq.toFixed(2)} USD`;
+                td.style.color = netoEq < 0 ? '#ff5252' : 'var(--accent-green)';
+            });
+        }
+
+        if (guardarEnServidor) {
+            const stEl = document.getElementById('tarifaSaveStatus');
+            if (stEl) { stEl.style.color = '#38bdf8'; stEl.innerText = 'Guardando...'; }
+            clearTimeout(timerGuardarTarifa);
+            timerGuardarTarifa = setTimeout(() => {
+                fetch('/api/guardar_tarifa', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ tarifa_kwh: tarifa })
+                })
+                .then(r => r.json())
+                .then(d => {
+                    if (stEl && d.status === 'ok') {
+                        stEl.style.color = '#00e676';
+                        stEl.innerText = '✔ Guardada';
+                        setTimeout(() => { stEl.innerText = ''; }, 2000);
+                    }
+                })
+                .catch(() => {
+                    if (stEl) { stEl.style.color = '#ff5252'; stEl.innerText = 'Error'; }
+                });
+            }, 600);
         }
     }
 
@@ -714,7 +770,6 @@
         filas.forEach(f => tbody.appendChild(f));
     }
 
-    // Si el usuario estaba en Primeros Pasos y llega su primer minero en vivo, recarga sola
     window.addEventListener('emg:live-update', function(ev) {
         const ob = document.getElementById('onboardingCard');
         if (ob && ev.detail && ev.detail.doc && ev.detail.doc.querySelector('#tablaResumen')) {
@@ -723,14 +778,7 @@
     });
 
     window.addEventListener('load', function() {
-        try {
-            const tarifaEl = document.getElementById('tarifaKwh');
-            let guardada = localStorage.getItem('emg_tarifa_kwh');
-            if (tarifaEl && guardada !== null && guardada !== '') {
-                tarifaEl.value = guardada;
-                recalcularCostos();
-            }
-        } catch(e) {}
+        recalcularCostos(false);
 
         const box = document.getElementById('resSmartTooltip');
         if (!box) return;
