@@ -1,4 +1,8 @@
 {% set dt_low = g.device_type | lower %}
+{% set os_low = (g.os_info or '') | lower %}
+{% set es_android = ('android' in os_low) or ('celular' in dt_low) or ('phone' in dt_low) or ('tv' in dt_low) or ('box' in dt_low) %}
+{% set ver_actual = g.app_version or g.version or '' %}
+
 {% if 'celular' in dt_low or 'phone' in dt_low %}
     {% set dev_icon = '📱' %}
 {% elif 'tv' in dt_low or 'box' in dt_low %}
@@ -34,12 +38,24 @@
                 <span class="agent-mode-badge" style="background:rgba(255,179,0,0.12); border-color:rgba(255,179,0,0.4); color:#ffb300;">⏳ Sin Túnel</span>
             {% endif %}
             <span class="agent-mode-badge">{{ g.run_mode }}</span>
+            {% if es_android %}
+                <a href="#" target="_blank" rel="noopener"
+                   class="agent-mode-badge js-apk-update-badge"
+                   data-current-ver="{{ ver_actual }}"
+                   style="display:none; text-decoration:none; background:rgba(245,158,11,0.16); border-color:rgba(245,158,11,0.55); color:#fbbf24;"
+                   title="Nueva versión del Agente Android disponible">
+                </a>
+            {% endif %}
         </div>
     </div>
 
     <div class="agent-specs-row">
         {% if g.local_ip %}
         <span class="agent-chip">📶 IP Agente: {{ g.local_ip }}</span>
+        {% endif %}
+
+        {% if ver_actual %}
+        <span class="agent-chip">🧩 App v{{ ver_actual }}</span>
         {% endif %}
 
         {% if g.has_battery and g.battery_pct >= 0 %}
@@ -57,3 +73,42 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+if (!window._emgApkUpdateCheckInit) {
+    window._emgApkUpdateCheckInit = true;
+    document.addEventListener('DOMContentLoaded', () => {
+        const badges = document.querySelectorAll('.js-apk-update-badge');
+        if (!badges.length) return;
+
+        function compararVersion(vLocal, vNube) {
+            const a = String(vLocal || '').replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+            const b = String(vNube || '').replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+            const len = Math.max(a.length, b.length);
+            for (let i = 0; i < len; i++) {
+                const diff = (b[i] || 0) - (a[i] || 0);
+                if (diff !== 0) return diff;
+            }
+            return 0;
+        }
+
+        fetch('/api/agente/apk_version')
+            .then(r => r.ok ? r.json() : null)
+            .then(info => {
+                if (!info || !info.version_name) return;
+                const nubeVer = String(info.version_name).trim();
+                const apkUrl = info.apk_url || '#';
+
+                badges.forEach(el => {
+                    const localVer = (el.getAttribute('data-current-ver') || '').trim();
+                    if (!localVer || compararVersion(localVer, nubeVer) > 0) {
+                        el.href = apkUrl;
+                        el.textContent = `⬆️ v${nubeVer} disponible`;
+                        el.style.display = 'inline-block';
+                    }
+                });
+            })
+            .catch(() => {});
+    });
+}
+</script>
