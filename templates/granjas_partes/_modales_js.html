@@ -104,7 +104,7 @@
         document.getElementById('fm_tarifa').value = tarifa !== undefined ? tarifa : 0.06;
         document.getElementById('fm_gateway').value = gateway || '';
         document.getElementById('fm_notas').value = notas || '';
-        document.getElementById('btnEliminarGranja').style.display = esManual ? 'inline-block' : 'none';
+        document.getElementById('btnEliminarGranja').style.display = farmId ? 'inline-block' : 'none';
         document.getElementById('farmModal').style.display = 'flex';
     }
 
@@ -139,10 +139,10 @@
         });
     }
 
-    function eliminarGranjaActual() {
-        const farmId = document.getElementById('fm_id').value.trim();
+    function eliminarGranjaDirecto(farmId, nombre) {
         if (!farmId) return;
-        if (!confirm('¿Eliminar esta granja manual? Los ASICs asignados volverán a la sede de su agente.')) return;
+        const etiqueta = nombre ? `"${nombre}"` : 'esta granja';
+        if (!confirm(`¿Seguro que deseas eliminar ${etiqueta}?\n\nLos ASICs no se borran; si siguen conectados volverán a agruparse con su router.`)) return;
 
         fetch('/api/granjas/eliminar', {
             method: 'POST',
@@ -153,9 +153,16 @@
         .then(d => {
             if (d.status === 'ok') {
                 cerrarFarmModal();
-                window.location.reload();
+                mostrarFarmToast('Granja eliminada.');
+                setTimeout(() => window.location.reload(), 500);
             }
         });
+    }
+
+    function eliminarGranjaActual() {
+        const farmId = document.getElementById('fm_id').value.trim();
+        const nombre = document.getElementById('fm_nombre').value.trim();
+        eliminarGranjaDirecto(farmId, nombre);
     }
 
     function abrirEditarMineroModal(ip, nombre, farmId) {
