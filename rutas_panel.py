@@ -15,17 +15,15 @@ from utils import (
 
 panel_bp = Blueprint('panel_bp', __name__)
 
-# --- Rate Limiting en memoria (anti-fuerza bruta) y códigos de recuperación ---
 _rate_lock = threading.Lock()
 _rate_buckets = {}
-_reset_codes = {}  # username_lower -> {"code": "123456", "exp": ts, "attempts": 0}
+_reset_codes = {}
 
 def _ip_cliente():
     xff = request.headers.get('X-Forwarded-For', '')
     return xff.split(',')[0].strip() if xff else (request.remote_addr or 'unknown')
 
 def verificar_rate_limit(clave, max_intentos=8, ventana_seg=300):
-    """Retorna True si se excedió el límite de intentos en la ventana de tiempo."""
     ahora = time.time()
     with _rate_lock:
         hist = [ts for ts in _rate_buckets.get(clave, []) if ahora - ts < ventana_seg]
@@ -37,7 +35,6 @@ def verificar_rate_limit(clave, max_intentos=8, ventana_seg=300):
         return False
 
 def despachar_comando(cur, owner, ip, comando, fecha=None):
-    """Envía el comando al instante por el túnel WebSocket; si no hay túnel activo, lo encola en BD."""
     ahora = fecha or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     agent_id = 'default'
     try:
@@ -136,6 +133,25 @@ def sitemap_xml():
     return Response(xml, mimetype="application/xml")
 
 # --- APIs de Granjas y Sedes ---
+@panel_bp.route('/api/granjas/actualizar_agente_remoto', methods=['POST'])
+@login_required
+def api_actualizar_agente_remoto():
+    usr_actual = session.get('usuario', 'Admin')
+    data = request.get_json(silent=True) or {}
+    agent_id = str(data.get('agent_id') or '').strip()
+    if not agent_id:
+        return jsonify({"status": "error", "msg": "agent_id requerido"}), 400
+
+    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    enviado = enviar_orden_tunel(usr_actual, "AGENTE-HOST", "update_apk", agent_id=agent_id)
+    estado = 'enviado' if enviado else 'pendiente'
+    cur.execute(
+        "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s)",
+        (usr_actual, agent_id, "AGENTE-HOST", "update_apk", estado, ahora)
+    )
+    return jsonify({"status": "ok", "enviado_tunel": enviado, "agent_id": agent_id})
+
 @panel_bp.route('/api/granjas/guardar', methods=['POST'])
 @login_required
 def api_granjas_guardar():
