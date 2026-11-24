@@ -806,7 +806,7 @@
 
             const agentId = sel.value || 'default';
             btn.disabled = true;
-            btn.innerText = '⏳ Midiéndo...';
+            btn.innerText = '⏳ Midiendo...';
             out.innerText = `📡 Enviando orden de diagnóstico a la sede ${agentId}...\nEsperando respuesta del Agente (puede tardar hasta 25 segundos)...`;
 
             if (pingPollTimer) {
@@ -1005,7 +1005,9 @@
 
         function usuarioEstaEditando() {
             const active = document.activeElement;
-            if (active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName)) return true;
+            if (active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName) && !active.closest('.top-bar, .sidebar')) {
+                return true;
+            }
             if (document.querySelector('.edited, .unsaved-pulse')) return true;
             if (document.querySelector('#mainScrollArea input[type="checkbox"]:checked')) return true;
             return false;
@@ -1111,9 +1113,6 @@
             if (livePausadoUsuario) {
                 pill.classList.add('paused');
                 lbl.innerText = 'Pausado';
-            } else if (usuarioEstaEditando()) {
-                pill.classList.add('paused');
-                lbl.innerText = 'Editando';
             } else {
                 pill.classList.remove('paused');
                 lbl.innerText = 'En vivo';
