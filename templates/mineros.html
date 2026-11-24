@@ -1,10 +1,10 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    /* Píldoras de Filtro Rápido con Efecto Glow */
+    /* Tarjetas KPI Superiores */
     .filter-pills {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
         gap: 10px;
         margin-bottom: 16px;
     }
@@ -18,6 +18,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 8px;
         user-select: none;
     }
     .pill-card:hover {
@@ -30,21 +31,22 @@
         border-color: #3b82f6;
         box-shadow: 0 0 14px rgba(59, 130, 246, 0.35);
     }
-    .pill-title { font-size: 0.72em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; letter-spacing: 0.4px; }
-    .pill-count { font-size: 1.4em; font-weight: bold; font-family: monospace; color: var(--text-main); }
+    .pill-title { font-size: 0.70em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; letter-spacing: 0.4px; }
+    .pill-sub { font-size: 0.72em; color: var(--text-muted); margin-top: 2px; }
+    .pill-count { font-size: 1.22em; font-weight: bold; font-family: monospace; color: var(--text-main); text-align: right; white-space: nowrap; }
 
     /* Semáforo térmico */
     .badge-t-ok { background: rgba(0, 230, 118, 0.12); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
     .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.35); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
     .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
 
-    /* Badges de Consumo y Eficiencia */
+    /* Badges de Consumo, Eficiencia y Ganancia */
     .badge-kw { background: rgba(56, 189, 248, 0.10); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.28); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
     .badge-efi-ok { background: rgba(0, 230, 118, 0.10); color: #69f0ae; border: 1px solid rgba(0, 230, 118, 0.28); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
     .badge-efi-mid { background: rgba(59, 130, 246, 0.12); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.30); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
     .badge-efi-high { background: rgba(255, 179, 0, 0.12); color: #fcd34d; border: 1px solid rgba(255, 179, 0, 0.32); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
-
-    .coin-alt-pill { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 0.72em; font-family: monospace; font-weight: bold; color: #c084fc; background: rgba(192, 132, 252, 0.14); border: 1px solid rgba(192, 132, 252, 0.38); vertical-align: middle; }
+    .gain-usd { color: #00e676; font-weight: bold; font-family: monospace; font-size: 1.02em; }
+    .gain-crypto { font-size: 0.76em; color: var(--text-muted); font-family: monospace; margin-top: 2px; }
 
     /* Barra de búsqueda y Comando Masivo */
     .fleet-toolbar { background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
@@ -119,24 +121,6 @@
     th.sort-active { color: #60a5fa !important; }
     .sort-arrow { display: inline-block; margin-left: 4px; font-size: 0.95em; opacity: 0.65; }
     th.sort-active .sort-arrow { opacity: 1; color: #38bdf8; }
-    .th-info-dot {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 13px;
-        height: 13px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.07);
-        color: #8b8d9c;
-        font-size: 9px;
-        font-family: serif;
-        font-style: italic;
-        font-weight: bold;
-        margin-left: 4px;
-        vertical-align: middle;
-        transition: 0.15s;
-    }
-    th:hover .th-info-dot { background: rgba(51, 102, 255, 0.45); color: #fff; }
 
     td { padding: 12px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.85em; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
@@ -147,7 +131,8 @@
     .miner-link { color: #60a5fa; font-weight: bold; text-decoration: none; font-size: 1.03em; }
     .miner-link:hover { color: #fff; text-decoration: underline; }
     .sub-txt { font-size: 0.78em; color: var(--text-muted); margin-top: 2px; font-family: monospace; }
-    .uptime-hover { display: inline-block; cursor: help; border-bottom: 1px dotted rgba(148, 163, 184, 0.45); }
+    .uptime-hover, .temp-hover-cell { cursor: help; }
+    .uptime-hover { display: inline-block; border-bottom: 1px dotted rgba(148, 163, 184, 0.45); }
 
     /* Modales */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.72); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(3px); }
@@ -237,7 +222,7 @@
     .fleet-smart-tooltip {
         position: fixed;
         display: none;
-        width: 275px;
+        width: 280px;
         max-width: calc(100vw - 20px);
         background: rgba(10, 11, 16, 0.98);
         border: 1px solid rgba(51, 102, 255, 0.55);
@@ -440,27 +425,46 @@
     </div>
 </div>
 
-<!-- 1. Filtros Rápidos de Diagnóstico -->
+<!-- 1. Tarjetas KPI Principales de la Flota -->
 <div class="filter-pills">
-    <div class="pill-card active" id="pill-all" data-ftt="pill_all" onclick="filtrarEstado('all')">
-        <div><div class="pill-title">Total Flota</div><div style="font-size:0.72em;color:var(--text-muted);">Todos los equipos</div></div>
-        <div class="pill-count" translate="no">{{ stats.total }}</div>
+    <div class="pill-card active" id="pill-all" data-ftt="kpi_hashrate" onclick="filtrarEstado('all')">
+        <div>
+            <div class="pill-title" style="color:#60a5fa;">⚡ Hashrate de la flota</div>
+            <div class="pill-sub">Ver todos ({{ stats.total }})</div>
+        </div>
+        <div class="pill-count" id="kpiTotalHr" style="color:#60a5fa;" translate="no">0 TH/s</div>
     </div>
-    <div class="pill-card" id="pill-online" data-ftt="pill_online" onclick="filtrarEstado('online')">
-        <div><div class="pill-title" style="color:var(--accent-green);">● En Línea</div><div style="font-size:0.72em;color:var(--text-muted);">Minando normal</div></div>
-        <div class="pill-count" style="color:var(--accent-green);" translate="no">{{ stats.online }}</div>
+
+    <div class="pill-card" id="pill-consumo" data-ftt="kpi_consumo" onclick="ordenarTabla(5, false)">
+        <div>
+            <div class="pill-title" style="color:#38bdf8;">🔌 Consumo de la flota</div>
+            <div class="pill-sub">Potencia en kW</div>
+        </div>
+        <div class="pill-count" id="kpiTotalKw" style="color:#38bdf8;" translate="no">0.00 kW</div>
     </div>
-    <div class="pill-card" id="pill-offline" data-ftt="pill_offline" onclick="filtrarEstado('offline')">
-        <div><div class="pill-title" style="color:var(--accent-red);">● Sin Conexión</div><div style="font-size:0.72em;color:var(--text-muted);">Apagados / Red</div></div>
-        <div class="pill-count" style="color:var(--accent-red);" translate="no">{{ stats.offline }}</div>
+
+    <div class="pill-card" id="pill-online" data-ftt="kpi_online" onclick="filtrarEstado('online')">
+        <div>
+            <div class="pill-title" style="color:var(--accent-green);">● En Línea</div>
+            <div class="pill-sub">Minando normal</div>
+        </div>
+        <div class="pill-count" style="color:var(--accent-green);" translate="no">{{ stats.online }} / {{ stats.total }}</div>
     </div>
-    <div class="pill-card" id="pill-temp" data-ftt="pill_temp" onclick="filtrarEstado('temp')">
-        <div><div class="pill-title" style="color:#ffb300;">🔥 Temp Alta</div><div style="font-size:0.72em;color:var(--text-muted);">Chip ≥ 75°C</div></div>
-        <div class="pill-count" style="color:#ffb300;" translate="no">{{ stats.alerta_temp }}</div>
+
+    <div class="pill-card" id="pill-eficiencia" data-ftt="kpi_eficiencia" onclick="ordenarTabla(6, true)">
+        <div>
+            <div class="pill-title" style="color:#c084fc;">🔋 Eficiencia media</div>
+            <div class="pill-sub">Promedio flota</div>
+        </div>
+        <div class="pill-count" id="kpiAvgEfi" style="color:#c084fc;" translate="no">0 J/TH</div>
     </div>
-    <div class="pill-card" id="pill-hw" data-ftt="pill_hw" onclick="filtrarEstado('hw')">
-        <div><div class="pill-title" style="color:#ff5252;">⚠️ Revisión HW</div><div style="font-size:0.72em;color:var(--text-muted);">Errores / Rejects</div></div>
-        <div class="pill-count" style="color:#ff5252;" translate="no">{{ stats.alerta_hw }}</div>
+
+    <div class="pill-card" id="pill-ganancia" data-ftt="kpi_ganancia" onclick="ordenarTabla(7, false)">
+        <div>
+            <div class="pill-title" style="color:#00e676;">💰 Ganancia / Día</div>
+            <div class="pill-sub">Estimado 24h</div>
+        </div>
+        <div class="pill-count" id="kpiTotalUsd" style="color:#00e676;" translate="no">$0.00</div>
     </div>
 </div>
 
@@ -492,13 +496,13 @@
         <thead>
             <tr>
                 <th style="width:32px;"><input type="checkbox" id="checkAllFleet" onclick="seleccionarTodosVisibles(this)"></th>
-                <th class="sortable" data-col="1" data-ftt="col_nombre" onclick="ordenarTabla(1)">Nombre <span class="th-info-dot">i</span><span class="sort-arrow">↕</span></th>
-                <th class="sortable" data-col="2" data-ftt="col_hashrate" onclick="ordenarTabla(2)">Hashrate <span class="th-info-dot">i</span><span class="sort-arrow">↕</span></th>
-                <th class="sortable" data-col="3" data-ftt="col_temp" onclick="ordenarTabla(3)">Temperatura <span class="th-info-dot">i</span><span class="sort-arrow">↕</span></th>
-                <th class="sortable" data-col="4" data-ftt="col_consumo" onclick="ordenarTabla(4)">Consumo <span class="th-info-dot">i</span><span class="sort-arrow">↕</span></th>
-                <th class="sortable" data-col="5" data-ftt="col_eficiencia" onclick="ordenarTabla(5)">Eficiencia <span class="th-info-dot">i</span><span class="sort-arrow">↕</span></th>
-                <th class="sortable" data-col="6" data-ftt="col_modelo" onclick="ordenarTabla(6)">Modelo / FW <span class="sort-arrow">↕</span></th>
-                <th class="sortable" data-col="7" data-ftt="col_estado" onclick="ordenarTabla(7)">Estado <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="1" data-ftt="col_nombre" onclick="ordenarTabla(1)">Nombre <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="2" data-ftt="col_estado" onclick="ordenarTabla(2)">Estado <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="3" data-ftt="col_hashrate" onclick="ordenarTabla(3)">Hashrate <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="4" data-ftt="col_temp" onclick="ordenarTabla(4)">Temperatura <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="5" data-ftt="col_consumo" onclick="ordenarTabla(5)">Consumo <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="6" data-ftt="col_eficiencia" onclick="ordenarTabla(6)">Eficiencia <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="7" data-ftt="col_ganancia" onclick="ordenarTabla(7)">Ganancia / Día <span class="sort-arrow">↕</span></th>
                 <th style="text-align:center;">Acciones</th>
             </tr>
         </thead>
@@ -509,7 +513,10 @@
             {% set efi_val = m.eficiencia | float %}
             {% set efi_cls = 'badge-efi-ok' if (efi_val > 0 and efi_val <= 24) else ('badge-efi-mid' if (efi_val > 0 and efi_val <= 34) else 'badge-efi-high') %}
             {% set n_placas = m.placas_activas | int %}
-            {% set granja_lbl = m.granja_nombre or m.farm_nombre or m.farm_city or m.farm_id or 'Granja' %}
+            {% set granja_lbl = m.granja_nombre or m.farm_nombre or m.farm_id or 'Granja 001' %}
+            {% set gan_usd = (m.ganancia_dia_usd if m.ganancia_dia_usd is defined else (m.ingreso_dia_usd if m.ingreso_dia_usd is defined else (m.ganancia_usd if m.ganancia_usd is defined else 0))) | float %}
+            {% set gan_cripto = (m.ganancia_dia_cripto if m.ganancia_dia_cripto is defined else (m.cripto_dia if m.cripto_dia is defined else 0)) | float %}
+            {% set moneda_m = m.moneda or 'BTC' %}
             <tr class="fila-minero"
                 onclick="toggleFilaClick(event, this)"
                 data-ip="{{ m.ip }}"
@@ -524,6 +531,8 @@
                 data-kw="{{ m.consumo_kw }}"
                 data-efi="{{ m.eficiencia }}"
                 data-uefi="{{ m.unidad_efi }}"
+                data-ganusd="{{ gan_usd }}"
+                data-moneda="{{ moneda_m }}"
                 data-temp="{{ tm }}"
                 data-tamb="{{ m.temp_amb }}"
                 data-placas="{{ n_placas }}"
@@ -536,62 +545,17 @@
                 data-worker1="{{ m.worker1 }}"
                 data-pool2="{{ m.pool2 }}"
                 data-pool3="{{ m.pool3 }}"
-                data-search="{{ (m.ip ~ ' ' ~ m.nombre ~ ' ' ~ granja_lbl ~ ' ' ~ m.modelo ~ ' ' ~ m.moneda ~ ' ' ~ m.mac ~ ' ' ~ m.worker1 ~ ' ' ~ m.pool1)|lower }}">
+                data-search="{{ (m.ip ~ ' ' ~ m.nombre ~ ' ' ~ granja_lbl ~ ' ' ~ m.modelo ~ ' ' ~ moneda_m ~ ' ' ~ m.mac ~ ' ' ~ m.worker1 ~ ' ' ~ m.pool1)|lower }}">
                 
                 <td><input type="checkbox" class="cb-minero" value="{{ m.ip }}" onchange="actualizarContadorSeleccion()"></td>
                 
+                <!-- 1. Nombre + Nombre de su Granja -->
                 <td data-sort-str="{{ m.nombre }}" translate="no">
-                    <a href="/minero/{{ m.ip }}" class="miner-link" title="IP: {{ m.ip }}">{{ m.nombre }}</a>
+                    <a href="/minero/{{ m.ip }}" class="miner-link" title="IP: {{ m.ip }} · {{ m.modelo }}">{{ m.nombre }}</a>
                     <div class="sub-txt">🏭 {{ granja_lbl }}</div>
                 </td>
-                
-                <td data-sort-num="{{ m.hashrate }}" translate="no">
-                    {% if m.online and m.hashrate > 0 %}
-                        <b style="color:#3b82f6;font-size:1.05em;font-family:monospace;">{{ m.hashrate }}</b>
-                        <span style="color:var(--text-muted);font-family:monospace;">{{ m.unidad }}</span>
-                        <div class="sub-txt">30m: {{ m.hashrate_30m }} {{ m.unidad }}</div>
-                    {% else %}
-                        <span style="color:var(--text-muted);font-family:monospace;">0 {{ m.unidad }}</span>
-                    {% endif %}
-                </td>
 
-                <td data-sort-num="{{ tm }}" translate="no">
-                    {% if m.online %}
-                        <span class="{{ m_t_cls }}">{{ tm }}°C</span>
-                        {% if m.temp_amb > 0 %}
-                            <div class="sub-txt">🍃 Amb: {{ m.temp_amb }}°C</div>
-                        {% endif %}
-                    {% else %}
-                        <span style="color:var(--text-muted);">0°C</span>
-                    {% endif %}
-                </td>
-
-                <td data-sort-num="{{ m.consumo_kw }}" translate="no">
-                    {% if m.online and m.consumo_kw > 0 %}
-                        <span class="badge-kw">⚡ {{ m.consumo_kw }} kW</span>
-                    {% else %}
-                        <span style="color:var(--text-muted); font-family:monospace;">0.00 kW</span>
-                    {% endif %}
-                </td>
-
-                <td data-sort-num="{{ efi_val if (m.online and efi_val > 0) else 999999 }}" translate="no">
-                    {% if m.online and efi_val > 0 %}
-                        <span class="{{ efi_cls }}">{{ m.eficiencia }} {{ m.unidad_efi }}</span>
-                    {% else %}
-                        <span style="color:var(--text-muted); font-family:monospace;">-</span>
-                    {% endif %}
-                </td>
-
-                <td data-sort-str="{{ m.modelo }}" translate="no">
-                    <div style="font-weight:bold;">
-                        {{ m.modelo }}
-                        {% if m.online and m.hashrate > 0 and m.moneda and m.moneda != 'BTC' %}
-                            <span class="coin-alt-pill">{{ m.moneda }}</span>
-                        {% endif %}
-                    </div>
-                    <div class="sub-txt">{{ m.firmware[:22] }}</div>
-                </td>
-                
+                <!-- 2. Estado (en medio de Nombre y Hashrate) -->
                 <td data-sort-num="{{ '1' if m.online else '0' }}">
                     {% if m.online %}
                         <span style="color:var(--accent-green);font-weight:bold;">● Online</span>
@@ -602,7 +566,73 @@
                         <span class="uptime-hover" data-ftt="uptime_info">{{ m.uptime }}</span>
                     </div>
                 </td>
+                
+                <!-- 3. Hashrate -->
+                <td data-sort-num="{{ m.hashrate }}" translate="no">
+                    {% if m.online and m.hashrate > 0 %}
+                        <b style="color:#3b82f6;font-size:1.05em;font-family:monospace;">{{ m.hashrate }}</b>
+                        <span style="color:var(--text-muted);font-family:monospace;">{{ m.unidad }}</span>
+                        <div class="sub-txt">30m: {{ m.hashrate_30m }} {{ m.unidad }}</div>
+                    {% else %}
+                        <span style="color:var(--text-muted);font-family:monospace;">0 {{ m.unidad }}</span>
+                    {% endif %}
+                </td>
 
+                <!-- 4. Temperatura (con tooltip dinámico por ASIC) -->
+                <td class="temp-hover-cell"
+                    data-sort-num="{{ tm }}"
+                    data-t="{{ tm }}"
+                    data-amb="{{ m.temp_amb }}"
+                    data-on="{{ '1' if m.online else '0' }}"
+                    onmouseenter="mostrarTooltipTempAsic(this)"
+                    onmouseleave="ocultarTooltipFlota()"
+                    translate="no">
+                    {% if m.online %}
+                        <span class="{{ m_t_cls }}">{{ tm }}°C</span>
+                        {% if m.temp_amb > 0 %}
+                            <div class="sub-txt">🍃 Amb: {{ m.temp_amb }}°C</div>
+                        {% endif %}
+                    {% else %}
+                        <span style="color:var(--text-muted);">0°C</span>
+                    {% endif %}
+                </td>
+
+                <!-- 5. Consumo en kW -->
+                <td data-sort-num="{{ m.consumo_kw }}" translate="no">
+                    {% if m.online and m.consumo_kw > 0 %}
+                        <span class="badge-kw">⚡ {{ m.consumo_kw }} kW</span>
+                    {% else %}
+                        <span style="color:var(--text-muted); font-family:monospace;">0.00 kW</span>
+                    {% endif %}
+                </td>
+
+                <!-- 6. Eficiencia -->
+                <td data-sort-num="{{ efi_val if (m.online and efi_val > 0) else 999999 }}" translate="no">
+                    {% if m.online and efi_val > 0 %}
+                        <span class="{{ efi_cls }}">{{ m.eficiencia }} {{ m.unidad_efi }}</span>
+                    {% else %}
+                        <span style="color:var(--text-muted); font-family:monospace;">-</span>
+                    {% endif %}
+                </td>
+
+                <!-- 7. Ganancia por día (USD + Cripto) -->
+                <td data-sort-num="{{ gan_usd if m.online else 0 }}" translate="no">
+                    {% if m.online and gan_usd > 0 %}
+                        <div class="gain-usd">${{ "%.2f"|format(gan_usd) }}</div>
+                        <div class="gain-crypto">
+                            {% if gan_cripto > 0 %}
+                                {{ "%.6f"|format(gan_cripto) if moneda_m == 'BTC' else "%.4f"|format(gan_cripto) }} {{ moneda_m }}
+                            {% else %}
+                                {{ moneda_m }}
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div style="color:var(--text-muted); font-family:monospace;">$0.00</div>
+                        <div class="gain-crypto">0 {{ moneda_m }}</div>
+                    {% endif %}
+                </td>
+
+                <!-- 8. Acciones -->
                 <td style="text-align:center;" onclick="event.stopPropagation();">
                     <div class="row-act-wrap">
                         <button type="button" class="row-act-btn led" data-ftt="row_led" onclick="blinkIndividual('{{ m.ip }}', this)">💡</button>
@@ -649,21 +679,21 @@
     };
 
     const FLEET_TOOLTIPS = {
-        'pill_all': { t: '🏭 Flota Completa', d: 'Muestra todos los equipos registrados en tu cuenta sin filtros.' },
-        'pill_online': { t: '🟢 Mineros Activos', d: 'Filtra solo los equipos que respondieron al Agente en los últimos 5 minutos.' },
-        'pill_offline': { t: '🔴 Sin Conexión', d: 'Muestra equipos apagados, sin red LAN o con fallo de fuente.' },
-        'pill_temp': { t: '🔥 Alerta Térmica (≥ 75°C)', d: 'Filtra equipos calientes que requieren revisión de ventilación o limpieza.' },
-        'pill_hw': { t: '⚠️ Revisión de Hardware', d: 'Equipos con más de 50 errores HW o tasa de rechazo superior al 1.5%.' },
-        'col_nombre': { t: '🏷️ Nombre del Minero', d: 'Haz clic para ordenar tus equipos por número (001, 002...) o alfabéticamente (A–Z).', r: 'Debajo muestra a qué Granja pertenece' },
+        'kpi_hashrate': { t: '⚡ Hashrate de la Flota', d: 'Potencia total combinada de todos tus mineros que están trabajando ahora mismo.', r: 'Clic para mostrar todos los equipos sin filtro' },
+        'kpi_consumo': { t: '🔌 Consumo de la Flota (kW)', d: 'Suma total de electricidad que están consumiendo tus equipos activos por hora.', r: 'Clic para ordenar del que más consume al que menos' },
+        'kpi_online': { t: '🟢 Mineros En Línea', d: 'Cantidad de equipos conectados y minando normalmente respecto al total de tu flota.', r: 'Clic para filtrar solo los equipos en línea' },
+        'kpi_eficiencia': { t: '🔋 Eficiencia Media', d: 'Promedio de cuánta electricidad (Joules) gasta tu flota por cada unidad de potencia.', r: 'Menor número = equipos más modernos y menos gasto de luz' },
+        'kpi_ganancia': { t: '💰 Ganancia Estimada por Día', d: 'Ingreso diario aproximado en dólares (USD) sumando todos tus equipos activos.', r: 'Clic para ordenar del que más dinero genera al que menos' },
+        'col_nombre': { t: '🏷️ Nombre del Minero', d: 'Nombre de cada equipo y, justo debajo, la granja a la que pertenece.', r: 'Clic para ordenar por número (001, 002...) o A–Z' },
+        'col_estado': { t: '📡 Estado de Conexión', d: 'Muestra si el minero está activo en línea o desconectado, junto a su tiempo encendido.', r: 'Clic para agrupar Online / Offline' },
         'col_hashrate': { t: '⚡ Hashrate (Potencia)', d: 'Velocidad real de minado actual y promedio de los últimos 30 minutos.', r: 'Clic para ordenar de mayor a menor potencia' },
-        'col_temp': { t: '🌡️ Temperatura de Chips', d: 'Calor máximo en los chips internos. Es el dato clave para cuidar tu equipo.', r: '🟢 < 75°C Normal | 🟠 75–84°C Calor | 🔴 ≥ 85°C Crítico' },
-        'col_consumo': { t: '🔌 Consumo Eléctrico (kW)', d: 'Energía aproximada que consume el minero por hora en kilovatios (kW).', r: 'Clic para ver qué equipos consumen más luz' },
-        'col_eficiencia': { t: '🔋 Eficiencia Energética', d: 'Cuánta electricidad (Joules) gasta el equipo para producir cada unidad de potencia.', r: 'Menor número = más eficiente y menos gasto de luz' },
-        'col_modelo': { t: '🖥️ Modelo y Firmware', d: 'Modelo detectado del ASIC y versión de software instalada.' },
-        'col_estado': { t: '📡 Estado de Conexión', d: 'Indica si el equipo está minando en línea o desconectado.' },
+        'col_temp': { t: '🌡️ Temperatura (Chip y Amb)', d: 'Muestra el calor de los chips internos del minero y <b>Amb</b> (Temperatura Ambiente), que es el calor del aire que entra por los ventiladores.', r: '🟢 < 75°C Normal | 🟠 75–84°C Calor | 🔴 ≥ 85°C Peligro' },
+        'col_consumo': { t: '🔌 Consumo Eléctrico (kW)', d: 'Energía aproximada que consume cada minero por hora en kilovatios (kW).', r: 'Clic para ordenar por consumo' },
+        'col_eficiencia': { t: '🔋 Eficiencia Energética', d: 'Cuánta electricidad (Joules) gasta el equipo para producir cada unidad de potencia.', r: 'Menor número = más eficiente y menor factura eléctrica' },
+        'col_ganancia': { t: '💰 Ganancia Estimada por Día', d: 'Producción diaria estimada en dólares (USD) y su equivalente en la criptomoneda que está minando (BTC, LTC, KAS, etc.).', r: 'Clic para ordenar por mayor ganancia' },
         'uptime_info': { t: '⏱️ Tiempo Activo (Uptime)', d: 'Tiempo continuo que lleva encendido y minando este equipo desde su último reinicio.' },
         'row_led': { t: '💡 Ubicar con Luz LED', d: 'Hace parpadear la luz LED física de este minero para encontrarlo rápido en tu rack.' },
-        'row_remove': { t: '✕ Quitar Minero del Panel', d: 'Elimina este equipo de tu lista y libera 1 cupo en tu plan al instante. No apaga ni borra el minero físico.', r: 'Puedes volver a agregarlo luego desde el Escáner' },
+        'row_remove': { t: '✕ Quitar Minero del Panel', d: 'Quita este equipo de tu lista y libera 1 cupo en tu plan al instante. No apaga ni borra el minero físico.', r: 'Puedes volver a agregarlo luego desde el Escáner' },
         'btn_pools': { t: '⛏ Cambio Masivo de Pools', d: 'Configura las 3 URLs Stratum y asigna automáticamente el sufijo de cada Worker.' },
         'btn_restart': { t: '🔄 Reinicio Masivo', d: 'Envía orden de Reboot a todos los mineros marcados.' },
         'btn_sleep': { t: '😴 Reposo Masivo (Sleep)', d: 'Detiene el minado manteniendo la placa de control encendida (~40W).' },
@@ -676,6 +706,73 @@
         'btn_mensual': { t: '📊 Reporte Mensual (Excel)', d: 'Descarga el cierre mensual con kWh consumidos, costo eléctrico y ganancia neta estimada por equipo.' },
         'btn_csv': { t: '📥 Exportar Reporte CSV', d: 'Descarga una hoja de cálculo Excel/CSV con el estado actual de toda tu flota.' }
     };
+
+    function calcularKPIsFlota() {
+        let totalHr = 0;
+        let totalKw = 0;
+        let totalUsd = 0;
+        let sumaEfi = 0;
+        let cuentaEfi = 0;
+        let unidadRef = 'TH/s';
+        let unidadEfiRef = 'J/TH';
+
+        document.querySelectorAll('.fila-minero').forEach(fila => {
+            if (fila.getAttribute('data-online') !== '1') return;
+            const hr = parseFloat(fila.getAttribute('data-hr') || '0');
+            const kw = parseFloat(fila.getAttribute('data-kw') || '0');
+            const efi = parseFloat(fila.getAttribute('data-efi') || '0');
+            const usd = parseFloat(fila.getAttribute('data-ganusd') || '0');
+            if (hr > 0) {
+                totalHr += hr;
+                unidadRef = fila.getAttribute('data-unidad') || unidadRef;
+            }
+            if (kw > 0) totalKw += kw;
+            if (usd > 0) totalUsd += usd;
+            if (efi > 0) {
+                sumaEfi += efi;
+                cuentaEfi++;
+                unidadEfiRef = fila.getAttribute('data-uefi') || unidadEfiRef;
+            }
+        });
+
+        const avgEfi = cuentaEfi > 0 ? (sumaEfi / cuentaEfi) : 0;
+        const elHr = document.getElementById('kpiTotalHr');
+        const elKw = document.getElementById('kpiTotalKw');
+        const elEfi = document.getElementById('kpiAvgEfi');
+        const elUsd = document.getElementById('kpiTotalUsd');
+
+        if (elHr) elHr.innerText = `${totalHr.toFixed(1)} ${unidadRef}`;
+        if (elKw) elKw.innerText = `${totalKw.toFixed(2)} kW`;
+        if (elEfi) elEfi.innerText = `${avgEfi.toFixed(1)} ${unidadEfiRef}`;
+        if (elUsd) elUsd.innerText = `$${totalUsd.toFixed(2)}`;
+    }
+
+    function mostrarTooltipTempAsic(el) {
+        const online = el.getAttribute('data-on') === '1';
+        const t = parseInt(el.getAttribute('data-t') || '0', 10);
+        const amb = parseInt(el.getAttribute('data-amb') || '0', 10);
+
+        let estadoTxt = '';
+        if (!online || t <= 0) {
+            estadoTxt = '⚪ <b>Sin lectura:</b> este equipo está apagado o desconectado.';
+        } else if (t < 75) {
+            estadoTxt = `🟢 <b>Temperatura saludable (${t}°C):</b> el minero trabaja fresco y protegido.`;
+        } else if (t < 85) {
+            estadoTxt = `🟠 <b>Un poco caliente (${t}°C):</b> sigue minando bien, pero conviene revisar ventilación o limpiar polvo pronto.`;
+        } else {
+            estadoTxt = `🔴 <b>Temperatura crítica (${t}°C):</b> demasiado calor. Revisa ventiladores y flujo de aire para evitar daños.`;
+        }
+
+        const ambTxt = amb > 0
+            ? `<br><br>🍃 <b>Temp. Ambiente (${amb}°C):</b> es el calor del aire que entra por los ventiladores. Sirve para saber si el equipo se calienta por el clima de la sala o por suciedad interna.`
+            : `<br><br>🍃 <b>Temp. Ambiente (Amb):</b> mide el aire que entra al minero para saber si el calor viene de la sala o del propio equipo.`;
+
+        mostrarTooltipFlota(el, {
+            t: '🌡️ Diagnóstico Térmico de este Minero',
+            d: estadoTxt + ambTxt,
+            r: 'Ideal: Chips < 75°C | Aire de entrada < 35°C'
+        });
+    }
 
     function mostrarToastFlota(mensaje, esError = false) {
         const el = document.getElementById('fleetToast');
@@ -718,8 +815,8 @@
             sortAscActual = !sortAscActual;
         } else {
             sortColActual = colIdx;
-            // Nombre (1), Eficiencia (5 - menor es mejor) y Modelo (6) empiezan ascendente; Hashrate/Temp/Consumo/Estado empiezan de mayor a menor
-            sortAscActual = (colIdx === 1 || colIdx === 5 || colIdx === 6);
+            // Nombre (1) y Eficiencia (6 - menor es mejor) empiezan ascendente; el resto de mayor a menor
+            sortAscActual = (colIdx === 1 || colIdx === 6);
         }
 
         filas.sort((a, b) => {
@@ -1096,7 +1193,8 @@
     function filtrarEstado(estado) {
         filtroEstadoActual = estado;
         document.querySelectorAll('.pill-card').forEach(p => p.classList.remove('active'));
-        document.getElementById('pill-' + estado).classList.add('active');
+        const pillEl = document.getElementById('pill-' + estado);
+        if (pillEl) pillEl.classList.add('active');
         aplicarFiltrosTabla();
     }
 
@@ -1105,14 +1203,9 @@
         document.querySelectorAll('.fila-minero').forEach(fila => {
             let txt = fila.getAttribute('data-search') || '';
             let online = fila.getAttribute('data-online') === '1';
-            let temp = parseInt(fila.getAttribute('data-temp') || '0');
-            let hw = fila.getAttribute('data-hw') === '1';
 
             let pasaEstado = true;
             if (filtroEstadoActual === 'online') pasaEstado = online;
-            else if (filtroEstadoActual === 'offline') pasaEstado = !online;
-            else if (filtroEstadoActual === 'temp') pasaEstado = (online && temp >= 75);
-            else if (filtroEstadoActual === 'hw') pasaEstado = (online && hw);
 
             let pasaBusqueda = !q || txt.includes(q);
             fila.style.display = (pasaEstado && pasaBusqueda) ? '' : 'none';
@@ -1483,7 +1576,7 @@
         box.style.display = 'block';
 
         const r = el.getBoundingClientRect();
-        const bw = box.offsetWidth || 275;
+        const bw = box.offsetWidth || 280;
         const bh = box.offsetHeight || 85;
         const centroX = r.left + (r.width / 2);
 
@@ -1513,6 +1606,7 @@
     }
 
     window.addEventListener('load', function() {
+        calcularKPIsFlota();
         ordenarTabla(1, true);
 
         document.querySelectorAll('[data-ftt]').forEach(el => {
