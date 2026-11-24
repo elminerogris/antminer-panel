@@ -223,18 +223,98 @@ def enviar_telegram(token, chat_id, texto):
         print(f"Error Telegram: {e}")
         return False
 
+def _obtener_precio_btc():
+    """Intenta obtener el precio de BTC con 3 APIs de respaldo."""
+    # 1. Binance
+    try:
+        req = urllib.request.Request(
+            "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        precio = float(json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))['price'])
+        if precio > 1000:
+            return precio
+    except Exception as e:
+        print(f"[Red BTC] Binance falló: {e}")
+
+    # 2. Coinbase
+    try:
+        req = urllib.request.Request(
+            "https://api.coinbase.com/v2/prices/BTC-USD/spot",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        j = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+        precio = float(j['data']['amount'])
+        if precio > 1000:
+            return precio
+    except Exception as e:
+        print(f"[Red BTC] Coinbase falló: {e}")
+
+    # 3. CoinGecko
+    try:
+        req = urllib.request.Request(
+            "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        j = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+        precio = float(j['bitcoin']['usd'])
+        if precio > 1000:
+            return precio
+    except Exception as e:
+        print(f"[Red BTC] CoinGecko falló: {e}")
+
+    return None
+
+
+def _obtener_dificultad_btc():
+    """Intenta obtener la dificultad de la red Bitcoin con respaldo."""
+    # 1. Mempool.space
+    try:
+        req = urllib.request.Request(
+            "https://mempool.space/api/v1/difficulty-adjustment",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        diff = float(json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))['difficulty'])
+        if diff > 0:
+            return diff / 1_000_000_000_000
+    except Exception as e:
+        print(f"[Red BTC] Mempool dificultad falló: {e}")
+
+    # 2. Blockchain.info como respaldo
+    try:
+        req = urllib.request.Request(
+            "https://blockchain.info/q/getdifficulty",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        diff = float(urllib.request.urlopen(req, timeout=5).read().decode('utf-8').strip())
+        if diff > 0:
+            return diff / 1_000_000_000_000
+    except Exception as e:
+        print(f"[Red BTC] Blockchain.info dificultad falló: {e}")
+
+    return None
+
+
 def obtener_datos_red():
     global cache_red
     ahora = time.time()
-    if ahora - cache_red['ultima_act'] < 60: return cache_red['datos']
+    if ahora - cache_red['ultima_act'] < 60:
+        return cache_red['datos']
     datos = cache_red['datos'].copy()
-    try:
-        req_p = urllib.request.Request("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", headers={'User-Agent': 'Mozilla/5.0'})
-        datos['precio'] = float(json.loads(urllib.request.urlopen(req_p, timeout=2).read().decode('utf-8'))['price'])
-        req_d = urllib.request.Request("https://mempool.space/api/v1/difficulty-adjustment", headers={'User-Agent': 'Mozilla/5.0'})
-        datos['dificultad_t'] = float(json.loads(urllib.request.urlopen(req_d, timeout=2).read().decode('utf-8'))['difficulty']) / 1_000_000_000_000
-        datos['red_ehs'] = round(datos['dificultad_t'] * 7.1583, 2)
-    except: pass
+
+    precio = _obtener_precio_btc()
+    if precio is not None:
+        datos['precio'] = precio
+    else:
+        print("[Red BTC] ⚠️ No se pudo obtener precio de ninguna API, usando último valor conocido")
+
+    dif_t = _obtener_dificultad_btc()
+    if dif_t is not None:
+        datos['dificultad_t'] = dif_t
+        datos['red_ehs'] = round(dif_t * 7.1583, 2)
+    else:
+        print("[Red BTC] ⚠️ No se pudo obtener dificultad de ninguna API, usando último valor conocido")
+
     cache_red['datos'] = datos
     cache_red['ultima_act'] = ahora
     return datos
