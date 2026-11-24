@@ -51,6 +51,29 @@ def normalizar_sn(sn_str):
         return ""
     return s
 
+def _formatear_nombre_agente(row):
+    brand = str(row.get('brand') or '').strip()
+    model = str(row.get('model') or '').strip()
+    if model and brand and model.lower().startswith(brand.lower()):
+        nombre = model
+    else:
+        nombre = f"{brand} {model}".strip()
+    if not nombre:
+        nombre = str(row.get('device_type') or '').strip() or str(row.get('agent_id') or 'Agente')
+    return nombre
+
+def _formatear_hace_tiempo(segs):
+    if segs < 60:
+        return "hace unos segundos"
+    mins = int(segs // 60)
+    if mins < 60:
+        return f"hace {mins}m"
+    hrs = int(mins // 60)
+    if hrs < 24:
+        return f"hace {hrs}h"
+    dias = int(hrs // 24)
+    return f"hace {dias}d"
+
 def migrar_ip_en_tablas(cur, owner, ip_vieja, ip_nueva):
     if not ip_vieja or not ip_nueva or ip_vieja == ip_nueva:
         return
@@ -504,6 +527,29 @@ def recibir_datos():
         ))
     except Exception as err_gs:
         print(f"Error actualizando granjas_sedes ({farm_id_efectivo}): {err_gs}")
+
+    # Registrar / actualizar este agente individual (permite múltiples celulares por granja sin sobrescribirse)
+    try:
+        cur.execute("""
+            INSERT INTO agentes_conectados (
+                owner, agent_id, farm_id, device_type, run_mode, brand, model, local_ip, subred, app_version, ultima_act
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (owner, agent_id) DO UPDATE SET
+                farm_id=EXCLUDED.farm_id,
+                device_type=EXCLUDED.device_type,
+                run_mode=EXCLUDED.run_mode,
+                brand=CASE WHEN EXCLUDED.brand != '' THEN EXCLUDED.brand ELSE agentes_conectados.brand END,
+                model=CASE WHEN EXCLUDED.model != '' THEN EXCLUDED.model ELSE agentes_conectados.model END,
+                local_ip=CASE WHEN EXCLUDED.local_ip != '' THEN EXCLUDED.local_ip ELSE agentes_conectados.local_ip END,
+                subred=CASE WHEN EXCLUDED.subred != '' THEN EXCLUDED.subred ELSE agentes_conectados.subred END,
+                app_version=CASE WHEN EXCLUDED.app_version != '' THEN EXCLUDED.app_version ELSE agentes_conectados.app_version END,
+                ultima_act=EXCLUDED.ultima_act
+        """, (
+            owner_user, agent_id, farm_id_efectivo, dev_type, run_mode, dev_brand, dev_model,
+            dev_local_ip, subred_detectada, dev_app_ver, ahora
+        ))
+    except Exception as err_ag_reg:
+        print(f"Error actualizando agentes_conectados ({agent_id}): {err_ag_reg}")
 
     cur.execute(
         "SELECT zt_activo, zt_pool1, zt_worker_prefix, zt_pass1, zt_pool2, zt_pool3 FROM granjas_sedes WHERE owner=%s AND farm_id=%s LIMIT 1",
@@ -1035,36 +1081,79 @@ def api_panel_ping_pools_resultado():
         return jsonify({"ok": False, "pendiente": True}), 200
     return jsonify({"ok": True, "contenido": row['contenido'], "fecha": row['fecha']}), 200
 
-# ==================== ESCÁNER INTELIGENTE DE RED (CON LÍMITE DE PLAN) ====================
+# ==================== ESCÁNER INTELIGENTE GLOBAL (POR GRANJA Y CELULAR) ====================
+def _obtener_agentes_usuario(cur, owner):
+    cur.execute("""
+        SELECT agent_id, farm_id, device_type, run_mode, brand, model, local_ip, subred, app_version, ultima_act
+        FROM agentes_conectados
+        WHERE owner=%s
+        ORDER BY ultima_act DESC
+    """, (owner,))
+    rows = cur.fetchall() or []
+
+    # Fallback si aún no hay registros en agentes_conectados (antes del primer reporte tras deploy)
+    if not rows:
+        cur.execute("""
+            SELECT COALESCE(NULLIF(agent_id, ''), farm_id) AS agent_id, farm_id,
+                   device_type, run_mode, brand, model, local_ip, subred, app_version, ultima_act
+            FROM granjas_sedes
+            WHERE owner=%s
+            ORDER BY ultima_act DESC
+        """, (owner,))
+        rows = cur.fetchall() or []
+
+    lista = []
+    for r in rows:
+        segs = calcular_segundos_desconectado(r.get('ultima_act') or '')
+        online = (segs <= 180)
+        lista.append({
+            "agent_id": r.get('agent_id') or 'default',
+            "farm_id": r.get('farm_id') or r.get('agent_id') or 'default',
+            "nombre": _formatear_nombre_agente(r),
+            "device_type": r.get('device_type') or 'Celular',
+            "local_ip": r.get('local_ip') or '',
+            "subred": r.get('subred') or '',
+            "app_version": r.get('app_version') or '',
+            "online": online,
+            "hace": _formatear_hace_tiempo(segs),
+            "ultima_act": r.get('ultima_act') or ''
+        })
+    return lista
+
+
 @agente_bp.route('/api/escaner/iniciar', methods=['POST'])
 @login_required
 def api_escaner_iniciar():
     owner = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
-    agent_id = str(data.get('agent_id') or '').strip()
+    agent_id_filtro = str(data.get('agent_id') or '').strip()
     ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
     con = get_db()
     con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    if agent_id:
-        agentes = [agent_id]
-    else:
-        cur.execute("SELECT DISTINCT COALESCE(NULLIF(agent_id, ''), 'default') AS ag FROM granjas_sedes WHERE owner=%s", (owner,))
-        agentes = [r['ag'] for r in (cur.fetchall() or [])]
-        if not agentes:
-            agentes = ['default']
+    agentes = _obtener_agentes_usuario(cur, owner)
+    if agent_id_filtro:
+        agentes = [a for a in agentes if a['agent_id'] == agent_id_filtro]
 
+    online_ids = []
     for ag in agentes:
-        ok_ws = enviar_orden_tunel(owner, 'SCAN_NET', 'scan_now', agent_id=ag)
+        if not ag['online']:
+            continue
+        ok_ws = enviar_orden_tunel(owner, 'SCAN_NET', 'scan_now', agent_id=ag['agent_id'])
         estado = 'enviado' if ok_ws else 'pendiente'
         cur.execute(
             "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, 'SCAN_NET', 'scan_now', %s, %s)",
-            (owner, ag, estado, ahora)
+            (owner, ag['agent_id'], estado, ahora)
         )
+        online_ids.append(ag['agent_id'])
 
-    return jsonify({"ok": True, "agentes": agentes}), 200
+    return jsonify({
+        "ok": True,
+        "agentes_online": online_ids,
+        "agentes": agentes
+    }), 200
 
 
 @agente_bp.route('/api/escaner/resultados', methods=['GET'])
@@ -1093,6 +1182,9 @@ def api_escaner_resultados():
         ORDER BY ultima_act DESC
     """, (owner,))
     granjas = cur.fetchall() or []
+    granjas_map = {g['farm_id']: g for g in granjas}
+
+    agentes = _obtener_agentes_usuario(cur, owner)
 
     hace_7d = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
     cur.execute("""
@@ -1104,33 +1196,91 @@ def api_escaner_resultados():
     """, (owner, hace_7d))
     descubiertos_raw = cur.fetchall() or []
 
-    vistos = set()
+    # Construir grupos por Granja (Router)
+    grupos_dict = {}
+    for g in granjas:
+        fid = g['farm_id']
+        grupos_dict[fid] = {
+            "farm_id": fid,
+            "farm_nombre": g.get('nombre') or fid,
+            "ciudad": g.get('ciudad') or '',
+            "subred": g.get('subred') or '',
+            "agentes": [],
+            "mineros": []
+        }
+
+    for ag in agentes:
+        fid = ag['farm_id']
+        if fid not in grupos_dict:
+            grupos_dict[fid] = {
+                "farm_id": fid,
+                "farm_nombre": f"Granja ({fid})",
+                "ciudad": "",
+                "subred": ag.get('subred') or '',
+                "agentes": [],
+                "mineros": []
+            }
+        grupos_dict[fid]["agentes"].append(ag)
+
+    # Deduplicar mineros por (farm_id, ip) y construir lista global
+    vistos_global = set()
+    vistos_por_granja = set()
     lista_final = []
+
     for d in descubiertos_raw:
         ip_d = d['ip']
-        if ip_d in vistos:
-            continue
-        vistos.add(ip_d)
         mac_d = normalizar_mac(d.get('mac'))
         activo_row = activos_por_ip.get(ip_d)
         ya_agregado = (activo_row is not None) or (bool(mac_d) and mac_d in macs_activas)
         octeto = ip_d.split('.')[-1] if '.' in ip_d else ip_d
         modelo_d = d.get('modelo') or 'Antminer'
         nombre_defecto = nombres_map.get(ip_d) or f"{modelo_d} #{octeto}"
-        farm_asignada = (activo_row.get('farm_id') if activo_row and activo_row.get('farm_id') else '') or (d.get('farm_id') or '')
+        router_fid = str(d.get('farm_id') or d.get('agent_id') or 'default')
+        farm_asignada = (activo_row.get('farm_id') if activo_row and activo_row.get('farm_id') else '') or router_fid
 
-        lista_final.append({
+        if router_fid not in grupos_dict:
+            g_info = granjas_map.get(router_fid) or {}
+            grupos_dict[router_fid] = {
+                "farm_id": router_fid,
+                "farm_nombre": g_info.get('nombre') or f"Granja ({router_fid})",
+                "ciudad": g_info.get('ciudad') or '',
+                "subred": g_info.get('subred') or '',
+                "agentes": [],
+                "mineros": []
+            }
+
+        clave_g = (router_fid, mac_d if mac_d else ip_d)
+        if clave_g in vistos_por_granja:
+            continue
+        vistos_por_granja.add(clave_g)
+
+        item = {
             "ip": ip_d,
             "agent_id": d.get('agent_id') or 'default',
             "farm_id": farm_asignada,
-            "router_farm_id": d.get('farm_id') or '',
+            "router_farm_id": router_fid,
             "modelo": modelo_d,
             "moneda": d.get('moneda') or 'BTC',
             "nombre": nombre_defecto,
             "ultima_act": d.get('ultima_act') or '',
             "ya_agregado": ya_agregado
-        })
+        }
+        grupos_dict[router_fid]["mineros"].append(item)
 
+        if ip_d not in vistos_global:
+            vistos_global.add(ip_d)
+            lista_final.append(item)
+
+    # Ordenar mineros dentro de cada grupo y ordenar grupos (primero los que tienen agentes online)
+    grupos_lista = []
+    for g in grupos_dict.values():
+        g["mineros"].sort(key=lambda x: (0 if x['ya_agregado'] else 1, x['ip']))
+        g["agentes"].sort(key=lambda a: (0 if a['online'] else 1, a['nombre']))
+        g["online_count"] = sum(1 for a in g["agentes"] if a["online"])
+        if g["agentes"] or g["mineros"]:
+            grupos_lista.append(g)
+
+    grupos_lista.sort(key=lambda g: (0 if g["online_count"] > 0 else 1, -len(g["mineros"]), g["farm_nombre"]))
     lista_final.sort(key=lambda x: (0 if x['ya_agregado'] else 1, x['ip']))
 
     return jsonify({
@@ -1139,6 +1289,8 @@ def api_escaner_resultados():
         "limite": limite_efectivo,
         "activos_count": len(activos),
         "granjas": granjas,
+        "agentes": agentes,
+        "grupos": grupos_lista,
         "descubiertos": lista_final
     }), 200
 
@@ -1175,7 +1327,6 @@ def api_escaner_agregar():
     items = data.get('items', [])
     eliminar_ips = data.get('eliminar_ips', [])
 
-    # Compatibilidad con formato antiguo {ips: [...], farm_id: "..."}
     if not items and isinstance(data.get('ips'), list):
         f_def = str(data.get('farm_id') or '').strip()
         items = [{"ip": ip_x, "farm_id": f_def, "nombre": ""} for ip_x in data.get('ips')]
@@ -1191,7 +1342,6 @@ def api_escaner_agregar():
     u_cfg = cur.fetchone() or {}
     es_pro, limite_efectivo, _ = evaluar_plan_usuario(cur, u_cfg)
 
-    # 1. Primero eliminar los desmarcados para liberar cupo
     eliminados = 0
     for ip_del in (eliminar_ips or []):
         ip_c = str(ip_del or '').strip()
@@ -1201,7 +1351,6 @@ def api_escaner_agregar():
         if cur.rowcount > 0:
             eliminados += 1
 
-    # 2. Contar cuántos quedan activos tras eliminar
     cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s", (owner,))
     ips_existentes = {r['ip'] for r in (cur.fetchall() or [])}
     total_actual = len(ips_existentes)
