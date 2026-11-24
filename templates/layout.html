@@ -380,6 +380,10 @@
         }
         .top-lang-select { padding: 0 10px; outline: none; }
 
+        @media (max-width: 768px) {
+            .top-lang-select { padding: 0 4px; font-size: 0.78em; max-width: 52px; }
+        }
+
         .top-status {
             display: inline-flex;
             align-items: center;
@@ -583,8 +587,8 @@
             .btn-menu { display: flex; }
             .logo-top { display: flex; }
             .top-bar { padding: env(safe-area-inset-top) 10px 0 10px; }
-            .top-lang-select { display: none; }
-            .sidebar-mobile-lang { display: block; }
+            .top-lang-select { display: flex; }
+            .sidebar-mobile-lang { display: none; }
             #relojTop { display: none; }
             .top-status { padding: 0 9px; gap: 5px; font-size: 0.74em; }
             .top-btn { width: 34px; }
@@ -731,7 +735,6 @@
             </div>
 
             <div class="top-bar-right">
-                <button type="button" class="top-btn" onclick="abrirModalPingPools()" title="Diagnóstico de Ping a Pools">📡</button>
                 <button type="button" class="top-btn" onclick="toggleTheme()" id="themeIcon" title="Cambiar tema claro/oscuro">☀️</button>
                 <select class="top-lang-select" id="langSelector" onchange="cambiarIdioma(this.value)" title="Cambiar idioma">
                     <option value="es">🌐 Español</option>
@@ -907,6 +910,60 @@
             let m = document.getElementById('langSelectorMobile');
             if (d) d.value = lang;
             if (m) m.value = lang;
+            try { localStorage.setItem('emg_lang', lang); } catch(e) {}
+        }
+
+        function detectarIdiomaAutomatico() {
+            /* Si el usuario ya eligió un idioma manualmente, respetar eso */
+            try {
+                const guardado = localStorage.getItem('emg_lang');
+                if (guardado && guardado !== 'es') {
+                    return guardado;
+                }
+                if (guardado === 'es') return null; /* ya está en español, no cambiar */
+            } catch(e) {}
+
+            /* Detectar idioma del navegador */
+            const browserLang = (navigator.language || navigator.userLanguage || 'es').toLowerCase();
+            const mapeo = {
+                'en': 'en', 'zh': 'zh-CN', 'hi': 'hi', 'ar': 'ar',
+                'pt': 'pt', 'bn': 'bn', 'ru': 'ru', 'fr': 'fr', 'de': 'de',
+                'ja': 'zh-CN', 'ko': 'zh-CN'
+            };
+
+            /* Buscar match exacto primero (ej: "pt-BR" → "pt"), luego prefijo */
+            const prefijo = browserLang.split('-')[0];
+            if (prefijo === 'es') return null; /* español, no cambiar */
+
+            return mapeo[prefijo] || null;
+        }
+
+        function aplicarIdiomaInicial() {
+            const idiomaDetectado = detectarIdiomaAutomatico();
+            if (idiomaDetectado) {
+                /* Esperar a que Google Translate cargue */
+                let intentos = 0;
+                const intervalo = setInterval(function() {
+                    intentos++;
+                    const combo = document.querySelector(".goog-te-combo");
+                    if (combo) {
+                        clearInterval(intervalo);
+                        cambiarIdioma(idiomaDetectado);
+                    }
+                    if (intentos > 30) clearInterval(intervalo); /* timeout 6s */
+                }, 200);
+            }
+
+            /* Sincronizar el selector visual con el idioma guardado */
+            try {
+                const guardado = localStorage.getItem('emg_lang');
+                if (guardado) {
+                    let d = document.getElementById('langSelector');
+                    let m = document.getElementById('langSelectorMobile');
+                    if (d) d.value = guardado;
+                    if (m) m.value = guardado;
+                }
+            } catch(e) {}
         }
 
         function actualizarReloj() {
@@ -1116,6 +1173,7 @@
         window.addEventListener('DOMContentLoaded', function() {
             sincronizarIconoTema();
             actualizarUILive();
+            aplicarIdiomaInicial();
             const area = document.getElementById('mainScrollArea');
             if (area) {
                 area.addEventListener('scroll', () => { ultimoScrollTs = Date.now(); }, { passive: true });
