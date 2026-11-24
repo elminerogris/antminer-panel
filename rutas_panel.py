@@ -152,7 +152,7 @@ def api_exportar_backup():
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     cur.execute("""
-        SELECT subnet, tarifa_kwh, umbral_temp, umbral_hr, alertas_activas,
+        SELECT subnet, tarifa_kwh, comision_pool, umbral_temp, umbral_hr, alertas_activas,
                wd_activo, wd_alcance, wd_granjas, wd_mineros, wd_zero_hr, wd_cold_on,
                wd_cold_temp, wd_amb_cold_on, wd_amb_cold_temp, wd_dead_board,
                wd_gracia_min, wd_cooldown_min, wd_cuarentena_on, wd_max_reinicios,
@@ -249,7 +249,7 @@ def api_importar_backup():
     if isinstance(prefs, dict) and prefs:
         cur.execute("""
             UPDATE usuarios SET
-                subnet=%s, tarifa_kwh=%s, umbral_temp=%s, umbral_hr=%s, alertas_activas=%s,
+                subnet=%s, tarifa_kwh=%s, comision_pool=%s, umbral_temp=%s, umbral_hr=%s, alertas_activas=%s,
                 wd_activo=%s, wd_alcance=%s, wd_granjas=%s, wd_mineros=%s,
                 wd_zero_hr=%s, wd_cold_on=%s, wd_cold_temp=%s,
                 wd_amb_cold_on=%s, wd_amb_cold_temp=%s, wd_dead_board=%s,
@@ -263,6 +263,7 @@ def api_importar_backup():
         """, (
             str(prefs.get('subnet') or '192.168.0').strip(),
             max(0.0, a_float_seguro(prefs.get('tarifa_kwh'), 0.0)),
+            min(100.0, max(0.0, a_float_seguro(prefs.get('comision_pool'), 0.0))),
             a_int_seguro(prefs.get('umbral_temp'), 80),
             a_float_seguro(prefs.get('umbral_hr'), 50.0),
             1 if a_int_seguro(prefs.get('alertas_activas'), 0) == 1 else 0,
@@ -427,10 +428,26 @@ def api_eliminar_mineros():
 def api_guardar_tarifa():
     usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
-    tarifa = max(0.0, a_float_seguro(data.get('tarifa_kwh'), 0.0))
     con = get_db(); con.autocommit = True; cur = con.cursor()
-    cur.execute("UPDATE usuarios SET tarifa_kwh=%s WHERE username=%s", (tarifa, usr_actual))
-    return jsonify({"status": "ok", "tarifa_kwh": tarifa})
+
+    tiene_tarifa = 'tarifa_kwh' in data
+    tiene_comision = 'comision_pool' in data
+    tarifa = max(0.0, a_float_seguro(data.get('tarifa_kwh'), 0.0)) if tiene_tarifa else None
+    comision = min(100.0, max(0.0, a_float_seguro(data.get('comision_pool'), 0.0))) if tiene_comision else None
+
+    if tiene_tarifa and tiene_comision:
+        cur.execute(
+            "UPDATE usuarios SET tarifa_kwh=%s, comision_pool=%s WHERE username=%s",
+            (tarifa, comision, usr_actual)
+        )
+        return jsonify({"status": "ok", "tarifa_kwh": tarifa, "comision_pool": comision})
+    elif tiene_comision:
+        cur.execute("UPDATE usuarios SET comision_pool=%s WHERE username=%s", (comision, usr_actual))
+        return jsonify({"status": "ok", "comision_pool": comision})
+    else:
+        tarifa = max(0.0, a_float_seguro(data.get('tarifa_kwh'), 0.0))
+        cur.execute("UPDATE usuarios SET tarifa_kwh=%s WHERE username=%s", (tarifa, usr_actual))
+        return jsonify({"status": "ok", "tarifa_kwh": tarifa})
 
 @panel_bp.route('/api/guardar_corte_termico', methods=['POST'])
 @login_required
@@ -509,9 +526,10 @@ def index():
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute("SELECT tarifa_kwh, plan, saldo FROM usuarios WHERE username=%s", (usr_actual,))
+    cur.execute("SELECT tarifa_kwh, comision_pool, plan, saldo FROM usuarios WHERE username=%s", (usr_actual,))
     u_row = cur.fetchone() or {}
     tarifa_kwh = a_float_seguro(u_row.get('tarifa_kwh'), 0.0)
+    comision_pool = min(100.0, max(0.0, a_float_seguro(u_row.get('comision_pool'), 0.0)))
     session['plan'] = u_row.get('plan', session.get('plan', 'Gratis'))
     session['saldo'] = u_row.get('saldo', session.get('saldo', 0.0))
 
@@ -549,7 +567,7 @@ def index():
 
             cw += c; tm = max(tm, t)
             if unidad == 'TH/s' and algo == 'SHA-256' and datos_red['dificultad_t'] > 0:
-                b = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)
+                b = ((hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)) * (1.0 - comision_pool / 100.0)
                 ib = b * datos_red['precio']
                 costo_elec = (c / 1000.0) * 24.0 * tarifa_kwh
                 neto = ib - costo_elec
@@ -585,6 +603,7 @@ def index():
         'consumo_w_total': round(cw, 0),
         'consumo_kw': round(cw/1000, 1), 'temp_max': tm,
         'tarifa_kwh': tarifa_kwh,
+        'comision_pool': comision_pool,
         'precio_btc_raw': datos_red['precio'],
         'precio_btc': f"{datos_red['precio']:,.2f}",
         'dificultad_t': round(datos_red['dificultad_t'], 2),
@@ -1531,9 +1550,10 @@ def exportar_reporte_mensual():
 
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT tarifa_kwh FROM usuarios WHERE username=%s", (usr_actual,))
+    cur.execute("SELECT tarifa_kwh, comision_pool FROM usuarios WHERE username=%s", (usr_actual,))
     u_row = cur.fetchone() or {}
     tarifa = a_float_seguro(u_row.get('tarifa_kwh'), 0.06)
+    comision_pool = min(100.0, max(0.0, a_float_seguro(u_row.get('comision_pool'), 0.0)))
 
     cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
@@ -1570,7 +1590,7 @@ def exportar_reporte_mensual():
 
         ing_mes = 0.0
         if online and unid == 'TH/s' and algo == 'SHA-256' and datos_red['dificultad_t'] > 0:
-            btc_dia = (hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)
+            btc_dia = ((hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)) * (1.0 - comision_pool / 100.0)
             ing_mes = round(btc_dia * datos_red['precio'] * 30.0, 2)
         neto_mes = round(ing_mes - costo_mes, 2)
 
