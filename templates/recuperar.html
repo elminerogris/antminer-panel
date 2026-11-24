@@ -78,6 +78,41 @@
             font-size: 0.95em;
             cursor: pointer;
         }
+        .btn-save-rec {
+            background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%);
+            border: 1px solid rgba(82, 140, 255, 0.65);
+            color: #60a5fa;
+            padding: 10px 14px;
+            border-radius: 7px;
+            font-size: 0.92em;
+            font-weight: bold;
+            transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 0 10px rgba(51, 102, 255, 0.25);
+        }
+        .btn-save-rec:hover {
+            color: #ffffff;
+            background: rgba(51, 102, 255, 0.35);
+            border-color: #60a5fa;
+            box-shadow: 0 0 16px rgba(59, 130, 246, 0.65), inset 0 0 8px rgba(51, 102, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        .rec-tooltip {
+            position: fixed;
+            display: none;
+            width: 270px;
+            max-width: calc(100vw - 20px);
+            background: rgba(10, 11, 16, 0.98);
+            border: 1px solid rgba(51, 102, 255, 0.55);
+            border-radius: 7px;
+            padding: 10px 12px;
+            color: #d1d3e0;
+            font-size: 11.5px;
+            line-height: 1.45;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
+            z-index: 99999;
+            pointer-events: none;
+        }
+        .rec-tt-hdr { color: #fff; font-weight: bold; font-size: 12px; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.12); }
         .links {
             margin-top: 18px;
             text-align: center;
@@ -111,7 +146,7 @@
             <input type="password" name="nueva_pass" placeholder="Mínimo 6 caracteres" required>
             <label>Confirmar Nueva Contraseña</label>
             <input type="password" name="confirm_pass" placeholder="Repite tu contraseña" required>
-            <button type="submit">Guardar Nueva Contraseña</button>
+            <button type="submit" class="btn-save-rec" id="btnGuardarRec">💾 Guardar Nueva Contraseña</button>
         </form>
         {% else %}
         <form method="POST" action="/recuperar">
@@ -126,5 +161,27 @@
             <a href="/login">← Volver a Iniciar Sesión</a>
         </div>
     </div>
+    <div id="recTooltip" class="rec-tooltip">
+        <div class="rec-tt-hdr">💾 Guardar Nueva Contraseña</div>
+        <div>Aplica tu nueva contraseña cifrada en tu cuenta y te permite iniciar sesión de inmediato.</div>
+    </div>
+    <script>
+        (function() {
+            const btn = document.getElementById('btnGuardarRec');
+            const box = document.getElementById('recTooltip');
+            if (!btn || !box) return;
+            btn.addEventListener('mouseenter', function() {
+                box.style.display = 'block';
+                const r = btn.getBoundingClientRect();
+                const bw = box.offsetWidth || 270;
+                const bh = box.offsetHeight || 70;
+                const left = Math.max(10, Math.min(window.innerWidth - bw - 10, r.left + r.width / 2 - bw / 2));
+                const top = r.top - bh - 10 < 10 ? r.bottom + 10 : r.top - bh - 10;
+                box.style.left = left + 'px';
+                box.style.top = top + 'px';
+            });
+            btn.addEventListener('mouseleave', function() { box.style.display = 'none'; });
+        })();
+    </script>
 </body>
 </html>

@@ -81,7 +81,10 @@
             <button type="button" id="btnEliminarGranja" class="btn-farm-cmd reboot" style="flex:0 0 auto; padding:8px 12px; display:none;" onclick="eliminarGranjaActual()">🗑️ Eliminar</button>
             <div style="display:flex; gap:10px; margin-left:auto;">
                 <button type="button" class="btn-farm-cmd" style="flex:0 0 auto; padding:8px 14px;" onclick="cerrarFarmModal()">Cancelar</button>
-                <button type="button" class="btn-new-farm" onclick="guardarConfigGranja()">💾 Guardar</button>
+                <button type="button" class="btn-emg-save" onclick="guardarConfigGranja()"
+                        data-save-title="💾 Guardar Configuración de Granja"
+                        data-save-desc="Guarda el nombre, ciudad, capacidad eléctrica (kW), tarifa, gateway y notas de esta sede."
+                        data-save-note="Los cambios se reflejan al instante en el panel de granjas">💾 Guardar</button>
             </div>
         </div>
     </div>
@@ -113,7 +116,10 @@
         </div>
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
             <button type="button" class="btn-farm-cmd" style="flex:0 0 auto; padding:8px 14px;" onclick="cerrarMineroModal()">Cancelar</button>
-            <button type="button" class="btn-new-farm" onclick="guardarEdicionMinero()">💾 Guardar Cambios</button>
+            <button type="button" class="btn-emg-save" onclick="guardarEdicionMinero()"
+                    data-save-title="💾 Guardar Cambios del ASIC"
+                    data-save-desc="Actualiza el nombre personalizado del minero y/o lo reasigna a la granja o sede seleccionada."
+                    data-save-note="No reinicia ni detiene el minado del equipo">💾 Guardar Cambios</button>
         </div>
     </div>
 </div>

@@ -488,7 +488,10 @@
             <form method="POST" action="/admin" style="display:flex; gap:8px; flex-wrap:wrap; margin:0;">
                 <input type="hidden" name="accion" value="guardar_anuncio">
                 <input type="text" name="anuncio_global" class="adm-input" style="flex:1; min-width:200px;" value="{{ anuncio_actual }}" placeholder="Ej: Nueva versión APK disponible en Ajustes (dejar vacío para ocultar)">
-                <button type="submit" class="btn-adm">💾 Publicar</button>
+                <button type="submit" class="btn-emg-save"
+                        data-save-title="💾 Guardar y Publicar Anuncio"
+                        data-save-desc="Guarda este mensaje y lo muestra en la barra superior de todos los usuarios conectados al panel."
+                        data-save-note="Déjalo vacío y guarda para ocultar el anuncio">💾 Publicar</button>
             </form>
         </div>
     </div>
@@ -689,7 +692,10 @@
                 <input type="checkbox" name="suspendido" id="ed_susp" value="1" style="width:16px; height:16px; accent-color:#ff5252;">
                 <label for="ed_susp" style="margin:0; cursor:pointer; color:#ff8a80;">Suspender acceso de esta cuenta</label>
             </div>
-            <button type="submit" class="btn-adm" style="width:100%; justify-content:center; padding:9px;">💾 Guardar Cambios</button>
+            <button type="submit" class="btn-emg-save" style="width:100%; padding:9px 14px;"
+                    data-save-title="💾 Guardar Cambios de Usuario"
+                    data-save-desc="Guarda plan, estado de suspensión, contraseña temporal o nota administrativa de esta cuenta."
+                    data-save-note="Aplica inmediatamente al guardar">💾 Guardar Cambios</button>
         </form>
     </div>
 </div>

@@ -420,7 +420,10 @@
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
             <button type="button" class="btn-fleet" onclick="cerrarModalPools()">Cancelar</button>
-            <button type="button" class="btn-fleet primary" onclick="enviarPoolsMasivo()">💾 Aplicar Pools a Seleccionados</button>
+            <button type="button" class="btn-emg-save" onclick="enviarPoolsMasivo()"
+                    data-save-title="💾 Guardar y Aplicar Pools en Lote"
+                    data-save-desc="Envía estas 3 direcciones Stratum y workers a todos los mineros seleccionados al mismo tiempo."
+                    data-save-note="Tiempo de aplicación: 15 a 30 segundos por equipo">💾 Aplicar Pools a Seleccionados</button>
         </div>
     </div>
 </div>

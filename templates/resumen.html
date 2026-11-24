@@ -215,39 +215,7 @@
     }
     .prof-save-btn {
         height: 38px;
-        background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
-        color: #fff;
-        border: 1px solid #60a5fa;
         padding: 0 16px;
-        border-radius: 7px;
-        font-size: 0.85em;
-        font-weight: bold;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        white-space: nowrap;
-        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.30);
-    }
-    .prof-save-btn:hover {
-        box-shadow: 0 0 16px rgba(59, 130, 246, 0.65);
-        transform: translateY(-1px);
-    }
-    .prof-save-btn:disabled {
-        opacity: 0.65;
-        cursor: not-allowed;
-        transform: none;
-    }
-    .prof-save-btn.unsaved {
-        border-color: #38bdf8;
-        box-shadow: 0 0 16px rgba(56, 189, 248, 0.55);
-    }
-    .prof-save-btn.saved {
-        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-        border-color: #34d399;
-        box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
     }
     @media (max-width: 780px) {
         .prof-inputs-grid,
@@ -580,7 +548,10 @@
         </div>
         {% if not es_tecnico %}
         <div class="prof-field prof-save-wrap">
-            <button type="button" id="btnGuardarCalc" class="prof-save-btn" onclick="guardarConfigCalculadora()" title="Guardar precio de electricidad y comisión del pool">💾 Guardar</button>
+            <button type="button" id="btnGuardarCalc" class="btn-emg-save prof-save-btn" onclick="guardarConfigCalculadora()"
+                    data-save-title="💾 Guardar Tarifa y Comisión"
+                    data-save-desc="Guarda en tu cuenta el precio de electricidad (USD/kWh) y la comisión del pool (%) para calcular siempre tu ganancia neta real."
+                    data-save-note="También se aplica a los reportes CSV">💾 Guardar</button>
         </div>
         {% endif %}
     </div>

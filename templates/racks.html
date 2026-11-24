@@ -150,7 +150,10 @@
         </div>
         <div style="display:flex; gap:8px; justify-content:flex-end;">
             <button type="button" class="btn-rk-danger" onclick="document.getElementById('modalCrearRack').classList.remove('open')">Cancelar</button>
-            <button type="button" class="btn-rk-primary" onclick="crearRack()">Guardar Rack</button>
+            <button type="button" class="btn-emg-save" onclick="crearRack()"
+                    data-save-title="💾 Guardar Estante / Rack"
+                    data-save-desc="Crea el estante con el nombre, filas y columnas elegidas para organizar visualmente tus equipos."
+                    data-save-note="Hasta 12 filas × 16 columnas por rack">💾 Guardar Rack</button>
         </div>
     </div>
 </div>
@@ -171,7 +174,10 @@
         </div>
         <div style="display:flex; gap:8px; justify-content:flex-end;">
             <button type="button" class="btn-rk-danger" onclick="document.getElementById('modalAsignar').classList.remove('open')">Cerrar</button>
-            <button type="button" class="btn-rk-primary" onclick="guardarAsignacion()">Guardar Posición</button>
+            <button type="button" class="btn-emg-save" onclick="guardarAsignacion()"
+                    data-save-title="💾 Guardar Posición en el Rack"
+                    data-save-desc="Asigna el minero seleccionado a esta celda física del estante (o libera el espacio si eliges vacío)."
+                    data-save-note="Actualiza el mapa térmico del estante">💾 Guardar Posición</button>
         </div>
     </div>
 </div>

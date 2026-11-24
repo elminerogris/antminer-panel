@@ -136,35 +136,6 @@
         box-shadow: 0 0 10px rgba(51, 102, 255, 0.35);
     }
 
-    .btn-neon-save {
-        background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%);
-        border: 1px solid rgba(82, 140, 255, 0.65);
-        color: #60a5fa;
-        padding: 7px 14px;
-        border-radius: 7px;
-        cursor: pointer;
-        font-size: 0.82em;
-        font-weight: bold;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        transition: all 0.22s ease;
-        box-shadow: 0 0 10px rgba(51, 102, 255, 0.25);
-    }
-    .btn-neon-save:hover {
-        color: #fff;
-        background: rgba(51, 102, 255, 0.35);
-        border-color: #60a5fa;
-        box-shadow: 0 0 16px rgba(59, 130, 246, 0.65);
-        transform: translateY(-1px);
-    }
-    .btn-neon-save.unsaved-pulse {
-        background: linear-gradient(135deg, rgba(51, 102, 255, 0.50) 0%, rgba(37, 99, 235, 0.32) 100%);
-        color: #fff;
-        border-color: #38bdf8;
-        box-shadow: 0 0 18px rgba(56, 189, 248, 0.75);
-    }
     .btn-outline-wd {
         background: rgba(255, 255, 255, 0.03);
         color: var(--text-main);
@@ -550,7 +521,10 @@
                 <span class="wd-title-txt">🎯 Alcance de Automatización (Protección, Watchdog y Horarios)</span>
                 <button type="button" class="btn-guia-wd" onclick="toggleGuiaWd()">💡 ¿Cómo funciona?</button>
             </div>
-            <button type="submit" class="btn-neon-save" id="btnGuardarAutoTop">
+            <button type="submit" class="btn-emg-save btn-neon-save" id="btnGuardarAutoTop"
+                    data-save-title="💾 Guardar Automatización Completa"
+                    data-save-desc="Guarda en la nube el alcance, las reglas de Protección, el Watchdog de auto-reinicio y el horario de tarifa pico."
+                    data-save-note="Aplica al instante para la vigilancia 24/7">
                 <span>💾</span><span class="txt-guardar-auto">Guardar Todo</span>
             </button>
         </div>
@@ -810,7 +784,10 @@
                     <input type="number" name="wd_max_reinicios" id="wd_max_reinicios" class="input-num-sm" min="1" max="10" value="{{ wd.max_reinicios }}" oninput="marcarAutoEditado()">
                 </div>
 
-                <button type="submit" class="btn-neon-save" style="width:100%;">
+                <button type="submit" class="btn-emg-save btn-neon-save" style="width:100%;"
+                        data-save-title="💾 Guardar Reglas de Watchdog"
+                        data-save-desc="Aplica las condiciones de auto-reinicio (0 TH/s, chips fríos, placa caída y cuarentena anti-bucle)."
+                        data-save-note="Guarda todo el formulario de automatización">
                     <span>💾</span><span class="txt-guardar-auto">Guardar Reglas</span>
                 </button>
             </div>
@@ -829,7 +806,10 @@
                 <span class="wd-status-badge pico">⚡ EN HORA PICO</span>
                 {% endif %}
             </div>
-            <button type="submit" class="btn-neon-save">
+            <button type="submit" class="btn-emg-save btn-neon-save"
+                    data-save-title="💾 Guardar Horario de Tarifa Pico"
+                    data-save-desc="Guarda la franja horaria y el modo automático (Low Power o Sleep) para reducir consumo en horas caras."
+                    data-save-note="Sincronizado con hora Bolivia (UTC-4)">
                 <span>💾</span><span class="txt-guardar-auto">Guardar Horario</span>
             </button>
         </div>
@@ -902,7 +882,10 @@
                     {{ '● ACTIVO' if cfg.activas else '○ OFF' }}
                 </span>
             </div>
-            <button type="submit" class="btn-neon-save">💾 Guardar Telegram</button>
+            <button type="submit" class="btn-emg-save btn-neon-save"
+                    data-save-title="💾 Guardar Configuración de Telegram"
+                    data-save-desc="Guarda tu Bot Token, Chat ID y umbrales de temperatura/hashrate para recibir alertas en tiempo real."
+                    data-save-note="Luego puedes probar la conexión con el botón de prueba">💾 Guardar Telegram</button>
         </div>
 
         <div class="wd-body">
