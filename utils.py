@@ -265,18 +265,21 @@ def _obtener_precio_btc():
 
     return None
 
-
 def _obtener_dificultad_btc():
-    """Intenta obtener la dificultad de la red Bitcoin con respaldo."""
+    """Intenta obtener dificultad (T) y hashrate global (EH/s) de la red Bitcoin."""
     # 1. Mempool.space
     try:
         req = urllib.request.Request(
-            "https://mempool.space/api/v1/difficulty-adjustment",
+            "https://mempool.space/api/v1/mining/hashrate/3d",
             headers={'User-Agent': 'Mozilla/5.0'}
         )
-        diff = float(json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))['difficulty'])
+        j = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+        diff = float(j.get('currentDifficulty') or 0)
+        hr_red = float(j.get('currentHashrate') or 0)
         if diff > 0:
-            return diff / 1_000_000_000_000
+            dif_t = diff / 1_000_000_000_000
+            ehs = round(hr_red / 1e18, 2) if hr_red > 0 else round(dif_t * 7.1583, 2)
+            return dif_t, ehs
     except Exception as e:
         print(f"[Red BTC] Mempool dificultad falló: {e}")
 
@@ -288,12 +291,27 @@ def _obtener_dificultad_btc():
         )
         diff = float(urllib.request.urlopen(req, timeout=5).read().decode('utf-8').strip())
         if diff > 0:
-            return diff / 1_000_000_000_000
+            dif_t = diff / 1_000_000_000_000
+            return dif_t, round(dif_t * 7.1583, 2)
     except Exception as e:
         print(f"[Red BTC] Blockchain.info dificultad falló: {e}")
 
-    return None
+    return None, None
 
+def _obtener_recompensa_btc():
+    """Calcula la recompensa por bloque según la altura actual (se ajusta sola en futuros Halvings)."""
+    try:
+        req = urllib.request.Request(
+            "https://mempool.space/api/blocks/tip/height",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        altura = int(urllib.request.urlopen(req, timeout=4).read().decode('utf-8').strip())
+        if altura > 0:
+            halvings = altura // 210000
+            return 50.0 / (2 ** halvings)
+    except Exception:
+        pass
+    return None
 
 def obtener_datos_red():
     global cache_red
@@ -308,12 +326,16 @@ def obtener_datos_red():
     else:
         print("[Red BTC] ⚠️ No se pudo obtener precio de ninguna API, usando último valor conocido")
 
-    dif_t = _obtener_dificultad_btc()
+    dif_t, red_ehs = _obtener_dificultad_btc()
     if dif_t is not None:
         datos['dificultad_t'] = dif_t
-        datos['red_ehs'] = round(dif_t * 7.1583, 2)
+        datos['red_ehs'] = red_ehs
     else:
         print("[Red BTC] ⚠️ No se pudo obtener dificultad de ninguna API, usando último valor conocido")
+
+    recomp = _obtener_recompensa_btc()
+    if recomp is not None:
+        datos['recompensa'] = recomp
 
     cache_red['datos'] = datos
     cache_red['ultima_act'] = ahora
