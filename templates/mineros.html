@@ -79,9 +79,14 @@
 
     /* Tabla avanzada de Flota */
     .table-container { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table { width: 100%; min-width: 1120px; border-collapse: collapse; white-space: nowrap; }
-    th { text-align: left; padding: 12px 14px; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.015); cursor: pointer; user-select: none; transition: 0.15s; }
-    th:hover { color: #fff; }
+    table { width: 100%; min-width: 780px; border-collapse: collapse; white-space: nowrap; }
+    th { text-align: left; padding: 12px 14px; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.015); user-select: none; transition: 0.15s; }
+    th.sortable { cursor: pointer; }
+    th.sortable:hover { color: #fff; background: rgba(59, 130, 246, 0.08); }
+    th.sort-active { color: #60a5fa !important; }
+    .sort-arrow { display: inline-block; margin-left: 4px; font-size: 0.95em; opacity: 0.65; }
+    th.sort-active .sort-arrow { opacity: 1; color: #38bdf8; }
+
     td { padding: 12px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.85em; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tbody tr { transition: background 0.15s ease; cursor: pointer; }
@@ -91,7 +96,7 @@
     .miner-link { color: #60a5fa; font-weight: bold; text-decoration: none; font-size: 1.03em; }
     .miner-link:hover { color: #fff; text-decoration: underline; }
     .sub-txt { font-size: 0.78em; color: var(--text-muted); margin-top: 2px; font-family: monospace; }
-    .pool-pill { background: rgba(10, 12, 18, 0.55); border: 1px solid var(--border-color); padding: 3px 8px; border-radius: 5px; font-family: monospace; font-size: 0.82em; max-width: 215px; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: middle; }
+    .uptime-hover { display: inline-block; cursor: help; border-bottom: 1px dotted rgba(148, 163, 184, 0.45); }
 
     /* Modales */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.72); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(3px); }
@@ -209,13 +214,11 @@
             <button type="button" class="btn-fleet" onclick="cerrarSmartScanner()">✖</button>
         </div>
 
-        <!-- Controles superiores -->
         <div class="scan-controls-row">
             <button type="button" id="btnTriggerScan" class="btn-fleet glow-cyan" onclick="lanzarEscaneoRed()">🔄 Escanear Red Ahora</button>
             <input type="text" id="scanSearchInput" class="scan-search-inp" placeholder="🔎 Filtrar por IP, modelo o nombre..." oninput="renderizarEscaner()">
         </div>
 
-        <!-- Barra única de Progreso -->
         <div id="scanProgressCard" class="scan-progress-card">
             <div class="scan-progress-top">
                 <span id="scanProgTitle" style="color:#60a5fa;">⏳ Escaneando la red...</span>
@@ -231,10 +234,8 @@
             </div>
         </div>
 
-        <!-- Banner de Escaneo Completo -->
         <div id="scanDoneBanner" class="scan-done-banner"></div>
 
-        <!-- Resultados agrupados por Granja/Router -->
         <div id="scanGroupsWrap" class="scan-groups-wrap">
             <div style="text-align:center; padding:26px; color:var(--text-muted); font-size:0.86em;">Cargando equipos detectados...</div>
         </div>
@@ -365,7 +366,7 @@
 <div class="fleet-toolbar">
     <div class="search-box">
         <span class="search-icon">🔍</span>
-        <input type="text" id="buscadorFlota" class="search-input" placeholder="Buscar por IP, nombre, modelo, moneda, worker, MAC..." oninput="aplicarFiltrosTabla()">
+        <input type="text" id="buscadorFlota" class="search-input" placeholder="Buscar por nombre, granja, IP, modelo, moneda..." oninput="aplicarFiltrosTabla()">
     </div>
     <div class="bulk-bar">
         <span class="sel-badge" id="selBadgeWrap"><span id="contadorSeleccionados">0</span> sel.</span>
@@ -383,21 +384,18 @@
     </div>
 </div>
 
-<!-- 3. Tabla Técnica de Gestión de Flota -->
+<!-- 3. Tabla Limpia e Intuitiva de Gestión de Flota -->
 <div class="table-container">
     <table id="tablaMineros">
         <thead>
             <tr>
                 <th style="width:32px;"><input type="checkbox" id="checkAllFleet" onclick="seleccionarTodosVisibles(this)"></th>
-                <th onclick="ordenarTabla(1)">Minero / IP ↕</th>
-                <th onclick="ordenarTabla(2)">Modelo / FW ↕</th>
-                <th onclick="ordenarTabla(3)">Estado / Tiempo activo ↕</th>
-                <th onclick="ordenarTabla(4)">Hashrate (5s / 30m) ↕</th>
+                <th class="sortable" data-col="1" onclick="ordenarTabla(1)">Nombre <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="2" onclick="ordenarTabla(2)">Modelo / FW <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="3" onclick="ordenarTabla(3)">Estado <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="4" onclick="ordenarTabla(4)">Hashrate (5s / 30m) <span class="sort-arrow">↕</span></th>
                 <th>Placas / Chips</th>
-                <th onclick="ordenarTabla(6)">Temp (Chip / Amb) ↕</th>
-                <th>Refrigeración</th>
-                <th>Pool Activa / Worker</th>
-                <th onclick="ordenarTabla(9)">Rechazo (%) ↕</th>
+                <th class="sortable" data-col="6" onclick="ordenarTabla(6)">Temp (Chip / Amb) <span class="sort-arrow">↕</span></th>
                 <th style="text-align:center;">Acciones</th>
             </tr>
         </thead>
@@ -405,9 +403,8 @@
             {% for m in mineros %}
             {% set tm = m.temp_max | int %}
             {% set m_t_cls = 'badge-t-crit' if tm >= 85 else ('badge-t-warn' if tm >= 75 else 'badge-t-ok') %}
-            {% set ip_parts = m.ip.split('.') %}
-            {% set ip_num_sort = (ip_parts[0]|int * 16777216 + ip_parts[1]|int * 65536 + ip_parts[2]|int * 256 + ip_parts[3]|int) if ip_parts|length == 4 else 0 %}
             {% set n_placas = m.placas_activas | int %}
+            {% set granja_lbl = m.granja_nombre or m.farm_nombre or m.farm_city or m.farm_id or 'Granja' %}
             <tr class="fila-minero"
                 onclick="toggleFilaClick(event, this)"
                 data-ip="{{ m.ip }}"
@@ -434,16 +431,16 @@
                 data-worker1="{{ m.worker1 }}"
                 data-pool2="{{ m.pool2 }}"
                 data-pool3="{{ m.pool3 }}"
-                data-search="{{ (m.ip ~ ' ' ~ m.nombre ~ ' ' ~ m.modelo ~ ' ' ~ m.moneda ~ ' ' ~ m.mac ~ ' ' ~ m.worker1 ~ ' ' ~ m.pool1)|lower }}">
+                data-search="{{ (m.ip ~ ' ' ~ m.nombre ~ ' ' ~ granja_lbl ~ ' ' ~ m.modelo ~ ' ' ~ m.moneda ~ ' ' ~ m.mac ~ ' ' ~ m.worker1 ~ ' ' ~ m.pool1)|lower }}">
                 
                 <td><input type="checkbox" class="cb-minero" value="{{ m.ip }}" onchange="actualizarContadorSeleccion()"></td>
                 
-                <td data-sort="{{ ip_num_sort }}" translate="no">
-                    <a href="/minero/{{ m.ip }}" class="miner-link">{{ m.nombre }}</a>
-                    <div class="sub-txt">{{ m.ip }} · {{ m.mac }}</div>
+                <td data-sort-str="{{ m.nombre }}" translate="no">
+                    <a href="/minero/{{ m.ip }}" class="miner-link" title="IP: {{ m.ip }}">{{ m.nombre }}</a>
+                    <div class="sub-txt">🏭 {{ granja_lbl }}</div>
                 </td>
                 
-                <td translate="no">
+                <td data-sort-str="{{ m.modelo }}" translate="no">
                     <div style="font-weight:bold;">
                         {{ m.modelo }}
                         {% if m.online and m.hashrate > 0 and m.moneda and m.moneda != 'BTC' %}
@@ -453,16 +450,18 @@
                     <div class="sub-txt">{{ m.firmware[:22] }}</div>
                 </td>
                 
-                <td data-sort="{{ '1' if m.online else '0' }}">
+                <td data-sort-num="{{ '1' if m.online else '0' }}">
                     {% if m.online %}
                         <span style="color:var(--accent-green);font-weight:bold;">● Online</span>
                     {% else %}
                         <span style="color:var(--accent-red);font-weight:bold;">● Offline</span>
                     {% endif %}
-                    <div class="sub-txt" translate="no">{{ m.uptime }}</div>
+                    <div class="sub-txt" translate="no">
+                        <span class="uptime-hover" data-ftt="uptime_info">{{ m.uptime }}</span>
+                    </div>
                 </td>
                 
-                <td data-sort="{{ m.hashrate }}" translate="no">
+                <td data-sort-num="{{ m.hashrate }}" translate="no">
                     {% if m.online and m.hashrate > 0 %}
                         <b style="color:#3b82f6;font-size:1.05em;font-family:monospace;">{{ m.hashrate }}</b>
                         <span style="color:var(--text-muted);font-family:monospace;">/ {{ m.hashrate_30m }} {{ m.unidad }}</span>
@@ -486,7 +485,7 @@
                     {% endif %}
                 </td>
 
-                <td data-sort="{{ tm }}" translate="no">
+                <td data-sort-num="{{ tm }}" translate="no">
                     {% if m.online %}
                         <span class="{{ m_t_cls }}">{{ tm }}°C</span>
                         {% if m.temp_amb > 0 %}
@@ -495,22 +494,6 @@
                     {% else %}
                         <span style="color:var(--text-muted);">0°C</span>
                     {% endif %}
-                </td>
-
-                <td translate="no">
-                    <div style="font-size:0.85em;color:{{ '#38bdf8' if 'Hydro' in m.fans else 'var(--text-main)' }};">{{ m.fans }}</div>
-                </td>
-
-                <td translate="no">
-                    <div class="pool-pill" title="{{ m.pool1 }}">{{ m.pool1 }}</div>
-                    <div class="sub-txt" style="color:var(--text-main);font-weight:bold;">👷 {{ m.worker1 }}</div>
-                </td>
-
-                <td data-sort="{{ m.pct_rej }}" translate="no">
-                    <span style="color:var(--accent-green);font-weight:bold;font-family:monospace;">{{ "{:,}".format(m.acc1) }}</span>
-                    <div class="sub-txt" style="color:{{ '#ff5252' if m.pct_rej > 1.5 else 'var(--text-muted)' }};">
-                        {{ m.rej1 }} ({{ "%.2f"|format(m.pct_rej) }}%)
-                    </div>
                 </td>
 
                 <td style="text-align:center;" onclick="event.stopPropagation();">
@@ -528,6 +511,9 @@
     let accionMasivaPendiente = null;
     let ipIndividualEliminar = null;
     let planLimitTimer = null;
+
+    let sortColActual = 1;
+    let sortAscActual = true;
 
     let scanState = {
         esPro: false,
@@ -559,6 +545,7 @@
         'pill_offline': { t: '🔴 Sin Conexión', d: 'Muestra equipos apagados, sin red LAN o con fallo de fuente.' },
         'pill_temp': { t: '🔥 Alerta Térmica (≥ 75°C)', d: 'Filtra equipos calientes que requieren revisión de ventilación o limpieza.' },
         'pill_hw': { t: '⚠️ Revisión de Hardware', d: 'Equipos con más de 50 errores HW o tasa de rechazo superior al 1.5%.' },
+        'uptime_info': { t: '⏱️ Tiempo Activo (Uptime)', d: 'Tiempo continuo que lleva encendido y minando este equipo desde su último reinicio.' },
         'btn_pools': { t: '⛏ Cambio Masivo de Pools', d: 'Configura las 3 URLs Stratum y asigna automáticamente el sufijo de cada Worker.' },
         'btn_restart': { t: '🔄 Reinicio Masivo', d: 'Envía orden de Reboot a todos los mineros marcados.' },
         'btn_sleep': { t: '😴 Reposo Masivo (Sleep)', d: 'Detiene el minado manteniendo la placa de control encendida (~40W).' },
@@ -598,6 +585,58 @@
             cb.checked = !cb.checked;
             actualizarContadorSeleccion();
         }
+    }
+
+    // ==================== ORDENAMIENTO NATURAL E INTUITIVO ====================
+    function ordenarTabla(colIdx, forzarAsc = null) {
+        const tbody = document.querySelector('#tablaMineros tbody');
+        if (!tbody) return;
+        const filas = Array.from(tbody.querySelectorAll('tr'));
+
+        if (forzarAsc !== null) {
+            sortColActual = colIdx;
+            sortAscActual = forzarAsc;
+        } else if (sortColActual === colIdx) {
+            sortAscActual = !sortAscActual;
+        } else {
+            sortColActual = colIdx;
+            // Para Hashrate (4), Temp (6) y Estado (3) es más útil empezar de mayor a menor
+            sortAscActual = (colIdx === 1 || colIdx === 2);
+        }
+
+        filas.sort((a, b) => {
+            const tdA = a.children[colIdx];
+            const tdB = b.children[colIdx];
+            if (!tdA || !tdB) return 0;
+
+            const numAttrA = tdA.getAttribute('data-sort-num');
+            const numAttrB = tdB.getAttribute('data-sort-num');
+            if (numAttrA !== null && numAttrB !== null) {
+                const nA = parseFloat(numAttrA) || 0;
+                const nB = parseFloat(numAttrB) || 0;
+                return sortAscActual ? (nA - nB) : (nB - nA);
+            }
+
+            const strA = (tdA.getAttribute('data-sort-str') || tdA.innerText || '').trim();
+            const strB = (tdB.getAttribute('data-sort-str') || tdB.innerText || '').trim();
+            const cmp = strA.localeCompare(strB, 'es', { numeric: true, sensitivity: 'base' });
+            return sortAscActual ? cmp : -cmp;
+        });
+
+        filas.forEach(f => tbody.appendChild(f));
+
+        // Actualizar indicadores visuales (▲ / ▼) en los encabezados
+        document.querySelectorAll('#tablaMineros thead th.sortable').forEach(th => {
+            const c = parseInt(th.getAttribute('data-col'), 10);
+            const arrow = th.querySelector('.sort-arrow');
+            if (c === sortColActual) {
+                th.classList.add('sort-active');
+                if (arrow) arrow.innerText = sortAscActual ? '▲' : '▼';
+            } else {
+                th.classList.remove('sort-active');
+                if (arrow) arrow.innerText = '↕';
+            }
+        });
     }
 
     // ==================== ACCIONES INDIVIDUALES POR FILA ====================
@@ -1313,25 +1352,10 @@
         });
     }
 
-    let ordenAsc = false;
-    function ordenarTabla(colIdx) {
-        let tbody = document.querySelector('#tablaMineros tbody');
-        let filas = Array.from(tbody.querySelectorAll('tr'));
-        ordenAsc = !ordenAsc;
-        filas.sort((a, b) => {
-            let tdA = a.children[colIdx];
-            let tdB = b.children[colIdx];
-            let vA = tdA.getAttribute('data-sort') !== null ? parseFloat(tdA.getAttribute('data-sort')) : tdA.innerText.trim();
-            let vB = tdB.getAttribute('data-sort') !== null ? parseFloat(tdB.getAttribute('data-sort')) : tdB.innerText.trim();
-            if (typeof vA === 'number' && typeof vB === 'number' && !isNaN(vA) && !isNaN(vB)) {
-                return ordenAsc ? vA - vB : vB - vA;
-            }
-            return ordenAsc ? String(vA).localeCompare(String(vB)) : String(vB).localeCompare(String(vA));
-        });
-        filas.forEach(f => tbody.appendChild(f));
-    }
-
     window.addEventListener('load', function() {
+        // Ordenar por defecto por Nombre (natural: números primero, luego alfabético)
+        ordenarTabla(1, true);
+
         const box = document.getElementById('fleetSmartTooltip');
         if (!box) return;
         document.querySelectorAll('[data-ftt]').forEach(el => {
