@@ -106,38 +106,62 @@
     .preview-worker { font-family: monospace; color: #00e676; font-weight: bold; margin-top: 6px; }
 
     /* Estilos del Modal Escáner Inteligente */
-    .scan-modal-box { background: var(--bg-card); border: 1px solid rgba(56, 189, 248, 0.45); border-radius: 12px; padding: 20px; max-width: 880px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.85); }
-    .scan-quota-box { background: rgba(10, 12, 18, 0.65); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; }
-    .scan-quota-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 0.84em; margin-bottom: 6px; }
-    .scan-quota-bar-bg { width: 100%; height: 7px; background: rgba(255, 255, 255, 0.08); border-radius: 999px; overflow: hidden; }
-    .scan-quota-bar-fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; background: #00e676; }
+    .scan-modal-box { background: var(--bg-card); border: 1px solid rgba(56, 189, 248, 0.45); border-radius: 12px; padding: 20px; max-width: 860px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.85); }
+    .scan-controls-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
+    .scan-search-inp { background: rgba(10, 12, 18, 0.75); border: 1px solid var(--border-color); color: #fff; padding: 7px 11px; border-radius: 7px; font-size: 0.82em; width: 220px; outline: none; }
+    .scan-search-inp:focus { border-color: #38bdf8; }
 
-    /* Barra de Progreso del Escaneo */
+    /* Barra única de Progreso del Escaneo */
     .scan-progress-card { display: none; background: rgba(8, 12, 22, 0.85); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 9px; padding: 12px 15px; margin-bottom: 12px; }
-    .scan-progress-top { display: flex; justify-content: space-between; align-items: center; font-size: 0.86em; font-weight: bold; margin-bottom: 8px; }
+    .scan-progress-top { display: flex; justify-content: space-between; align-items: center; font-size: 0.86em; font-weight: bold; margin-bottom: 8px; gap: 8px; flex-wrap: wrap; }
     .scan-progress-track { width: 100%; height: 9px; background: rgba(255, 255, 255, 0.08); border-radius: 999px; overflow: hidden; }
     .scan-progress-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, #3b82f6 0%, #22c55e 100%); transition: width 0.35s linear; }
     .scan-progress-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; font-size: 0.76em; font-family: monospace; color: var(--text-muted); }
 
-    .scan-controls-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
-    .scan-table-wrap { flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: rgba(6, 8, 13, 0.55); }
+    /* Banner de Escaneo Completo */
+    .scan-done-banner { display: none; background: rgba(0, 230, 118, 0.10); border: 1px solid rgba(0, 230, 118, 0.38); color: #a7f3d0; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 0.85em; font-weight: bold; }
+
+    /* Contenedor de Grupos y Tabla del Escáner */
+    .scan-groups-wrap { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 2px; }
+    .scan-group-card { border: 1px solid var(--border-color); border-radius: 9px; background: rgba(6, 8, 13, 0.55); overflow: hidden; }
+    .scan-group-hdr { padding: 9px 13px; background: rgba(255, 255, 255, 0.03); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; cursor: pointer; user-select: none; }
+    .scan-group-title { font-weight: bold; font-size: 0.88em; color: #e2e8f0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .scan-agent-chip { font-size: 0.74em; font-family: monospace; padding: 2px 7px; border-radius: 999px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.32); color: #7dd3fc; }
+    .scan-agent-chip.off { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.12); color: var(--text-muted); }
+
     .scan-table { width: 100%; min-width: 0 !important; border-collapse: collapse; font-size: 0.82em; }
-    .scan-table th { text-align: left; padding: 10px; background: rgba(255, 255, 255, 0.03); color: var(--text-muted); font-size: 0.76em; text-transform: uppercase; position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--border-color); cursor: default; }
+    .scan-table th { text-align: left; padding: 9px 10px; background: rgba(255, 255, 255, 0.02); color: var(--text-muted); font-size: 0.75em; text-transform: uppercase; border-bottom: 1px solid var(--border-color); cursor: default; }
     .scan-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
-    .scan-inp-name { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.14); color: #fff; padding: 5px 8px; border-radius: 5px; font-size: 0.92em; width: 155px; outline: none; }
+    .scan-table tr:last-child td { border-bottom: none; }
+    .scan-inp-name { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.14); color: #fff; padding: 5px 8px; border-radius: 5px; font-size: 0.92em; width: 140px; outline: none; }
     .scan-inp-name:focus { border-color: #38bdf8; }
-    .scan-sel-farm { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.14); color: #cbd5e1; padding: 5px 7px; border-radius: 5px; font-size: 0.88em; max-width: 175px; outline: none; }
-    .scan-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.78em; font-weight: bold; white-space: nowrap; }
-    .scan-badge.new { background: rgba(0, 230, 118, 0.14); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.4); }
-    .scan-badge.added { background: rgba(96, 165, 250, 0.14); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.35); }
-    .scan-badge.remove { background: rgba(255, 82, 82, 0.15); color: #ff8a80; border: 1px solid rgba(255, 82, 82, 0.45); }
-    .scan-badge.locked { background: rgba(255, 179, 0, 0.14); color: #ffd54f; border: 1px solid rgba(255, 179, 0, 0.45); }
-    .btn-led-scan { background: rgba(255, 179, 0, 0.12); border: 1px solid rgba(255, 179, 0, 0.4); color: #ffd54f; padding: 4px 8px; border-radius: 5px; font-size: 0.8em; font-weight: bold; cursor: pointer; }
-    .btn-led-scan:hover { background: rgba(255, 179, 0, 0.25); color: #fff; }
-    .scan-pro-upsell { display: none; margin-top: 10px; padding: 10px 14px; border-radius: 8px; background: rgba(255, 179, 0, 0.10); border: 1px solid rgba(255, 179, 0, 0.45); align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 0.82em; color: #fde68a; }
-    .scan-footer { margin-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .btn-scan-add { background: linear-gradient(135deg, #00e676, #00c853); color: #07120c; border: 1px solid #69f0ae; padding: 10px 18px; border-radius: 8px; font-weight: 800; font-size: 0.88em; cursor: pointer; }
-    .btn-scan-add:disabled { opacity: 0.45; cursor: not-allowed; }
+    .scan-sel-farm { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.14); color: #cbd5e1; padding: 5px 7px; border-radius: 5px; font-size: 0.88em; max-width: 170px; outline: none; }
+
+    .btn-scan-row-add { background: linear-gradient(135deg, #00e676, #00c853); color: #07120c; border: 1px solid #69f0ae; padding: 5px 12px; border-radius: 6px; font-weight: 800; font-size: 0.82em; cursor: pointer; transition: 0.15s; white-space: nowrap; }
+    .btn-scan-row-add:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .btn-scan-row-add:disabled { opacity: 0.55; cursor: wait; }
+    .btn-scan-row-added { background: rgba(96, 165, 250, 0.14); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.35); padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 0.80em; cursor: pointer; white-space: nowrap; }
+    .btn-scan-row-added:hover { background: rgba(255, 82, 82, 0.18); color: #ff8a80; border-color: rgba(255, 82, 82, 0.45); }
+
+    /* Aviso de Límite de Plan Gratis (abajo a la derecha) */
+    .plan-limit-toast {
+        position: fixed;
+        bottom: 22px;
+        right: 22px;
+        max-width: 340px;
+        background: rgba(14, 17, 28, 0.98);
+        border: 1px solid rgba(255, 179, 0, 0.65);
+        border-radius: 10px;
+        padding: 14px 16px;
+        color: #fef3c7;
+        font-size: 0.86em;
+        line-height: 1.45;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 18px rgba(255, 179, 0, 0.25);
+        z-index: 10000;
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+    }
 
     /* Estilos del Comparador de 2 Mineros */
     .cmp-select-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
@@ -159,41 +183,39 @@
     .fleet-toast { position: fixed; bottom: 22px; right: 22px; background: rgba(10, 12, 18, 0.96); border: 1px solid #00e676; color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 0.86em; font-weight: bold; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 230, 118, 0.3); z-index: 9999; display: none; align-items: center; gap: 8px; }
 </style>
 
-<!-- Portal de Tooltip y Notificación Toast -->
+<!-- Portal de Tooltip, Toast Normal y Toast de Límite de Plan -->
 <div id="fleetSmartTooltip" class="fleet-smart-tooltip"></div>
 <div id="fleetToast" class="fleet-toast"></div>
+<div id="planLimitToast" class="plan-limit-toast">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+        <div id="planLimitToastTxt">🔒 Tu plan Gratis permite 3 mineros. Mejora tu plan para añadir más.</div>
+        <button type="button" onclick="document.getElementById('planLimitToast').style.display='none'" style="background:none; border:none; color:#fde68a; cursor:pointer; font-size:1.1em; line-height:1;">✕</button>
+    </div>
+    <div style="display:flex; justify-content:flex-end;">
+        <a href="/plan" class="btn-fleet primary" style="text-decoration:none; padding:6px 12px;">🚀 Mejorar a Plan Pro</a>
+    </div>
+</div>
 
 <!-- Modal Escáner Inteligente -->
 <div class="modal-overlay" id="smartScannerModal" onclick="if(event.target===this) cerrarSmartScanner()">
     <div class="scan-modal-box">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <div>
-                <h2 style="margin:0; font-size:1.18em; color:#e0f2fe;">🔍 Escanear Red y Gestionar Mineros</h2>
-                <div style="font-size:0.78em; color:var(--text-muted); margin-top:2px;">
-                    Marca para agregar, desmarca para quitar de tu granja, edita el nombre o elige su sede.
+                <h2 style="margin:0; font-size:1.18em; color:#e0f2fe;">🔍 Escanear Red</h2>
+                <div id="scanHeaderQuota" style="font-size:0.78em; color:var(--text-muted); margin-top:2px;">
+                    Detecta los Antminer en tus redes conectadas y agrégalos a tu granja.
                 </div>
             </div>
             <button type="button" class="btn-fleet" onclick="cerrarSmartScanner()">✖</button>
         </div>
 
-        <!-- Cupo del Plan -->
-        <div class="scan-quota-box">
-            <div class="scan-quota-top">
-                <strong id="scanQuotaTitle" style="color:#00e676;">Cargando cupo de tu plan...</strong>
-                <span id="scanQuotaCounter" style="font-family:monospace; color:#cbd5e1;"></span>
-            </div>
-            <div class="scan-quota-bar-bg">
-                <div id="scanQuotaBar" class="scan-quota-bar-fill" style="width:0%;"></div>
-            </div>
-        </div>
-
-        <!-- Botón Escanear -->
+        <!-- Controles superiores -->
         <div class="scan-controls-row">
             <button type="button" id="btnTriggerScan" class="btn-fleet glow-cyan" onclick="lanzarEscaneoRed()">🔄 Escanear Red Ahora</button>
-            <span style="font-size:0.78em; color:var(--text-muted);">Por defecto cada equipo se asigna a la granja de su router.</span>
+            <input type="text" id="scanSearchInput" class="scan-search-inp" placeholder="🔎 Filtrar por IP, modelo o nombre..." oninput="renderizarEscaner()">
         </div>
 
-        <!-- Barra de Progreso en Vivo -->
+        <!-- Barra única de Progreso -->
         <div id="scanProgressCard" class="scan-progress-card">
             <div class="scan-progress-top">
                 <span id="scanProgTitle" style="color:#60a5fa;">⏳ Escaneando la red...</span>
@@ -209,36 +231,16 @@
             </div>
         </div>
 
-        <!-- Tabla de resultados limpia -->
-        <div class="scan-table-wrap">
-            <table class="scan-table">
-                <thead>
-                    <tr>
-                        <th style="width:36px; text-align:center;">✔</th>
-                        <th>Modelo / IP</th>
-                        <th>Nombre (Editable)</th>
-                        <th>Granja Destino</th>
-                        <th>Estado</th>
-                        <th style="text-align:center;">Ubicar</th>
-                    </tr>
-                </thead>
-                <tbody id="scanResultsBody">
-                    <tr><td colspan="6" style="text-align:center; padding:24px; color:var(--text-muted);">Cargando equipos detectados...</td></tr>
-                </tbody>
-            </table>
+        <!-- Banner de Escaneo Completo -->
+        <div id="scanDoneBanner" class="scan-done-banner"></div>
+
+        <!-- Resultados agrupados por Granja/Router -->
+        <div id="scanGroupsWrap" class="scan-groups-wrap">
+            <div style="text-align:center; padding:26px; color:var(--text-muted); font-size:0.86em;">Cargando equipos detectados...</div>
         </div>
 
-        <div id="scanProUpsell" class="scan-pro-upsell">
-            <span id="scanProUpsellTxt">🔒 Alcanzaste el límite de tu Plan Gratis. Activa Plan Pro ($15 USDT/mes) para agregar mineros ilimitados.</span>
-            <a href="/plan" class="btn-fleet primary" style="text-decoration:none;">🚀 Activar Plan Pro</a>
-        </div>
-
-        <div class="scan-footer">
-            <span id="scanSelInfo" style="font-size:0.82em; color:var(--text-muted); font-family:monospace;">Sin cambios pendientes</span>
-            <div style="display:flex; gap:8px;">
-                <button type="button" class="btn-fleet" onclick="cerrarSmartScanner()">Cerrar</button>
-                <button type="button" id="btnScanAdd" class="btn-scan-add" disabled onclick="guardarCambiosEscaner()">💾 Aplicar Cambios</button>
-            </div>
+        <div style="margin-top:12px; display:flex; justify-content:flex-end;">
+            <button type="button" class="btn-fleet" onclick="cerrarSmartScanner()">Cerrar</button>
         </div>
     </div>
 </div>
@@ -525,17 +527,20 @@
     let filtroEstadoActual = 'all';
     let accionMasivaPendiente = null;
     let ipIndividualEliminar = null;
+    let planLimitTimer = null;
 
     let scanState = {
         esPro: false,
         limite: 3,
         activosCount: 0,
+        routersCount: 1,
         granjas: [],
+        grupos: [],
         descubiertos: [],
-        marcados: new Set(),
         nombres: {},
         granjaPorIp: {},
-        editados: new Set()
+        colapsados: new Set(),
+        huboCambios: false
     };
     let scanPollTimer = null;
     let scanProgTimer = null;
@@ -562,7 +567,7 @@
         'btn_reset': { t: '⚠️ Factory Reset', d: 'Restaura los valores de fábrica de los equipos seleccionados.' },
         'btn_delete': { t: '🗑️ Eliminar del Panel', d: 'Borra los equipos seleccionados del panel (ideal para quitar mineros offline o liberar cupo en Plan Gratis).' },
         'btn_compare': { t: '⚖️ Comparar 2 Mineros', d: 'Compara hashrate, temperatura, eficiencia y errores de 2 equipos lado a lado.' },
-        'btn_scan': { t: '🔍 Escáner Inteligente de Red', d: 'Abre el escáner para detectar Antminer nuevos, editar nombres, cambiar de granja o quitar equipos.' },
+        'btn_scan': { t: '🔍 Escáner Inteligente de Red', d: 'Escanea tus redes conectadas para detectar Antminer nuevos y agregarlos en 1 clic.' },
         'btn_mensual': { t: '📊 Reporte Mensual (Excel)', d: 'Descarga el cierre mensual con kWh consumidos, costo eléctrico y ganancia neta estimada por equipo.' },
         'btn_csv': { t: '📥 Exportar Reporte CSV', d: 'Descarga una hoja de cálculo Excel/CSV con el estado actual de toda tu flota.' }
     };
@@ -574,6 +579,16 @@
         el.innerHTML = (esError ? '⚠️ ' : '✅ ') + mensaje;
         el.style.display = 'flex';
         setTimeout(() => { el.style.display = 'none'; }, 3600);
+    }
+
+    function mostrarAvisoLimitePlan(msg) {
+        const box = document.getElementById('planLimitToast');
+        const txt = document.getElementById('planLimitToastTxt');
+        if (!box || !txt) return;
+        txt.innerText = '🔒 ' + (msg || `Tu plan Gratis permite ${scanState.limite} mineros. Mejora tu plan para añadir más.`);
+        box.style.display = 'flex';
+        if (planLimitTimer) clearTimeout(planLimitTimer);
+        planLimitTimer = setTimeout(() => { box.style.display = 'none'; }, 6500);
     }
 
     function toggleFilaClick(event, fila) {
@@ -612,37 +627,56 @@
         document.getElementById('confirmBulkModal').style.display = 'flex';
     }
 
-    // ==================== ESCÁNER INTELIGENTE DE RED ====================
+    // ==================== ESCÁNER INTELIGENTE GLOBAL ====================
     function abrirSmartScanner() {
         document.getElementById('smartScannerModal').style.display = 'flex';
         document.getElementById('scanProgressCard').style.display = 'none';
-        scanState.marcados.clear();
-        scanState.nombres = {};
-        scanState.granjaPorIp = {};
-        scanState.editados.clear();
-        cargarResultadosEscaner(true);
+        document.getElementById('scanDoneBanner').style.display = 'none';
+        document.getElementById('scanSearchInput').value = '';
+        scanState.huboCambios = false;
+        cargarResultadosEscaner();
     }
 
     function cerrarSmartScanner() {
         document.getElementById('smartScannerModal').style.display = 'none';
         if (scanPollTimer) { clearInterval(scanPollTimer); scanPollTimer = null; }
         if (scanProgTimer) { clearInterval(scanProgTimer); scanProgTimer = null; }
+        if (scanState.huboCambios) {
+            window.location.reload();
+        }
+    }
+
+    function textoEncontrados() {
+        const tot = scanState.descubiertos.length;
+        const nRtr = scanState.routersCount || 1;
+        if (nRtr > 1) return `⛏ ${tot} encontrados en ${nRtr} routers`;
+        return `⛏ ${tot} encontrados`;
+    }
+
+    function mostrarResumenEscaneoCompleto() {
+        const total = scanState.descubiertos.length;
+        const ya = scanState.descubiertos.filter(d => d.ya_agregado).length;
+        const nuevos = Math.max(0, total - ya);
+        const banner = document.getElementById('scanDoneBanner');
+        const extraRouter = (scanState.routersCount > 1) ? ` en ${scanState.routersCount} routers` : '';
+        banner.innerText = `✅ Escaneo completo — se encontraron ${total} minero(s)${extraRouter} (${nuevos} nuevos, ${ya} ya añadidos)`;
+        banner.style.display = 'block';
     }
 
     async function lanzarEscaneoRed() {
         const btn = document.getElementById('btnTriggerScan');
         const card = document.getElementById('scanProgressCard');
+        const banner = document.getElementById('scanDoneBanner');
         const fill = document.getElementById('scanProgFill');
-        const title = document.getElementById('scanProgTitle');
         const pctEl = document.getElementById('scanProgPct');
         const ipsEl = document.getElementById('scanProgIps');
         const etaEl = document.getElementById('scanProgEta');
 
         btn.disabled = true;
         btn.innerText = '⏳ Escaneando...';
+        banner.style.display = 'none';
         card.style.display = 'block';
-        title.innerText = '⏳ Escaneando la red...';
-        title.style.color = '#60a5fa';
+        document.getElementById('scanProgFound').innerText = textoEncontrados();
 
         const duracionTotalSeg = 18;
         let elapsed = 0;
@@ -664,10 +698,10 @@
             if (elapsed >= duracionTotalSeg) {
                 clearInterval(scanProgTimer);
                 scanProgTimer = null;
-                title.innerText = '✅ Escaneo completado';
-                title.style.color = '#00e676';
+                card.style.display = 'none';
                 btn.disabled = false;
                 btn.innerText = '🔄 Escanear Red Ahora';
+                mostrarResumenEscaneoCompleto();
             }
         }, 500);
 
@@ -680,41 +714,47 @@
             let ticks = 0;
             scanPollTimer = setInterval(async () => {
                 ticks++;
-                await cargarResultadosEscaner(false);
+                await cargarResultadosEscaner();
                 if (ticks >= 5) {
                     clearInterval(scanPollTimer);
                     scanPollTimer = null;
                 }
             }, 3500);
         } catch (e) {
-            title.innerText = '⚠️ Error al contactar agente';
-            title.style.color = '#ff8a80';
+            card.style.display = 'none';
             btn.disabled = false;
             btn.innerText = '🔄 Escanear Red Ahora';
+            mostrarToastFlota('Error al contactar al agente.', true);
         }
     }
 
-    async function cargarResultadosEscaner(inicial = false) {
-        const tb = document.getElementById('scanResultsBody');
+    async function cargarResultadosEscaner() {
+        const wrap = document.getElementById('scanGroupsWrap');
         try {
             const r = await fetch('/api/escaner/resultados');
             const j = await r.json();
             if (!j.ok) {
-                tb.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#ff8a80;">Error cargando resultados.</td></tr>';
+                wrap.innerHTML = '<div style="text-align:center; padding:20px; color:#ff8a80;">Error cargando resultados.</div>';
                 return;
             }
             scanState.esPro = !!j.es_pro;
             scanState.limite = Number(j.limite || 0);
             scanState.activosCount = Number(j.activos_count || 0);
+            scanState.routersCount = Number(j.routers_count || (j.grupos ? j.grupos.length : 1) || 1);
             scanState.granjas = j.granjas || [];
+            scanState.grupos = j.grupos || [];
             scanState.descubiertos = j.descubiertos || [];
 
-            document.getElementById('scanProgFound').innerText = `⛏ ${scanState.descubiertos.length} encontrados`;
+            document.getElementById('scanProgFound').innerText = textoEncontrados();
+
+            const hdrQ = document.getElementById('scanHeaderQuota');
+            if (scanState.esPro || scanState.limite <= 0) {
+                hdrQ.innerHTML = `<span style="color:#00e676;">⚡ Plan Pro: Mineros ilimitados</span> · ${scanState.activosCount} activos`;
+            } else {
+                hdrQ.innerHTML = `Plan Gratis: <b style="color:${scanState.activosCount >= scanState.limite ? '#ffb300' : '#00e676'};">${scanState.activosCount} / ${scanState.limite} mineros</b>`;
+            }
 
             scanState.descubiertos.forEach(d => {
-                if (inicial && d.ya_agregado) {
-                    scanState.marcados.add(d.ip);
-                }
                 if (!(d.ip in scanState.nombres)) {
                     scanState.nombres[d.ip] = d.nombre || '';
                 }
@@ -725,212 +765,173 @@
 
             renderizarEscaner();
         } catch (e) {
-            tb.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#ff8a80;">Error de conexión con el servidor.</td></tr>';
+            wrap.innerHTML = '<div style="text-align:center; padding:20px; color:#ff8a80;">Error de conexión con el servidor.</div>';
         }
     }
 
-    function calcularTotalProyectado() {
-        const ipsEnLista = new Set(scanState.descubiertos.map(d => d.ip));
-        const activosEnLista = scanState.descubiertos.filter(d => d.ya_agregado).length;
-        const activosFueraLista = Math.max(0, scanState.activosCount - activosEnLista);
-        let marcadosEnLista = 0;
-        scanState.marcados.forEach(ip => { if (ipsEnLista.has(ip)) marcadosEnLista++; });
-        return activosFueraLista + marcadosEnLista;
-    }
-
-    function toggleSeleccionMinero(ip, checked) {
-        if (checked) {
-            const proyectado = calcularTotalProyectado();
-            if (!scanState.esPro && scanState.limite > 0 && proyectado >= scanState.limite) {
-                mostrarToastFlota(`Límite de ${scanState.limite} mineros alcanzado en Plan Gratis. Desmarca otro o activa Plan Pro.`, true);
-                renderizarEscaner();
-                return;
-            }
-            scanState.marcados.add(ip);
-        } else {
-            scanState.marcados.delete(ip);
-        }
+    function toggleGrupoEscaner(farmId) {
+        if (scanState.colapsados.has(farmId)) scanState.colapsados.delete(farmId);
+        else scanState.colapsados.add(farmId);
         renderizarEscaner();
     }
 
-    function onEditNombreScan(ip, val) {
-        scanState.nombres[ip] = val;
-        scanState.editados.add(ip);
-        actualizarBotonGuardarEscaner();
-    }
-
-    function onEditGranjaScan(ip, val) {
-        scanState.granjaPorIp[ip] = val;
-        scanState.editados.add(ip);
-        actualizarBotonGuardarEscaner();
-    }
-
-    function actualizarBotonGuardarEscaner() {
-        let porAgregar = 0;
-        let porQuitar = 0;
-        let porEditar = 0;
-
-        scanState.descubiertos.forEach(d => {
-            const marcado = scanState.marcados.has(d.ip);
-            if (marcado && !d.ya_agregado) porAgregar++;
-            else if (!marcado && d.ya_agregado) porQuitar++;
-            else if (marcado && d.ya_agregado && scanState.editados.has(d.ip)) porEditar++;
-        });
-
-        const totalCambios = porAgregar + porQuitar + porEditar;
-        const partes = [];
-        if (porAgregar > 0) partes.push(`+${porAgregar} agregar`);
-        if (porQuitar > 0) partes.push(`-${porQuitar} quitar`);
-        if (porEditar > 0) partes.push(`${porEditar} editado(s)`);
-
-        document.getElementById('scanSelInfo').innerText = partes.length > 0 ? partes.join(' · ') : 'Sin cambios pendientes';
-        const btn = document.getElementById('btnScanAdd');
-        btn.disabled = (totalCambios === 0);
-        btn.innerText = totalCambios > 0 ? `💾 Aplicar Cambios (${totalCambios})` : '💾 Aplicar Cambios';
-    }
-
     function renderizarEscaner() {
-        const tb = document.getElementById('scanResultsBody');
-        const qTitle = document.getElementById('scanQuotaTitle');
-        const qCount = document.getElementById('scanQuotaCounter');
-        const qBar = document.getElementById('scanQuotaBar');
-        const upsell = document.getElementById('scanProUpsell');
-        const upsellTxt = document.getElementById('scanProUpsellTxt');
+        const wrap = document.getElementById('scanGroupsWrap');
+        const q = (document.getElementById('scanSearchInput').value || '').toLowerCase().trim();
 
-        const totalProyectado = calcularTotalProyectado();
-        const sinCupo = (!scanState.esPro && scanState.limite > 0 && totalProyectado >= scanState.limite);
-        const noMarcados = scanState.descubiertos.filter(d => !scanState.marcados.has(d.ip)).length;
-
-        if (scanState.esPro || scanState.limite <= 0) {
-            qTitle.innerText = '⚡ Plan Pro Activo — Mineros Ilimitados';
-            qTitle.style.color = '#00e676';
-            qCount.innerText = `${totalProyectado} mineros en tus granjas`;
-            qBar.style.width = '100%';
-            qBar.style.background = 'linear-gradient(90deg, #00e676, #38bdf8)';
-            upsell.style.display = 'none';
-        } else {
-            const pct = Math.min(100, Math.round((totalProyectado / scanState.limite) * 100));
-            qTitle.innerText = `Plan Gratis: ${totalProyectado} / ${scanState.limite} mineros`;
-            qTitle.style.color = sinCupo ? '#ffb300' : '#00e676';
-            qCount.innerText = sinCupo ? 'Límite alcanzado' : `${scanState.limite - totalProyectado} cupo(s) libre(s)`;
-            qBar.style.width = `${pct}%`;
-            qBar.style.background = pct >= 100 ? '#ffb300' : '#00e676';
-
-            if (sinCupo && noMarcados > 0) {
-                upsellTxt.innerText = `🔒 Tu Plan Gratis permite hasta ${scanState.limite} mineros activos. Desmarca alguno para liberar cupo o activa Plan Pro.`;
-                upsell.style.display = 'flex';
-            } else {
-                upsell.style.display = 'none';
-            }
+        if (!scanState.grupos || scanState.grupos.length === 0) {
+            wrap.innerHTML = '<div style="text-align:center; padding:28px; color:var(--text-muted); font-size:0.86em;">No hay mineros descubiertos aún. Presiona <b>🔄 Escanear Red Ahora</b> con tu agente encendido.</div>';
+            return;
         }
 
-        if (scanState.descubiertos.length === 0) {
-            tb.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:26px; color:var(--text-muted);">No hay mineros descubiertos aún. Presiona <b>🔄 Escanear Red Ahora</b> con tu agente encendido.</td></tr>';
-        } else {
-            tb.innerHTML = scanState.descubiertos.map(d => {
-                const marcado = scanState.marcados.has(d.ip);
-                const locked = !marcado && sinCupo;
+        const multiRouter = scanState.grupos.length > 1;
+        let html = '';
 
-                let chkHtml = locked
-                    ? '<span title="Requiere Plan Pro">🔒</span>'
-                    : `<input type="checkbox" ${marcado ? 'checked' : ''} onchange="toggleSeleccionMinero('${d.ip}', this.checked)">`;
+        scanState.grupos.forEach(g => {
+            const minerosFiltrados = (g.mineros || []).filter(m => {
+                if (!q) return true;
+                const nom = (scanState.nombres[m.ip] || m.nombre || '').toLowerCase();
+                return m.ip.toLowerCase().includes(q) || m.modelo.toLowerCase().includes(q) || nom.includes(q);
+            });
 
-                let badgeHtml = '';
-                if (marcado && d.ya_agregado) badgeHtml = '<span class="scan-badge added">✅ En granja</span>';
-                else if (marcado && !d.ya_agregado) badgeHtml = '<span class="scan-badge new">➕ Por agregar</span>';
-                else if (!marcado && d.ya_agregado) badgeHtml = '<span class="scan-badge remove">🗑️ Por quitar</span>';
-                else if (locked) badgeHtml = '<span class="scan-badge locked">🔒 Plan Pro</span>';
-                else badgeHtml = '<span class="scan-badge new">🟢 Disponible</span>';
+            if (q && minerosFiltrados.length === 0) return;
 
-                const nomVal = (scanState.nombres[d.ip] || '').replace(/"/g, '&quot;');
-                const fSel = scanState.granjaPorIp[d.ip] || '';
-                const optsGranja = scanState.granjas.map(g => {
-                    const selAttr = (g.farm_id === fSel) ? 'selected' : '';
-                    return `<option value="${g.farm_id}" ${selAttr}>${g.nombre || g.farm_id}</option>`;
+            const isCol = scanState.colapsados.has(g.farm_id);
+            const agentesHtml = (g.agentes || []).map(a => {
+                const cls = a.online ? '' : 'off';
+                const ico = a.online ? '🟢' : '🔴';
+                return `<span class="scan-agent-chip ${cls}" title="${a.online ? 'En línea' : 'Sin conexión ' + a.hace}">${ico} ${a.nombre}</span>`;
+            }).join('');
+
+            const filasHtml = minerosFiltrados.length === 0
+                ? '<tr><td colspan="4" style="text-align:center; padding:14px; color:var(--text-muted);">Sin mineros en esta red.</td></tr>'
+                : minerosFiltrados.map(d => {
+                    const nomVal = (scanState.nombres[d.ip] !== undefined ? scanState.nombres[d.ip] : d.nombre || '').replace(/"/g, '&quot;');
+                    const fSel = scanState.granjaPorIp[d.ip] || d.farm_id || d.router_farm_id || '';
+                    const optsGranja = scanState.granjas.map(gr => {
+                        const selAttr = (gr.farm_id === fSel) ? 'selected' : '';
+                        return `<option value="${gr.farm_id}" ${selAttr}>${gr.nombre || gr.farm_id}</option>`;
+                    }).join('');
+
+                    const btnAccion = d.ya_agregado
+                        ? `<button type="button" class="btn-scan-row-added" title="Clic para quitar de tu granja" onclick="quitarMineroDesdeEscaner('${d.ip}', this)">✅ Añadido · ✕</button>`
+                        : `<button type="button" class="btn-scan-row-add" onclick="agregarMineroDesdeEscaner('${d.ip}', this)">➕ Agregar</button>`;
+
+                    return `<tr>
+                        <td translate="no">
+                            <div style="color:#fff; font-weight:bold;">${d.modelo}</div>
+                            <div style="font-size:0.82em; color:#60a5fa; font-family:monospace;">${d.ip}</div>
+                        </td>
+                        <td>
+                            <input type="text" class="scan-inp-name" value="${nomVal}" placeholder="Nombre" oninput="scanState.nombres['${d.ip}']=this.value">
+                        </td>
+                        <td>
+                            <select class="scan-sel-farm" onchange="scanState.granjaPorIp['${d.ip}']=this.value">
+                                ${optsGranja || '<option value="">Granja 001</option>'}
+                            </select>
+                        </td>
+                        <td style="text-align:right;">${btnAccion}</td>
+                    </tr>`;
                 }).join('');
 
-                return `<tr style="${locked ? 'opacity:0.62;' : ''}">
-                    <td style="text-align:center;">${chkHtml}</td>
-                    <td translate="no">
-                        <div style="color:#fff; font-weight:bold;">${d.modelo}</div>
-                        <div style="font-size:0.82em; color:#60a5fa; font-family:monospace;">${d.ip}</div>
-                    </td>
-                    <td>
-                        <input type="text" class="scan-inp-name" value="${nomVal}" placeholder="Nombre del equipo" oninput="onEditNombreScan('${d.ip}', this.value)">
-                    </td>
-                    <td>
-                        <select class="scan-sel-farm" onchange="onEditGranjaScan('${d.ip}', this.value)">
-                            ${optsGranja || '<option value="">Granja principal</option>'}
-                        </select>
-                    </td>
-                    <td>${badgeHtml}</td>
-                    <td style="text-align:center;">
-                        <button type="button" class="btn-led-scan" onclick="blinkDesdeEscaner('${d.ip}', '${d.agent_id}', this)">💡 LED</button>
-                    </td>
-                </tr>`;
-            }).join('');
-        }
-
-        actualizarBotonGuardarEscaner();
-    }
-
-    async function blinkDesdeEscaner(ip, agentId, btn) {
-        const orig = btn.innerText;
-        btn.innerText = '✨ ...';
-        btn.disabled = true;
-        try {
-            const r = await fetch('/api/escaner/blink', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ip, agent_id: agentId })
-            });
-            const j = await r.json();
-            if (j.ok) mostrarToastFlota(`Señal LED enviada a ${ip}`);
-        } catch (e) {}
-        setTimeout(() => { btn.innerText = orig; btn.disabled = false; }, 2500);
-    }
-
-    async function guardarCambiosEscaner() {
-        const items = [];
-        const eliminar_ips = [];
-
-        scanState.descubiertos.forEach(d => {
-            const marcado = scanState.marcados.has(d.ip);
-            if (marcado) {
-                if (!d.ya_agregado || scanState.editados.has(d.ip)) {
-                    items.push({
-                        ip: d.ip,
-                        nombre: (scanState.nombres[d.ip] || '').trim(),
-                        farm_id: scanState.granjaPorIp[d.ip] || d.router_farm_id || ''
-                    });
-                }
-            } else if (d.ya_agregado) {
-                eliminar_ips.push(d.ip);
-            }
+            html += `
+                <div class="scan-group-card">
+                    ${multiRouter ? `
+                    <div class="scan-group-hdr" onclick="toggleGrupoEscaner('${g.farm_id}')">
+                        <div class="scan-group-title">
+                            <span>${isCol ? '▸' : '▾'} 🏭 ${g.farm_nombre}</span>
+                            <span style="font-size:0.78em; color:var(--text-muted); font-family:monospace;">(${minerosFiltrados.length})</span>
+                            ${agentesHtml}
+                        </div>
+                    </div>` : (agentesHtml ? `
+                    <div class="scan-group-hdr" style="cursor:default;">
+                        <div class="scan-group-title">${agentesHtml}</div>
+                    </div>` : '')}
+                    <div style="display:${(multiRouter && isCol) ? 'none' : 'block'}; overflow-x:auto;">
+                        <table class="scan-table">
+                            <thead>
+                                <tr>
+                                    <th>Modelo / IP</th>
+                                    <th>Nombre</th>
+                                    <th>Granja</th>
+                                    <th style="text-align:right;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>${filasHtml}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
         });
 
-        if (items.length === 0 && eliminar_ips.length === 0) return;
+        wrap.innerHTML = html || '<div style="text-align:center; padding:24px; color:var(--text-muted);">No hay coincidencias con tu búsqueda.</div>';
+    }
 
-        const btn = document.getElementById('btnScanAdd');
+    async function agregarMineroDesdeEscaner(ip, btn) {
+        if (!scanState.esPro && scanState.limite > 0 && scanState.activosCount >= scanState.limite) {
+            mostrarAvisoLimitePlan(`Tu plan Gratis permite ${scanState.limite} mineros. Mejora tu plan para añadir más.`);
+            return;
+        }
+
+        const orig = btn.innerText;
         btn.disabled = true;
-        btn.innerText = '⏳ Guardando...';
+        btn.innerText = '⏳ ...';
+
+        const nombre = (scanState.nombres[ip] || '').trim();
+        const farm_id = scanState.granjaPorIp[ip] || '';
 
         try {
             const r = await fetch('/api/escaner/agregar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items, eliminar_ips })
+                body: JSON.stringify({ items: [{ ip, nombre, farm_id }] })
+            });
+            const j = await r.json();
+            if (r.status === 403 || j.limite_alcanzado) {
+                mostrarAvisoLimitePlan(j.msg || `Tu plan Gratis permite ${scanState.limite} mineros. Mejora tu plan para añadir más.`);
+                btn.disabled = false;
+                btn.innerText = orig;
+                return;
+            }
+            if (j.ok) {
+                scanState.huboCambios = true;
+                mostrarToastFlota(`Minero ${nombre || ip} agregado a tu granja.`);
+                await cargarResultadosEscaner();
+                if (document.getElementById('scanDoneBanner').style.display === 'block') {
+                    mostrarResumenEscaneoCompleto();
+                }
+            } else {
+                mostrarToastFlota(j.msg || 'No se pudo agregar.', true);
+                btn.disabled = false;
+                btn.innerText = orig;
+            }
+        } catch (e) {
+            mostrarToastFlota('Error de conexión al agregar.', true);
+            btn.disabled = false;
+            btn.innerText = orig;
+        }
+    }
+
+    async function quitarMineroDesdeEscaner(ip, btn) {
+        btn.disabled = true;
+        btn.innerText = '⏳ ...';
+        try {
+            const r = await fetch('/api/escaner/agregar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eliminar_ips: [ip] })
             });
             const j = await r.json();
             if (j.ok) {
-                mostrarToastFlota(`Listo: +${j.agregados || 0} agregados, -${j.eliminados || 0} quitados.`);
-                setTimeout(() => window.location.reload(), 1000);
-            } else {
-                mostrarToastFlota(j.msg || 'No se pudieron aplicar los cambios.', true);
-                cargarResultadosEscaner(false);
+                scanState.huboCambios = true;
+                mostrarToastFlota(`Minero ${ip} quitado de tu granja.`);
+                await cargarResultadosEscaner();
+                if (document.getElementById('scanDoneBanner').style.display === 'block') {
+                    mostrarResumenEscaneoCompleto();
+                }
             }
         } catch (e) {
-            mostrarToastFlota('Error de conexión al guardar.', true);
+            mostrarToastFlota('Error de conexión al quitar.', true);
             btn.disabled = false;
         }
     }
