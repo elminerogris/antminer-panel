@@ -150,6 +150,27 @@ def init_db():
             fecha_fin TEXT DEFAULT ''
         )''')
 
+        # --- Tabla temporal de Mineros Descubiertos por el Escáner ---
+        c.execute('''CREATE TABLE IF NOT EXISTS mineros_descubiertos (
+            id SERIAL PRIMARY KEY,
+            owner TEXT NOT NULL,
+            agent_id TEXT DEFAULT 'default',
+            farm_id TEXT DEFAULT '',
+            ip TEXT NOT NULL,
+            mac TEXT DEFAULT '',
+            serial TEXT DEFAULT '',
+            modelo TEXT DEFAULT 'Antminer',
+            algoritmo TEXT DEFAULT 'SHA-256',
+            moneda TEXT DEFAULT 'BTC',
+            unidad TEXT DEFAULT 'TH/s',
+            hashrate REAL DEFAULT 0.0,
+            temp_max INTEGER DEFAULT 0,
+            consumo_w REAL DEFAULT 0.0,
+            worker1 TEXT DEFAULT '',
+            pool1 TEXT DEFAULT '',
+            ultima_act TEXT DEFAULT ''
+        )''')
+
         columnas_nuevas = [
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS agent_id TEXT DEFAULT 'default'",
@@ -336,6 +357,7 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_hosting_cuentas_owner ON hosting_cuentas (owner)",
             "CREATE INDEX IF NOT EXISTS idx_firmware_ota_owner ON firmware_ota (owner, id DESC)",
             "CREATE INDEX IF NOT EXISTS idx_firmware_jobs_owner ON firmware_ota_jobs (owner, estado, id DESC)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_descubiertos_owner_agent_ip ON mineros_descubiertos (owner, agent_id, ip)",
             "ALTER TABLE nombres_mineros DROP CONSTRAINT IF EXISTS nombres_mineros_ip_key",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_nombres_owner_ip ON nombres_mineros (owner, ip)",
             "ALTER TABLE logs_mineros DROP CONSTRAINT IF EXISTS logs_mineros_ip_key",
