@@ -171,6 +171,22 @@ def init_db():
             ultima_act TEXT DEFAULT ''
         )''')
 
+        # --- Tabla de Agentes Conectados (múltiples celulares/PCs por granja) ---
+        c.execute('''CREATE TABLE IF NOT EXISTS agentes_conectados (
+            id SERIAL PRIMARY KEY,
+            owner TEXT NOT NULL,
+            agent_id TEXT NOT NULL,
+            farm_id TEXT DEFAULT '',
+            device_type TEXT DEFAULT 'Celular',
+            run_mode TEXT DEFAULT 'Agente',
+            brand TEXT DEFAULT '',
+            model TEXT DEFAULT '',
+            local_ip TEXT DEFAULT '',
+            subred TEXT DEFAULT '',
+            app_version TEXT DEFAULT '',
+            ultima_act TEXT DEFAULT ''
+        )''')
+
         columnas_nuevas = [
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT 'Admin'",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS agent_id TEXT DEFAULT 'default'",
@@ -358,6 +374,8 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_firmware_ota_owner ON firmware_ota (owner, id DESC)",
             "CREATE INDEX IF NOT EXISTS idx_firmware_jobs_owner ON firmware_ota_jobs (owner, estado, id DESC)",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_descubiertos_owner_agent_ip ON mineros_descubiertos (owner, agent_id, ip)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_agentes_conectados_owner_ag ON agentes_conectados (owner, agent_id)",
+            "CREATE INDEX IF NOT EXISTS idx_agentes_conectados_farm ON agentes_conectados (owner, farm_id)",
             "ALTER TABLE nombres_mineros DROP CONSTRAINT IF EXISTS nombres_mineros_ip_key",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_nombres_owner_ip ON nombres_mineros (owner, ip)",
             "ALTER TABLE logs_mineros DROP CONSTRAINT IF EXISTS logs_mineros_ip_key",
