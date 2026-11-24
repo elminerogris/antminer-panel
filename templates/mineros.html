@@ -38,11 +38,11 @@
     .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.35); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
     .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
 
-    /* Puntos visuales de placas */
-    .board-dots { display: inline-flex; gap: 4px; align-items: center; margin-right: 5px; vertical-align: middle; }
-    .board-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    .board-dot.on { background: #00e676; box-shadow: 0 0 6px rgba(0, 230, 118, 0.7); }
-    .board-dot.off { background: #ff5252; opacity: 0.55; }
+    /* Badges de Consumo y Eficiencia */
+    .badge-kw { background: rgba(56, 189, 248, 0.10); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.28); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
+    .badge-efi-ok { background: rgba(0, 230, 118, 0.10); color: #69f0ae; border: 1px solid rgba(0, 230, 118, 0.28); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
+    .badge-efi-mid { background: rgba(59, 130, 246, 0.12); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.30); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
+    .badge-efi-high { background: rgba(255, 179, 0, 0.12); color: #fcd34d; border: 1px solid rgba(255, 179, 0, 0.32); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
 
     .coin-alt-pill { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 0.72em; font-family: monospace; font-weight: bold; color: #c084fc; background: rgba(192, 132, 252, 0.14); border: 1px solid rgba(192, 132, 252, 0.38); vertical-align: middle; }
 
@@ -73,19 +73,70 @@
     .btn-fleet.glow-danger:hover { background: rgba(255, 82, 82, 0.22); border-color: #ff5252; color: #fff; box-shadow: 0 0 14px rgba(255, 82, 82, 0.55); }
     .btn-fleet.dimmed { opacity: 0.45; }
 
-    .row-act-btn { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 7px; border-radius: 5px; font-size: 0.85em; cursor: pointer; transition: all 0.16s ease; }
-    .row-act-btn.led:hover { border-color: #facc15; color: #facc15; background: rgba(250, 204, 21, 0.15); }
-    .row-act-btn.del:hover { border-color: #ff5252; color: #ff5252; background: rgba(255, 82, 82, 0.18); }
+    /* Botones rápidos por fila (LED y X roja moderna) */
+    .row-act-wrap { display: inline-flex; align-items: center; gap: 6px; }
+    .row-act-btn {
+        width: 29px;
+        height: 29px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        border-radius: 7px;
+        font-size: 0.88em;
+        cursor: pointer;
+        transition: all 0.18s ease;
+    }
+    .row-act-btn.led:hover {
+        border-color: #facc15;
+        color: #facc15;
+        background: rgba(250, 204, 21, 0.14);
+        box-shadow: 0 0 10px rgba(250, 204, 21, 0.35);
+    }
+    .row-act-btn.remove-x {
+        color: #ff6b6b;
+        border-color: rgba(255, 82, 82, 0.30);
+        background: rgba(255, 82, 82, 0.07);
+        font-weight: 800;
+        font-size: 0.92em;
+    }
+    .row-act-btn.remove-x:hover {
+        border-color: #ff5252;
+        color: #ffffff;
+        background: rgba(255, 82, 82, 0.26);
+        box-shadow: 0 0 12px rgba(255, 82, 82, 0.45);
+        transform: scale(1.06);
+    }
 
     /* Tabla avanzada de Flota */
     .table-container { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table { width: 100%; min-width: 780px; border-collapse: collapse; white-space: nowrap; }
+    table { width: 100%; min-width: 860px; border-collapse: collapse; white-space: nowrap; }
     th { text-align: left; padding: 12px 14px; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.015); user-select: none; transition: 0.15s; }
     th.sortable { cursor: pointer; }
     th.sortable:hover { color: #fff; background: rgba(59, 130, 246, 0.08); }
     th.sort-active { color: #60a5fa !important; }
     .sort-arrow { display: inline-block; margin-left: 4px; font-size: 0.95em; opacity: 0.65; }
     th.sort-active .sort-arrow { opacity: 1; color: #38bdf8; }
+    .th-info-dot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.07);
+        color: #8b8d9c;
+        font-size: 9px;
+        font-family: serif;
+        font-style: italic;
+        font-weight: bold;
+        margin-left: 4px;
+        vertical-align: middle;
+        transition: 0.15s;
+    }
+    th:hover .th-info-dot { background: rgba(51, 102, 255, 0.45); color: #fff; }
 
     td { padding: 12px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.85em; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
@@ -182,8 +233,59 @@
     .modal-preset-pill { background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); color: var(--text-muted); padding: 3px 9px; border-radius: 14px; font-weight: bold; cursor: pointer; transition: 0.18s; }
     .modal-preset-pill:hover { color: #fff; border-color: #3b82f6; background: rgba(51,102,255,0.18); box-shadow: 0 0 8px rgba(59,130,246,0.4); }
 
-    .fleet-smart-tooltip { position: fixed; display: none; width: 255px; max-width: calc(100vw - 20px); background: rgba(10, 11, 16, 0.98); border: 1px solid rgba(51, 102, 255, 0.55); border-radius: 7px; padding: 9px 11px; color: #d1d3e0; font-family: sans-serif; font-size: 11.5px; line-height: 1.4; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85); z-index: 99999; pointer-events: none; }
-    .fleet-tt-title { color: #fff; font-weight: bold; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+    /* Portal Tooltip Inteligente estilo Telemetría (anti-colisión) */
+    .fleet-smart-tooltip {
+        position: fixed;
+        display: none;
+        width: 275px;
+        max-width: calc(100vw - 20px);
+        background: rgba(10, 11, 16, 0.98);
+        border: 1px solid rgba(51, 102, 255, 0.55);
+        border-radius: 7px;
+        padding: 10px 12px;
+        color: #d1d3e0;
+        font-family: sans-serif;
+        font-size: 11.5px;
+        line-height: 1.45;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
+        z-index: 99999;
+        pointer-events: none;
+    }
+    .fleet-tt-title {
+        color: #fff;
+        font-weight: bold;
+        font-size: 12px;
+        margin-bottom: 5px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .fleet-tt-range {
+        margin-top: 6px;
+        padding: 5px 7px;
+        background: rgba(56, 189, 248, 0.08);
+        border-left: 2px solid #38bdf8;
+        border-radius: 3px;
+        font-family: monospace;
+        font-size: 10.5px;
+        color: #38bdf8;
+    }
+    .fleet-tt-arrow {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: rgba(10, 11, 16, 0.98);
+        transform: rotate(45deg);
+    }
+    .fleet-tt-arrow.bottom {
+        bottom: -6px;
+        border-right: 1px solid rgba(51, 102, 255, 0.55);
+        border-bottom: 1px solid rgba(51, 102, 255, 0.55);
+    }
+    .fleet-tt-arrow.top {
+        top: -6px;
+        border-left: 1px solid rgba(51, 102, 255, 0.55);
+        border-top: 1px solid rgba(51, 102, 255, 0.55);
+    }
 
     .fleet-toast { position: fixed; bottom: 22px; right: 22px; background: rgba(10, 12, 18, 0.96); border: 1px solid #00e676; color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 0.86em; font-weight: bold; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 230, 118, 0.3); z-index: 9999; display: none; align-items: center; gap: 8px; }
 </style>
@@ -376,7 +478,7 @@
         <button type="button" class="btn-fleet bulk-action-btn dimmed" data-ftt="btn_normal" onclick="confirmarAccionMasiva('normal', '▶ Modo Normal', '¿Reanudar en modo Normal los mineros seleccionados?')">▶ Normal</button>
         <button type="button" class="btn-fleet glow-gold bulk-action-btn dimmed" data-ftt="btn_led" onclick="confirmarAccionMasiva('blink', '💡 Localizar con LED', '¿Hacer parpadear el LED en los mineros seleccionados?')">💡 LED</button>
         <button type="button" class="btn-fleet glow-danger bulk-action-btn dimmed" data-ftt="btn_reset" onclick="confirmarAccionMasiva('reset', '⚠️ Formatear de Fábrica', '¿Estás seguro de formatear a valores de fábrica los mineros seleccionados?')">⚠️ Reset</button>
-        <button type="button" class="btn-fleet glow-danger bulk-action-btn dimmed" data-ftt="btn_delete" onclick="confirmarAccionMasiva('eliminar', '🗑️ Eliminar del Panel', '¿Quitar los mineros seleccionados del panel? Esto libera cupo si cambiaron de IP o fueron desconectados.')">🗑️ Eliminar</button>
+        <button type="button" class="btn-fleet glow-danger bulk-action-btn dimmed" data-ftt="btn_delete" onclick="confirmarAccionMasiva('eliminar', '✕ Quitar del Panel', '¿Quitar los mineros seleccionados del panel? Esto libera cupo si cambiaron de IP o fueron desconectados.')">✕ Quitar</button>
         <button type="button" class="btn-fleet glow-purple" data-ftt="btn_compare" onclick="abrirComparadorMineros()">⚖️ Comparar</button>
         <button type="button" class="btn-fleet glow-cyan" data-ftt="btn_scan" onclick="abrirSmartScanner()">🔍 + Buscar Mineros</button>
         <a href="/exportar_reporte_mensual" class="btn-fleet glow-green" data-ftt="btn_mensual">📊 Reporte Mes</a>
@@ -390,12 +492,13 @@
         <thead>
             <tr>
                 <th style="width:32px;"><input type="checkbox" id="checkAllFleet" onclick="seleccionarTodosVisibles(this)"></th>
-                <th class="sortable" data-col="1" onclick="ordenarTabla(1)">Nombre <span class="sort-arrow">↕</span></th>
-                <th class="sortable" data-col="2" onclick="ordenarTabla(2)">Modelo / FW <span class="sort-arrow">↕</span></th>
-                <th class="sortable" data-col="3" onclick="ordenarTabla(3)">Estado <span class="sort-arrow">↕</span></th>
-                <th class="sortable" data-col="4" onclick="ordenarTabla(4)">Hashrate (5s / 30m) <span class="sort-arrow">↕</span></th>
-                <th>Placas / Chips</th>
-                <th class="sortable" data-col="6" onclick="ordenarTabla(6)">Temp (Chip / Amb) <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="1" data-ftt="col_nombre" onclick="ordenarTabla(1)">Nombre <span class="th-info-dot">i</span><span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="2" data-ftt="col_hashrate" onclick="ordenarTabla(2)">Hashrate <span class="th-info-dot">i</span><span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="3" data-ftt="col_temp" onclick="ordenarTabla(3)">Temperatura <span class="th-info-dot">i</span><span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="4" data-ftt="col_consumo" onclick="ordenarTabla(4)">Consumo <span class="th-info-dot">i</span><span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="5" data-ftt="col_eficiencia" onclick="ordenarTabla(5)">Eficiencia <span class="th-info-dot">i</span><span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="6" data-ftt="col_modelo" onclick="ordenarTabla(6)">Modelo / FW <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="7" data-ftt="col_estado" onclick="ordenarTabla(7)">Estado <span class="sort-arrow">↕</span></th>
                 <th style="text-align:center;">Acciones</th>
             </tr>
         </thead>
@@ -403,6 +506,8 @@
             {% for m in mineros %}
             {% set tm = m.temp_max | int %}
             {% set m_t_cls = 'badge-t-crit' if tm >= 85 else ('badge-t-warn' if tm >= 75 else 'badge-t-ok') %}
+            {% set efi_val = m.eficiencia | float %}
+            {% set efi_cls = 'badge-efi-ok' if (efi_val > 0 and efi_val <= 24) else ('badge-efi-mid' if (efi_val > 0 and efi_val <= 34) else 'badge-efi-high') %}
             {% set n_placas = m.placas_activas | int %}
             {% set granja_lbl = m.granja_nombre or m.farm_nombre or m.farm_city or m.farm_id or 'Granja' %}
             <tr class="fila-minero"
@@ -440,6 +545,43 @@
                     <div class="sub-txt">🏭 {{ granja_lbl }}</div>
                 </td>
                 
+                <td data-sort-num="{{ m.hashrate }}" translate="no">
+                    {% if m.online and m.hashrate > 0 %}
+                        <b style="color:#3b82f6;font-size:1.05em;font-family:monospace;">{{ m.hashrate }}</b>
+                        <span style="color:var(--text-muted);font-family:monospace;">{{ m.unidad }}</span>
+                        <div class="sub-txt">30m: {{ m.hashrate_30m }} {{ m.unidad }}</div>
+                    {% else %}
+                        <span style="color:var(--text-muted);font-family:monospace;">0 {{ m.unidad }}</span>
+                    {% endif %}
+                </td>
+
+                <td data-sort-num="{{ tm }}" translate="no">
+                    {% if m.online %}
+                        <span class="{{ m_t_cls }}">{{ tm }}°C</span>
+                        {% if m.temp_amb > 0 %}
+                            <div class="sub-txt">🍃 Amb: {{ m.temp_amb }}°C</div>
+                        {% endif %}
+                    {% else %}
+                        <span style="color:var(--text-muted);">0°C</span>
+                    {% endif %}
+                </td>
+
+                <td data-sort-num="{{ m.consumo_kw }}" translate="no">
+                    {% if m.online and m.consumo_kw > 0 %}
+                        <span class="badge-kw">⚡ {{ m.consumo_kw }} kW</span>
+                    {% else %}
+                        <span style="color:var(--text-muted); font-family:monospace;">0.00 kW</span>
+                    {% endif %}
+                </td>
+
+                <td data-sort-num="{{ efi_val if (m.online and efi_val > 0) else 999999 }}" translate="no">
+                    {% if m.online and efi_val > 0 %}
+                        <span class="{{ efi_cls }}">{{ m.eficiencia }} {{ m.unidad_efi }}</span>
+                    {% else %}
+                        <span style="color:var(--text-muted); font-family:monospace;">-</span>
+                    {% endif %}
+                </td>
+
                 <td data-sort-str="{{ m.modelo }}" translate="no">
                     <div style="font-weight:bold;">
                         {{ m.modelo }}
@@ -460,45 +602,12 @@
                         <span class="uptime-hover" data-ftt="uptime_info">{{ m.uptime }}</span>
                     </div>
                 </td>
-                
-                <td data-sort-num="{{ m.hashrate }}" translate="no">
-                    {% if m.online and m.hashrate > 0 %}
-                        <b style="color:#3b82f6;font-size:1.05em;font-family:monospace;">{{ m.hashrate }}</b>
-                        <span style="color:var(--text-muted);font-family:monospace;">/ {{ m.hashrate_30m }} {{ m.unidad }}</span>
-                        <div class="sub-txt">{{ m.consumo_kw }} kW · {{ m.eficiencia }} {{ m.unidad_efi }}</div>
-                    {% else %}
-                        <span style="color:var(--text-muted);font-family:monospace;">0 {{ m.unidad }}</span>
-                    {% endif %}
-                </td>
-
-                <td translate="no">
-                    {% if m.online %}
-                        <span class="board-dots" title="{{ n_placas }} placas activas">
-                            {% for i in range(3) %}
-                                <span class="board-dot {{ 'on' if i < n_placas else 'off' }}"></span>
-                            {% endfor %}
-                        </span>
-                        <span style="color:var(--accent-green);font-weight:bold;">{{ n_placas }} pl.</span>
-                        <div class="sub-txt">{{ m.chips_totales }} chips · {{ m.errores }} err</div>
-                    {% else %}
-                        <span style="color:var(--text-muted);">-</span>
-                    {% endif %}
-                </td>
-
-                <td data-sort-num="{{ tm }}" translate="no">
-                    {% if m.online %}
-                        <span class="{{ m_t_cls }}">{{ tm }}°C</span>
-                        {% if m.temp_amb > 0 %}
-                            <div class="sub-txt">🍃 Amb: {{ m.temp_amb }}°C</div>
-                        {% endif %}
-                    {% else %}
-                        <span style="color:var(--text-muted);">0°C</span>
-                    {% endif %}
-                </td>
 
                 <td style="text-align:center;" onclick="event.stopPropagation();">
-                    <button type="button" class="row-act-btn led" title="Parpadear LED" onclick="blinkIndividual('{{ m.ip }}', this)">💡</button>
-                    <button type="button" class="row-act-btn del" title="Eliminar minero del panel" onclick="confirmarEliminarIndividual('{{ m.ip }}', '{{ m.nombre }}')">🗑️</button>
+                    <div class="row-act-wrap">
+                        <button type="button" class="row-act-btn led" data-ftt="row_led" onclick="blinkIndividual('{{ m.ip }}', this)">💡</button>
+                        <button type="button" class="row-act-btn remove-x" data-ftt="row_remove" onclick="confirmarEliminarIndividual('{{ m.ip }}', '{{ m.nombre }}')">✕</button>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -545,14 +654,23 @@
         'pill_offline': { t: '🔴 Sin Conexión', d: 'Muestra equipos apagados, sin red LAN o con fallo de fuente.' },
         'pill_temp': { t: '🔥 Alerta Térmica (≥ 75°C)', d: 'Filtra equipos calientes que requieren revisión de ventilación o limpieza.' },
         'pill_hw': { t: '⚠️ Revisión de Hardware', d: 'Equipos con más de 50 errores HW o tasa de rechazo superior al 1.5%.' },
+        'col_nombre': { t: '🏷️ Nombre del Minero', d: 'Haz clic para ordenar tus equipos por número (001, 002...) o alfabéticamente (A–Z).', r: 'Debajo muestra a qué Granja pertenece' },
+        'col_hashrate': { t: '⚡ Hashrate (Potencia)', d: 'Velocidad real de minado actual y promedio de los últimos 30 minutos.', r: 'Clic para ordenar de mayor a menor potencia' },
+        'col_temp': { t: '🌡️ Temperatura de Chips', d: 'Calor máximo en los chips internos. Es el dato clave para cuidar tu equipo.', r: '🟢 < 75°C Normal | 🟠 75–84°C Calor | 🔴 ≥ 85°C Crítico' },
+        'col_consumo': { t: '🔌 Consumo Eléctrico (kW)', d: 'Energía aproximada que consume el minero por hora en kilovatios (kW).', r: 'Clic para ver qué equipos consumen más luz' },
+        'col_eficiencia': { t: '🔋 Eficiencia Energética', d: 'Cuánta electricidad (Joules) gasta el equipo para producir cada unidad de potencia.', r: 'Menor número = más eficiente y menos gasto de luz' },
+        'col_modelo': { t: '🖥️ Modelo y Firmware', d: 'Modelo detectado del ASIC y versión de software instalada.' },
+        'col_estado': { t: '📡 Estado de Conexión', d: 'Indica si el equipo está minando en línea o desconectado.' },
         'uptime_info': { t: '⏱️ Tiempo Activo (Uptime)', d: 'Tiempo continuo que lleva encendido y minando este equipo desde su último reinicio.' },
+        'row_led': { t: '💡 Ubicar con Luz LED', d: 'Hace parpadear la luz LED física de este minero para encontrarlo rápido en tu rack.' },
+        'row_remove': { t: '✕ Quitar Minero del Panel', d: 'Elimina este equipo de tu lista y libera 1 cupo en tu plan al instante. No apaga ni borra el minero físico.', r: 'Puedes volver a agregarlo luego desde el Escáner' },
         'btn_pools': { t: '⛏ Cambio Masivo de Pools', d: 'Configura las 3 URLs Stratum y asigna automáticamente el sufijo de cada Worker.' },
         'btn_restart': { t: '🔄 Reinicio Masivo', d: 'Envía orden de Reboot a todos los mineros marcados.' },
         'btn_sleep': { t: '😴 Reposo Masivo (Sleep)', d: 'Detiene el minado manteniendo la placa de control encendida (~40W).' },
         'btn_normal': { t: '▶ Reanudar Minado', d: 'Devuelve los mineros seleccionados a operación normal.' },
         'btn_led': { t: '💡 Localizador LED', d: 'Hace parpadear el LED físico de los equipos marcados para ubicarlos en el rack.' },
         'btn_reset': { t: '⚠️ Factory Reset', d: 'Restaura los valores de fábrica de los equipos seleccionados.' },
-        'btn_delete': { t: '🗑️ Eliminar del Panel', d: 'Borra los equipos seleccionados del panel (ideal para quitar mineros offline o liberar cupo en Plan Gratis).' },
+        'btn_delete': { t: '✕ Quitar Seleccionados', d: 'Quita del panel todos los mineros marcados y libera sus cupos en tu plan.', r: 'No afecta la configuración física del minero' },
         'btn_compare': { t: '⚖️ Comparar 2 Mineros', d: 'Compara hashrate, temperatura, eficiencia y errores de 2 equipos lado a lado.' },
         'btn_scan': { t: '🔍 Escáner Inteligente de Red', d: 'Escanea tus redes conectadas para detectar Antminer nuevos y agregarlos en 1 clic.' },
         'btn_mensual': { t: '📊 Reporte Mensual (Excel)', d: 'Descarga el cierre mensual con kWh consumidos, costo eléctrico y ganancia neta estimada por equipo.' },
@@ -600,8 +718,8 @@
             sortAscActual = !sortAscActual;
         } else {
             sortColActual = colIdx;
-            // Para Hashrate (4), Temp (6) y Estado (3) es más útil empezar de mayor a menor
-            sortAscActual = (colIdx === 1 || colIdx === 2);
+            // Nombre (1), Eficiencia (5 - menor es mejor) y Modelo (6) empiezan ascendente; Hashrate/Temp/Consumo/Estado empiezan de mayor a menor
+            sortAscActual = (colIdx === 1 || colIdx === 5 || colIdx === 6);
         }
 
         filas.sort((a, b) => {
@@ -625,7 +743,6 @@
 
         filas.forEach(f => tbody.appendChild(f));
 
-        // Actualizar indicadores visuales (▲ / ▼) en los encabezados
         document.querySelectorAll('#tablaMineros thead th.sortable').forEach(th => {
             const c = parseInt(th.getAttribute('data-col'), 10);
             const arrow = th.querySelector('.sort-arrow');
@@ -661,7 +778,7 @@
     function confirmarEliminarIndividual(ip, nombre) {
         ipIndividualEliminar = ip;
         accionMasivaPendiente = 'eliminar_individual';
-        document.getElementById('confirmBulkTitle').innerText = `🗑️ Eliminar ${nombre}`;
+        document.getElementById('confirmBulkTitle').innerText = `✕ Quitar ${nombre}`;
         document.getElementById('confirmBulkText').innerText = `¿Quitar el minero ${ip} de tu panel? Esto liberará 1 cupo en tu plan de inmediato.`;
         document.getElementById('confirmBulkModal').style.display = 'flex';
     }
@@ -1206,13 +1323,13 @@
             .then(r => r.json())
             .then(d => {
                 if (d.status === 'ok') {
-                    mostrarToastFlota(`${d.eliminados} minero(s) eliminado(s) del panel.`);
+                    mostrarToastFlota(`${d.eliminados} minero(s) quitado(s) del panel.`);
                     setTimeout(() => location.reload(), 900);
                 } else {
-                    mostrarToastFlota('No se pudieron eliminar los mineros.', true);
+                    mostrarToastFlota('No se pudieron quitar los mineros.', true);
                 }
             })
-            .catch(() => mostrarToastFlota('Error de conexión al eliminar.', true));
+            .catch(() => mostrarToastFlota('Error de conexión al quitar.', true));
             return;
         }
 
@@ -1352,32 +1469,59 @@
         });
     }
 
+    // ==================== TOOLTIP FLOTANTE ESTILO TELEMETRÍA ====================
+    function mostrarTooltipFlota(el, info) {
+        const box = document.getElementById('fleetSmartTooltip');
+        if (!box || !el || !info) return;
+        if (box.parentNode !== document.body) document.body.appendChild(box);
+
+        let html = `<div class="fleet-tt-title">${info.t}</div><div>${info.d}</div>`;
+        if (info.r) html += `<div class="fleet-tt-range">${info.r}</div>`;
+        html += `<div id="fleetTtArrow" class="fleet-tt-arrow bottom"></div>`;
+
+        box.innerHTML = html;
+        box.style.display = 'block';
+
+        const r = el.getBoundingClientRect();
+        const bw = box.offsetWidth || 275;
+        const bh = box.offsetHeight || 85;
+        const centroX = r.left + (r.width / 2);
+
+        let left = Math.max(10, Math.min(window.innerWidth - bw - 10, centroX - (bw / 2)));
+        let top = r.top - bh - 10;
+        const arrow = document.getElementById('fleetTtArrow');
+
+        if (top < 10) {
+            top = r.bottom + 10;
+            if (arrow) arrow.className = 'fleet-tt-arrow top';
+        } else {
+            if (arrow) arrow.className = 'fleet-tt-arrow bottom';
+        }
+
+        if (arrow) {
+            const arrowLeft = Math.max(12, Math.min(bw - 22, centroX - left - 5));
+            arrow.style.left = arrowLeft + 'px';
+        }
+
+        box.style.left = left + 'px';
+        box.style.top = top + 'px';
+    }
+
+    function ocultarTooltipFlota() {
+        const box = document.getElementById('fleetSmartTooltip');
+        if (box) box.style.display = 'none';
+    }
+
     window.addEventListener('load', function() {
-        // Ordenar por defecto por Nombre (natural: números primero, luego alfabético)
         ordenarTabla(1, true);
 
-        const box = document.getElementById('fleetSmartTooltip');
-        if (!box) return;
         document.querySelectorAll('[data-ftt]').forEach(el => {
             const info = FLEET_TOOLTIPS[el.getAttribute('data-ftt')];
             if (!info) return;
-            el.addEventListener('mouseenter', function() {
-                box.innerHTML = `<div class="fleet-tt-title">${info.t}</div><div>${info.d}</div>`;
-                box.style.display = 'block';
-                const r = el.getBoundingClientRect();
-                const bw = box.offsetWidth || 255;
-                const bh = box.offsetHeight || 75;
-                let left = r.left + (r.width / 2) - (bw / 2);
-                left = Math.max(10, Math.min(window.innerWidth - bw - 10, left));
-                let top = r.top - bh - 8;
-                if (top < 10) top = r.bottom + 8;
-                box.style.left = left + 'px';
-                box.style.top = top + 'px';
-            });
-            el.addEventListener('mouseleave', function() {
-                box.style.display = 'none';
-            });
+            el.addEventListener('mouseenter', () => mostrarTooltipFlota(el, info));
+            el.addEventListener('mouseleave', ocultarTooltipFlota);
         });
+        window.addEventListener('scroll', ocultarTooltipFlota, { passive: true });
     });
 </script>
 {% endblock %}
