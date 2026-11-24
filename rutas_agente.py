@@ -322,7 +322,6 @@ def api_cambiar_clave_masiva():
         )
         enviados += 1
 
-    # Guardar la nueva clave en el perfil para que el agente la use de inmediato
     cur.execute("UPDATE usuarios SET miner_pass=%s WHERE username=%s", (new_pass, owner))
     return jsonify({"status": "ok", "enviados": enviados})
 
@@ -381,7 +380,6 @@ def recibir_datos():
     ahora_minuto = ahora_dt.strftime("%Y-%m-%d %H:%M:00")
     ahora_ts = time.time()
 
-    # ==================== CREACIÓN / ACTUALIZACIÓN AUTOMÁTICA DE LA GRANJA POR ROUTER ====================
     dev_info = datos.get('device') if isinstance(datos.get('device'), dict) else {}
     phone_info = datos.get('phone') if isinstance(datos.get('phone'), dict) else {}
     src_dev = dev_info if dev_info else phone_info
@@ -408,7 +406,6 @@ def recibir_datos():
     batt_charging = 1 if bool(src_dev.get('charging')) else 0
     batt_temp = a_float_seguro(src_dev.get('battery_temp_c'), 0.0)
 
-    # Identificación del router por MAC / BSSID para evitar granjas duplicadas en el mismo Wi-Fi
     router_mac_raw = (
         datos.get('router_mac')
         or src_dev.get('router_mac')
@@ -442,7 +439,6 @@ def recibir_datos():
     if not gw_detectado:
         gw_detectado = subred_detectada.replace('.x', '.1') if subred_detectada.endswith('.x') else '192.168.0.1'
 
-    # Buscar si ya existe una granja para este mismo router (evita duplicados con 2 o 3 celulares en el mismo Wi-Fi)
     farm_id_efectivo = agent_id
     try:
         if router_mac_fmt:
@@ -509,7 +505,6 @@ def recibir_datos():
     except Exception as err_gs:
         print(f"Error actualizando granjas_sedes ({farm_id_efectivo}): {err_gs}")
 
-    # Leer configuración Zero-Touch de esta sede
     cur.execute(
         "SELECT zt_activo, zt_pool1, zt_worker_prefix, zt_pass1, zt_pool2, zt_pool3 FROM granjas_sedes WHERE owner=%s AND farm_id=%s LIMIT 1",
         (owner_user, farm_id_efectivo)
@@ -664,7 +659,6 @@ def recibir_datos():
 
             es_minero_nuevo = (prev_m is None)
 
-            # Guardar siempre en mineros_descubiertos para el Escáner Inteligente
             try:
                 cur.execute("""
                     INSERT INTO mineros_descubiertos (
@@ -774,7 +768,6 @@ def recibir_datos():
                             real_source=EXCLUDED.real_source''',
                         (ip_m, owner_user, agent_id, farm_id_asignada, miner_uid, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fw_tipo, perfil_oc, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
 
-            # ==================== ZERO-TOUCH ONBOARDING PARA EQUIPOS NUEVOS ====================
             if es_minero_nuevo and zt_on:
                 zt_p1 = str(zt_cfg.get('zt_pool1') or '').strip()
                 zt_p2 = str(zt_cfg.get('zt_pool2') or '').strip()
@@ -1085,10 +1078,13 @@ def api_escaner_resultados():
     u_cfg = cur.fetchone() or {}
     es_pro, limite_efectivo, _ = evaluar_plan_usuario(cur, u_cfg)
 
-    cur.execute("SELECT ip, mac FROM mineros_activos WHERE owner=%s", (owner,))
+    cur.execute("SELECT ip, mac, farm_id FROM mineros_activos WHERE owner=%s", (owner,))
     activos = cur.fetchall() or []
-    ips_activas = {r['ip'] for r in activos}
+    activos_por_ip = {r['ip']: r for r in activos}
     macs_activas = {normalizar_mac(r.get('mac')) for r in activos if normalizar_mac(r.get('mac'))}
+
+    cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (owner,))
+    nombres_map = {r['ip']: r['nombre'] for r in (cur.fetchall() or []) if r.get('nombre')}
 
     cur.execute("""
         SELECT farm_id, nombre, ciudad, subred, agent_id
@@ -1116,23 +1112,26 @@ def api_escaner_resultados():
             continue
         vistos.add(ip_d)
         mac_d = normalizar_mac(d.get('mac'))
-        ya_agregado = (ip_d in ips_activas) or (bool(mac_d) and mac_d in macs_activas)
+        activo_row = activos_por_ip.get(ip_d)
+        ya_agregado = (activo_row is not None) or (bool(mac_d) and mac_d in macs_activas)
+        octeto = ip_d.split('.')[-1] if '.' in ip_d else ip_d
+        modelo_d = d.get('modelo') or 'Antminer'
+        nombre_defecto = nombres_map.get(ip_d) or f"{modelo_d} #{octeto}"
+        farm_asignada = (activo_row.get('farm_id') if activo_row and activo_row.get('farm_id') else '') or (d.get('farm_id') or '')
+
         lista_final.append({
             "ip": ip_d,
             "agent_id": d.get('agent_id') or 'default',
-            "farm_id": d.get('farm_id') or '',
-            "mac": d.get('mac') or '-',
-            "modelo": d.get('modelo') or 'Antminer',
+            "farm_id": farm_asignada,
+            "router_farm_id": d.get('farm_id') or '',
+            "modelo": modelo_d,
             "moneda": d.get('moneda') or 'BTC',
-            "unidad": d.get('unidad') or 'TH/s',
-            "hashrate": round(a_float_seguro(d.get('hashrate'), 0.0), 2),
-            "temp_max": a_int_seguro(d.get('temp_max'), 0),
-            "worker1": d.get('worker1') or '-',
+            "nombre": nombre_defecto,
             "ultima_act": d.get('ultima_act') or '',
             "ya_agregado": ya_agregado
         })
 
-    lista_final.sort(key=lambda x: (1 if x['ya_agregado'] else 0, x['ip']))
+    lista_final.sort(key=lambda x: (0 if x['ya_agregado'] else 1, x['ip']))
 
     return jsonify({
         "ok": True,
@@ -1172,11 +1171,17 @@ def api_escaner_blink():
 def api_escaner_agregar():
     owner = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
-    ips = data.get('ips', [])
-    farm_id_destino = str(data.get('farm_id') or '').strip()
 
-    if not ips or not isinstance(ips, list):
-        return jsonify({"ok": False, "msg": "Selecciona al menos un minero."}), 400
+    items = data.get('items', [])
+    eliminar_ips = data.get('eliminar_ips', [])
+
+    # Compatibilidad con formato antiguo {ips: [...], farm_id: "..."}
+    if not items and isinstance(data.get('ips'), list):
+        f_def = str(data.get('farm_id') or '').strip()
+        items = [{"ip": ip_x, "farm_id": f_def, "nombre": ""} for ip_x in data.get('ips')]
+
+    if not items and not eliminar_ips:
+        return jsonify({"ok": False, "msg": "No hay cambios para aplicar."}), 400
 
     con = get_db()
     con.autocommit = True
@@ -1186,69 +1191,99 @@ def api_escaner_agregar():
     u_cfg = cur.fetchone() or {}
     es_pro, limite_efectivo, _ = evaluar_plan_usuario(cur, u_cfg)
 
-    cur.execute("SELECT COUNT(*) AS total FROM mineros_activos WHERE owner=%s", (owner,))
-    total_actual = a_int_seguro((cur.fetchone() or {}).get('total'), 0)
+    # 1. Primero eliminar los desmarcados para liberar cupo
+    eliminados = 0
+    for ip_del in (eliminar_ips or []):
+        ip_c = str(ip_del or '').strip()
+        if not ip_c:
+            continue
+        cur.execute("DELETE FROM mineros_activos WHERE owner=%s AND ip=%s", (owner, ip_c))
+        if cur.rowcount > 0:
+            eliminados += 1
+
+    # 2. Contar cuántos quedan activos tras eliminar
+    cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s", (owner,))
+    ips_existentes = {r['ip'] for r in (cur.fetchall() or [])}
+    total_actual = len(ips_existentes)
 
     ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     agregados = 0
+    actualizados = 0
     bloqueados = 0
 
-    for ip_raw in ips:
-        ip_c = str(ip_raw or '').strip()
+    for it in (items or []):
+        ip_c = str(it.get('ip') or '').strip()
         if not ip_c:
             continue
+        nombre_custom = str(it.get('nombre') or '').strip()[:50]
+        farm_dest = str(it.get('farm_id') or '').strip()
 
-        cur.execute("SELECT 1 FROM mineros_activos WHERE owner=%s AND ip=%s LIMIT 1", (owner, ip_c))
-        if cur.fetchone():
-            continue
+        ya_existe = ip_c in ips_existentes
 
-        if limite_efectivo > 0 and (total_actual + agregados) >= limite_efectivo:
-            bloqueados += 1
-            continue
+        if not ya_existe:
+            if limite_efectivo > 0 and (total_actual + agregados) >= limite_efectivo:
+                bloqueados += 1
+                continue
 
-        cur.execute("""
-            SELECT * FROM mineros_descubiertos
-            WHERE owner=%s AND ip=%s
-            ORDER BY ultima_act DESC LIMIT 1
-        """, (owner, ip_c))
-        d = cur.fetchone()
-        if not d:
-            continue
+            cur.execute("""
+                SELECT * FROM mineros_descubiertos
+                WHERE owner=%s AND ip=%s
+                ORDER BY ultima_act DESC LIMIT 1
+            """, (owner, ip_c))
+            d = cur.fetchone()
+            if not d:
+                continue
 
-        ag_id = str(d.get('agent_id') or 'default').strip() or 'default'
-        f_id = farm_id_destino or str(d.get('farm_id') or ag_id)
-        mac_n = normalizar_mac(d.get('mac'))
-        sn_n = normalizar_sn(d.get('serial'))
-        miner_uid = f"MAC:{mac_n}" if mac_n else (f"SN:{sn_n}" if sn_n else f"IP:{ag_id}:{ip_c}")
+            ag_id = str(d.get('agent_id') or 'default').strip() or 'default'
+            f_id = farm_dest or str(d.get('farm_id') or ag_id)
+            mac_n = normalizar_mac(d.get('mac'))
+            sn_n = normalizar_sn(d.get('serial'))
+            miner_uid = f"MAC:{mac_n}" if mac_n else (f"SN:{sn_n}" if sn_n else f"IP:{ag_id}:{ip_c}")
 
-        cur.execute("""
-            INSERT INTO mineros_activos (
-                ip, owner, agent_id, farm_id, miner_uid, modelo, algoritmo, moneda, unidad,
-                hashrate, hashrate_30m, temp_max, consumo_w, estado, ultima_act, errores,
-                pool1, worker1, pass1, mac, serial, firmware, fans, uptime
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, 'online', %s, 0,
-                %s, %s, '123', %s, %s, 'Stock', '0 / 0 RPM', 'Recién agregado'
-            )
-            ON CONFLICT (owner, agent_id, ip) DO UPDATE SET
-                farm_id=EXCLUDED.farm_id, estado='online', ultima_act=EXCLUDED.ultima_act
-        """, (
-            ip_c, owner, ag_id, f_id, miner_uid,
-            d.get('modelo') or 'Antminer', d.get('algoritmo') or 'SHA-256',
-            d.get('moneda') or 'BTC', d.get('unidad') or 'TH/s',
-            a_float_seguro(d.get('hashrate'), 0.0), a_float_seguro(d.get('hashrate'), 0.0),
-            a_int_seguro(d.get('temp_max'), 0), a_float_seguro(d.get('consumo_w'), 0.0),
-            ahora, d.get('pool1') or '', d.get('worker1') or '',
-            d.get('mac') or '-', d.get('serial') or '-'
-        ))
-        agregados += 1
+            cur.execute("""
+                INSERT INTO mineros_activos (
+                    ip, owner, agent_id, farm_id, miner_uid, modelo, algoritmo, moneda, unidad,
+                    hashrate, hashrate_30m, temp_max, consumo_w, estado, ultima_act, errores,
+                    pool1, worker1, pass1, mac, serial, firmware, fans, uptime
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, 'online', %s, 0,
+                    %s, %s, '123', %s, %s, 'Stock', '0 / 0 RPM', 'Recién agregado'
+                )
+                ON CONFLICT (owner, agent_id, ip) DO UPDATE SET
+                    farm_id=EXCLUDED.farm_id, estado='online', ultima_act=EXCLUDED.ultima_act
+            """, (
+                ip_c, owner, ag_id, f_id, miner_uid,
+                d.get('modelo') or 'Antminer', d.get('algoritmo') or 'SHA-256',
+                d.get('moneda') or 'BTC', d.get('unidad') or 'TH/s',
+                a_float_seguro(d.get('hashrate'), 0.0), a_float_seguro(d.get('hashrate'), 0.0),
+                a_int_seguro(d.get('temp_max'), 0), a_float_seguro(d.get('consumo_w'), 0.0),
+                ahora, d.get('pool1') or '', d.get('worker1') or '',
+                d.get('mac') or '-', d.get('serial') or '-'
+            ))
+            agregados += 1
+        else:
+            if farm_dest:
+                cur.execute("UPDATE mineros_activos SET farm_id=%s WHERE owner=%s AND ip=%s", (farm_dest, owner, ip_c))
+            actualizados += 1
 
-    if agregados == 0 and bloqueados > 0:
+        if nombre_custom:
+            cur.execute("""
+                INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s)
+                ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre
+            """, (owner, ip_c, nombre_custom))
+
+    if agregados == 0 and eliminados == 0 and actualizados == 0 and bloqueados > 0:
         return jsonify({
             "ok": False,
             "msg": f"Alcanzaste el límite de {limite_efectivo} mineros de tu Plan Gratis. Activa Plan Pro para agregar más.",
             "bloqueados": bloqueados
         }), 403
 
-    return jsonify({"ok": True, "agregados": agregados, "bloqueados": bloqueados}), 200
+    return jsonify({
+        "ok": True,
+        "agregados": agregados,
+        "eliminados": eliminados,
+        "actualizados": actualizados,
+        "bloqueados": bloqueados
+    }), 200
