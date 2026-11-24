@@ -76,7 +76,6 @@
     .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.35); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.85em; font-family: monospace; display: inline-block; }
     .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.85em; font-family: monospace; display: inline-block; }
 
-    /* Píldora discreta solo para monedas distintas a BTC */
     .coin-alt-pill {
         display: inline-block;
         margin-left: 6px;
@@ -91,7 +90,7 @@
         vertical-align: middle;
     }
 
-    /* Tarjeta de Primeros Pasos (Onboarding cuando totales == 0) */
+    /* Tarjeta de Primeros Pasos (Onboarding) */
     .onboarding-card {
         background: var(--bg-card);
         border: 1px solid rgba(59, 130, 246, 0.4);
@@ -109,16 +108,8 @@
         padding-bottom: 16px;
         border-bottom: 1px solid var(--border-color);
     }
-    .onboarding-head h2 {
-        margin: 0 0 6px 0;
-        font-size: 1.32em;
-        color: var(--text-main);
-    }
-    .onboarding-head p {
-        margin: 0;
-        font-size: 0.88em;
-        color: var(--text-muted);
-    }
+    .onboarding-head h2 { margin: 0 0 6px 0; font-size: 1.32em; color: var(--text-main); }
+    .onboarding-head p { margin: 0; font-size: 0.88em; color: var(--text-muted); }
     .onboarding-wait-pill {
         display: inline-flex;
         align-items: center;
@@ -132,140 +123,184 @@
         font-weight: bold;
         font-family: monospace;
     }
-    .ob-pulse-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #38bdf8;
-        animation: obPulse 1.5s infinite;
-    }
+    .ob-pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; animation: obPulse 1.5s infinite; }
     @keyframes obPulse {
         0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.75); }
         70% { box-shadow: 0 0 0 7px rgba(56, 189, 248, 0); }
         100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
     }
-    .onboarding-steps {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 16px;
-    }
-    .ob-step {
-        background: rgba(10, 12, 18, 0.48);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+    .onboarding-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
+    .ob-step { background: rgba(10, 12, 18, 0.48); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+    .ob-step-num { width: 30px; height: 30px; border-radius: 8px; background: rgba(51, 102, 255, 0.2); border: 1px solid rgba(96, 165, 250, 0.5); color: #60a5fa; font-weight: 800; font-family: monospace; display: flex; align-items: center; justify-content: center; }
+    .ob-step h3 { margin: 0; font-size: 1.0em; color: var(--text-main); }
+    .ob-step p { margin: 0; font-size: 0.84em; color: var(--text-muted); line-height: 1.5; flex: 1; }
+    .ob-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .btn-ob-primary { background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%); color: #fff; border: 1px solid #60a5fa; padding: 8px 13px; border-radius: 7px; font-size: 0.80em; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; transition: 0.18s; }
+    .btn-ob-primary:hover { box-shadow: 0 0 14px rgba(59, 130, 246, 0.6); transform: translateY(-1px); }
+
+    /* ==================== ₿ CALCULADORA DE RENTABILIDAD ==================== */
+    .prof-calc-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
         border-radius: 10px;
         padding: 18px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
+        margin-bottom: 16px;
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
     }
-    .ob-step-num {
-        width: 30px;
-        height: 30px;
-        border-radius: 8px;
-        background: rgba(51, 102, 255, 0.2);
-        border: 1px solid rgba(96, 165, 250, 0.5);
-        color: #60a5fa;
-        font-weight: 800;
-        font-family: monospace;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .ob-step h3 {
-        margin: 0;
-        font-size: 1.0em;
-        color: var(--text-main);
-    }
-    .ob-step p {
-        margin: 0;
-        font-size: 0.84em;
-        color: var(--text-muted);
-        line-height: 1.5;
-        flex: 1;
-    }
-    .ob-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 4px;
-    }
-    .btn-ob-primary {
-        background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
-        color: #fff;
-        border: 1px solid #60a5fa;
-        padding: 8px 13px;
-        border-radius: 7px;
-        font-size: 0.80em;
-        font-weight: bold;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        text-decoration: none;
-        transition: 0.18s;
-    }
-    .btn-ob-primary:hover {
-        box-shadow: 0 0 14px rgba(59, 130, 246, 0.6);
-        transform: translateY(-1px);
-    }
-
-    /* Barra de Calculadora Eléctrica y Acciones Masivas */
-    .calc-bar {
-        background: var(--bg-card);
-        padding: 13px 16px;
-        border-radius: 8px;
-        border: 1px solid var(--border-color);
-        margin-bottom: 18px;
+    .prof-calc-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
-        gap: 14px;
+        gap: 10px;
+        margin-bottom: 14px;
     }
-    .calc-group {
+    .prof-calc-title {
+        font-size: 1.02em;
+        font-weight: bold;
+        color: var(--text-main);
         display: flex;
         align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
+        gap: 8px;
     }
-    .calc-input {
-        background: rgba(10, 12, 18, 0.7);
+    .prof-btc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(135px, 165px));
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .prof-btc-box {
+        background: rgba(10, 14, 24, 0.72);
+        border: 1px solid rgba(59, 130, 246, 0.35);
+        border-radius: 8px;
+        padding: 11px 12px;
+        text-align: center;
+        transition: 0.18s;
+    }
+    .prof-btc-box:hover {
+        border-color: #60a5fa;
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+    }
+    .prof-btc-val {
+        font-family: monospace;
+        font-size: 1.05em;
+        font-weight: bold;
+        color: #60a5fa;
+    }
+    .prof-btc-lbl {
+        font-size: 0.68em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin-top: 4px;
+        letter-spacing: 0.4px;
+    }
+
+    .prof-inputs-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+    @media (max-width: 780px) {
+        .prof-inputs-grid { grid-template-columns: repeat(2, 1fr); }
+        .prof-btc-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .prof-field label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.75em;
+        color: var(--text-muted);
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    .prof-input {
+        width: 100%;
+        background: rgba(10, 12, 18, 0.78);
         border: 1px solid var(--border-color);
         color: #fff;
-        padding: 7px 10px;
-        border-radius: 6px;
-        width: 86px;
+        padding: 9px 12px;
+        border-radius: 7px;
         font-family: monospace;
         font-weight: bold;
         font-size: 0.92em;
         outline: none;
+        box-sizing: border-box;
         transition: 0.18s;
     }
-    .calc-input:focus {
+    .prof-input:focus {
         border-color: #3b82f6;
         box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
     }
-    .calc-pill-summary {
-        background: rgba(255, 255, 255, 0.03);
+
+    .prof-results-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+        gap: 9px;
+        margin-bottom: 14px;
+    }
+    .prof-res-box {
+        background: rgba(10, 12, 18, 0.58);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 5px 10px;
-        border-radius: 6px;
+        border-radius: 8px;
+        padding: 10px 8px;
+        text-align: center;
+    }
+    .prof-res-box.green {
+        border-color: rgba(0, 230, 118, 0.28);
+        background: rgba(0, 230, 118, 0.05);
+    }
+    .prof-res-val {
         font-family: monospace;
-        font-size: 0.80em;
+        font-size: 0.96em;
+        font-weight: bold;
+        color: var(--text-main);
+    }
+    .prof-res-val.pos { color: #00e676; }
+    .prof-res-val.neg { color: #ff5252; }
+    .prof-res-lbl {
+        font-size: 0.65em;
         color: var(--text-muted);
+        text-transform: uppercase;
+        margin-top: 4px;
+        letter-spacing: 0.3px;
+    }
+
+    .prof-net-strip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 18px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        font-size: 0.78em;
+        color: var(--text-muted);
+    }
+    .prof-net-strip b {
+        color: var(--text-main);
+        font-family: monospace;
+        margin-left: 4px;
     }
     .tarifa-save-status {
         font-family: monospace;
-        font-size: 0.75em;
+        font-size: 0.9em;
         color: #00e676;
-        min-width: 72px;
     }
 
-    .bulk-actions {
+    /* Barra compacta de Acciones Masivas */
+    .bulk-toolbar {
+        background: var(--bg-card);
+        padding: 10px 15px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        margin-bottom: 14px;
         display: flex;
         align-items: center;
-        gap: 7px;
+        justify-content: space-between;
         flex-wrap: wrap;
+        gap: 10px;
     }
+    .bulk-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
     .sel-badge {
         background: rgba(51, 102, 255, 0.12);
         color: #60a5fa;
@@ -277,11 +312,7 @@
         font-family: monospace;
         transition: 0.2s;
     }
-    .sel-badge.has-sel {
-        background: rgba(51, 102, 255, 0.28);
-        color: #fff;
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
-    }
+    .sel-badge.has-sel { background: rgba(51, 102, 255, 0.28); color: #fff; box-shadow: 0 0 12px rgba(59, 130, 246, 0.45); }
     .btn-action {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border-color);
@@ -298,51 +329,15 @@
         gap: 6px;
         user-select: none;
     }
-    .btn-action:hover {
-        border-color: #3b82f6;
-        color: #fff;
-        background: rgba(51, 102, 255, 0.18);
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
-        transform: translateY(-1px);
-    }
-    .btn-action.dimmed {
-        opacity: 0.45;
-    }
+    .btn-action:hover { border-color: #3b82f6; color: #fff; background: rgba(51, 102, 255, 0.18); box-shadow: 0 0 12px rgba(59, 130, 246, 0.45); transform: translateY(-1px); }
+    .btn-action.dimmed { opacity: 0.45; }
 
     /* Tabla Principal de Resumen */
-    .table-container {
-        background: var(--bg-card);
-        border-radius: 8px;
-        border: 1px solid var(--border-color);
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    table {
-        width: 100%;
-        min-width: 860px;
-        border-collapse: collapse;
-        white-space: nowrap;
-    }
-    th {
-        text-align: left;
-        padding: 12px 15px;
-        color: var(--text-muted);
-        font-size: 0.72em;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        border-bottom: 1px solid var(--border-color);
-        background: rgba(255, 255, 255, 0.015);
-        cursor: pointer;
-        user-select: none;
-        transition: 0.15s;
-    }
+    .table-container { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; min-width: 860px; border-collapse: collapse; white-space: nowrap; }
+    th { text-align: left; padding: 12px 15px; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.015); cursor: pointer; user-select: none; transition: 0.15s; }
     th:hover { color: #fff; }
-    td {
-        padding: 13px 15px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        font-size: 0.85em;
-        vertical-align: middle;
-    }
+    td { padding: 13px 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.85em; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tbody tr { transition: background 0.15s ease; cursor: pointer; }
     tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
@@ -355,41 +350,9 @@
     /* Modal de Confirmación, Tooltip y Toast */
     .res-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.72); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(3px); }
     .res-modal-box { background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 22px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 14px 40px rgba(0,0,0,0.75); }
-    .res-smart-tooltip {
-        position: fixed;
-        display: none;
-        width: 250px;
-        max-width: calc(100vw - 20px);
-        background: rgba(10, 11, 16, 0.98);
-        border: 1px solid rgba(51, 102, 255, 0.55);
-        border-radius: 7px;
-        padding: 9px 11px;
-        color: #d1d3e0;
-        font-family: sans-serif;
-        font-size: 11.5px;
-        line-height: 1.4;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
-        z-index: 99999;
-        pointer-events: none;
-    }
+    .res-smart-tooltip { position: fixed; display: none; width: 250px; max-width: calc(100vw - 20px); background: rgba(10, 11, 16, 0.98); border: 1px solid rgba(51, 102, 255, 0.55); border-radius: 7px; padding: 9px 11px; color: #d1d3e0; font-family: sans-serif; font-size: 11.5px; line-height: 1.4; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85); z-index: 99999; pointer-events: none; }
     .res-tt-title { color: #fff; font-weight: bold; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.12); }
-    .res-toast {
-        position: fixed;
-        bottom: 22px;
-        right: 22px;
-        background: rgba(10, 12, 18, 0.96);
-        border: 1px solid #00e676;
-        color: #fff;
-        padding: 12px 18px;
-        border-radius: 8px;
-        font-size: 0.86em;
-        font-weight: bold;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 230, 118, 0.3);
-        z-index: 9999;
-        display: none;
-        align-items: center;
-        gap: 8px;
-    }
+    .res-toast { position: fixed; bottom: 22px; right: 22px; background: rgba(10, 12, 18, 0.96); border: 1px solid #00e676; color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 0.86em; font-weight: bold; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 230, 118, 0.3); z-index: 9999; display: none; align-items: center; gap: 8px; }
 </style>
 
 <!-- Portal de Tooltip, Toast y Modal -->
@@ -454,8 +417,8 @@
 
     <div class="kpi-card" data-rtt="kpi_btc">
         <h4>₿ Precio BTC / Red</h4>
-        <div class="val" style="color:#ffb300;" translate="no">${{ flota.precio_btc }}</div>
-        <div class="sub" translate="no">Dif: {{ flota.dificultad_t }}T | {{ flota.red_ehs }} EH/s</div>
+        <div class="val" id="kpiPrecioBtc" style="color:#ffb300;" translate="no">${{ flota.precio_btc }}</div>
+        <div class="sub" id="kpiSubRed" translate="no">Dif: {{ flota.dificultad_t }}T | {{ flota.red_ehs }} EH/s</div>
     </div>
 
     <div class="kpi-card" data-rtt="kpi_ganancia">
@@ -466,7 +429,7 @@
 </div>
 
 {% if totales == 0 %}
-<!-- Tarjeta Guiada de Primeros Pasos (solo visible cuando no hay mineros aún) -->
+<!-- Tarjeta Guiada de Primeros Pasos -->
 <div class="onboarding-card" id="onboardingCard" data-no-live-patch="1">
     <div class="onboarding-head">
         <div>
@@ -510,14 +473,110 @@
     </div>
 </div>
 {% else %}
-<!-- 2. Calculadora de Rentabilidad y Acciones Masivas -->
-<div class="calc-bar" data-no-live-patch="1">
-    <div class="calc-group">
-        <span style="font-weight:bold;font-size:0.84em; color:var(--text-main);">⚡ Tarifa (USD/kWh):</span>
-        <input type="number" step="0.005" min="0" id="tarifaKwh" class="calc-input" value="{{ '%.3f'|format(flota.tarifa_kwh|float) }}" oninput="recalcularCostos(true)">
-        <span class="calc-pill-summary" id="resumenLuzDia" translate="no">Luz: $0.00/día ($0/mes)</span>
-        <span class="tarifa-save-status" id="tarifaSaveStatus"></span>
+<!-- 2. ₿ Calculadora de Rentabilidad Automática -->
+<div class="prof-calc-card" data-no-live-patch="1">
+    <div class="prof-calc-head">
+        <div class="prof-calc-title">₿ Calculadora de rentabilidad</div>
+        <span id="calcLiveBadge" style="font-size:0.74em; font-family:monospace; color:#38bdf8;">🔄 Sincronizando red Bitcoin...</span>
     </div>
+
+    <!-- Producción en BTC -->
+    <div class="prof-btc-grid">
+        <div class="prof-btc-box">
+            <div class="prof-btc-val" id="calcBtcDiaTop" translate="no">0.00000000</div>
+            <div class="prof-btc-lbl">BTC / DÍA</div>
+        </div>
+        <div class="prof-btc-box">
+            <div class="prof-btc-val" id="calcBtcSemana" translate="no">0.00000000</div>
+            <div class="prof-btc-lbl">BTC / SEMANA</div>
+        </div>
+        <div class="prof-btc-box">
+            <div class="prof-btc-val" id="calcBtcMes" translate="no">0.0000000</div>
+            <div class="prof-btc-lbl">BTC / MES</div>
+        </div>
+        <div class="prof-btc-box">
+            <div class="prof-btc-val" id="calcBtcAnio" translate="no">0.0000</div>
+            <div class="prof-btc-lbl">BTC / AÑO</div>
+        </div>
+    </div>
+
+    <!-- Entradas editables (Electricidad 0 y Comisión 0 por defecto) -->
+    <div class="prof-inputs-grid">
+        <div class="prof-field">
+            <label for="calcHashrate">Hashrate (TH/s)</label>
+            <input type="number" step="0.1" min="0" id="calcHashrate" class="prof-input" value="{{ '%.1f'|format(flota.hashrate_total|float) }}" oninput="recalcularCalculadora(false)">
+        </div>
+        <div class="prof-field">
+            <label for="calcConsumoW">Consumo (W)</label>
+            <input type="number" step="10" min="0" id="calcConsumoW" class="prof-input" value="{{ '%.0f'|format(flota.consumo_w_total|float) }}" oninput="recalcularCalculadora(false)">
+        </div>
+        <div class="prof-field">
+            <label for="tarifaKwh">
+                <span>Electricidad (USD/kWh)</span>
+                <span class="tarifa-save-status" id="tarifaSaveStatus"></span>
+            </label>
+            <input type="number" step="0.005" min="0" id="tarifaKwh" class="prof-input" value="{{ '%.3f'|format(flota.tarifa_kwh|float) if flota.tarifa_kwh|float > 0 else '0' }}" oninput="recalcularCalculadora(true)">
+        </div>
+        <div class="prof-field">
+            <label for="calcPoolFee">Comisión del pool (%)</label>
+            <input type="number" step="0.1" min="0" max="100" id="calcPoolFee" class="prof-input" value="0" oninput="recalcularCalculadora(false)">
+        </div>
+    </div>
+
+    <!-- Resultados en USD y métricas de equilibrio -->
+    <div class="prof-results-grid">
+        <div class="prof-res-box">
+            <div class="prof-res-val" id="calcBtcDia" translate="no">0.00000000</div>
+            <div class="prof-res-lbl">BTC / DÍA</div>
+        </div>
+        <div class="prof-res-box">
+            <div class="prof-res-val" id="calcIngresosDia" translate="no">USD 0.00</div>
+            <div class="prof-res-lbl">INGRESOS / DÍA</div>
+        </div>
+        <div class="prof-res-box">
+            <div class="prof-res-val neg" id="calcElecDia" translate="no">USD 0.00</div>
+            <div class="prof-res-lbl">ELECTRICIDAD / DÍA</div>
+        </div>
+        <div class="prof-res-box green">
+            <div class="prof-res-val pos" id="calcGanDia" translate="no">USD 0.00</div>
+            <div class="prof-res-lbl">GANANCIA / DÍA</div>
+        </div>
+        <div class="prof-res-box green">
+            <div class="prof-res-val pos" id="calcGanSem" translate="no">USD 0.00</div>
+            <div class="prof-res-lbl">GANANCIA / SEMANA</div>
+        </div>
+        <div class="prof-res-box green">
+            <div class="prof-res-val pos" id="calcGanMes" translate="no">USD 0.00</div>
+            <div class="prof-res-lbl">GANANCIA / MES</div>
+        </div>
+        <div class="prof-res-box green">
+            <div class="prof-res-val pos" id="calcGanAnio" translate="no">USD 0</div>
+            <div class="prof-res-lbl">GANANCIA / AÑO</div>
+        </div>
+        <div class="prof-res-box">
+            <div class="prof-res-val" id="calcEquilibrio" translate="no">USD 0.0000</div>
+            <div class="prof-res-lbl">EQUILIBRIO /KWH</div>
+        </div>
+        <div class="prof-res-box">
+            <div class="prof-res-val" id="calcCosteBtc" translate="no">USD 0</div>
+            <div class="prof-res-lbl">COSTE POR BTC</div>
+        </div>
+    </div>
+
+    <!-- Pie de red Bitcoin auto-actualizable -->
+    <div class="prof-net-strip" translate="no">
+        <span>Precio BTC <b id="netPrecioBtc">USD {{ flota.precio_btc }}</b></span>
+        <span>Moneda <b>USD · tipo actualizado solo</b></span>
+        <span>Red <b id="netHashrate">{{ flota.red_ehs }} EH/s</b></span>
+        <span>Dificultad <b id="netDificultad">{{ flota.dificultad_t }} T</b></span>
+        <span>Recompensa por bloque <b id="netRecompensa">{{ flota.recompensa_bloque | default(3.125) }} BTC</b></span>
+        <span>Tu parte <b id="netTuParte">0.00000000 %</b></span>
+    </div>
+</div>
+
+<!-- Barra compacta de Acciones Masivas -->
+<div class="bulk-toolbar" data-no-live-patch="1">
+    <span style="font-size:0.82em; color:var(--text-muted); font-weight:bold;">⚙️ Acciones rápidas de flota</span>
     <div class="bulk-actions">
         <span class="sel-badge" id="resSelBadge"><span id="resSelCount">0</span> sel.</span>
         <button type="button" class="btn-action res-bulk-btn dimmed" onclick="pedirConfirmacionMasiva('restart', '🔄 Reiniciar Seleccionados')">🔄 Reiniciar</button>
@@ -597,11 +656,11 @@
 {% endif %}
 
 <script>
-    const ingresoBrutoDia = parseFloat("{{ flota.ingreso_dia }}") || 0;
-    const consumoKwTotal = parseFloat("{{ flota.consumo_kw }}") || 0;
-    const btcPrecioRaw = parseFloat("{{ flota.precio_btc_raw }}") || 0;
-    const btcDifT = parseFloat("{{ flota.dificultad_t }}") || 0;
-    const btcRecompensa = parseFloat("{{ flota.recompensa_bloque }}") || 3.125;
+    let btcPrecioLive = parseFloat("{{ flota.precio_btc_raw }}") || 0;
+    let btcDifTLive = parseFloat("{{ flota.dificultad_t }}") || 0;
+    let btcRedEhsLive = parseFloat("{{ flota.red_ehs }}") || 0;
+    let btcRecompensaLive = parseFloat("{{ flota.recompensa_bloque }}") || 3.125;
+
     let accionPendienteResumen = null;
     let timerGuardarTarifa = null;
 
@@ -623,47 +682,149 @@
         setTimeout(() => { el.style.display = 'none'; }, 3500);
     }
 
-    function recalcularCostos(guardarEnServidor = false) {
+    function fmtUsd(val, decimales = 2) {
+        const neg = val < 0;
+        const absStr = Math.abs(val).toLocaleString('en-US', { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
+        return (neg ? '-USD ' : 'USD ') + absStr;
+    }
+
+    // Actualiza automáticamente precio BTC, dificultad, hashrate global y recompensa por bloque (incluye futuros Halvings)
+    async function sincronizarRedBitcoinEnVivo() {
+        const badge = document.getElementById('calcLiveBadge');
+        try {
+            const [rPrecio, rNet, rAltura] = await Promise.allSettled([
+                fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'),
+                fetch('https://mempool.space/api/v1/mining/hashrate/3d'),
+                fetch('https://mempool.space/api/blocks/tip/height')
+            ]);
+
+            if (rPrecio.status === 'fulfilled' && rPrecio.value.ok) {
+                const jp = await rPrecio.value.json();
+                const p = parseFloat(jp.price);
+                if (p > 1000) btcPrecioLive = p;
+            }
+
+            if (rNet.status === 'fulfilled' && rNet.value.ok) {
+                const jn = await rNet.value.json();
+                if (jn.currentDifficulty > 0) btcDifTLive = jn.currentDifficulty / 1e12;
+                if (jn.currentHashrate > 0) btcRedEhsLive = jn.currentHashrate / 1e18;
+            }
+
+            if (rAltura.status === 'fulfilled' && rAltura.value.ok) {
+                const altura = parseInt(await rAltura.value.text(), 10);
+                if (!isNaN(altura) && altura > 0) {
+                    const halvings = Math.floor(altura / 210000);
+                    btcRecompensaLive = 50 / Math.pow(2, halvings);
+                }
+            }
+
+            // Actualizar KPI superior y pie de la calculadora
+            const elKpiP = document.getElementById('kpiPrecioBtc');
+            if (elKpiP && btcPrecioLive > 0) elKpiP.innerText = '$' + Math.round(btcPrecioLive).toLocaleString('en-US');
+            const elKpiSub = document.getElementById('kpiSubRed');
+            if (elKpiSub && btcDifTLive > 0) elKpiSub.innerText = `Dif: ${btcDifTLive.toFixed(2)}T | ${btcRedEhsLive.toFixed(2)} EH/s`;
+
+            const elNetP = document.getElementById('netPrecioBtc');
+            if (elNetP) elNetP.innerText = 'USD ' + Math.round(btcPrecioLive).toLocaleString('en-US');
+            const elNetH = document.getElementById('netHashrate');
+            if (elNetH) elNetH.innerText = `${btcRedEhsLive.toFixed(2)} EH/s`;
+            const elNetD = document.getElementById('netDificultad');
+            if (elNetD) elNetD.innerText = `${btcDifTLive.toFixed(2)} T`;
+            const elNetR = document.getElementById('netRecompensa');
+            if (elNetR) elNetR.innerText = `${btcRecompensaLive} BTC`;
+
+            if (badge) {
+                badge.style.color = '#00e676';
+                badge.innerText = '● Datos en vivo';
+            }
+            recalcularCalculadora(false);
+        } catch (e) {
+            if (badge) {
+                badge.style.color = 'var(--text-muted)';
+                badge.innerText = '● Red sincronizada';
+            }
+        }
+    }
+
+    function recalcularCalculadora(guardarTarifa = false) {
+        const hrEl = document.getElementById('calcHashrate');
+        const wEl = document.getElementById('calcConsumoW');
         const tarifaEl = document.getElementById('tarifaKwh');
-        if (!tarifaEl) return;
-        let tarifa = Math.max(0, parseFloat(tarifaEl.value) || 0);
+        const feeEl = document.getElementById('calcPoolFee');
+        if (!hrEl || !wEl || !tarifaEl || !feeEl) return;
 
-        let costoDia = consumoKwTotal * 24 * tarifa;
-        let costoMes = costoDia * 30;
-        let netoDia = ingresoBrutoDia - costoDia;
-        let netoMes = netoDia * 30;
+        const hr = Math.max(0, parseFloat(hrEl.value) || 0);
+        const watts = Math.max(0, parseFloat(wEl.value) || 0);
+        const tarifa = Math.max(0, parseFloat(tarifaEl.value) || 0);
+        const poolFee = Math.min(100, Math.max(0, parseFloat(feeEl.value) || 0));
 
-        const luzEl = document.getElementById('resumenLuzDia');
-        if (luzEl) luzEl.innerText = `Luz: $${costoDia.toFixed(2)}/día ($${costoMes.toFixed(0)}/mes)`;
+        const btcBrutoDia = (btcDifTLive > 0) ? ((hr * btcRecompensaLive * 86400) / (btcDifTLive * 4294967296)) : 0;
+        const btcNetoDia = btcBrutoDia * (1 - poolFee / 100);
 
+        const ingresosDia = btcNetoDia * btcPrecioLive;
+        const kwhDia = (watts / 1000) * 24;
+        const elecDia = kwhDia * tarifa;
+        const ganDia = ingresosDia - elecDia;
+        const ganSem = ganDia * 7;
+        const ganMes = ganDia * 30;
+        const ganAnio = ganDia * 365;
+
+        const equilibrioKwh = kwhDia > 0 ? (ingresosDia / kwhDia) : 0;
+        const costeBtc = btcNetoDia > 0 ? (elecDia / btcNetoDia) : 0;
+        const tuPartePct = btcRedEhsLive > 0 ? (hr / (btcRedEhsLive * 1000000)) * 100 : 0;
+
+        // Cajas superiores BTC
+        document.getElementById('calcBtcDiaTop').innerText = btcNetoDia.toFixed(8);
+        document.getElementById('calcBtcSemana').innerText = (btcNetoDia * 7).toFixed(8);
+        document.getElementById('calcBtcMes').innerText = (btcNetoDia * 30).toFixed(6);
+        document.getElementById('calcBtcAnio').innerText = (btcNetoDia * 365).toFixed(4);
+
+        // Resultados principales
+        document.getElementById('calcBtcDia').innerText = btcNetoDia.toFixed(8);
+        document.getElementById('calcIngresosDia').innerText = fmtUsd(ingresosDia, 2);
+        document.getElementById('calcElecDia').innerText = fmtUsd(elecDia, 2);
+
+        const setGan = (id, val, dec) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.innerText = fmtUsd(val, dec);
+            el.className = 'prof-res-val ' + (val < 0 ? 'neg' : 'pos');
+        };
+        setGan('calcGanDia', ganDia, 2);
+        setGan('calcGanSem', ganSem, 2);
+        setGan('calcGanMes', ganMes, 2);
+        setGan('calcGanAnio', ganAnio, 0);
+
+        document.getElementById('calcEquilibrio').innerText = fmtUsd(equilibrioKwh, 4);
+        document.getElementById('calcCosteBtc').innerText = fmtUsd(costeBtc, 0);
+        document.getElementById('netTuParte').innerText = `${tuPartePct.toFixed(8)} %`;
+
+        // Actualizar KPI superior de Ganancia Neta
         const cardEl = document.getElementById('gananciaNetaCard');
         if (cardEl) {
-            cardEl.innerText = (netoDia < 0 ? '-$' : '$') + Math.abs(netoDia).toFixed(2);
-            cardEl.style.color = netoDia < 0 ? '#ff5252' : '#00e676';
+            cardEl.innerText = (ganDia < 0 ? '-$' : '$') + Math.abs(ganDia).toFixed(2);
+            cardEl.style.color = ganDia < 0 ? '#ff5252' : '#00e676';
         }
-
         const subMes = document.getElementById('subProyeccionMes');
         if (subMes) {
-            subMes.innerText = `Proy. mes: ${netoMes < 0 ? '-$' : '$'}${Math.abs(netoMes).toFixed(0)}`;
+            subMes.innerText = `Proy. mes: ${ganMes < 0 ? '-$' : '$'}${Math.abs(ganMes).toFixed(0)}`;
         }
 
-        // Recalcular cada fila SHA-256 en vivo
-        if (btcDifT > 0 && btcPrecioRaw > 0) {
+        // Recalcular cada fila SHA-256 en la tabla inferior
+        if (btcDifTLive > 0 && btcPrecioLive > 0) {
             document.querySelectorAll('.js-neto-cell').forEach(td => {
                 if (td.getAttribute('data-sha') !== '1') return;
-                const hr = parseFloat(td.getAttribute('data-hr')) || 0;
-                const kw = parseFloat(td.getAttribute('data-kw')) || 0;
-                const btcDia = (hr * btcRecompensa * 86400) / (btcDifT * 4294967296);
-                const ingresoEquipo = btcDia * btcPrecioRaw;
-                const costoEquipo = kw * 24 * tarifa;
-                const netoEq = ingresoEquipo - costoEquipo;
+                const hrEq = parseFloat(td.getAttribute('data-hr')) || 0;
+                const kwEq = parseFloat(td.getAttribute('data-kw')) || 0;
+                const btcEq = ((hrEq * btcRecompensaLive * 86400) / (btcDifTLive * 4294967296)) * (1 - poolFee / 100);
+                const netoEq = (btcEq * btcPrecioLive) - (kwEq * 24 * tarifa);
                 td.setAttribute('data-sort', netoEq.toFixed(4));
                 td.innerText = netoEq < 0 ? `-USD ${Math.abs(netoEq).toFixed(2)}` : `${netoEq.toFixed(2)} USD`;
                 td.style.color = netoEq < 0 ? '#ff5252' : 'var(--accent-green)';
             });
         }
 
-        if (guardarEnServidor) {
+        if (guardarTarifa) {
             const stEl = document.getElementById('tarifaSaveStatus');
             if (stEl) { stEl.style.color = '#38bdf8'; stEl.innerText = 'Guardando...'; }
             clearTimeout(timerGuardarTarifa);
@@ -778,7 +939,8 @@
     });
 
     window.addEventListener('load', function() {
-        recalcularCostos(false);
+        recalcularCalculadora(false);
+        sincronizarRedBitcoinEnVivo();
 
         const box = document.getElementById('resSmartTooltip');
         if (!box) return;
