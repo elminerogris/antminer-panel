@@ -892,13 +892,20 @@ def extraer_todo(ip):
     errores_hw = a_entero(buscar_llave(st, ['Hardware Errors', 'Device Hardware Errors', 'hw_errors'], buscar_llave(st_sum, ['Hardware Errors'], 0)))
     freq_global = a_entero(buscar_llave(st, ['frequency', 'freq_avg', 'freq', 'total_freqavg'], 0))
 
+    es_hydro = ("hyd" in mod_lower or "hydro" in mod_lower or "water" in mod_lower)
     amb_candidates = []
+    water_out_candidates = []
+
     for k, v in st.items():
         kl = str(k).lower()
         if any(w in kl for w in ['ambient', 'env_temp', 'temp_in', 'inlet', 'water_in', 'liquid_in']):
             val_a = a_entero_min(v)
             if 10 <= val_a <= 60:
                 amb_candidates.append(val_a)
+        elif any(w in kl for w in ['water_out', 'outlet', 'liquid_out', 'temp_out']):
+            val_o = a_entero(v)
+            if 15 <= val_o <= 85:
+                water_out_candidates.append(val_o)
 
     cadenas = []
     temps_max = []
@@ -910,18 +917,25 @@ def extraer_todo(ip):
                 continue
             t_chip = a_entero(buscar_llave(ch, ['temp2', 'temp_chip', 'temp_max'], 0))
             raw_pcb = buscar_llave(ch, ['temp', 'temp_pcb', 'temp_pic', 'temp_water'], 0)
-            t_pcb = a_entero(raw_pcb)
+            nums_pcb = extraer_numeros(raw_pcb)
+            t_pcb = max(nums_pcb) if nums_pcb else a_entero(raw_pcb)
             if t_pcb == 0 and t_chip > 0:
                 t_pcb = max(0, t_chip - 5)
 
-            raw_amb_ch = buscar_llave(ch, ['ambientemp', 'ambient_temp', 'env_temp', 'temp_in', 'water_in'], None)
-            if raw_amb_ch is not None:
-                val_ac = a_entero_min(raw_amb_ch)
-                if 10 <= val_ac <= 55:
-                    amb_candidates.append(val_ac)
-            elif isinstance(raw_pcb, (list, str)):
-                nums_pcb = extraer_numeros(raw_pcb)
-                if len(nums_pcb) >= 2 and min(nums_pcb) < (max(nums_pcb) - 5) and 15 <= min(nums_pcb) <= 55:
+            if es_hydro and len(nums_pcb) >= 2:
+                v_in = min(nums_pcb)
+                v_out = max(nums_pcb)
+                if 10 <= v_in <= 65:
+                    amb_candidates.append(v_in)
+                if 15 <= v_out <= 85:
+                    water_out_candidates.append(v_out)
+            else:
+                raw_amb_ch = buscar_llave(ch, ['ambientemp', 'ambient_temp', 'env_temp', 'temp_in', 'water_in'], None)
+                if raw_amb_ch is not None:
+                    val_ac = a_entero_min(raw_amb_ch)
+                    if 10 <= val_ac <= 55:
+                        amb_candidates.append(val_ac)
+                elif len(nums_pcb) >= 2 and min(nums_pcb) < (max(nums_pcb) - 5) and 15 <= min(nums_pcb) <= 55:
                     amb_candidates.append(min(nums_pcb))
 
             chips_num = a_entero(buscar_llave(ch, ['asic_num', 'chipNum', 'acn', 'chips', 'asic'], 0))
@@ -952,7 +966,12 @@ def extraer_todo(ip):
             for raw_t in [tp, st.get(f'temp1_{i}'), st.get(f'temp_in_{i}'), st.get(f'ambientemp_{i}')]:
                 if raw_t is not None:
                     nums_t = extraer_numeros(raw_t)
-                    if len(nums_t) >= 2 and min(nums_t) < (max(nums_t) - 4) and 15 <= min(nums_t) <= 55:
+                    if es_hydro and len(nums_t) >= 2:
+                        if 10 <= min(nums_t) <= 65:
+                            amb_candidates.append(min(nums_t))
+                        if 15 <= max(nums_t) <= 85:
+                            water_out_candidates.append(max(nums_t))
+                    elif len(nums_t) >= 2 and min(nums_t) < (max(nums_t) - 4) and 15 <= min(nums_t) <= 55:
                         amb_candidates.append(min(nums_t))
 
             t_chip = a_entero(tc)
@@ -1000,16 +1019,19 @@ def extraer_todo(ip):
             c['hr'] = round(hr_5s / len(cadenas), 2)
 
     tm = max(temps_max) if temps_max else 65
-    temp_amb = max(amb_candidates) if amb_candidates else 0
+    temp_amb = (min(amb_candidates) if es_hydro else max(amb_candidates)) if amb_candidates else 0
+    agua_out = max(water_out_candidates) if water_out_candidates else (max([c.get('temp_p', 0) for c in cadenas]) if cadenas else 0)
 
     fans = [str(st.get(f)) for f in ['fan1', 'fan2', 'fan3', 'fan4'] if st.get(f) and a_entero(st.get(f)) > 0]
-    es_hydro = ("hyd" in mod_lower or "hydro" in mod_lower or "water" in mod_lower)
 
     if fans and not es_hydro:
         fans_str = " / ".join(fans) + " RPM"
     elif es_hydro or (not fans and hr_5s > 0):
-        if temp_amb > 0:
-            fans_str = f"💧 Hydro (Entrada {temp_amb}°C / Salida {max(temp_amb+5, tm-12)}°C)"
+        if temp_amb > 0 and agua_out > 0:
+            delta_t = max(0, agua_out - temp_amb)
+            fans_str = f"💧 Hydro (Entrada {temp_amb}°C / Salida {agua_out}°C · ΔT {delta_t}°C)"
+        elif temp_amb > 0:
+            fans_str = f"💧 Hydro (Entrada {temp_amb}°C)"
         else:
             fans_str = "💧 Hydro (Refrigeración Líquida Activa)"
     else:
@@ -1146,7 +1168,6 @@ def flash_firmware_a_minero(fw_id, checksum, api_key_fw, ip_dest):
         try:
             auth = HTTPDigestAuth(usr, pwd)
             with open(ruta_fw, 'rb') as fw_file:
-                # Antminer upgrade.cgi (firmware de stock)
                 r_up = requests.post(
                     f"http://{ip_dest}/cgi-bin/upgrade.cgi",
                     auth=auth,
@@ -1165,7 +1186,6 @@ def flash_firmware_a_minero(fw_id, checksum, api_key_fw, ip_dest):
     # Método B: Braiins OS / sysupgrade via SSH (si HTTP no funcionó)
     if not exito:
         try:
-            es_termux = "ANDROID_ROOT" in os.environ or "TERMUX_VERSION" in os.environ
             sshpass_bin = shutil.which("sshpass")
             scp_bin = shutil.which("scp")
             ssh_bin = shutil.which("ssh")
@@ -1173,7 +1193,6 @@ def flash_firmware_a_minero(fw_id, checksum, api_key_fw, ip_dest):
             if sshpass_bin and scp_bin and ssh_bin:
                 for usr, pwd in list(CREDENCIALES_HTTP):
                     reportar_progreso_firmware(fw_id, ip_dest, "en_progreso", 65, f"Intentando SSH ({usr})...")
-                    # SCP: subir firmware
                     ret_scp = subprocess.run(
                         [sshpass_bin, "-p", pwd, scp_bin,
                          "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=15",
@@ -1182,8 +1201,7 @@ def flash_firmware_a_minero(fw_id, checksum, api_key_fw, ip_dest):
                     )
                     if ret_scp.returncode == 0:
                         reportar_progreso_firmware(fw_id, ip_dest, "en_progreso", 80, "Ejecutando sysupgrade...")
-                        # SSH: ejecutar sysupgrade
-                        ret_ssh = subprocess.run(
+                        subprocess.run(
                             [sshpass_bin, "-p", pwd, ssh_bin,
                              "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10",
                              f"{usr}@{ip_dest}",
@@ -1221,7 +1239,7 @@ def procesar_comandos(ordenes):
         es_wm = cache_info_estatica.get(ip_dest, {}).get('marca') == 'WhatsMiner'
         print(f"--> Ejecutando orden remota [{accion}] en {ip_dest} ({'WhatsMiner' if es_wm else 'Antminer'})")
 
-        if accion == "scan":
+        if accion in ("scan", "scan_now"):
             ips_conocidas = escanear_red()
         elif accion == "restart":
             if es_wm:
