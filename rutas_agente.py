@@ -18,6 +18,7 @@ _cache_apk_version = {"ts": 0, "data": None}
 _ag_rate_lock = threading.Lock()
 _ag_rate_buckets = {}
 _col_app_ver_ok = False
+_col_pub_ip_ok = False
 
 def _verificar_rate_limit_agente(clave, max_intentos=10, ventana_seg=300):
     ahora = time.time()
@@ -50,6 +51,30 @@ def normalizar_sn(sn_str):
     if len(s) < 6:
         return ""
     return s
+
+def _extraer_nombre_desde_worker(worker_str, ip_str):
+    w = str(worker_str or '').strip()
+    if w and w not in ('-', 'None', 'null'):
+        if '.' in w:
+            sufijo = w.split('.')[-1].strip()
+            if sufijo and sufijo not in ('-', 'None'):
+                return sufijo[:40]
+        return w[:40]
+    octeto = ip_str.split('.')[-1] if '.' in str(ip_str or '') else str(ip_str or 'ASIC')
+    return octeto
+
+def _siguiente_nombre_granja(cur, owner):
+    cur.execute("SELECT nombre FROM granjas_sedes WHERE owner=%s", (owner,))
+    rows = cur.fetchall() or []
+    max_num = len(rows)
+    for r in rows:
+        nom = str(r.get('nombre') or '').strip()
+        m = re.match(r'^granja\s+(\d+)$', nom, re.IGNORECASE)
+        if m:
+            n = int(m.group(1))
+            if n > max_num:
+                max_num = n
+    return f"Granja {max_num + 1:03d}"
 
 def _formatear_nombre_agente(row):
     brand = str(row.get('brand') or '').strip()
@@ -350,7 +375,7 @@ def api_cambiar_clave_masiva():
 
 @agente_bp.route('/api/recibir_datos', methods=['POST'])
 def recibir_datos():
-    global ultima_limpieza_bd, _col_app_ver_ok
+    global ultima_limpieza_bd, _col_app_ver_ok, _col_pub_ip_ok
     datos = request.get_json(silent=True)
     if not datos: return jsonify({"status": "error", "msg": "JSON invalido"}), 400
 
@@ -385,6 +410,12 @@ def recibir_datos():
         try:
             cur.execute("ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS app_version TEXT DEFAULT ''")
             _col_app_ver_ok = True
+        except Exception:
+            pass
+    if not _col_pub_ip_ok:
+        try:
+            cur.execute("ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS public_ip TEXT DEFAULT ''")
+            _col_pub_ip_ok = True
         except Exception:
             pass
 
@@ -441,6 +472,7 @@ def recibir_datos():
     mineros_payload = datos.get('mineros', [])
     subred_detectada = ""
     gw_detectado = ""
+    macs_payload = []
     for mp in mineros_payload:
         if not isinstance(mp, dict):
             continue
@@ -450,8 +482,9 @@ def recibir_datos():
         gw_p = str(mp.get('gateway') or '').strip()
         if gw_p and gw_p != ip_p and not gw_detectado:
             gw_detectado = gw_p
-        if subred_detectada and gw_detectado:
-            break
+        m_norm_p = normalizar_mac(mp.get('mac'))
+        if m_norm_p:
+            macs_payload.append(m_norm_p)
 
     if not subred_detectada and '.' in dev_local_ip:
         subred_detectada = ".".join(dev_local_ip.split('.')[:3]) + ".x"
@@ -462,52 +495,78 @@ def recibir_datos():
     if not gw_detectado:
         gw_detectado = subred_detectada.replace('.x', '.1') if subred_detectada.endswith('.x') else '192.168.0.1'
 
-    farm_id_efectivo = agent_id
+    # ==================== RESOLUCIÓN ANTI-DUPLICADOS DE GRANJA (10 CELULARES EN 1 ROUTER = 1 GRANJA) ====================
+    farm_id_efectivo = None
     try:
+        # Capa 1: Coincidencia por MAC del router (cubre 2.4GHz y 5GHz)
         if router_mac_fmt:
             mac_prefijo_5 = router_mac_fmt[:14]
             cur.execute("""
                 SELECT farm_id FROM granjas_sedes
                 WHERE owner=%s
-                  AND (
-                      router_mac=%s
-                      OR (router_mac LIKE %s AND gateway=%s)
-                  )
-                ORDER BY id ASC
-                LIMIT 1
+                  AND (router_mac=%s OR (router_mac LIKE %s AND gateway=%s))
+                ORDER BY id ASC LIMIT 1
             """, (owner_user, router_mac_fmt, mac_prefijo_5 + '%', gw_detectado))
             row_rtr = cur.fetchone()
             if row_rtr and row_rtr.get('farm_id'):
                 farm_id_efectivo = str(row_rtr['farm_id']).strip()
-            else:
-                cur.execute(
-                    "SELECT farm_id FROM granjas_sedes WHERE owner=%s AND (farm_id=%s OR agent_id=%s) ORDER BY id ASC LIMIT 1",
-                    (owner_user, agent_id, agent_id)
-                )
-                row_ag_exist = cur.fetchone()
-                if row_ag_exist and row_ag_exist.get('farm_id'):
-                    farm_id_efectivo = str(row_ag_exist['farm_id']).strip()
-                else:
-                    farm_id_efectivo = f"RTR-{router_mac_norm[-6:]}"
-    except Exception as err_rtr:
-        print(f"Error resolviendo granja por router_mac ({agent_id}): {err_rtr}")
 
-    nombre_defecto_granja = f"Granja {f_city} ({farm_id_efectivo})"
+        # Capa 2: Coincidencia por misma IP pública + misma subred + mismo gateway (si Android ocultó la MAC)
+        if not farm_id_efectivo and ip_publica_agente and subred_detectada and gw_detectado:
+            cur.execute("""
+                SELECT farm_id FROM granjas_sedes
+                WHERE owner=%s AND public_ip=%s AND subred=%s AND gateway=%s
+                ORDER BY id ASC LIMIT 1
+            """, (owner_user, ip_publica_agente, subred_detectada, gw_detectado))
+            row_pub = cur.fetchone()
+            if row_pub and row_pub.get('farm_id'):
+                farm_id_efectivo = str(row_pub['farm_id']).strip()
+
+        # Capa 3: Si algún minero reportado (por MAC) ya pertenece a una granja de este usuario
+        if not farm_id_efectivo and macs_payload:
+            cur.execute("""
+                SELECT farm_id FROM mineros_activos
+                WHERE owner=%s AND farm_id != '' AND UPPER(REPLACE(mac, ':', '')) = ANY(%s)
+                LIMIT 1
+            """, (owner_user, macs_payload))
+            row_mm = cur.fetchone()
+            if row_mm and row_mm.get('farm_id'):
+                farm_id_efectivo = str(row_mm['farm_id']).strip()
+
+        # Capa 4: Si este agente ya tenía su propia granja asignada previamente
+        if not farm_id_efectivo:
+            cur.execute(
+                "SELECT farm_id FROM granjas_sedes WHERE owner=%s AND (farm_id=%s OR agent_id=%s) ORDER BY id ASC LIMIT 1",
+                (owner_user, agent_id, agent_id)
+            )
+            row_ag_exist = cur.fetchone()
+            if row_ag_exist and row_ag_exist.get('farm_id'):
+                farm_id_efectivo = str(row_ag_exist['farm_id']).strip()
+
+        # Si es realmente una granja nueva: generar ID limpio
+        if not farm_id_efectivo:
+            farm_id_efectivo = f"RTR-{router_mac_norm[-6:]}" if router_mac_norm else agent_id
+    except Exception as err_rtr:
+        print(f"Error resolviendo granja ({agent_id}): {err_rtr}")
+        farm_id_efectivo = agent_id
+
+    nombre_defecto_granja = _siguiente_nombre_granja(cur, owner_user)
     tarifa_defecto = a_float_seguro(u_cfg.get('tarifa_kwh'), 0.06)
 
     try:
         cur.execute("""
             INSERT INTO granjas_sedes (
-                owner, farm_id, agent_id, nombre, ciudad, subred, gateway, router_mac, cap_kw, tarifa_kwh,
+                owner, farm_id, agent_id, nombre, ciudad, subred, gateway, router_mac, public_ip, cap_kw, tarifa_kwh,
                 device_type, run_mode, brand, model, local_ip, has_battery, battery_pct, charging,
                 battery_temp_c, os_info, app_version, ultima_act
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 50.0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 50.0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (owner, farm_id) DO UPDATE SET
                 agent_id=EXCLUDED.agent_id,
                 ciudad=CASE WHEN granjas_sedes.ciudad IS NULL OR granjas_sedes.ciudad='' THEN EXCLUDED.ciudad ELSE granjas_sedes.ciudad END,
                 subred=EXCLUDED.subred,
                 gateway=CASE WHEN EXCLUDED.gateway != '' THEN EXCLUDED.gateway ELSE granjas_sedes.gateway END,
                 router_mac=CASE WHEN EXCLUDED.router_mac != '' THEN EXCLUDED.router_mac ELSE granjas_sedes.router_mac END,
+                public_ip=CASE WHEN EXCLUDED.public_ip != '' THEN EXCLUDED.public_ip ELSE granjas_sedes.public_ip END,
                 device_type=EXCLUDED.device_type,
                 run_mode=EXCLUDED.run_mode,
                 brand=CASE WHEN EXCLUDED.brand != '' THEN EXCLUDED.brand ELSE granjas_sedes.brand END,
@@ -522,13 +581,12 @@ def recibir_datos():
                 ultima_act=EXCLUDED.ultima_act
         """, (
             owner_user, farm_id_efectivo, agent_id, nombre_defecto_granja, f_city, subred_detectada, gw_detectado,
-            router_mac_fmt, tarifa_defecto, dev_type, run_mode, dev_brand, dev_model, dev_local_ip, has_batt,
+            router_mac_fmt, ip_publica_agente, tarifa_defecto, dev_type, run_mode, dev_brand, dev_model, dev_local_ip, has_batt,
             batt_pct, batt_charging, batt_temp, dev_os, dev_app_ver, ahora
         ))
     except Exception as err_gs:
         print(f"Error actualizando granjas_sedes ({farm_id_efectivo}): {err_gs}")
 
-    # Registrar / actualizar este agente individual (permite múltiples celulares por granja sin sobrescribirse)
     try:
         cur.execute("""
             INSERT INTO agentes_conectados (
@@ -1081,7 +1139,7 @@ def api_panel_ping_pools_resultado():
         return jsonify({"ok": False, "pendiente": True}), 200
     return jsonify({"ok": True, "contenido": row['contenido'], "fecha": row['fecha']}), 200
 
-# ==================== ESCÁNER INTELIGENTE GLOBAL (POR GRANJA Y CELULAR) ====================
+# ==================== ESCÁNER INTELIGENTE GLOBAL ====================
 def _obtener_agentes_usuario(cur, owner):
     cur.execute("""
         SELECT agent_id, farm_id, device_type, run_mode, brand, model, local_ip, subred, app_version, ultima_act
@@ -1091,7 +1149,6 @@ def _obtener_agentes_usuario(cur, owner):
     """, (owner,))
     rows = cur.fetchall() or []
 
-    # Fallback si aún no hay registros en agentes_conectados (antes del primer reporte tras deploy)
     if not rows:
         cur.execute("""
             SELECT COALESCE(NULLIF(agent_id, ''), farm_id) AS agent_id, farm_id,
@@ -1138,6 +1195,7 @@ def api_escaner_iniciar():
         agentes = [a for a in agentes if a['agent_id'] == agent_id_filtro]
 
     online_ids = []
+    routers_online = set()
     for ag in agentes:
         if not ag['online']:
             continue
@@ -1148,10 +1206,12 @@ def api_escaner_iniciar():
             (owner, ag['agent_id'], estado, ahora)
         )
         online_ids.append(ag['agent_id'])
+        routers_online.add(ag['farm_id'])
 
     return jsonify({
         "ok": True,
         "agentes_online": online_ids,
+        "routers_online": len(routers_online),
         "agentes": agentes
     }), 200
 
@@ -1179,7 +1239,7 @@ def api_escaner_resultados():
         SELECT farm_id, nombre, ciudad, subred, agent_id
         FROM granjas_sedes
         WHERE owner=%s
-        ORDER BY ultima_act DESC
+        ORDER BY id ASC
     """, (owner,))
     granjas = cur.fetchall() or []
     granjas_map = {g['farm_id']: g for g in granjas}
@@ -1196,7 +1256,6 @@ def api_escaner_resultados():
     """, (owner, hace_7d))
     descubiertos_raw = cur.fetchall() or []
 
-    # Construir grupos por Granja (Router)
     grupos_dict = {}
     for g in granjas:
         fid = g['farm_id']
@@ -1222,7 +1281,6 @@ def api_escaner_resultados():
             }
         grupos_dict[fid]["agentes"].append(ag)
 
-    # Deduplicar mineros por (farm_id, ip) y construir lista global
     vistos_global = set()
     vistos_por_granja = set()
     lista_final = []
@@ -1232,9 +1290,11 @@ def api_escaner_resultados():
         mac_d = normalizar_mac(d.get('mac'))
         activo_row = activos_por_ip.get(ip_d)
         ya_agregado = (activo_row is not None) or (bool(mac_d) and mac_d in macs_activas)
-        octeto = ip_d.split('.')[-1] if '.' in ip_d else ip_d
         modelo_d = d.get('modelo') or 'Antminer'
-        nombre_defecto = nombres_map.get(ip_d) or f"{modelo_d} #{octeto}"
+
+        # Nombre: 1) guardado en sistema, 2) sufijo de worker1 (ej. giovanni.008 -> 008), 3) octeto IP
+        nombre_defecto = nombres_map.get(ip_d) or _extraer_nombre_desde_worker(d.get('worker1'), ip_d)
+
         router_fid = str(d.get('farm_id') or d.get('agent_id') or 'default')
         farm_asignada = (activo_row.get('farm_id') if activo_row and activo_row.get('farm_id') else '') or router_fid
 
@@ -1271,23 +1331,23 @@ def api_escaner_resultados():
             vistos_global.add(ip_d)
             lista_final.append(item)
 
-    # Ordenar mineros dentro de cada grupo y ordenar grupos (primero los que tienen agentes online)
     grupos_lista = []
     for g in grupos_dict.values():
-        g["mineros"].sort(key=lambda x: (0 if x['ya_agregado'] else 1, x['ip']))
+        g["mineros"].sort(key=lambda x: (0 if not x['ya_agregado'] else 1, x['ip']))
         g["agentes"].sort(key=lambda a: (0 if a['online'] else 1, a['nombre']))
         g["online_count"] = sum(1 for a in g["agentes"] if a["online"])
         if g["agentes"] or g["mineros"]:
             grupos_lista.append(g)
 
     grupos_lista.sort(key=lambda g: (0 if g["online_count"] > 0 else 1, -len(g["mineros"]), g["farm_nombre"]))
-    lista_final.sort(key=lambda x: (0 if x['ya_agregado'] else 1, x['ip']))
+    lista_final.sort(key=lambda x: (0 if not x['ya_agregado'] else 1, x['ip']))
 
     return jsonify({
         "ok": True,
         "es_pro": bool(es_pro),
         "limite": limite_efectivo,
         "activos_count": len(activos),
+        "routers_count": len(grupos_lista),
         "granjas": granjas,
         "agentes": agentes,
         "grupos": grupos_lista,
@@ -1425,7 +1485,9 @@ def api_escaner_agregar():
     if agregados == 0 and eliminados == 0 and actualizados == 0 and bloqueados > 0:
         return jsonify({
             "ok": False,
-            "msg": f"Alcanzaste el límite de {limite_efectivo} mineros de tu Plan Gratis. Activa Plan Pro para agregar más.",
+            "limite_alcanzado": True,
+            "limite": limite_efectivo,
+            "msg": f"Tu plan Gratis permite {limite_efectivo} mineros. Mejora tu plan para añadir más.",
             "bloqueados": bloqueados
         }), 403
 
