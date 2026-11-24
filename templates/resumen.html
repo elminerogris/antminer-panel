@@ -399,7 +399,7 @@
 {% set pct_online = ((en_linea / totales) * 100) if totales > 0 else 0 %}
 
 <!-- 1. Tarjetas KPI de la Flota -->
-<div class="grid-top">
+<div class="grid-top" id="resGridTop" data-no-live-patch="1">
     <div class="kpi-card" data-rtt="kpi_flota">
         <h4>🖥️ Estado de Flota</h4>
         <div class="val"><span translate="no">{{ en_linea }}</span> <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">/ <span translate="no">{{ totales }}</span> activos</span></div>
@@ -448,8 +448,8 @@
 
     <div class="kpi-card" data-rtt="kpi_ganancia">
         <h4>💰 Ganancia Neta / Día</h4>
-        <div class="val" id="gananciaNetaCard" style="color:var(--accent-green);" translate="no">{{ flota.ganancia_dia }}</div>
-        <div class="sub" id="subProyeccionMes">Proy. mes: <span translate="no">${{ "%.0f"|format(flota.ingreso_dia|float * 30) }}</span></div>
+        <div class="val" id="gananciaNetaCard" style="color:{{ '#ff5252' if flota.ganancia_dia_raw < 0 else ('var(--text-muted)' if flota.ganancia_dia_raw == 0 else 'var(--accent-green)') }};" translate="no">{{ flota.ganancia_dia }}</div>
+        <div class="sub" id="subProyeccionMes">Proy. mes: <span translate="no">{{ '-$' if flota.ganancia_mes_raw < 0 else '$' }}{{ "%.0f"|format(flota.ganancia_mes_raw|abs) }}</span></div>
     </div>
 </div>
 
@@ -502,7 +502,6 @@
 <div class="prof-calc-card" data-no-live-patch="1">
     <div class="prof-calc-head">
         <div class="prof-calc-title">₿ Calculadora de rentabilidad</div>
-        <span id="calcLiveBadge" style="font-size:0.74em; font-family:monospace; color:#38bdf8;">🔄 Sincronizando red Bitcoin...</span>
     </div>
 
     <!-- Producción en BTC -->
@@ -529,11 +528,11 @@
     <div class="prof-inputs-grid {% if not es_tecnico %}with-save{% endif %}">
         <div class="prof-field">
             <label for="calcHashrate">Hashrate (TH/s)</label>
-            <input type="number" step="0.1" min="0" id="calcHashrate" class="prof-input" value="{{ '%.1f'|format(flota.hashrate_total|float) }}" oninput="recalcularCalculadora()">
+            <input type="number" step="0.1" min="0" id="calcHashrate" class="prof-input" value="{{ '%.1f'|format(flota.hashrate_total|float) }}" oninput="calcManualOverride = true; recalcularCalculadora()">
         </div>
         <div class="prof-field">
             <label for="calcConsumoW">Consumo (W)</label>
-            <input type="number" step="10" min="0" id="calcConsumoW" class="prof-input" value="{{ '%.0f'|format(flota.consumo_w_total|float) }}" oninput="recalcularCalculadora()">
+            <input type="number" step="10" min="0" id="calcConsumoW" class="prof-input" value="{{ '%.0f'|format(flota.consumo_w_total|float) }}" oninput="calcManualOverride = true; recalcularCalculadora()">
         </div>
         <div class="prof-field">
             <label for="tarifaKwh">
@@ -621,7 +620,7 @@
 
 <!-- 3. Tabla de Resumen de Equipos (Estética unificada con /mineros) -->
 <div class="table-container">
-    <table id="tablaResumen">
+    <table id="tablaResumen" data-no-live-patch="1">
         <thead>
             <tr>
                 <th style="width:32px;"><input type="checkbox" id="checkAll" onclick="toggleTodos(this)"></th>
@@ -644,7 +643,7 @@
             {% set efi_cls = 'badge-efi-ok' if (efi_val > 0 and efi_val <= 24) else ('badge-efi-mid' if (efi_val > 0 and efi_val <= 34) else 'badge-efi-high') %}
             {% set es_online = ('En línea' in r.estado) %}
             {% set es_sha256_online = es_online and (r.unidad == 'TH/s') and (r.algoritmo == 'SHA-256') %}
-            <tr onclick="toggleFilaResumen(event, this)">
+            <tr data-ip="{{ r.ip }}" onclick="toggleFilaResumen(event, this)">
                 <td><input type="checkbox" class="miner-check" value="{{ r.ip }}" onchange="actualizarSeleccionResumen()"></td>
                 <td data-sort-str="{{ r.nombre }}">
                     <a href="/minero/{{ r.ip }}" class="miner-link" translate="no">{{ r.nombre }}</a>
@@ -692,8 +691,8 @@
                     data-sha="{{ '1' if es_sha256_online else '0' }}"
                     data-hr="{{ r.hashrate }}"
                     data-kw="{{ kw_num }}"
-                    data-sort-num="0"
-                    style="font-weight:bold;color:{{ '#ff5252' if '-' in r.ganancia_neta else 'var(--accent-green)' }};font-family:monospace;"
+                    data-sort-num="{{ r.ganancia_neta_num | default(0) }}"
+                    style="font-weight:bold;color:{{ '#ff5252' if '-' in r.ganancia_neta else ('var(--text-muted)' if (not es_online or (es_sha256_online and r.ganancia_neta_num|default(0) == 0)) else 'var(--accent-green)') }};font-family:monospace;"
                     translate="no">{{ r.ganancia_neta }}</td>
             </tr>
             {% endfor %}
@@ -709,6 +708,7 @@
     let btcRecompensaLive = parseFloat("{{ flota.recompensa_bloque }}") || 3.125;
 
     let accionPendienteResumen = null;
+    let calcManualOverride = false;
     let sortColRes = 1;
     let sortAscRes = true;
 
@@ -783,7 +783,6 @@
     }
 
     async function sincronizarRedBitcoinEnVivo() {
-        const badge = document.getElementById('calcLiveBadge');
         try {
             const [precioRes, rNet, rAltura] = await Promise.allSettled([
                 obtenerPrecioBtcConRespaldo(),
@@ -807,17 +806,8 @@
                 }
             }
 
-            if (badge) {
-                badge.style.color = '#00e676';
-                badge.innerText = '● Datos en vivo';
-            }
             aplicarDatosRedEnDOM();
-        } catch (e) {
-            if (badge) {
-                badge.style.color = 'var(--text-muted)';
-                badge.innerText = '● Red sincronizada';
-            }
-        }
+        } catch (e) {}
     }
 
     function marcarCalcPendiente() {
@@ -948,7 +938,7 @@
         const cardEl = document.getElementById('gananciaNetaCard');
         if (cardEl) {
             cardEl.innerText = (ganDia < 0 ? '-$' : '$') + Math.abs(ganDia).toFixed(2);
-            cardEl.style.color = ganDia < 0 ? '#ff5252' : '#00e676';
+            cardEl.style.color = ganDia < 0 ? '#ff5252' : (ganDia > 0 ? '#00e676' : 'var(--text-muted)');
         }
         const subMes = document.getElementById('subProyeccionMes');
         if (subMes) {
@@ -964,7 +954,7 @@
                 const netoEq = (btcEq * btcPrecioLive) - (kwEq * 24 * tarifa);
                 td.setAttribute('data-sort-num', netoEq.toFixed(4));
                 td.innerText = netoEq < 0 ? `-USD ${Math.abs(netoEq).toFixed(2)}` : `USD ${netoEq.toFixed(2)}`;
-                td.style.color = netoEq < 0 ? '#ff5252' : 'var(--accent-green)';
+                td.style.color = netoEq < 0 ? '#ff5252' : (netoEq > 0 ? 'var(--accent-green)' : 'var(--text-muted)');
             });
         }
     }
@@ -1079,13 +1069,47 @@
         });
     }
 
-    // Re-aplicar precio BTC en vivo, ganancias y ordenamiento cada vez que el live-patch actualiza el DOM
+    // Reemplazo limpio de KPIs y tabla ordenada en vivo (evita mezclar filas, colores o atributos tras ordenar)
     window.addEventListener('emg:live-update', function(ev) {
         const ob = document.getElementById('onboardingCard');
-        if (ob && ev.detail && ev.detail.doc && ev.detail.doc.querySelector('#tablaResumen')) {
+        const doc = ev.detail && ev.detail.doc;
+        if (!doc) return;
+        if (ob && doc.querySelector('#tablaResumen')) {
             window.location.reload();
             return;
         }
+
+        const gridAct = document.getElementById('resGridTop');
+        const gridNue = doc.getElementById('resGridTop');
+        if (gridAct && gridNue) {
+            gridAct.innerHTML = gridNue.innerHTML;
+        }
+
+        const tbodyAct = document.querySelector('#tablaResumen tbody');
+        const tbodyNue = doc.querySelector('#tablaResumen tbody');
+        if (tbodyAct && tbodyNue) {
+            const selSet = new Set(
+                Array.from(tbodyAct.querySelectorAll('.miner-check:checked')).map(cb => cb.value)
+            );
+            const nuevasFilas = Array.from(tbodyNue.querySelectorAll('tr')).map(tr => document.importNode(tr, true));
+            tbodyAct.replaceChildren(...nuevasFilas);
+            if (selSet.size > 0) {
+                tbodyAct.querySelectorAll('.miner-check').forEach(cb => {
+                    if (selSet.has(cb.value)) cb.checked = true;
+                });
+            }
+            actualizarSeleccionResumen();
+        }
+
+        if (!calcManualOverride) {
+            const hrNue = doc.getElementById('calcHashrate');
+            const wNue = doc.getElementById('calcConsumoW');
+            const hrAct = document.getElementById('calcHashrate');
+            const wAct = document.getElementById('calcConsumoW');
+            if (hrAct && hrNue && document.activeElement !== hrAct) hrAct.value = hrNue.value;
+            if (wAct && wNue && document.activeElement !== wAct) wAct.value = wNue.value;
+        }
+
         aplicarDatosRedEnDOM();
         ordenarTablaResumen(sortColRes, sortAscRes);
     });

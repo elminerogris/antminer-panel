@@ -429,7 +429,7 @@
 </div>
 
 <!-- 1. Tarjetas KPI Principales de la Flota -->
-<div class="filter-pills">
+<div class="filter-pills" id="fleetFilterPills" data-no-live-patch="1">
     <div class="pill-card active" id="pill-all" data-ftt="kpi_hashrate" onclick="filtrarEstado('all')">
         <div>
             <div class="pill-title" style="color:#60a5fa;">⚡ Hashrate de la flota</div>
@@ -495,7 +495,7 @@
 
 <!-- 3. Tabla Limpia e Intuitiva de Gestión de Flota -->
 <div class="table-container">
-    <table id="tablaMineros">
+    <table id="tablaMineros" data-no-live-patch="1">
         <thead>
             <tr>
                 <th style="width:32px;"><input type="checkbox" id="checkAllFleet" onclick="seleccionarTodosVisibles(this)"></th>
@@ -1608,16 +1608,56 @@
         if (box) box.style.display = 'none';
     }
 
+    window.addEventListener('emg:live-update', function(ev) {
+        const doc = ev.detail && ev.detail.doc;
+        if (!doc) return;
+
+        const pillsAct = document.getElementById('fleetFilterPills');
+        const pillsNue = doc.getElementById('fleetFilterPills');
+        if (pillsAct && pillsNue) {
+            pillsAct.innerHTML = pillsNue.innerHTML;
+            pillsAct.querySelectorAll('.pill-card').forEach(p => p.classList.remove('active'));
+            const pillEl = document.getElementById('pill-' + filtroEstadoActual);
+            if (pillEl) pillEl.classList.add('active');
+        }
+
+        const tbodyAct = document.querySelector('#tablaMineros tbody');
+        const tbodyNue = doc.querySelector('#tablaMineros tbody');
+        if (tbodyAct && tbodyNue) {
+            const selSet = new Set(
+                Array.from(tbodyAct.querySelectorAll('.cb-minero:checked')).map(cb => cb.value)
+            );
+            const nuevasFilas = Array.from(tbodyNue.querySelectorAll('tr')).map(tr => document.importNode(tr, true));
+            tbodyAct.replaceChildren(...nuevasFilas);
+            if (selSet.size > 0) {
+                tbodyAct.querySelectorAll('.cb-minero').forEach(cb => {
+                    if (selSet.has(cb.value)) cb.checked = true;
+                });
+            }
+            if (typeof actualizarContadorSeleccion === 'function') actualizarContadorSeleccion();
+        }
+
+        calcularKPIsFlota();
+        ordenarTabla(sortColActual, sortAscActual);
+        aplicarFiltrosTabla();
+    });
+
+    document.addEventListener('mouseover', function(e) {
+        const el = e.target.closest('[data-ftt]');
+        if (!el) return;
+        const info = FLEET_TOOLTIPS[el.getAttribute('data-ftt')];
+        if (info) mostrarTooltipFlota(el, info);
+    });
+    document.addEventListener('mouseout', function(e) {
+        const el = e.target.closest('[data-ftt]');
+        if (!el) return;
+        if (e.relatedTarget && el.contains(e.relatedTarget)) return;
+        ocultarTooltipFlota();
+    });
+
     window.addEventListener('load', function() {
         calcularKPIsFlota();
         ordenarTabla(1, true);
-
-        document.querySelectorAll('[data-ftt]').forEach(el => {
-            const info = FLEET_TOOLTIPS[el.getAttribute('data-ftt')];
-            if (!info) return;
-            el.addEventListener('mouseenter', () => mostrarTooltipFlota(el, info));
-            el.addEventListener('mouseleave', ocultarTooltipFlota);
-        });
         window.addEventListener('scroll', ocultarTooltipFlota, { passive: true });
     });
 </script>

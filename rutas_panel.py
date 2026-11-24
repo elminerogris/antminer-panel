@@ -574,8 +574,10 @@ def index():
                 ig += ib
                 gan_neta_total += neto
                 str_gan = f"-USD {abs(neto):.2f}" if neto < 0 else f"{neto:.2f} USD"
+                neto_num = round(neto, 4)
             else:
                 str_gan = f"Pool {mon}"
+                neto_num = 0.0
 
             registros.append({
                 'ip': ip, 'nombre': nombre_custom, 'modelo': mod, 'algoritmo': algo, 'moneda': mon,
@@ -583,8 +585,8 @@ def index():
                 'estado': '<span style="color:var(--accent-green);">● En línea</span>',
                 'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr,
                 'hashrate_30m': a_float_seguro(m.get('hashrate_30m'), hr),
-                'temp_num': t, 'consumo_kw': f"{round(c/1000, 2)} kW",
-                'eficiencia': eficiencia_val, 'ganancia_neta': str_gan
+                'temp_num': t, 'consumo_kw': f"{c/1000:.2f} kW",
+                'eficiencia': eficiencia_val, 'ganancia_neta': str_gan, 'ganancia_neta_num': neto_num
             })
         else:
             offline += 1
@@ -593,7 +595,7 @@ def index():
                 'unidad': unidad, 'unidad_efi': unidad_efi,
                 'estado': '<span style="color:var(--accent-red);">● Sin conexión</span>',
                 'tiempo_act': f'hace {int(segs_desconectado // 60)}m', 'hashrate': 0, 'hashrate_30m': 0, 'temp_num': 0,
-                'consumo_kw': '0.0 kW', 'eficiencia': 0, 'ganancia_neta': "USD 0.00"
+                'consumo_kw': '0.00 kW', 'eficiencia': 0, 'ganancia_neta': "USD 0.00", 'ganancia_neta_num': 0.0
             })
 
     flota = {
@@ -610,6 +612,8 @@ def index():
         'recompensa_bloque': datos_red['recompensa'],
         'red_ehs': datos_red['red_ehs'],
         'ingreso_dia': f"{ig:.2f}",
+        'ganancia_dia_raw': round(gan_neta_total, 2),
+        'ganancia_mes_raw': round(gan_neta_total * 30.0, 0),
         'ganancia_dia': f"-USD {abs(gan_neta_total):.2f}" if gan_neta_total < 0 else f"{gan_neta_total:.2f} USD"
     }
     return render_seguro('resumen.html', active_page='resumen', registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota)
