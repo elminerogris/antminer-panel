@@ -68,13 +68,17 @@
         }
     }
 
-    /* Semáforo térmico */
+    /* Semáforo térmico, Consumo y Eficiencia (igual a /mineros) */
     .t-ok { color: #00e676 !important; font-weight: bold; }
     .t-warn { color: #ffb300 !important; font-weight: bold; }
     .t-crit { color: #ff5252 !important; font-weight: bold; }
     .badge-t-ok { background: rgba(0, 230, 118, 0.12); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.3); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.85em; font-family: monospace; display: inline-block; }
     .badge-t-warn { background: rgba(255, 179, 0, 0.15); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.35); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.85em; font-family: monospace; display: inline-block; }
     .badge-t-crit { background: rgba(255, 82, 82, 0.18); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.85em; font-family: monospace; display: inline-block; }
+    .badge-kw { background: rgba(56, 189, 248, 0.10); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.28); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
+    .badge-efi-ok { background: rgba(0, 230, 118, 0.10); color: #69f0ae; border: 1px solid rgba(0, 230, 118, 0.28); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
+    .badge-efi-mid { background: rgba(59, 130, 246, 0.12); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.30); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
+    .badge-efi-high { background: rgba(255, 179, 0, 0.12); color: #fcd34d; border: 1px solid rgba(255, 179, 0, 0.32); padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 0.84em; font-family: monospace; display: inline-block; }
 
     .coin-alt-pill {
         display: inline-block;
@@ -335,8 +339,13 @@
     /* Tabla Principal de Resumen */
     .table-container { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table { width: 100%; min-width: 860px; border-collapse: collapse; white-space: nowrap; }
-    th { text-align: left; padding: 12px 15px; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.015); cursor: pointer; user-select: none; transition: 0.15s; }
-    th:hover { color: #fff; }
+    th { text-align: left; padding: 12px 15px; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.015); user-select: none; transition: 0.15s; }
+    th.sortable { cursor: pointer; }
+    th.sortable:hover { color: #fff; background: rgba(59, 130, 246, 0.08); }
+    th.sort-active { color: #60a5fa !important; }
+    .sort-arrow { display: inline-block; margin-left: 4px; font-size: 0.95em; opacity: 0.65; }
+    th.sort-active .sort-arrow { opacity: 1; color: #38bdf8; }
+
     td { padding: 13px 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.85em; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tbody tr { transition: background 0.15s ease; cursor: pointer; }
@@ -350,7 +359,7 @@
     /* Modal de Confirmación, Tooltip y Toast */
     .res-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.72); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(3px); }
     .res-modal-box { background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 22px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 14px 40px rgba(0,0,0,0.75); }
-    .res-smart-tooltip { position: fixed; display: none; width: 250px; max-width: calc(100vw - 20px); background: rgba(10, 11, 16, 0.98); border: 1px solid rgba(51, 102, 255, 0.55); border-radius: 7px; padding: 9px 11px; color: #d1d3e0; font-family: sans-serif; font-size: 11.5px; line-height: 1.4; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85); z-index: 99999; pointer-events: none; }
+    .res-smart-tooltip { position: fixed; display: none; width: 255px; max-width: calc(100vw - 20px); background: rgba(10, 11, 16, 0.98); border: 1px solid rgba(51, 102, 255, 0.55); border-radius: 7px; padding: 9px 11px; color: #d1d3e0; font-family: sans-serif; font-size: 11.5px; line-height: 1.4; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85); z-index: 99999; pointer-events: none; }
     .res-tt-title { color: #fff; font-weight: bold; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.12); }
     .res-toast { position: fixed; bottom: 22px; right: 22px; background: rgba(10, 12, 18, 0.96); border: 1px solid #00e676; color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 0.86em; font-weight: bold; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 230, 118, 0.3); z-index: 9999; display: none; align-items: center; gap: 8px; }
 </style>
@@ -378,7 +387,7 @@
     <div class="kpi-card" data-rtt="kpi_flota">
         <h4>🖥️ Estado de Flota</h4>
         <div class="val"><span translate="no">{{ en_linea }}</span> <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">/ <span translate="no">{{ totales }}</span> activos</span></div>
-        <div class="sub"><span style="color:var(--accent-green);">● <span translate="no">{{ en_linea }}</span> Online</span> &nbsp;|&nbsp; <span style="color:var(--accent-red);">● <span translate="no">{{ offline }}</span> Offline</span></div>
+        <div class="sub"><span style="color:var(--accent-green);">● <span translate="no">{{ en_linea }}</span> En línea</span> &nbsp;|&nbsp; <span style="color:var(--accent-red);">● <span translate="no">{{ offline }}</span> Sin conexión</span></div>
         <div class="kpi-bar-bg">
             <div class="kpi-bar-fill" style="width:{{ pct_online }}%; background:{{ '#00e676' if pct_online >= 90 else ('#ffb300' if pct_online >= 50 else '#ff5252') }};"></div>
         </div>
@@ -400,7 +409,7 @@
 
     <div class="kpi-card" data-rtt="kpi_consumo">
         <h4>🔌 Consumo Eléctrico</h4>
-        <div class="val" style="color:#c084fc;" translate="no">{{ flota.consumo_kw }} <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">kW</span></div>
+        <div class="val" style="color:#38bdf8;" translate="no">{{ flota.consumo_kw }} <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">kW</span></div>
         <div class="sub"><span translate="no">{{ "{:,.0f}".format(flota.consumo_w_total) }}</span> Watts totales</div>
     </div>
 
@@ -586,66 +595,80 @@
     </div>
 </div>
 
-<!-- 3. Tabla de Resumen de Equipos -->
+<!-- 3. Tabla de Resumen de Equipos (Estética unificada con /mineros) -->
 <div class="table-container">
     <table id="tablaResumen">
         <thead>
             <tr>
                 <th style="width:32px;"><input type="checkbox" id="checkAll" onclick="toggleTodos(this)"></th>
-                <th onclick="ordenarTablaResumen(1)">Minero / IP ↕</th>
-                <th onclick="ordenarTablaResumen(2)">Modelo ↕</th>
-                <th onclick="ordenarTablaResumen(3)">Estado ↕</th>
-                <th onclick="ordenarTablaResumen(4)">Hashrate (5s / 30m) ↕</th>
-                <th onclick="ordenarTablaResumen(5)">Temp Máx ↕</th>
-                <th onclick="ordenarTablaResumen(6)">Consumo ↕</th>
-                <th onclick="ordenarTablaResumen(7)">Eficiencia ↕</th>
-                <th onclick="ordenarTablaResumen(8)">Ganancia Neta / Día ↕</th>
+                <th class="sortable" data-col="1" onclick="ordenarTablaResumen(1)">Minero / IP <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="2" onclick="ordenarTablaResumen(2)">Modelo <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="3" onclick="ordenarTablaResumen(3)">Estado <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="4" onclick="ordenarTablaResumen(4)">Hashrate (5s / 30m) <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="5" onclick="ordenarTablaResumen(5)">Temp Máx <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="6" onclick="ordenarTablaResumen(6)">Consumo <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="7" onclick="ordenarTablaResumen(7)">Eficiencia <span class="sort-arrow">↕</span></th>
+                <th class="sortable" data-col="8" onclick="ordenarTablaResumen(8)">Ganancia Neta / Día <span class="sort-arrow">↕</span></th>
             </tr>
         </thead>
         <tbody>
             {% for r in registros %}
             {% set t_num = r.temp_num | int %}
             {% set row_t_cls = 'badge-t-crit' if t_num >= 85 else ('badge-t-warn' if t_num >= 75 else 'badge-t-ok') %}
-            {% set ip_parts = r.ip.split('.') %}
-            {% set ip_num_sort = (ip_parts[0]|int * 16777216 + ip_parts[1]|int * 65536 + ip_parts[2]|int * 256 + ip_parts[3]|int) if ip_parts|length == 4 else 0 %}
             {% set kw_num = r.consumo_kw.replace(' kW','') | float %}
-            {% set es_sha256_online = ('En línea' in r.estado) and (r.unidad == 'TH/s') and (r.algoritmo == 'SHA-256') %}
+            {% set efi_val = r.eficiencia | float %}
+            {% set efi_cls = 'badge-efi-ok' if (efi_val > 0 and efi_val <= 24) else ('badge-efi-mid' if (efi_val > 0 and efi_val <= 34) else 'badge-efi-high') %}
+            {% set es_online = ('En línea' in r.estado) %}
+            {% set es_sha256_online = es_online and (r.unidad == 'TH/s') and (r.algoritmo == 'SHA-256') %}
             <tr onclick="toggleFilaResumen(event, this)">
                 <td><input type="checkbox" class="miner-check" value="{{ r.ip }}" onchange="actualizarSeleccionResumen()"></td>
-                <td data-sort="{{ ip_num_sort }}">
+                <td data-sort-str="{{ r.nombre }}">
                     <a href="/minero/{{ r.ip }}" class="miner-link" translate="no">{{ r.nombre }}</a>
                     <div class="sub-ip" translate="no">{{ r.ip }}</div>
                 </td>
-                <td style="font-weight:bold;">
+                <td data-sort-str="{{ r.modelo }}" style="font-weight:bold;">
                     <span translate="no">{{ r.modelo }}</span>
                     {% if r.hashrate > 0 and r.moneda and r.moneda != 'BTC' %}
                         <span class="coin-alt-pill" translate="no">{{ r.moneda }}</span>
                     {% endif %}
                 </td>
-                <td data-sort="{{ '1' if 'En línea' in r.estado else '0' }}">
+                <td data-sort-num="{{ '1' if es_online else '0' }}">
                     {{ r.estado | safe }}
                     <div style="font-size:0.75em;color:var(--text-muted);font-family:monospace;">{{ r.tiempo_act }}</div>
                 </td>
-                <td data-sort="{{ r.hashrate }}" translate="no" style="font-family:monospace;">
+                <td data-sort-num="{{ r.hashrate }}" translate="no" style="font-family:monospace;">
                     {% if r.hashrate > 0 %}
                         <b style="color:#3b82f6;font-size:1.05em;">{{ r.hashrate }}</b> <span style="color:var(--text-muted);">/ {{ r.hashrate_30m }} {{ r.unidad | default('TH/s') }}</span>
                     {% else %}
                         <span style="color:var(--text-muted);">0 {{ r.unidad | default('TH/s') }}</span>
                     {% endif %}
                 </td>
-                <td data-sort="{{ t_num }}" translate="no">
+                <td data-sort-num="{{ t_num }}" translate="no">
                     {% if t_num > 0 %}
                         <span class="{{ row_t_cls }}">{{ t_num }}°C</span>
                     {% else %}
                         <span style="color:var(--text-muted);font-family:monospace;">0°C</span>
                     {% endif %}
                 </td>
-                <td data-sort="{{ kw_num }}" translate="no" style="font-family:monospace;">{{ r.consumo_kw }}</td>
-                <td data-sort="{{ r.eficiencia }}" translate="no" style="font-family:monospace; color:#c084fc;">{{ r.eficiencia }} {{ r.unidad_efi | default('J/TH') }}</td>
+                <td data-sort-num="{{ kw_num }}" translate="no">
+                    {% if es_online and kw_num > 0 %}
+                        <span class="badge-kw">⚡ {{ r.consumo_kw }}</span>
+                    {% else %}
+                        <span style="color:var(--text-muted); font-family:monospace;">0.00 kW</span>
+                    {% endif %}
+                </td>
+                <td data-sort-num="{{ efi_val if (es_online and efi_val > 0) else 999999 }}" translate="no">
+                    {% if es_online and efi_val > 0 %}
+                        <span class="{{ efi_cls }}">{{ r.eficiencia }} {{ r.unidad_efi | default('J/TH') }}</span>
+                    {% else %}
+                        <span style="color:var(--text-muted); font-family:monospace;">-</span>
+                    {% endif %}
+                </td>
                 <td class="js-neto-cell"
                     data-sha="{{ '1' if es_sha256_online else '0' }}"
                     data-hr="{{ r.hashrate }}"
                     data-kw="{{ kw_num }}"
+                    data-sort-num="0"
                     style="font-weight:bold;color:{{ '#ff5252' if '-' in r.ganancia_neta else 'var(--accent-green)' }};font-family:monospace;"
                     translate="no">{{ r.ganancia_neta }}</td>
             </tr>
@@ -663,14 +686,16 @@
 
     let accionPendienteResumen = null;
     let timerGuardarTarifa = null;
+    let sortColRes = 1;
+    let sortAscRes = true;
 
     const RESUMEN_TOOLTIPS = {
         'kpi_flota': { t: '🖥️ Disponibilidad de Flota', d: 'Cantidad de mineros transmitiendo en tiempo real frente al total registrado.' },
         'kpi_hr': { t: '⚡ Potencia Total Combinada', d: 'Suma del hashrate instantáneo de todos los equipos activos en tu granja.' },
         'kpi_consumo': { t: '🔌 Demanda Eléctrica Total', d: 'Consumo combinado en Kilovatios (kW) de todas las fuentes activas.' },
         'kpi_temp': { t: '🌡️ Pico Térmico de la Granja', d: 'Temperatura más alta registrada actualmente entre todos tus equipos.' },
-        'kpi_btc': { t: '₿ Cotización BTC y Dificultad', d: 'Precio en vivo (Binance) y dificultad actual de la red Bitcoin (Mempool.space).' },
-        'kpi_ganancia': { t: '💰 Rentabilidad Neta Estimada', d: 'Ingreso diario en BTC menos el costo eléctrico calculado con tu tarifa USD/kWh.' }
+        'kpi_btc': { t: '₿ Cotización BTC y Dificultad', d: 'Precio en vivo y dificultad actual de la red Bitcoin actualizados automáticamente.' },
+        'kpi_ganancia': { t: '💰 Rentabilidad Neta Estimada', d: 'Ingreso diario en BTC con el precio actual menos el costo eléctrico de tu tarifa.' }
     };
 
     function mostrarResToast(msg, esError = false) {
@@ -688,20 +713,49 @@
         return (neg ? '-USD ' : 'USD ') + absStr;
     }
 
+    async function obtenerPrecioBtcConRespaldo() {
+        // 1. Binance
+        try {
+            const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', { cache: 'no-store' });
+            if (r.ok) {
+                const j = await r.json();
+                const p = parseFloat(j.price);
+                if (p > 1000) return p;
+            }
+        } catch (e) {}
+        // 2. Coinbase
+        try {
+            const r = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot', { cache: 'no-store' });
+            if (r.ok) {
+                const j = await r.json();
+                const p = parseFloat(j && j.data && j.data.amount);
+                if (p > 1000) return p;
+            }
+        } catch (e) {}
+        // 3. CoinGecko
+        try {
+            const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', { cache: 'no-store' });
+            if (r.ok) {
+                const j = await r.json();
+                const p = parseFloat(j && j.bitcoin && j.bitcoin.usd);
+                if (p > 1000) return p;
+            }
+        } catch (e) {}
+        return null;
+    }
+
     // Actualiza automáticamente precio BTC, dificultad, hashrate global y recompensa por bloque (incluye futuros Halvings)
     async function sincronizarRedBitcoinEnVivo() {
         const badge = document.getElementById('calcLiveBadge');
         try {
-            const [rPrecio, rNet, rAltura] = await Promise.allSettled([
-                fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'),
-                fetch('https://mempool.space/api/v1/mining/hashrate/3d'),
-                fetch('https://mempool.space/api/blocks/tip/height')
+            const [precioRes, rNet, rAltura] = await Promise.allSettled([
+                obtenerPrecioBtcConRespaldo(),
+                fetch('https://mempool.space/api/v1/mining/hashrate/3d', { cache: 'no-store' }),
+                fetch('https://mempool.space/api/blocks/tip/height', { cache: 'no-store' })
             ]);
 
-            if (rPrecio.status === 'fulfilled' && rPrecio.value.ok) {
-                const jp = await rPrecio.value.json();
-                const p = parseFloat(jp.price);
-                if (p > 1000) btcPrecioLive = p;
+            if (precioRes.status === 'fulfilled' && precioRes.value > 1000) {
+                btcPrecioLive = precioRes.value;
             }
 
             if (rNet.status === 'fulfilled' && rNet.value.ok) {
@@ -718,18 +772,17 @@
                 }
             }
 
-            // Actualizar KPI superior y pie de la calculadora
             const elKpiP = document.getElementById('kpiPrecioBtc');
             if (elKpiP && btcPrecioLive > 0) elKpiP.innerText = '$' + Math.round(btcPrecioLive).toLocaleString('en-US');
             const elKpiSub = document.getElementById('kpiSubRed');
             if (elKpiSub && btcDifTLive > 0) elKpiSub.innerText = `Dif: ${btcDifTLive.toFixed(2)}T | ${btcRedEhsLive.toFixed(2)} EH/s`;
 
             const elNetP = document.getElementById('netPrecioBtc');
-            if (elNetP) elNetP.innerText = 'USD ' + Math.round(btcPrecioLive).toLocaleString('en-US');
+            if (elNetP && btcPrecioLive > 0) elNetP.innerText = 'USD ' + Math.round(btcPrecioLive).toLocaleString('en-US');
             const elNetH = document.getElementById('netHashrate');
-            if (elNetH) elNetH.innerText = `${btcRedEhsLive.toFixed(2)} EH/s`;
+            if (elNetH && btcRedEhsLive > 0) elNetH.innerText = `${btcRedEhsLive.toFixed(2)} EH/s`;
             const elNetD = document.getElementById('netDificultad');
-            if (elNetD) elNetD.innerText = `${btcDifTLive.toFixed(2)} T`;
+            if (elNetD && btcDifTLive > 0) elNetD.innerText = `${btcDifTLive.toFixed(2)} T`;
             const elNetR = document.getElementById('netRecompensa');
             if (elNetR) elNetR.innerText = `${btcRecompensaLive} BTC`;
 
@@ -773,13 +826,11 @@
         const costeBtc = btcNetoDia > 0 ? (elecDia / btcNetoDia) : 0;
         const tuPartePct = btcRedEhsLive > 0 ? (hr / (btcRedEhsLive * 1000000)) * 100 : 0;
 
-        // Cajas superiores BTC
         document.getElementById('calcBtcDiaTop').innerText = btcNetoDia.toFixed(8);
         document.getElementById('calcBtcSemana').innerText = (btcNetoDia * 7).toFixed(8);
         document.getElementById('calcBtcMes').innerText = (btcNetoDia * 30).toFixed(6);
         document.getElementById('calcBtcAnio').innerText = (btcNetoDia * 365).toFixed(4);
 
-        // Resultados principales
         document.getElementById('calcBtcDia').innerText = btcNetoDia.toFixed(8);
         document.getElementById('calcIngresosDia').innerText = fmtUsd(ingresosDia, 2);
         document.getElementById('calcElecDia').innerText = fmtUsd(elecDia, 2);
@@ -799,7 +850,7 @@
         document.getElementById('calcCosteBtc').innerText = fmtUsd(costeBtc, 0);
         document.getElementById('netTuParte').innerText = `${tuPartePct.toFixed(8)} %`;
 
-        // Actualizar KPI superior de Ganancia Neta
+        // Actualizar KPI superior de Ganancia Neta con precio real
         const cardEl = document.getElementById('gananciaNetaCard');
         if (cardEl) {
             cardEl.innerText = (ganDia < 0 ? '-$' : '$') + Math.abs(ganDia).toFixed(2);
@@ -810,7 +861,7 @@
             subMes.innerText = `Proy. mes: ${ganMes < 0 ? '-$' : '$'}${Math.abs(ganMes).toFixed(0)}`;
         }
 
-        // Recalcular cada fila SHA-256 en la tabla inferior
+        // Recalcular cada fila SHA-256 en la tabla inferior con el precio real de BTC
         if (btcDifTLive > 0 && btcPrecioLive > 0) {
             document.querySelectorAll('.js-neto-cell').forEach(td => {
                 if (td.getAttribute('data-sha') !== '1') return;
@@ -818,8 +869,8 @@
                 const kwEq = parseFloat(td.getAttribute('data-kw')) || 0;
                 const btcEq = ((hrEq * btcRecompensaLive * 86400) / (btcDifTLive * 4294967296)) * (1 - poolFee / 100);
                 const netoEq = (btcEq * btcPrecioLive) - (kwEq * 24 * tarifa);
-                td.setAttribute('data-sort', netoEq.toFixed(4));
-                td.innerText = netoEq < 0 ? `-USD ${Math.abs(netoEq).toFixed(2)}` : `${netoEq.toFixed(2)} USD`;
+                td.setAttribute('data-sort-num', netoEq.toFixed(4));
+                td.innerText = netoEq < 0 ? `-USD ${Math.abs(netoEq).toFixed(2)}` : `USD ${netoEq.toFixed(2)}`;
                 td.style.color = netoEq < 0 ? '#ff5252' : 'var(--accent-green)';
             });
         }
@@ -912,23 +963,51 @@
         });
     }
 
-    let ordenResAsc = false;
-    function ordenarTablaResumen(colIdx) {
-        let tbody = document.querySelector('#tablaResumen tbody');
+    function ordenarTablaResumen(colIdx, forzarAsc = null) {
+        const tbody = document.querySelector('#tablaResumen tbody');
         if (!tbody) return;
-        let filas = Array.from(tbody.querySelectorAll('tr'));
-        ordenResAsc = !ordenResAsc;
+        const filas = Array.from(tbody.querySelectorAll('tr'));
+
+        if (forzarAsc !== null) {
+            sortColRes = colIdx;
+            sortAscRes = forzarAsc;
+        } else if (sortColRes === colIdx) {
+            sortAscRes = !sortAscRes;
+        } else {
+            sortColRes = colIdx;
+            sortAscRes = (colIdx === 1 || colIdx === 2 || colIdx === 7);
+        }
+
         filas.sort((a, b) => {
-            let tdA = a.children[colIdx];
-            let tdB = b.children[colIdx];
-            let vA = tdA.getAttribute('data-sort') !== null ? parseFloat(tdA.getAttribute('data-sort')) : tdA.innerText.trim();
-            let vB = tdB.getAttribute('data-sort') !== null ? parseFloat(tdB.getAttribute('data-sort')) : tdB.innerText.trim();
-            if (typeof vA === 'number' && typeof vB === 'number' && !isNaN(vA) && !isNaN(vB)) {
-                return ordenResAsc ? vA - vB : vB - vA;
+            const tdA = a.children[colIdx];
+            const tdB = b.children[colIdx];
+            if (!tdA || !tdB) return 0;
+
+            const numA = tdA.getAttribute('data-sort-num');
+            const numB = tdB.getAttribute('data-sort-num');
+            if (numA !== null && numB !== null) {
+                return sortAscRes ? (parseFloat(numA) - parseFloat(numB)) : (parseFloat(numB) - parseFloat(numA));
             }
-            return ordenResAsc ? String(vA).localeCompare(String(vB)) : String(vB).localeCompare(String(vA));
+
+            const strA = (tdA.getAttribute('data-sort-str') || tdA.innerText || '').trim();
+            const strB = (tdB.getAttribute('data-sort-str') || tdB.innerText || '').trim();
+            const cmp = strA.localeCompare(strB, 'es', { numeric: true, sensitivity: 'base' });
+            return sortAscRes ? cmp : -cmp;
         });
+
         filas.forEach(f => tbody.appendChild(f));
+
+        document.querySelectorAll('#tablaResumen thead th.sortable').forEach(th => {
+            const c = parseInt(th.getAttribute('data-col'), 10);
+            const arrow = th.querySelector('.sort-arrow');
+            if (c === sortColRes) {
+                th.classList.add('sort-active');
+                if (arrow) arrow.innerText = sortAscRes ? '▲' : '▼';
+            } else {
+                th.classList.remove('sort-active');
+                if (arrow) arrow.innerText = '↕';
+            }
+        });
     }
 
     window.addEventListener('emg:live-update', function(ev) {
@@ -941,6 +1020,12 @@
     window.addEventListener('load', function() {
         recalcularCalculadora(false);
         sincronizarRedBitcoinEnVivo();
+        ordenarTablaResumen(1, true);
+
+        // Mantener precio BTC y red sincronizados cada 60 segundos
+        setInterval(function() {
+            if (!document.hidden) sincronizarRedBitcoinEnVivo();
+        }, 60000);
 
         const box = document.getElementById('resSmartTooltip');
         if (!box) return;
@@ -951,7 +1036,7 @@
                 box.innerHTML = `<div class="res-tt-title">${info.t}</div><div>${info.d}</div>`;
                 box.style.display = 'block';
                 const r = el.getBoundingClientRect();
-                const bw = box.offsetWidth || 250;
+                const bw = box.offsetWidth || 255;
                 const bh = box.offsetHeight || 70;
                 let left = r.left + (r.width / 2) - (bw / 2);
                 left = Math.max(10, Math.min(window.innerWidth - bw - 10, left));
