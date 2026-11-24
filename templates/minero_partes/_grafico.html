@@ -41,6 +41,21 @@
         box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
     }
 
+    /* Badge Modo Hydro */
+    .hydro-mode-badge {
+        display: none;
+        align-items: center;
+        gap: 4px;
+        background: rgba(14, 165, 233, 0.15);
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        color: #38bdf8;
+        padding: 2px 9px;
+        border-radius: 12px;
+        font-size: 0.72em;
+        font-weight: bold;
+        font-family: monospace;
+    }
+
     /* Botón Profesional de Ubicación / GPS */
     .farm-gps-btn {
         display: none;
@@ -702,6 +717,7 @@
     <div class="panel-title" style="margin-bottom: 10px;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
+            <span id="hydroModeBadge" class="hydro-mode-badge">💧 Modo Hydro</span>
             <span id="btnGuiaGrafico" class="btn-help-guide">? Cómo leer</span>
             <span id="btnToggleTimezone" class="btn-tz-toggle" onclick="alternarZonaHorariaGrafico()">🕒 Hora Granja</span>
             <button type="button" id="climaUbicacionBadge" class="farm-gps-btn" onclick="abrirModalUbicacionGranja()"></button>
@@ -723,7 +739,7 @@
             <span class="stat-info-icon">i</span>
         </div>
         <div class="stat-item" data-stat-key="temp_pico">
-            Temp Máx/Mín: <b id="statTempPico" style="color:#ffb300;" translate="no">0°/0°C</b>
+            <span id="lblStatTempPico">Temp Máx/Mín:</span> <b id="statTempPico" style="color:#ffb300;" translate="no">0°/0°C</b>
             <span class="stat-info-icon">i</span>
         </div>
         <div class="stat-item" data-stat-key="clima_hoy">
@@ -769,6 +785,12 @@
 <script>
     const unidadMinero = "{{ ultimo.unidad }}";
     const algoritmoMinero = "{{ ultimo.algoritmo | default('SHA-256') }}";
+    const modeloMineroStr = "{{ ultimo.modelo | default('') }}";
+    const fansMineroStr = "{{ ultimo.fans | default('') }}";
+    const esMineroHydro = /hyd|hydro|water/i.test(modeloMineroStr + " " + fansMineroStr);
+    const UMBRAL_ALERTA_TEMP = esMineroHydro ? 62 : 75;
+    const UMBRAL_CRIT_TEMP = esMineroHydro ? 70 : 85;
+
     const rawFechas = {{ graf_fechas_raw | safe }};
     const rawHr = {{ graf_hashrate | safe }};
     const rawTemp = {{ graf_temps | safe }};
@@ -809,7 +831,6 @@
     let tooltipsInicializados = false;
     let cargandoLiveGrafico = false;
 
-    // Control de inercia de scroll + desbloqueo rápido al mover el mouse
     let ultimoScrollPaginaTs = 0;
     let zoomRuedaHabilitado = false;
     let timerDesbloqueoZoom = null;
@@ -889,7 +910,6 @@
         mostrarTopeEnVivo();
     }
 
-    // ==================== RESALTADO EN VIVO AL PASAR EL MOUSE POR PÍLDORAS ====================
     function resaltarCurvaDesdeLeyenda(dsId) {
         if (!chartInstance) return;
         chartInstance.data.datasets.forEach((ds, idx) => {
@@ -951,8 +971,9 @@
     function obtenerCorteTempActual() {
         const inp = document.getElementById('corteTempInput');
         const sw = document.getElementById('corteActivoSwitch');
-        const val = inp ? parseInt(inp.value, 10) : {{ ultimo.corte_temp | default(85) | int }};
-        const temp = (!isNaN(val) && val >= 60 && val <= 105) ? val : 85;
+        const defCorte = esMineroHydro ? 70 : 85;
+        const valRaw = inp ? parseInt(inp.value, 10) : {{ ultimo.corte_temp | default(0) | int }};
+        const temp = (!isNaN(valRaw) && valRaw >= 55 && valRaw <= 105) ? (esMineroHydro && valRaw === 85 ? 70 : valRaw) : defCorte;
         const activo = sw ? !!sw.checked : {{ 'true' if ultimo.corte_activo else 'false' }};
         return { temp, activo };
     }
@@ -971,16 +992,28 @@
             'tmax': {
                 titulo: '🌡️ Temperatura Máxima (Chips)',
                 desc: 'Muestra qué tan calientes están los chips internos del equipo. Es el dato más importante para cuidar su vida útil.',
-                rango: `🟢 < 75°C Normal | 🟠 75-${corteCfg.temp - 1}°C Calor | 🔴 Corte: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`,
+                rango: esMineroHydro
+                    ? `🟢 < 62°C Normal | 🟠 62–69°C Calor | 🔴 Corte Hydro: ~${corteCfg.temp}°C`
+                    : `🟢 < 75°C Normal | 🟠 75–${corteCfg.temp - 1}°C Calor | 🔴 Corte: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`,
                 accion: estadoTxt
             },
-            'tmin': {
+            'tmin': esMineroHydro ? {
+                titulo: '🔥 Agua Salida (Outlet)',
+                desc: 'Temperatura del refrigerante al salir de las placas hash. Si supera los 70°C el firmware Hydro detiene el minado por seguridad.',
+                rango: 'Ideal: < 60°C | ΔT sano vs Entrada: 5°C a 10°C',
+                accion: estadoTxt
+            } : {
                 titulo: '❄️ Temperatura Mínima (Entrada de Placa)',
                 desc: 'Temperatura en la parte más fresca de la placa. Compararla con la máxima te dice si el aire está circulando bien por dentro.',
                 rango: 'Ideal: entre 10°C y 18°C por debajo de la Temp Máx',
                 accion: estadoTxt
             },
-            'tamb': {
+            'tamb': esMineroHydro ? {
+                titulo: '💧 Agua Entrada (Inlet)',
+                desc: 'Temperatura del agua que entra al minero desde el radiador o intercambiador. Si baja de 20°C el equipo no arranca para evitar condensación.',
+                rango: 'Rango seguro Hydro: 20°C a 40°C (Ideal: 25°C–35°C)',
+                accion: estadoTxt
+            } : {
                 titulo: '🍃 Aire de Entrada (Ambiente)',
                 desc: 'Temperatura del aire que absorbe el minero por los ventiladores frontales.',
                 rango: 'Recomendado en la sala: 15°C a 35°C',
@@ -1015,7 +1048,9 @@
         const dicStats = {
             'guia_rapida': {
                 titulo: '📖 Cómo leer este gráfico en 10 segundos',
-                desc: '• <b>Línea Azul (Izquierda):</b> Potencia del minero.<br>• <b>Línea Amarilla (Derecha):</b> Calor de los chips.<br>• <b>Barras Rojas:</b> Errores del equipo.<br>• <b>Íconos arriba (🔄/🛡️/⚡):</b> Eventos automáticos.<br>• <b>Zoom:</b> Rueda del mouse o 2 dedos en celular.<br>• <b>Ocultar líneas:</b> Pasa el mouse por las píldoras para ver cuál es y haz clic para ocultarla.',
+                desc: esMineroHydro
+                    ? '• <b>Línea Azul:</b> Potencia del minero.<br>• <b>Línea Amarilla:</b> Calor de los chips.<br>• <b>Naranja / Verde:</b> Agua Salida vs. Agua Entrada.<br>• <b>ΔT del Agua:</b> Si Salida − Entrada supera 12°C, revisa bomba o aire en el circuito.<br>• <b>Zoom:</b> Rueda del mouse o 2 dedos en celular.'
+                    : '• <b>Línea Azul (Izquierda):</b> Potencia del minero.<br>• <b>Línea Amarilla (Derecha):</b> Calor de los chips.<br>• <b>Barras Rojas:</b> Errores del equipo.<br>• <b>Íconos arriba (🔄/🛡️/⚡):</b> Eventos automáticos.<br>• <b>Zoom:</b> Rueda del mouse o 2 dedos en celular.',
                 rango: 'Pasa el mouse sobre cualquier punto para resaltar su dato'
             },
             'tz_toggle': {
@@ -1044,9 +1079,13 @@
                 rango: 'Revisar si baja más de un 15% respecto al promedio'
             },
             'temp_pico': {
-                titulo: '🌡️ Calor Máximo y Mínimo',
-                desc: 'Muestra la temperatura más caliente que alcanzaron los chips y la más fresca registrada en las placas durante este periodo.',
-                rango: `Saludable: 60°C a 75°C | Corte automático: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`
+                titulo: esMineroHydro ? '💧 Calor Máximo y Agua Salida' : '🌡️ Calor Máximo y Mínimo',
+                desc: esMineroHydro
+                    ? 'Muestra el pico de temperatura en chips y el máximo de agua de salida registrado en el periodo.'
+                    : 'Muestra la temperatura más caliente que alcanzaron los chips y la más fresca registrada en las placas durante este periodo.',
+                rango: esMineroHydro
+                    ? `Saludable Hydro: < 62°C | Protección térmica: ~${corteCfg.temp}°C`
+                    : `Saludable: 60°C a 75°C | Corte automático: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`
             },
             'clima_hoy': {
                 titulo: '🌤️ Clima Exterior y Sensación Térmica',
@@ -1764,7 +1803,6 @@
 
             ctx.save();
 
-            // Marcadores verticales de eventos automáticos (Watchdog / Corte Térmico / Tarifa Pico)
             if (xAxis && eventosGrafico && eventosGrafico.length > 0) {
                 let ultimoXIcono = -999;
                 const visibles = eventosGrafico
@@ -1852,8 +1890,8 @@
                     ctx.setLineDash([4, 6]);
                     ctx.moveTo(ca.left, yCorte);
                     ctx.lineTo(ca.right, yCorte);
-                    ctx.lineWidth = corteCfg.activo ? 1.3 : 1;
-                    ctx.strokeStyle = corteCfg.activo ? 'rgba(255, 82, 82, 0.58)' : 'rgba(255, 82, 82, 0.24)';
+                    ctx.lineWidth = (corteCfg.activo || esMineroHydro) ? 1.3 : 1;
+                    ctx.strokeStyle = (corteCfg.activo || esMineroHydro) ? 'rgba(255, 82, 82, 0.58)' : 'rgba(255, 82, 82, 0.24)';
                     ctx.stroke();
                     ctx.setLineDash([]);
 
@@ -1861,8 +1899,10 @@
                     ctx.lineWidth = 3;
                     ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
                     ctx.textAlign = 'right';
-                    ctx.fillStyle = corteCfg.activo ? 'rgba(255, 110, 110, 0.92)' : 'rgba(255, 110, 110, 0.50)';
-                    const lblCorte = `Corte ${corteCfg.temp}°C${corteCfg.activo ? '' : ' (OFF)'}`;
+                    ctx.fillStyle = (corteCfg.activo || esMineroHydro) ? 'rgba(255, 110, 110, 0.92)' : 'rgba(255, 110, 110, 0.50)';
+                    const lblCorte = esMineroHydro
+                        ? `Límite Hydro ${corteCfg.temp}°C`
+                        : `Corte ${corteCfg.temp}°C${corteCfg.activo ? '' : ' (OFF)'}`;
                     ctx.strokeText(lblCorte, ca.right - 34, yCorte - 4);
                     ctx.fillText(lblCorte, ca.right - 34, yCorte - 4);
                 }
@@ -1899,7 +1939,7 @@
                 y1Axis.ticks.forEach((t, idx) => {
                     const yPos = y1Axis.getPixelForTick(idx);
                     if (yPos >= ca.top - 2 && yPos <= ca.bottom + 2) {
-                        const offsetY = (idx === 0) ? -5 : (idx === y1Axis.ticks.length - 1 ? 10 : -4);
+                        const offsetY = (idx === 0) ? -5 : (idx === yAxis.ticks.length - 1 ? 10 : -4);
                         const txt = t.value + '°';
                         ctx.strokeText(txt, ca.right - 5, yPos + offsetY);
                         ctx.fillText(txt, ca.right - 5, yPos + offsetY);
@@ -1961,7 +2001,6 @@
             if (!chart.isDatasetVisible(dp.datasetIndex)) continue;
             if (dp.parsed && (dp.parsed.y === null || dp.parsed.y === undefined)) continue;
 
-            // Para barras de Errores HW: solo resaltar si hay errores (> 0) y el cursor toca la barra vertical
             if (dp.dataset.id === 'err') {
                 if (dp.parsed.y > 0 && cursorCanvasY >= (dp.element.y - 5) && cursorCanvasY <= bottomY) {
                     return 'err';
@@ -2022,7 +2061,11 @@
 
             const titulo = formatearFechaTooltip(new Date(tsSegundos * 1000));
             let deltaT = "";
-            if (meta.temp > 0 && (meta.amb || meta.clima !== null)) {
+            if (esMineroHydro && meta.tempMin > 0 && meta.amb > 0) {
+                let dAgua = Math.max(0, meta.tempMin - meta.amb);
+                let colDelta = dAgua >= 12 ? '#ffb300' : '#38bdf8';
+                deltaT = `<span style="color:${colDelta}; font-size:0.88em;" translate="no">💧 ΔT Agua ${dAgua}°C</span>`;
+            } else if (meta.temp > 0 && (meta.amb || meta.clima !== null)) {
                 let refAmb = meta.amb || meta.clima;
                 let diff = meta.temp - refAmb;
                 let signo = diff >= 0 ? '+' : '';
@@ -2053,23 +2096,33 @@
                 html += `<div class="${clsRow('hr')}"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b translate="no">${meta.hr} ${unidadMinero}</b>${diffPromTxt}${flechaFocus('hr')}</div>`;
                 if (meta.temp > 0) {
                     const corteCfg = obtenerCorteTempActual();
-                    let estadoT = meta.temp >= corteCfg.temp ? 'Crítica' : (meta.temp >= 75 ? 'Alerta' : 'Normal');
+                    let estadoT = meta.temp >= corteCfg.temp ? 'Crítica' : (meta.temp >= UMBRAL_ALERTA_TEMP ? 'Alerta' : 'Normal');
                     html += `<div class="${clsRow('tmax')}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx (Chips): <b translate="no">${meta.temp}°C</b> (${estadoT})${flechaFocus('tmax')}</div>`;
                     if (meta.tempMin && meta.tempMin > 0) {
-                        html += `<div class="${clsRow('tmin')}"><span class="tt-box" style="background:#fb923c;"></span>❄️ Temp Mín (PCB): <b translate="no">${meta.tempMin}°C</b>${flechaFocus('tmin')}</div>`;
+                        const lblSec = esMineroHydro ? '🔥 Agua Salida' : '❄️ Temp Mín (PCB)';
+                        html += `<div class="${clsRow('tmin')}"><span class="tt-box" style="background:#fb923c;"></span>${lblSec}: <b translate="no">${meta.tempMin}°C</b>${flechaFocus('tmin')}</div>`;
                     }
                     let cads = meta.cadenas || cadenasActuales;
                     const subDim = (focusId && focusId !== 'tmax' && focusId !== 'tmin') ? ' tt-dim' : '';
                     if (cads && cads.length > 0) {
                         for (let c = 0; c < cads.length; c++) {
                             if (cads[c].temp_c > 0 || cads[c].temp_p > 0) {
-                                html += `<div class="tt-sub${subDim}" translate="no">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | PCB: ${cads[c].temp_p}°C</div>`;
+                                const lblPlacaSec = esMineroHydro ? 'Salida' : 'PCB';
+                                html += `<div class="tt-sub${subDim}" translate="no">Placa #${cads[c].id} -> Chip: ${cads[c].temp_c}°C | ${lblPlacaSec}: ${cads[c].temp_p}°C</div>`;
                             }
                         }
                     }
                 }
                 if (meta.amb && meta.amb > 0) {
-                    html += `<div class="${clsRow('tamb')}"><span class="tt-box" style="background:#00e676;"></span>🍃 Entrada/Amb: <b translate="no">${meta.amb}°C</b>${flechaFocus('tamb')}</div>`;
+                    const lblAmb = esMineroHydro ? '💧 Agua Entrada' : '🍃 Entrada/Amb';
+                    let extraHydro = '';
+                    if (esMineroHydro && meta.tempMin > 0) {
+                        const dA = Math.max(0, meta.tempMin - meta.amb);
+                        extraHydro = dA >= 12
+                            ? ` <span style="color:#ffb300;">(ΔT ${dA}°C · Revisar flujo)</span>`
+                            : ` <span style="color:#00e676;">(ΔT ${dA}°C · Flujo OK)</span>`;
+                    }
+                    html += `<div class="${clsRow('tamb')}"><span class="tt-box" style="background:#00e676;"></span>${lblAmb}: <b translate="no">${meta.amb}°C</b>${extraHydro}${flechaFocus('tamb')}</div>`;
                 }
                 if (meta.sensacion !== null && meta.sensacion !== undefined) {
                     html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
@@ -2311,18 +2364,19 @@
         }, { passive: true });
     }
 
-    function extraerTempMinimaPlaca(cads, tempMaxFallback) {
+    function extraerTempSecundariaPlaca(cads, tempMaxFallback) {
         if (!cads || !Array.isArray(cads) || cads.length === 0) {
             return tempMaxFallback > 10 ? Math.max(15, tempMaxFallback - 8) : null;
         }
-        let mins = [];
+        let vals = [];
         for (let i = 0; i < cads.length; i++) {
             let tp = Number(cads[i].temp_p || 0);
             let tc = Number(cads[i].temp_c || 0);
-            if (tp > 10) mins.push(tp);
-            else if (tc > 10) mins.push(Math.max(15, tc - 6));
+            if (tp > 10) vals.push(tp);
+            else if (tc > 10) vals.push(Math.max(15, tc - 6));
         }
-        return mins.length > 0 ? Math.min(...mins) : null;
+        if (vals.length === 0) return null;
+        return esMineroHydro ? Math.max(...vals) : Math.min(...vals);
     }
 
     function recolectarBasePorMinuto(minTs) {
@@ -2343,7 +2397,7 @@
             if (hVal === 0 || (i > 0 && Number(rawHr[i - 1] || 0) === 0)) errVal = 0;
 
             let cads = (rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales;
-            let tMinVal = hVal > 0 ? extraerTempMinimaPlaca(cads, tVal) : null;
+            let tMinVal = hVal > 0 ? extraerTempSecundariaPlaca(cads, tVal) : null;
             let tsMinuto = Math.floor(tsOriginal / 60) * 60;
 
             if (!porMinuto.has(tsMinuto)) {
@@ -2369,7 +2423,10 @@
                     }
                 }
                 if (tVal > item.temp) item.temp = tVal;
-                if (tMinVal !== null && (item.tempMin === null || tMinVal < item.tempMin)) item.tempMin = tMinVal;
+                if (tMinVal !== null) {
+                    if (item.tempMin === null) item.tempMin = tMinVal;
+                    else item.tempMin = esMineroHydro ? Math.max(item.tempMin, tMinVal) : Math.min(item.tempMin, tMinVal);
+                }
                 if (ambVal !== null) item.amb = ambVal;
                 item.err += errVal;
                 item.cads = cads;
@@ -2417,7 +2474,10 @@
                         b.hr = Number((b.hrSum / b.hrCount).toFixed(2));
                     }
                     if (c.temp > b.temp) b.temp = c.temp;
-                    if (c.tempMin !== null && (b.tempMin === null || c.tempMin < b.tempMin)) b.tempMin = c.tempMin;
+                    if (c.tempMin !== null) {
+                        if (b.tempMin === null) b.tempMin = c.tempMin;
+                        else b.tempMin = esMineroHydro ? Math.max(b.tempMin, c.tempMin) : Math.min(b.tempMin, c.tempMin);
+                    }
                     if (c.amb !== null) b.amb = c.amb;
                     if (c.clima !== null) b.clima = c.clima;
                     if (c.sensacion !== null) b.sensacion = c.sensacion;
@@ -2603,7 +2663,7 @@
         let maxHr = valoresHrOperativos.length > 0 ? Math.max(...valoresHrOperativos).toFixed(2) : "0.00";
         let minHr = valoresHrOperativos.length > 0 ? Math.min(...valoresHrOperativos).toFixed(2) : "0.00";
         let maxT = valoresTempMax.length > 0 ? Math.max(...valoresTempMax) : 0;
-        let minT = valoresTempMin.length > 0 ? Math.min(...valoresTempMin) : 0;
+        let secT = valoresTempMin.length > 0 ? (esMineroHydro ? Math.max(...valoresTempMin) : Math.min(...valoresTempMin)) : 0;
 
         let spanActivoDesdeInicioMin = Math.max(1, Math.round((limiteDer - Math.max(minTs, primerTsEnRango)) / 60) + 1);
         let pctEstab = valoresHr.length > 0 ? Math.min(100, Math.round((valoresHr.length / spanActivoDesdeInicioMin) * 100)) : 100;
@@ -2612,8 +2672,8 @@
         document.getElementById('statMax').innerText = `${maxHr} ${unidadMinero}`;
         document.getElementById('statMin').innerText = `${minHr} ${unidadMinero}`;
         let elTp = document.getElementById('statTempPico');
-        elTp.innerText = `${maxT}° / ${minT}°C`;
-        elTp.style.color = maxT >= 85 ? '#ff5252' : (maxT >= 75 ? '#ffb300' : '#00e676');
+        elTp.innerText = `${maxT}° / ${secT}°C`;
+        elTp.style.color = maxT >= UMBRAL_CRIT_TEMP ? '#ff5252' : (maxT >= UMBRAL_ALERTA_TEMP ? '#ffb300' : '#00e676');
         document.getElementById('statUptime').innerText = `${pctEstab}%`;
 
         const ctx = document.getElementById('hashrateChart').getContext('2d');
@@ -2640,21 +2700,21 @@
                 hidden: visibilidadCurvas['tmax'] === false
             },
             {
-                id: 'tmin', type: 'line', label: '❄️ Temp Mín (PCB) °C', data: ptsTMin,
-                borderColor: 'rgba(251, 146, 60, 0.75)',
+                id: 'tmin', type: 'line', label: esMineroHydro ? '🔥 Agua Salida °C' : '❄️ Temp Mín (PCB) °C', data: ptsTMin,
+                borderColor: 'rgba(251, 146, 60, 0.85)',
                 backgroundColor: 'rgba(255, 179, 0, 0.07)', fill: '-1',
                 tension: 0.15, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#fb923c', pointHoverBackgroundColor: '#fb923c',
-                borderWidth: 1.2, yAxisID: 'y1', spanGaps: false,
+                borderWidth: esMineroHydro ? 1.6 : 1.2, yAxisID: 'y1', spanGaps: false,
                 hidden: visibilidadCurvas['tmin'] === false
             }
         ];
 
         if (tieneTempAmbiente) {
             datasetsList.push({
-                id: 'tamb', type: 'line', label: '🍃 Entrada/Amb °C', data: ptsA,
+                id: 'tamb', type: 'line', label: esMineroHydro ? '💧 Agua Entrada °C' : '🍃 Entrada/Amb °C', data: ptsA,
                 borderColor: '#00e676',
                 tension: 0.15, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#00e676', pointHoverBackgroundColor: '#00e676',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: false,
+                borderWidth: 1.6, yAxisID: 'y1', spanGaps: false,
                 hidden: visibilidadCurvas['tamb'] === false
             });
         }
@@ -2840,11 +2900,16 @@
     });
 
     function iniciarModuloGrafico() {
+        if (esMineroHydro) {
+            const hb = document.getElementById('hydroModeBadge');
+            if (hb) hb.style.display = 'inline-flex';
+            const lblTp = document.getElementById('lblStatTempPico');
+            if (lblTp) lblTp.innerText = 'Chips / Agua Salida:';
+        }
         reconstruirFormateadoresTiempo();
         inicializarEventosTooltips();
         updateChart('24h');
         cargarClimaDeLaGranja();
-        // Auto-actualización propia cada 30 segundos para que el gráfico nunca se congele
         setInterval(function() {
             if (!document.hidden) actualizarGraficoEnVivoJSON();
         }, 30000);
