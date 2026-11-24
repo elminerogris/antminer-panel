@@ -568,7 +568,6 @@ def index():
         es_online = segs_desconectado < 300
         hr = a_float_seguro(m.get('hashrate'), 0.0) if es_online else 0.0
         t = a_int_seguro(m.get('temp_max'), 0) if es_online else 0
-        # Solo equipos en línea y realmente minando (hashrate > 0) aportan consumo eléctrico
         esta_minando = es_online and hr > 0
         c = a_float_seguro(m.get('consumo_w'), 0.0) if esta_minando else 0.0
         eficiencia_val = round(c / hr, 2) if esta_minando else 0
@@ -675,7 +674,6 @@ def detalle_minero(ip):
     """, (usr_actual, ip, limite_hist))
     hist = cur.fetchall()
 
-    # Eventos automáticos para dibujar marcadores sobre el gráfico
     cur.execute("""
         SELECT tipo, mensaje, fecha
         FROM registro_alertas
@@ -833,18 +831,30 @@ def mineros():
     usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute("SELECT tarifa_kwh, comision_pool FROM usuarios WHERE username=%s", (usr_actual,))
+    u_row = cur.fetchone() or {}
+    tarifa_kwh = max(0.0, a_float_seguro(u_row.get('tarifa_kwh'), 0.0))
+    comision_pool = min(100.0, max(0.0, a_float_seguro(u_row.get('comision_pool'), 0.0)))
+
     cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
 
     cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
 
+    cur.execute("SELECT farm_id, nombre FROM granjas_sedes WHERE owner=%s", (usr_actual,))
+    granjas_dict = {str(row['farm_id']).strip(): str(row['nombre']).strip() for row in cur.fetchall() if row.get('farm_id') and row.get('nombre')}
+
+    datos_red = obtener_datos_red()
     lista_mineros = []
     contadores = {'total': len(filas), 'online': 0, 'offline': 0, 'alerta_temp': 0, 'alerta_hw': 0}
 
     for m in filas:
         ip = m['ip']
         mod = m.get('modelo') or 'Antminer'
+        algo = m.get('algoritmo') or ('Equihash' if 'z15' in str(mod).lower() else 'SHA-256')
+        mon = m.get('moneda') or ('ZEC' if algo == 'Equihash' else 'BTC')
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
         nombre = nombre_inteligente_minero(ip, nombres_dict, m.get('worker1'))
@@ -852,13 +862,14 @@ def mineros():
         es_online = segs < 300
 
         hr = a_float_seguro(m.get('hashrate'), 0.0) if es_online else 0.0
-        hr_30m = a_float_seguro(m.get('hashrate_30m'), hr) if es_online else 0.0
+        esta_minando = es_online and hr > 0
+        hr_30m = a_float_seguro(m.get('hashrate_30m'), hr) if esta_minando else 0.0
         t_max = a_int_seguro(m.get('temp_max'), 0) if es_online else 0
         t_amb = a_int_seguro(m.get('temp_amb'), 0) if es_online else 0
-        cons_w = a_float_seguro(m.get('consumo_w'), 0.0) if es_online else 0.0
+        cons_w = a_float_seguro(m.get('consumo_w'), 0.0) if esta_minando else 0.0
         err_hw = a_int_seguro(m.get('errores'), 0) if es_online else 0
 
-        efi = round(cons_w / hr, 2) if hr > 0 else 0.0
+        efi = round(cons_w / hr, 2) if esta_minando else 0.0
         if efi > 1000: efi = round(efi / 1000, 2)
 
         try: cads = json.loads(m['cadenas']) if m.get('cadenas') else []
@@ -871,6 +882,16 @@ def mineros():
         tot_shares = acc1 + rej1
         pct_rej = round((rej1 / tot_shares) * 100, 2) if tot_shares > 0 else 0.0
 
+        fid = str(m.get('farm_id') or m.get('agent_id') or '').strip()
+        granja_nombre = granjas_dict.get(fid) or m.get('farm_city') or fid or 'Granja 001'
+
+        gan_usd = 0.0
+        gan_cripto = 0.0
+        if esta_minando and unidad == 'TH/s' and algo == 'SHA-256' and datos_red.get('dificultad_t', 0) > 0:
+            btc_d, _, _, neto_d = _calcular_rentabilidad_btc_dia(hr, cons_w, datos_red, tarifa_kwh, comision_pool)
+            gan_usd = round(neto_d, 2)
+            gan_cripto = round(btc_d, 8)
+
         if es_online:
             contadores['online'] += 1
             if t_max >= 75: contadores['alerta_temp'] += 1
@@ -880,9 +901,11 @@ def mineros():
 
         lista_mineros.append({
             'ip': ip, 'ultimo_octeto': ip.split('.')[-1], 'nombre': nombre, 'modelo': mod,
-            'algoritmo': m.get('algoritmo') or 'SHA-256', 'moneda': m.get('moneda') or 'BTC',
+            'farm_id': fid, 'granja_nombre': granja_nombre,
+            'ganancia_dia_usd': gan_usd, 'ganancia_dia_cripto': gan_cripto,
+            'algoritmo': algo, 'moneda': mon,
             'mac': m.get('mac') or '-', 'firmware': m.get('firmware') or '-', 'online': es_online,
-            'uptime': (m.get('uptime') or 'En línea') if es_online else f'Offline ({int(segs // 60)}m)',
+            'uptime': (m.get('uptime') or 'En línea') if es_online else f'Sin conexión ({int(segs // 60)}m)',
             'hashrate': hr, 'hashrate_30m': hr_30m, 'unidad': unidad, 'unidad_efi': unidad_efi,
             'eficiencia': efi, 'consumo_kw': round(cons_w / 1000.0, 2), 'temp_max': t_max, 'temp_amb': t_amb,
             'errores': err_hw, 'fans': m.get('fans') or '0 / 0 RPM', 'placas_activas': placas_activas,
@@ -1237,7 +1260,6 @@ def alertas():
 
     granjas_disp = [{'clave': k, 'total': v} for k, v in granjas_map.items()]
 
-    # Cálculo de ahorro eléctrico estimado por Horario de Tarifa Pico
     horas_pico = _calcular_horas_rango(wd['curt_inicio'], wd['curt_fin'])
     factor_ahorro = 0.95 if wd['curt_accion'] == 'sleep' else 0.30
     kwh_dia_ahorrados = round(kw_flota_curt * horas_pico * factor_ahorro, 1)
@@ -1597,7 +1619,7 @@ def exportar_reporte_mensual():
 
     datos_red = obtener_datos_red()
     output = io.StringIO()
-    output.write('\ufeff')  # BOM UTF-8 para abrir perfecto en Excel
+    output.write('\ufeff')
     writer = csv.writer(output)
     writer.writerow([
         'IP', 'Nombre', 'Modelo', 'Estado', 'Hashrate', 'Unidad',
