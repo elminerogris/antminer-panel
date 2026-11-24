@@ -518,6 +518,18 @@ def api_guardar_gps():
         )
     return jsonify({"status": "ok", "lat": lat, "lon": lon, "ciudad": ciudad, "pais": pais, "owner": owner_target})
 
+def _calcular_rentabilidad_btc_dia(hr_th, consumo_w, datos_red, tarifa_kwh, comision_pool=0.0):
+    """Calcula (btc_dia, ingreso_usd, costo_elec_usd, neto_usd) para un minero SHA-256 activo."""
+    dif_t = a_float_seguro((datos_red or {}).get('dificultad_t'), 0.0)
+    precio = a_float_seguro((datos_red or {}).get('precio'), 0.0)
+    recompensa = a_float_seguro((datos_red or {}).get('recompensa'), 3.125)
+    if hr_th <= 0 or dif_t <= 0:
+        return 0.0, 0.0, 0.0, 0.0
+    btc_dia = ((hr_th * recompensa * 86400.0) / (dif_t * 4294967296.0)) * (1.0 - comision_pool / 100.0)
+    ingreso_usd = btc_dia * precio
+    costo_elec_usd = (max(0.0, consumo_w) / 1000.0) * 24.0 * max(0.0, tarifa_kwh)
+    return btc_dia, ingreso_usd, costo_elec_usd, (ingreso_usd - costo_elec_usd)
+
 # --- Vistas Principales ---
 @panel_bp.route('/resumen')
 @login_required
@@ -541,7 +553,7 @@ def index():
 
     datos_red = obtener_datos_red()
     registros, en_linea, offline = [], 0, 0
-    ht, kt, gt, cw, tm, ig, gan_neta_total = 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0
+    ht, kt, gt, cw, cw_btc, tm, ig, gan_neta_total = 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0
 
     for m in mineros:
         ip = m['ip']
@@ -551,30 +563,42 @@ def index():
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
         nombre_custom = nombre_inteligente_minero(ip, nombres_dict, m.get('worker1'))
-        hr = a_float_seguro(m.get('hashrate'), 0.0)
-        t = a_int_seguro(m.get('temp_max'), 0)
-        c = a_float_seguro(m.get('consumo_w'), 0.0)
 
         segs_desconectado = calcular_segundos_desconectado(m.get('ultima_act'))
-        eficiencia_val = round(c / hr, 2) if hr > 0 else 0
+        es_online = segs_desconectado < 300
+        hr = a_float_seguro(m.get('hashrate'), 0.0) if es_online else 0.0
+        t = a_int_seguro(m.get('temp_max'), 0) if es_online else 0
+        # Solo equipos en línea y realmente minando (hashrate > 0) aportan consumo eléctrico
+        esta_minando = es_online and hr > 0
+        c = a_float_seguro(m.get('consumo_w'), 0.0) if esta_minando else 0.0
+        eficiencia_val = round(c / hr, 2) if esta_minando else 0
         if eficiencia_val > 1000: eficiencia_val = round(eficiencia_val / 1000, 2)
 
-        if segs_desconectado < 300:
+        if es_online:
             en_linea += 1
-            if unidad == 'TH/s' and algo == 'SHA-256': ht += hr
-            elif unidad == 'kSol/s': kt += hr
-            elif unidad == 'GH/s': gt += hr
+            es_btc = (unidad == 'TH/s' and algo == 'SHA-256')
+            if esta_minando:
+                if es_btc:
+                    ht += hr
+                    cw_btc += c
+                elif unidad == 'kSol/s': kt += hr
+                elif unidad == 'GH/s': gt += hr
+                cw += c
 
-            cw += c; tm = max(tm, t)
-            if unidad == 'TH/s' and algo == 'SHA-256' and datos_red['dificultad_t'] > 0:
-                b = ((hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)) * (1.0 - comision_pool / 100.0)
-                ib = b * datos_red['precio']
-                costo_elec = (c / 1000.0) * 24.0 * tarifa_kwh
-                neto = ib - costo_elec
-                ig += ib
-                gan_neta_total += neto
-                str_gan = f"-USD {abs(neto):.2f}" if neto < 0 else f"{neto:.2f} USD"
-                neto_num = round(neto, 4)
+            tm = max(tm, t)
+            if not esta_minando:
+                str_gan = "USD 0.00"
+                neto_num = 0.0
+            elif es_btc:
+                if datos_red['dificultad_t'] > 0:
+                    _, ib, _, neto = _calcular_rentabilidad_btc_dia(hr, c, datos_red, tarifa_kwh, comision_pool)
+                    ig += ib
+                    gan_neta_total += neto
+                    str_gan = f"-USD {abs(neto):.2f}" if neto < 0 else f"USD {neto:.2f}"
+                    neto_num = round(neto, 4)
+                else:
+                    str_gan = "USD 0.00"
+                    neto_num = 0.0
             else:
                 str_gan = f"Pool {mon}"
                 neto_num = 0.0
@@ -584,7 +608,7 @@ def index():
                 'unidad': unidad, 'unidad_efi': unidad_efi,
                 'estado': '<span style="color:var(--accent-green);">● En línea</span>',
                 'tiempo_act': f'hace {int(segs_desconectado)}s', 'hashrate': hr,
-                'hashrate_30m': a_float_seguro(m.get('hashrate_30m'), hr),
+                'hashrate_30m': a_float_seguro(m.get('hashrate_30m'), hr) if esta_minando else 0,
                 'temp_num': t, 'consumo_kw': f"{c/1000:.2f} kW",
                 'eficiencia': eficiencia_val, 'ganancia_neta': str_gan, 'ganancia_neta_num': neto_num
             })
@@ -603,6 +627,7 @@ def index():
         'ksol_total': round(kt, 1),
         'ghs_total': round(gt, 1),
         'consumo_w_total': round(cw, 0),
+        'consumo_w_btc': round(cw_btc, 0),
         'consumo_kw': round(cw/1000, 1), 'temp_max': tm,
         'tarifa_kwh': tarifa_kwh,
         'comision_pool': comision_pool,
@@ -614,7 +639,7 @@ def index():
         'ingreso_dia': f"{ig:.2f}",
         'ganancia_dia_raw': round(gan_neta_total, 2),
         'ganancia_mes_raw': round(gan_neta_total * 30.0, 0),
-        'ganancia_dia': f"-USD {abs(gan_neta_total):.2f}" if gan_neta_total < 0 else f"{gan_neta_total:.2f} USD"
+        'ganancia_dia': f"-USD {abs(gan_neta_total):.2f}" if gan_neta_total < 0 else f"USD {gan_neta_total:.2f}"
     }
     return render_seguro('resumen.html', active_page='resumen', registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota)
 
@@ -1537,11 +1562,17 @@ def exportar_csv():
         return redirect('/plan')
 
     con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT ip, modelo, algoritmo, moneda, hashrate, temp_max, consumo_w, estado FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT ip, modelo, algoritmo, moneda, hashrate, temp_max, consumo_w, estado, ultima_act FROM mineros_activos WHERE owner=%s", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
     output = io.StringIO(); writer = csv.writer(output)
     writer.writerow(['IP', 'Modelo', 'Algoritmo', 'Moneda', 'Hashrate', 'Temp Max (C)', 'Consumo (W)', 'Estado'])
-    for f in filas: writer.writerow([f['ip'], f['modelo'], f.get('algoritmo', 'SHA-256'), f.get('moneda', 'BTC'), f['hashrate'], f['temp_max'], f['consumo_w'], f['estado']])
+    for f in filas:
+        online = calcular_segundos_desconectado(f.get('ultima_act')) < 300
+        hr_f = a_float_seguro(f.get('hashrate'), 0.0) if online else 0.0
+        temp_f = a_int_seguro(f.get('temp_max'), 0) if online else 0
+        cons_f = round(a_float_seguro(f.get('consumo_w'), 0.0), 0) if (online and hr_f > 0) else 0
+        estado_f = (f.get('estado') or 'En línea') if online else 'Sin conexión'
+        writer.writerow([f['ip'], f['modelo'], f.get('algoritmo', 'SHA-256'), f.get('moneda', 'BTC'), hr_f, temp_f, cons_f, estado_f])
     return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition":"attachment;filename=Reporte_El_Minero_Gris.csv"})
 
 @panel_bp.route('/exportar_reporte_mensual')
@@ -1556,7 +1587,7 @@ def exportar_reporte_mensual():
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT tarifa_kwh, comision_pool FROM usuarios WHERE username=%s", (usr_actual,))
     u_row = cur.fetchone() or {}
-    tarifa = a_float_seguro(u_row.get('tarifa_kwh'), 0.06)
+    tarifa = max(0.0, a_float_seguro(u_row.get('tarifa_kwh'), 0.0))
     comision_pool = min(100.0, max(0.0, a_float_seguro(u_row.get('comision_pool'), 0.0)))
 
     cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
@@ -1588,15 +1619,25 @@ def exportar_reporte_mensual():
         unid = m.get('unidad') or 'TH/s'
         online = calcular_segundos_desconectado(m.get('ultima_act')) < 300
         hr = a_float_seguro(m.get('hashrate'), 0.0) if online else 0.0
-        kw = round(a_float_seguro(m.get('consumo_w'), 0.0) / 1000.0, 2) if online else 0.0
+        esta_minando = online and hr > 0
+        cons_w = a_float_seguro(m.get('consumo_w'), 0.0) if esta_minando else 0.0
+        kw = round(cons_w / 1000.0, 2)
         kwh_mes = round(kw * 24.0 * 30.0, 1)
-        costo_mes = round(kwh_mes * tarifa, 2)
 
-        ing_mes = 0.0
-        if online and unid == 'TH/s' and algo == 'SHA-256' and datos_red['dificultad_t'] > 0:
-            btc_dia = ((hr * datos_red['recompensa'] * 86400) / (datos_red['dificultad_t'] * 4294967296)) * (1.0 - comision_pool / 100.0)
-            ing_mes = round(btc_dia * datos_red['precio'] * 30.0, 2)
-        neto_mes = round(ing_mes - costo_mes, 2)
+        es_btc = (unid == 'TH/s' and algo == 'SHA-256')
+        if esta_minando and es_btc and datos_red['dificultad_t'] > 0:
+            _, ing_dia, _, _ = _calcular_rentabilidad_btc_dia(hr, kw * 1000.0, datos_red, tarifa, comision_pool)
+            costo_mes = round(kwh_mes * tarifa, 2)
+            ing_mes = round(ing_dia * 30.0, 2)
+            neto_mes = round(ing_mes - costo_mes, 2)
+        elif esta_minando:
+            costo_mes = round(kwh_mes * tarifa, 2)
+            ing_mes = 0.0
+            neto_mes = 0.0
+        else:
+            costo_mes = 0.0
+            ing_mes = 0.0
+            neto_mes = 0.0
 
         tot_kw += kw
         tot_kwh_mes += kwh_mes

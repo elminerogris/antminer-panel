@@ -532,7 +532,7 @@
         </div>
         <div class="prof-field">
             <label for="calcConsumoW">Consumo (W)</label>
-            <input type="number" step="10" min="0" id="calcConsumoW" class="prof-input" value="{{ '%.0f'|format(flota.consumo_w_total|float) }}" oninput="calcManualOverride = true; recalcularCalculadora()">
+            <input type="number" step="10" min="0" id="calcConsumoW" class="prof-input" value="{{ '%.0f'|format((flota.consumo_w_btc if flota.consumo_w_btc is defined else flota.consumo_w_total)|float) }}" oninput="calcManualOverride = true; recalcularCalculadora()">
         </div>
         <div class="prof-field">
             <label for="tarifaKwh">
@@ -642,7 +642,8 @@
             {% set efi_val = r.eficiencia | float %}
             {% set efi_cls = 'badge-efi-ok' if (efi_val > 0 and efi_val <= 24) else ('badge-efi-mid' if (efi_val > 0 and efi_val <= 34) else 'badge-efi-high') %}
             {% set es_online = ('En línea' in r.estado) %}
-            {% set es_sha256_online = es_online and (r.unidad == 'TH/s') and (r.algoritmo == 'SHA-256') %}
+            {% set esta_minando = es_online and (r.hashrate | float > 0) %}
+            {% set es_sha256_activo = esta_minando and (r.unidad == 'TH/s') and (r.algoritmo == 'SHA-256') %}
             <tr data-ip="{{ r.ip }}" onclick="toggleFilaResumen(event, this)">
                 <td><input type="checkbox" class="miner-check" value="{{ r.ip }}" onchange="actualizarSeleccionResumen()"></td>
                 <td data-sort-str="{{ r.nombre }}">
@@ -674,25 +675,25 @@
                     {% endif %}
                 </td>
                 <td data-sort-num="{{ kw_num }}" translate="no">
-                    {% if es_online and kw_num > 0 %}
+                    {% if esta_minando and kw_num > 0 %}
                         <span class="badge-kw">⚡ {{ r.consumo_kw }}</span>
                     {% else %}
                         <span style="color:var(--text-muted); font-family:monospace;">0.00 kW</span>
                     {% endif %}
                 </td>
-                <td data-sort-num="{{ efi_val if (es_online and efi_val > 0) else 999999 }}" translate="no">
-                    {% if es_online and efi_val > 0 %}
+                <td data-sort-num="{{ efi_val if (esta_minando and efi_val > 0) else 999999 }}" translate="no">
+                    {% if esta_minando and efi_val > 0 %}
                         <span class="{{ efi_cls }}">{{ r.eficiencia }} {{ r.unidad_efi | default('J/TH') }}</span>
                     {% else %}
                         <span style="color:var(--text-muted); font-family:monospace;">-</span>
                     {% endif %}
                 </td>
                 <td class="js-neto-cell"
-                    data-sha="{{ '1' if es_sha256_online else '0' }}"
+                    data-sha="{{ '1' if es_sha256_activo else '0' }}"
                     data-hr="{{ r.hashrate }}"
-                    data-kw="{{ kw_num }}"
+                    data-kw="{{ kw_num if esta_minando else 0 }}"
                     data-sort-num="{{ r.ganancia_neta_num | default(0) }}"
-                    style="font-weight:bold;color:{{ '#ff5252' if '-' in r.ganancia_neta else ('var(--text-muted)' if (not es_online or (es_sha256_online and r.ganancia_neta_num|default(0) == 0)) else 'var(--accent-green)') }};font-family:monospace;"
+                    style="font-weight:bold;color:{{ '#ff5252' if '-' in r.ganancia_neta else ('var(--text-muted)' if (not esta_minando or (es_sha256_activo and r.ganancia_neta_num|default(0) == 0)) else 'var(--accent-green)') }};font-family:monospace;"
                     translate="no">{{ r.ganancia_neta }}</td>
             </tr>
             {% endfor %}
@@ -715,10 +716,10 @@
     const RESUMEN_TOOLTIPS = {
         'kpi_flota': { t: '🖥️ Disponibilidad de Flota', d: 'Cantidad de mineros transmitiendo en tiempo real frente al total registrado.' },
         'kpi_hr': { t: '⚡ Potencia Total Combinada', d: 'Suma del hashrate instantáneo de todos los equipos activos en tu granja.' },
-        'kpi_consumo': { t: '🔌 Demanda Eléctrica Total', d: 'Consumo combinado en Kilovatios (kW) de todas las fuentes activas.' },
+        'kpi_consumo': { t: '🔌 Demanda Eléctrica Total', d: 'Consumo combinado en Kilovatios (kW) de los equipos que están minando activamente.' },
         'kpi_temp': { t: '🌡️ Pico Térmico de la Granja', d: 'Temperatura más alta registrada actualmente entre todos tus equipos.' },
         'kpi_btc': { t: '₿ Cotización BTC y Dificultad', d: 'Precio en vivo y dificultad actual de la red Bitcoin actualizados automáticamente.' },
-        'kpi_ganancia': { t: '💰 Rentabilidad Neta Estimada', d: 'Ingreso diario en BTC con el precio actual menos el costo eléctrico de tu tarifa.' }
+        'kpi_ganancia': { t: '💰 Rentabilidad Neta Estimada', d: 'Ingreso diario en BTC menos el costo eléctrico de los equipos minando (apagados o en 0 TH/s marcan 0).' }
     };
 
     function mostrarResToast(msg, esError = false) {
@@ -950,6 +951,12 @@
                 if (td.getAttribute('data-sha') !== '1') return;
                 const hrEq = parseFloat(td.getAttribute('data-hr')) || 0;
                 const kwEq = parseFloat(td.getAttribute('data-kw')) || 0;
+                if (hrEq <= 0) {
+                    td.setAttribute('data-sort-num', '0');
+                    td.innerText = 'USD 0.00';
+                    td.style.color = 'var(--text-muted)';
+                    return;
+                }
                 const btcEq = ((hrEq * btcRecompensaLive * 86400) / (btcDifTLive * 4294967296)) * (1 - poolFee / 100);
                 const netoEq = (btcEq * btcPrecioLive) - (kwEq * 24 * tarifa);
                 td.setAttribute('data-sort-num', netoEq.toFixed(4));
