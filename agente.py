@@ -934,11 +934,11 @@ def extraer_avalon(ip, st_sum, ver_resp):
 
     tm = t_chip_max if t_chip_max > 0 else (t_outlet if t_outlet > 0 else a_entero(buscar_llave(st_sum, ['Temperature'], 65)))
 
-    fan1 = a_entero(buscar_llave(st_ava, ['Fan1', 'fan1', 'Fan Speed In'], 0))
-    fan2 = a_entero(buscar_llave(st_ava, ['Fan2', 'fan2', 'Fan Speed Out'], 0))
+    fan1 = a_entero(buscar_llave(st_ava, ['Fan1', 'fan1', 'Fan Speed In', 'Fan Speed'], buscar_llave(st_sum, ['Fan Speed In', 'Fan1', 'Fan Speed'], 0)))
+    fan2 = a_entero(buscar_llave(st_ava, ['Fan2', 'fan2', 'Fan Speed Out'], buscar_llave(st_sum, ['Fan Speed Out', 'Fan2'], 0)))
 
-    es_q90_hydro = ("q90" in modelo_str.lower() or "hyd" in modelo_str.lower() or "water" in modelo_str.lower())
-    if es_q90_hydro:
+    es_avalon_hydro = any(w in modelo_str.lower() for w in ("hyd", "hydro", "water", "1566ha"))
+    if es_avalon_hydro:
         delta_t = max(0, t_outlet - t_inlet) if (t_outlet > 0 and t_inlet > 0) else 0
         if t_inlet > 0 and t_outlet > 0:
             fans_str = f"💧 Hydro (Entrada {t_inlet}°C / Salida {t_outlet}°C · ΔT {delta_t}°C)"
@@ -949,7 +949,7 @@ def extraer_avalon(ip, st_sum, ver_resp):
     elif fan1 > 0 or fan2 > 0:
         fans_str = f"{fan1} / {fan2} RPM"
     else:
-        fans_str = "0 / 0 RPM"
+        fans_str = "Auto / Silencioso"
 
     cadenas = []
     for idx in range(3):
@@ -1295,7 +1295,7 @@ def extraer_todo(ip):
     errores_hw = a_entero(buscar_llave(st, ['Hardware Errors', 'Device Hardware Errors', 'hw_errors'], buscar_llave(st_sum, ['Hardware Errors'], 0)))
     freq_global = a_entero(buscar_llave(st, ['frequency', 'freq_avg', 'freq', 'total_freqavg'], 0))
 
-    es_hydro = ("hyd" in mod_lower or "hydro" in mod_lower or "water" in mod_lower or "q90" in mod_lower or "m33" in mod_lower or "m53" in mod_lower or "m63" in mod_lower)
+    es_hydro = ("hyd" in mod_lower or "hydro" in mod_lower or "water" in mod_lower or "m33" in mod_lower or "m53" in mod_lower or "m63" in mod_lower or "1566ha" in mod_lower)
     amb_candidates = []
     water_out_candidates = []
 

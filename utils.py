@@ -202,7 +202,7 @@ def obtener_clima_coordenadas(lat, lon):
 
 def ventilador_en_cero(fans_str, modelo_str):
     ml = str(modelo_str or "").lower()
-    if any(w in ml for w in ("hyd", "hydro", "water", "q90", "m33", "m53", "m63")):
+    if any(w in ml for w in ("hyd", "hydro", "water", "m33", "m53", "m63", "1566ha")):
         return False
     fs = str(fans_str or "").strip()
     if not fs or "hydro" in fs.lower():
