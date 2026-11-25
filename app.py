@@ -30,13 +30,23 @@ app.config.update(
 def request_entity_too_large(error):
     return "Payload demasiado grande (máximo 10 MB permitido)", 413
 
-# Cabeceras de Seguridad HTTP (Anti-Clickjacking, Anti-MIME sniffing y HTTPS forzado)
+# Cabeceras de Seguridad HTTP (Anti-Clickjacking, Anti-MIME sniffing, CSP y HTTPS forzado)
 @app.after_request
 def agregar_cabeceras_seguridad(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://translate.google.com https://translate.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; "
+        "font-src 'self' data: https://fonts.gstatic.com; "
+        "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://api.qrserver.com https://unpkg.com https://translate.google.com https://www.gstatic.com; "
+        "connect-src 'self' wss: ws: https://api.qrserver.com https://api.binance.com https://api.coinbase.com https://api.coingecko.com https://translate.googleapis.com; "
+        "object-src 'none'; "
+        "frame-ancestors 'none';"
+    )
     if os.environ.get("RENDER") or os.environ.get("DATABASE_URL"):
         response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     return response
@@ -97,12 +107,20 @@ def teardown_db(exception=None):
 def manejar_error_global(e):
     tb = traceback.format_exc()
     print(f"[ERROR 500]: {tb}")
-    if es_super_admin():
+    try:
+        from utils import notificar_alerta_seguridad
+        notificar_alerta_seguridad("Error 500 Interno", f"Ruta: {request.path}\nDetalle: {str(e)[:200]}", request.remote_addr or "")
+    except Exception:
+        pass
+
+    if es_super_admin() and not (os.environ.get("RENDER") or os.environ.get("DATABASE_URL")):
+        import html
+        tb_escapado = html.escape(tb)
         html_error = f"""
         <div style="background:#0f111a;color:#fff;font-family:monospace;padding:30px;min-height:100vh;">
-            <h2 style="color:#ff5252;">⚠️ Diagnóstico Técnico de El Minero Gris (Admin)</h2>
+            <h2 style="color:#ff5252;">⚠️ Diagnóstico Técnico (Modo Local)</h2>
             <p style="color:#a5a7b5;">Detalle técnico detectado en el servidor:</p>
-            <pre style="background:#000;color:#00e676;padding:20px;border-radius:8px;border:1px solid #333;overflow-x:auto;">{tb}</pre>
+            <pre style="background:#000;color:#00e676;padding:20px;border-radius:8px;border:1px solid #333;overflow-x:auto;">{tb_escapado}</pre>
             <a href="/" style="display:inline-block;margin-top:15px;background:#3366ff;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-family:sans-serif;font-weight:bold;">🔄 Reintentar / Ir al Inicio</a>
         </div>
         """
@@ -110,7 +128,7 @@ def manejar_error_global(e):
         html_error = """
         <div style="background:#0f111a;color:#fff;font-family:sans-serif;padding:40px;min-height:100vh;text-align:center;">
             <h2 style="color:#ff5252;">⚠️ Ocurrió un inconveniente temporal</h2>
-            <p style="color:#a5a7b5;">Estamos trabajando para restablecer el servicio. Intenta recargar en unos segundos.</p>
+            <p style="color:#a5a7b5;">El sistema ha registrado el evento y nuestro equipo técnico ha sido notificado.</p>
             <a href="/" style="display:inline-block;margin-top:15px;background:#3366ff;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:bold;">🔄 Volver al Inicio</a>
         </div>
         """
@@ -121,6 +139,15 @@ def asegurar_bd():
     asegurar_bd_inicializada()
     if 'usuario' in session:
         session.permanent = True
+        # Blindaje: Auto-cierre de sesión tras 2 horas de inactividad (solo Super Admin)
+        if es_super_admin():
+            ult_act = a_float_seguro(session.get('admin_last_activity'), 0)
+            ahora_act = time.time()
+            if ult_act > 0 and (ahora_act - ult_act) > 7200:
+                session.clear()
+                return redirect('/login')
+            session['admin_last_activity'] = ahora_act
+
         if DB_URL and not request.path.startswith('/static/'):
             ahora_ts = time.time()
             if ahora_ts - a_float_seguro(session.get('last_seen_ts'), 0) > 300:
