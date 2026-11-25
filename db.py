@@ -383,6 +383,13 @@ def init_db():
         hoy_str = datetime.utcnow().strftime("%Y-%m-%d")
         c.execute("UPDATE usuarios SET fecha_registro=%s WHERE fecha_registro IS NULL OR fecha_registro=''", (hoy_str,))
 
+        try:
+            c.execute("UPDATE historial_nube SET temp_max = 0 WHERE temp_max >= 150")
+            c.execute("UPDATE mineros_activos SET temp_max = 0 WHERE temp_max >= 150")
+            c.execute("UPDATE mineros_activos SET temp_amb = 0 WHERE temp_amb >= 120 OR temp_amb < -40")
+        except:
+            pass
+
         migraciones_unique = [
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_mineros_owner_agent_ip ON mineros_activos (owner, agent_id, ip)",
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_granjas_owner_farm_id ON granjas_sedes (owner, farm_id)",

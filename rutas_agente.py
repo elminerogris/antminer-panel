@@ -834,7 +834,11 @@ def recibir_datos():
             hr_m = a_float_seguro(m.get('hashrate'), 0.0)
             hr_30 = a_float_seguro(m.get('hashrate_30m'), hr_m)
             temp_m = a_int_seguro(m.get('temp'), 0)
+            if temp_m >= 150 or temp_m < 0:
+                temp_m = 0
             t_amb = a_int_seguro(m.get('temp_amb'), 0)
+            if t_amb >= 120 or t_amb < -40:
+                t_amb = 0
             cons_m = a_float_seguro(m.get('consumo'), 0.0)
             err = a_int_seguro(m.get('errores'), 0)
             unid = str(m.get('unidad') or 'TH/s')
@@ -861,6 +865,12 @@ def recibir_datos():
             cadenas_list = m.get('cadenas', [])
             if not isinstance(cadenas_list, list):
                 cadenas_list = []
+            for ch in cadenas_list:
+                if isinstance(ch, dict):
+                    tc = a_int_seguro(ch.get('temp_c'), 0)
+                    tp = a_int_seguro(ch.get('temp_p'), 0)
+                    if tc >= 150 or tc < 0: ch['temp_c'] = 0
+                    if tp >= 150 or tp < 0: ch['temp_p'] = 0
             cadenas_json = json.dumps(cadenas_list)
 
             cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, farm_id, miner_uid, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fw_tipo, perfil_oc, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 

@@ -798,7 +798,9 @@ def detalle_minero(ip):
     hr_val = a_float_seguro(m.get('hashrate'), 0.0)
     hr_30m_val = a_float_seguro(m.get('hashrate_30m'), hr_val)
     t_val = a_int_seguro(m.get('temp_max'), 0)
+    if t_val >= 150 or t_val < 0: t_val = 0
     t_amb_val = a_int_seguro(m.get('temp_amb'), 0)
+    if t_amb_val >= 120 or t_amb_val < -40: t_amb_val = 0
     c_val = a_float_seguro(m.get('consumo_w'), 0.0)
     offline = calcular_segundos_desconectado(m.get('ultima_act')) > 300
 
@@ -867,10 +869,11 @@ def detalle_minero(ip):
             prev_err = total_err_actual
 
             hr_g.append(val_h)
-            tp_g.append(a_int_seguro(h.get('temp_max'), 0))
+            t_raw = a_int_seguro(h.get('temp_max'), 0)
+            tp_g.append(t_raw if 0 < t_raw < 150 else 0)
 
             val_amb = a_int_seguro(h.get('temp_amb'), 0)
-            tamb_g.append(val_amb if val_amb > 0 else None)
+            tamb_g.append(val_amb if 0 < val_amb < 120 else None)
 
             c_hist_item = []
             if h.get('cadenas'):
@@ -2108,12 +2111,13 @@ def api_live_minero(ip):
             cads = json.loads(h['cadenas']) if h.get('cadenas') else []
         except:
             cads = []
+        t_raw = a_int_seguro(h.get('temp_max'), 0)
         t_amb = a_int_seguro(h.get('temp_amb'), 0)
         puntos.append({
             "ts": ts,
             "hr": a_float_seguro(h.get('hashrate'), 0.0),
-            "temp": a_int_seguro(h.get('temp_max'), 0),
-            "amb": t_amb if t_amb > 0 else None,
+            "temp": t_raw if 0 < t_raw < 150 else 0,
+            "amb": t_amb if 0 < t_amb < 120 else None,
             "err": diff_err,
             "cadenas": cads
         })
