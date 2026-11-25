@@ -377,6 +377,17 @@
         z-index: 9999;
         display: none;
     }
+
+    .ajustes-modal-bg {
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.68); backdrop-filter: blur(4px);
+        z-index: 9999; align-items: center; justify-content: center; padding: 14px;
+    }
+    .ajustes-modal-bg.open { display: flex; }
+    .ajustes-modal {
+        background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 10px;
+        padding: 22px; width: 100%; max-width: 450px; box-shadow: 0 16px 36px rgba(0,0,0,0.5);
+        max-height: 92vh; overflow-y: auto; position: relative;
+    }
 </style>
 
 <div id="settingsToast" class="settings-toast" translate="no"></div>
@@ -601,6 +612,88 @@
     </div>
 </div>
 
+<!-- TARJETA: 🛡️ AUTENTICACIÓN EN DOS PASOS (2FA) Y DISPOSITIVOS SEGUROS -->
+<div class="card-pro" style="margin-top: 20px;">
+    <div class="card-pro-header">
+        <span style="display:flex; align-items:center; gap:8px;">
+            <span>🛡️</span> <span>Autenticación en Dos Pasos (2FA) &amp; Dispositivos Seguros</span>
+        </span>
+        <span style="font-size:0.75em; font-family:monospace; font-weight:bold; color:{{ '#00e676' if user.totp_activo else '#eab308' }};">
+            {{ '● 2FA Activado' if user.totp_activo else '○ 2FA Desactivado' }}
+        </span>
+    </div>
+    <div class="card-pro-body">
+        <!-- SECCIÓN ACTIVACIÓN / ESTADO 2FA -->
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; padding-bottom:18px; border-bottom:1px solid var(--border-subtle);">
+            <div style="max-width:620px;">
+                <b style="font-size:0.95em; color:var(--text-main);">Protege tu cuenta con Google Authenticator o Authy</b>
+                <div class="panel-sub" style="margin-bottom:0; margin-top:4px;">
+                    Al activar el 2FA, el sistema exigirá un código temporal de 6 dígitos que cambia cada 30 segundos en tu celular al iniciar sesión desde cualquier navegador nuevo.
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                {% if user.totp_activo %}
+                    <button type="button" class="btn-outline-pro" onclick="abrirModalVerClave2FA()">📋 Ver Clave / QR de Respaldo</button>
+                    <button type="button" class="btn-danger-pro" onclick="abrirModalDesactivar2FA()" style="width:auto; padding:9px 14px;">🔓 Desactivar 2FA</button>
+                {% else %}
+                    <button type="button" class="btn-main-pro" onclick="iniciarActivacion2FA()">🛡️ Activar Verificación 2FA</button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- SECCIÓN LISTA DETALLADA DE DISPOSITIVOS SEGUROS -->
+        <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                <div>
+                    <b style="font-size:0.92em; color:var(--text-main);">📱 Dispositivos Seguros Recordados ({{ user.dispositivos|length }})</b>
+                    <div style="font-size:0.78em; color:var(--text-muted); margin-top:2px;">
+                        Estos navegadores y teléfonos tienen acceso directo sin pedir 2FA durante 30 días. Si no reconoces alguno, elimínalo de inmediato.
+                    </div>
+                </div>
+                {% if user.dispositivos|length > 0 %}
+                    <button type="button" class="btn-mini-icon" onclick="revocarTodosLosDispositivos()" style="padding:6px 12px; font-size:0.78em; color:var(--accent-red);" title="Olvidar todos los navegadores guardados">
+                        🧹 Olvidar Todos los Dispositivos
+                    </button>
+                {% endif %}
+            </div>
+
+            {% if user.dispositivos|length == 0 %}
+                <div style="background:var(--bg-well); border:1px dashed var(--border-color); border-radius:8px; padding:20px; text-align:center; font-size:0.84em; color:var(--text-muted); line-height:1.5;">
+                    <span>🛡️</span> No tienes ningún dispositivo seguro guardado actualmente.<br>
+                    Al iniciar sesión en tu PC o celular, mantén marcada la casilla <b>"Recordar este dispositivo por 30 días"</b> para ingresar sin que te pida el código a cada momento.
+                </div>
+            {% else %}
+                <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(290px, 1fr)); gap:12px;">
+                    {% for d in user.dispositivos %}
+                    <div style="background:var(--bg-well); border:1px solid {{ 'rgba(0,230,118,0.45)' if d.es_actual else 'var(--border-color)' }}; border-radius:8px; padding:12px 14px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                        <div style="display:flex; gap:12px; align-items:center;">
+                            <span style="font-size:1.8em; line-height:1;">{{ d.icono }}</span>
+                            <div>
+                                <div style="font-weight:bold; font-size:0.86em; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                                    <span>{{ d.dispositivo }}</span>
+                                    {% if d.es_actual %}
+                                    <span style="background:rgba(0,230,118,0.18); color:var(--accent-green); border:1px solid rgba(0,230,118,0.4); font-size:0.68em; padding:1px 6px; border-radius:10px; font-family:monospace;">📍 Actual</span>
+                                    {% endif %}
+                                </div>
+                                <div style="font-size:0.75em; color:var(--text-muted); font-family:monospace; margin-top:3px;">
+                                    🌐 IP: {{ d.ip }}
+                                </div>
+                                <div style="font-size:0.72em; color:var(--text-secondary); margin-top:2px;">
+                                    📅 Guardado: {{ d.fecha_creacion[:10] }} · Expira: {{ d.expira_en[:10] }}
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-mini-icon" onclick="eliminarDispositivo({{ d.id }}, '{{ d.dispositivo|escape }}')" style="color:var(--accent-red); padding:6px 9px;" title="Olvidar y revocar este dispositivo">
+                            🗑️
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
 <!-- TARJETA 3: RESPALDO Y RESTAURACIÓN EN JSON -->
 <div class="card-pro" style="margin-top: 20px;">
     <div class="card-pro-header">
@@ -617,6 +710,116 @@
             <input type="file" id="inputBackupJson" accept=".json,application/json" style="display:none;" onchange="subirBackupJson(this)">
         </div>
         <div id="backupStatusMsg" class="backup-status-msg"></div>
+    </div>
+</div>
+
+<!-- MODAL 1: ACTIVAR 2FA (QR + CÓDIGO) -->
+<div id="modalConfig2FA" class="ajustes-modal-bg" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="ajustes-modal">
+        <h3 style="margin-top:0; margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+            <span>📱</span> <span>Activar Autenticación 2FA</span>
+        </h3>
+        <p style="font-size:0.80em; color:var(--text-muted); margin-bottom:12px; line-height:1.45;">
+            1. Abre tu aplicación <b>Google Authenticator</b> o <b>Authy</b> en tu celular y escanea este código QR:
+        </p>
+
+        <div style="text-align:center; margin:12px 0;">
+            <img id="imgQr2FA" src="" alt="Código QR 2FA" style="width:160px; height:160px; display:inline-block; background:#fff; padding:8px; border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,0.4);">
+        </div>
+
+        <p style="font-size:0.78em; color:var(--text-muted); margin-bottom:6px;">
+            2. Si no puedes escanear el QR, ingresa esta clave manual en tu app:
+        </p>
+        <div class="api-box-pro" style="margin-bottom:14px; font-size:0.88em; padding:8px 12px;">
+            <span id="txtSecret2FA" class="api-key-val" style="letter-spacing:1px;" translate="no"></span>
+            <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes(document.getElementById('txtSecret2FA').innerText, 'Clave 2FA copiada')">📋 Copiar</button>
+        </div>
+
+        <p style="font-size:0.78em; color:var(--text-muted); margin-bottom:6px;">
+            3. Ingresa el código temporal de 6 dígitos que muestra tu app para confirmar:
+        </p>
+        <input type="text" id="inputCod2FAConfirmar" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="••••••" style="text-align:center; font-size:1.35em; letter-spacing:6px; font-weight:bold; font-family:monospace; margin-bottom:16px; width:100%;" class="form-input" autocomplete="one-time-code">
+
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-outline-pro" onclick="document.getElementById('modalConfig2FA').classList.remove('open')">Cancelar</button>
+            <button type="button" class="btn-main-pro" onclick="confirmarActivacion2FA()">✅ Confirmar y Activar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: VER CLAVE DE RESPALDO 2FA -->
+<div id="modalVerClave2FA" class="ajustes-modal-bg" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="ajustes-modal">
+        <h3 style="margin-top:0; margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+            <span>📋</span> <span>Clave de Respaldo 2FA</span>
+        </h3>
+        <p style="font-size:0.80em; color:var(--text-muted); margin-bottom:12px; line-height:1.45;">
+            Guarda esta clave secreta en un lugar seguro. Con ella podrás sincronizar otro teléfono o recuperar tu cuenta si pierdes tu dispositivo.
+        </p>
+
+        <div style="text-align:center; margin:10px 0;">
+            <img id="imgQr2FAResp" src="" alt="QR Respaldo" style="width:150px; height:150px; display:inline-block; background:#fff; padding:6px; border-radius:8px;">
+        </div>
+
+        <div class="api-box-pro" style="margin:12px 0; font-size:0.88em; padding:8px 12px;">
+            <span id="resp2FAKeyDisplay" class="api-key-val" style="letter-spacing:1px;" translate="no"></span>
+            <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes(document.getElementById('resp2FAKeyDisplay').innerText, 'Clave secreta copiada')">📋 Copiar</button>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end;">
+            <button type="button" class="btn-outline-pro" onclick="document.getElementById('modalVerClave2FA').classList.remove('open')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 3: DESACTIVAR 2FA -->
+<div id="modalDesactivar2FA" class="ajustes-modal-bg" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="ajustes-modal" style="max-width:400px;">
+        <h3 style="margin-top:0; margin-bottom:8px; color:var(--accent-red); display:flex; align-items:center; gap:8px;">
+            <span>⚠️</span> <span>Desactivar 2FA</span>
+        </h3>
+        <p style="font-size:0.80em; color:var(--text-muted); margin-bottom:12px; line-height:1.45;">
+            Tu cuenta perderá la capa de doble protección y se accederá únicamente con tu contraseña. Ingresa tu código actual de 6 dígitos para autorizar:
+        </p>
+        <input type="text" id="inputCod2FADesactivar" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="••••••" style="text-align:center; font-size:1.35em; letter-spacing:6px; font-weight:bold; font-family:monospace; margin-bottom:14px; width:100%;" class="form-input">
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-outline-pro" onclick="document.getElementById('modalDesactivar2FA').classList.remove('open')">Cancelar</button>
+            <button type="button" class="btn-danger-pro" onclick="confirmarDesactivar2FA()" style="width:auto; padding:9px 14px;">🔓 Desactivar</button>
+        </div>
+    </div>
+</div>
+            Guarda esta clave secreta en un lugar seguro. Con ella podrás sincronizar otro teléfono o recuperar tu cuenta si pierdes tu dispositivo.
+        </p>
+
+        <div style="text-align:center; margin:10px 0;">
+            <img id="imgQr2FAResp" src="" alt="QR Respaldo" style="width:150px; height:150px; display:inline-block; background:#fff; padding:6px; border-radius:8px;">
+        </div>
+
+        <div class="api-box-pro" style="margin:12px 0; font-size:0.88em; padding:8px 12px;">
+            <span id="resp2FAKeyDisplay" class="api-key-val" style="letter-spacing:1px;" translate="no"></span>
+            <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes(document.getElementById('resp2FAKeyDisplay').innerText, 'Clave secreta copiada')">📋 Copiar</button>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end;">
+            <button type="button" class="btn-outline-pro" onclick="document.getElementById('modalVerClave2FA').classList.remove('open')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 3: DESACTIVAR 2FA -->
+<div id="modalDesactivar2FA" class="ajustes-modal-bg" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="ajustes-modal" style="max-width:400px;">
+        <h3 style="margin-top:0; margin-bottom:8px; color:var(--accent-red); display:flex; align-items:center; gap:8px;">
+            <span>⚠️</span> <span>Desactivar 2FA</span>
+        </h3>
+        <p style="font-size:0.80em; color:var(--text-muted); margin-bottom:12px; line-height:1.45;">
+            Tu cuenta perderá la capa de doble protección y se accederá únicamente con tu contraseña. Ingresa tu código actual de 6 dígitos para autorizar:
+        </p>
+        <input type="text" id="inputCod2FADesactivar" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="••••••" style="text-align:center; font-size:1.35em; letter-spacing:6px; font-weight:bold; font-family:monospace; margin-bottom:14px; width:100%;" class="form-input">
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-outline-pro" onclick="document.getElementById('modalDesactivar2FA').classList.remove('open')">Cancelar</button>
+            <button type="button" class="btn-danger-pro" onclick="confirmarDesactivar2FA()" style="width:auto; padding:9px 14px;">🔓 Desactivar</button>
+        </div>
     </div>
 </div>
 
@@ -746,6 +949,129 @@
             });
         };
         reader.readAsText(file);
+    }
+
+    // --- 2FA y Dispositivos de Confianza ---
+    async function iniciarActivacion2FA() {
+        try {
+            const res = await fetch('/api/2fa/configurar', { method: 'POST', credentials: 'same-origin' });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                document.getElementById('imgQr2FA').src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(data.uri);
+                document.getElementById('txtSecret2FA').innerText = data.secret;
+                document.getElementById('inputCod2FAConfirmar').value = '';
+                document.getElementById('modalConfig2FA').classList.add('open');
+            } else {
+                alert(data.msg || 'Error al iniciar 2FA');
+            }
+        } catch(e) {
+            alert('Error de conexión: ' + e);
+        }
+    }
+
+    async function confirmarActivacion2FA() {
+        const cod = document.getElementById('inputCod2FAConfirmar').value.trim();
+        if (!cod || cod.length !== 6) return alert('Ingresa el código de 6 dígitos que muestra tu app.');
+        try {
+            const res = await fetch('/api/2fa/confirmar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ codigo: cod })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                alert('✅ ' + data.msg);
+                window.location.reload();
+            } else {
+                alert('❌ ' + (data.msg || 'Código incorrecto'));
+            }
+        } catch(e) {
+            alert('Error: ' + e);
+        }
+    }
+
+    async function abrirModalVerClave2FA() {
+        try {
+            const res = await fetch('/api/2fa/ver_clave', { credentials: 'same-origin' });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                document.getElementById('imgQr2FAResp').src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(data.uri);
+                document.getElementById('resp2FAKeyDisplay').innerText = data.secret;
+                document.getElementById('modalVerClave2FA').classList.add('open');
+            } else {
+                alert(data.msg || 'Error al obtener clave');
+            }
+        } catch(e) {
+            alert('Error: ' + e);
+        }
+    }
+
+    function abrirModalDesactivar2FA() {
+        document.getElementById('inputCod2FADesactivar').value = '';
+        document.getElementById('modalDesactivar2FA').classList.add('open');
+    }
+
+    async function confirmarDesactivar2FA() {
+        const cod = document.getElementById('inputCod2FADesactivar').value.trim();
+        if (!cod || cod.length !== 6) return alert('Ingresa tu código actual de 6 dígitos.');
+        try {
+            const res = await fetch('/api/2fa/desactivar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ codigo: cod })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                alert('✅ 2FA desactivado correctamente.');
+                window.location.reload();
+            } else {
+                alert('❌ ' + (data.msg || 'Código incorrecto'));
+            }
+        } catch(e) {
+            alert('Error: ' + e);
+        }
+    }
+
+    async function eliminarDispositivo(id, nombre) {
+        if (!confirm(`¿Olvidar el dispositivo "${nombre}"? En su próximo inicio de sesión volverá a solicitar el código 2FA.`)) return;
+        try {
+            const res = await fetch('/api/dispositivos/eliminar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ id: id })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                mostrarToastAjustes(data.msg || 'Dispositivo olvidado.');
+                setTimeout(() => window.location.reload(), 700);
+            } else {
+                alert('❌ ' + (data.msg || 'Error al eliminar'));
+            }
+        } catch(e) {
+            alert('Error: ' + e);
+        }
+    }
+
+    async function revocarTodosLosDispositivos() {
+        if (!confirm('¿Olvidar todos tus dispositivos de confianza? En el próximo inicio de sesión desde cualquier celular o PC volverá a pedir el código 2FA.')) return;
+        try {
+            const res = await fetch('/api/dispositivos/revocar_todos', {
+                method: 'POST',
+                credentials: 'same-origin'
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                mostrarToastAjustes('Todos los dispositivos fueron olvidados.');
+                setTimeout(() => window.location.reload(), 700);
+            } else {
+                alert('❌ ' + (data.msg || 'Error al revocar'));
+            }
+        } catch(e) {
+            alert('Error: ' + e);
+        }
     }
 </script>
 {% endblock %}

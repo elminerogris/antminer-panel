@@ -1484,6 +1484,43 @@ def ajustes():
         cur.execute("UPDATE usuarios SET api_key=%s WHERE username=%s", (nueva_k, usr_actual))
         u_data['api_key'] = nueva_k
 
+    # 2FA y Dispositivos de Confianza
+    totp_activo = bool(a_int_seguro(u_data.get('totp_activo'), 0) == 1)
+    ahora_dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute(
+        "SELECT id, dispositivo, ip, fecha_creacion, expira_en, token_hash FROM dispositivos_confianza WHERE LOWER(username)=LOWER(%s) AND expira_en > %s ORDER BY id DESC",
+        (usr_actual, ahora_dt)
+    )
+    dispositivos_db = cur.fetchall() or []
+
+    token_actual = request.cookies.get('emg_trusted_device')
+    hash_actual = hashlib.sha256(token_actual.encode('utf-8')).hexdigest() if token_actual else None
+    lista_dispositivos = []
+    for d in dispositivos_db:
+        es_act = bool(hash_actual and d.get('token_hash') == hash_actual)
+        disp_nom = d.get('dispositivo') or 'Navegador Web'
+        dl = disp_nom.lower()
+        if 'android' in dl or 'iphone' in dl or 'ipad' in dl:
+            ico = '📱'
+        elif 'windows' in dl:
+            ico = '💻'
+        elif 'mac' in dl:
+            ico = '🖥️'
+        elif 'linux' in dl:
+            ico = '🐧'
+        else:
+            ico = '🌐'
+
+        lista_dispositivos.append({
+            'id': d['id'],
+            'dispositivo': disp_nom,
+            'icono': ico,
+            'ip': d.get('ip') or 'Desconocida',
+            'fecha_creacion': d.get('fecha_creacion') or '',
+            'expira_en': d.get('expira_en') or '',
+            'es_actual': es_act
+        })
+
     user_info = {
         'username': usr_actual, 'plan': u_data.get('plan', 'Gratis'),
         'api_key': u_data.get('api_key', ''), 'subnet': u_data.get('subnet') or '192.168.0',
@@ -1492,8 +1529,112 @@ def ajustes():
         'miner_pass': u_data.get('miner_pass') or '',
         'tg_token': u_data.get('tg_token') or '',
         'tg_chat_id': u_data.get('tg_chat_id') or '',
+        'totp_activo': totp_activo,
+        'dispositivos': lista_dispositivos
     }
     return render_seguro('ajustes.html', active_page='ajustes', user=user_info, msg=msg)
+
+# ==================== 2FA Y DISPOSITIVOS SEGUROS (CLIENTES Y ADMIN) ====================
+@panel_bp.route('/api/2fa/configurar', methods=['POST'])
+@login_required
+def api_2fa_configurar():
+    usr_actual = session.get('usuario')
+    secret = generar_totp_secret()
+    session['temp_totp_secret'] = secret
+    uri = f"otpauth://totp/ElMineroGris:{usr_actual}?secret={secret}&issuer=ElMineroGris"
+    return jsonify({"status": "ok", "secret": secret, "uri": uri})
+
+@panel_bp.route('/api/2fa/confirmar', methods=['POST'])
+@login_required
+def api_2fa_confirmar():
+    usr_actual = session.get('usuario')
+    data = request.get_json(silent=True) or {}
+    codigo = str(data.get('codigo') or '').strip().replace(' ', '')
+    secret = session.get('temp_totp_secret')
+    if not secret:
+        return jsonify({"status": "error", "msg": "Sesión de configuración 2FA expirada. Vuelve a iniciar el proceso."}), 400
+    if not verificar_totp(secret, codigo):
+        return jsonify({"status": "error", "msg": "Código 2FA incorrecto. Verifica que la hora de tu teléfono sea automática e intenta de nuevo."}), 400
+
+    con = get_db(); cur = con.cursor()
+    cur.execute("UPDATE usuarios SET totp_secret=%s, totp_activo=1 WHERE LOWER(username)=LOWER(%s)", (secret, usr_actual))
+    session.pop('temp_totp_secret', None)
+    notificar_alerta_seguridad("2FA Activado", f"El usuario {usr_actual} activó exitosamente 2FA en su cuenta.", _ip_cliente())
+    return jsonify({"status": "ok", "msg": "¡Autenticación 2FA activada con éxito en tu cuenta!"})
+
+@panel_bp.route('/api/2fa/ver_clave', methods=['GET', 'POST'])
+@login_required
+def api_2fa_ver_clave():
+    usr_actual = session.get('usuario')
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT totp_secret, totp_activo FROM usuarios WHERE LOWER(username)=LOWER(%s)", (usr_actual,))
+    row = cur.fetchone() or {}
+    secret = (row.get('totp_secret') or '').strip()
+    if not secret:
+        return jsonify({"status": "error", "msg": "No hay clave 2FA activa configurada."}), 400
+    uri = f"otpauth://totp/ElMineroGris:{usr_actual}?secret={secret}&issuer=ElMineroGris"
+    return jsonify({"status": "ok", "secret": secret, "uri": uri})
+
+@panel_bp.route('/api/2fa/desactivar', methods=['POST'])
+@login_required
+def api_2fa_desactivar():
+    usr_actual = session.get('usuario')
+    data = request.get_json(silent=True) or {}
+    codigo = str(data.get('codigo') or '').strip().replace(' ', '')
+    con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT totp_secret, totp_activo FROM usuarios WHERE LOWER(username)=LOWER(%s)", (usr_actual,))
+    row = cur.fetchone()
+    if not row or a_int_seguro(row.get('totp_activo'), 0) != 1:
+        return jsonify({"status": "error", "msg": "El 2FA no está activo en esta cuenta."}), 400
+    if not verificar_totp(row.get('totp_secret'), codigo):
+        return jsonify({"status": "error", "msg": "Código 2FA incorrecto para desactivar."}), 400
+
+    cur.execute("UPDATE usuarios SET totp_activo=0, totp_secret='' WHERE LOWER(username)=LOWER(%s)", (usr_actual,))
+    notificar_alerta_seguridad("2FA Desactivado", f"El usuario {usr_actual} desactivó la protección 2FA de su cuenta.", _ip_cliente())
+    return jsonify({"status": "ok", "msg": "2FA desactivado correctamente."})
+
+@panel_bp.route('/api/dispositivos/eliminar', methods=['POST'])
+@login_required
+def api_dispositivo_eliminar():
+    usr_actual = session.get('usuario')
+    data = request.get_json(silent=True) or {}
+    disp_id = a_int_seguro(data.get('id'), 0)
+    if disp_id <= 0:
+        return jsonify({"status": "error", "msg": "ID de dispositivo no válido."}), 400
+
+    con = get_db(); cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT token_hash, dispositivo FROM dispositivos_confianza WHERE id=%s AND LOWER(username)=LOWER(%s)", (disp_id, usr_actual))
+    row = cur.fetchone()
+    if not row:
+        return jsonify({"status": "error", "msg": "Dispositivo no encontrado o ya eliminado."}), 404
+
+    cur.execute("DELETE FROM dispositivos_confianza WHERE id=%s AND LOWER(username)=LOWER(%s)", (disp_id, usr_actual))
+    resp = jsonify({"status": "ok", "msg": f"Dispositivo '{row.get('dispositivo')}' olvidado correctamente."})
+
+    # Si era el dispositivo actual, limpiar la cookie local
+    token_actual = request.cookies.get('emg_trusted_device')
+    if token_actual:
+        hash_act = hashlib.sha256(token_actual.encode('utf-8')).hexdigest()
+        if hash_act == row.get('token_hash'):
+            host_c = (request.host or '').split(':')[0].lower()
+            cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
+            resp.delete_cookie('emg_trusted_device', path='/', domain=cookie_domain)
+            resp.delete_cookie('emg_trusted_device', path='/')
+    return resp
+
+@panel_bp.route('/api/dispositivos/revocar_todos', methods=['POST'])
+@login_required
+def api_dispositivos_revocar_todos():
+    usr_actual = session.get('usuario')
+    con = get_db(); cur = con.cursor()
+    cur.execute("DELETE FROM dispositivos_confianza WHERE LOWER(username)=LOWER(%s)", (usr_actual,))
+    resp = jsonify({"status": "ok", "msg": "Todos los dispositivos de confianza fueron olvidados con éxito."})
+    host_c = (request.host or '').split(':')[0].lower()
+    cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
+    resp.delete_cookie('emg_trusted_device', path='/', domain=cookie_domain)
+    resp.delete_cookie('emg_trusted_device', path='/')
+    return resp
 
 @panel_bp.route('/plan')
 @login_required
