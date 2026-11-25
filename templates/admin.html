@@ -462,6 +462,7 @@
     </div>
     <div>
         {% if admin_totp_activo %}
+            <button type="button" class="btn-adm" onclick="verClaveRespaldo2FA()" style="padding:6px 12px; font-size:0.80em; margin-right:6px;">📋 Ver Clave de Respaldo</button>
             <button type="button" class="btn-adm red" onclick="abrirModalDesactivar2FA()" style="padding:6px 12px; font-size:0.80em;">🔓 Desactivar 2FA</button>
         {% else %}
             <button type="button" class="btn-adm green" onclick="iniciarConfiguracion2FA()" style="padding:7px 14px; font-size:0.82em; font-weight:bold;">🔐 Activar 2FA Ahora</button>
@@ -875,6 +876,26 @@
     </div>
 </div>
 
+<!-- MODAL: VER CLAVE DE RESPALDO 2FA -->
+<div id="modalVerClave2FA" class="adm-modal-bg" onclick="if(event.target===this) this.style.display='none'">
+    <div class="adm-modal" style="max-width:440px; text-align:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <b style="font-size:1.1em; color:var(--text-main);">📋 Tu Clave de Respaldo 2FA</b>
+            <button type="button" onclick="document.getElementById('modalVerClave2FA').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">✕</button>
+        </div>
+        <div style="font-size:0.82em; color:var(--text-muted); margin-bottom:14px; text-align:left; line-height:1.45;">
+            Guarda esta clave secreta en un bloc de notas seguro o papel. Si alguna vez pierdes o cambias de celular, con esta clave podrás restaurar tus códigos en Google Authenticator al instante.
+        </div>
+        <div style="margin:8px auto; background:#fff; padding:10px; border-radius:8px; display:inline-block; box-shadow:0 4px 14px rgba(0,0,0,0.25);">
+            <img id="imgQr2FAResp" src="" alt="QR 2FA Respaldo" style="width:150px; height:150px; display:block;">
+        </div>
+        <div style="margin:12px 0 6px 0; font-family:monospace; background:var(--bg-well); padding:10px 14px; border-radius:6px; border:1px solid var(--border-color); font-size:0.95em; word-break:break-all; user-select:all; font-weight:bold; color:var(--accent-blue-light);" id="txtSecret2FAResp">
+            ...
+        </div>
+        <button type="button" class="btn-adm" onclick="copiarClave2FAResp()" style="margin:8px 0; width:100%; justify-content:center; padding:8px;">📋 Copiar Clave Secreta</button>
+    </div>
+</div>
+
 <script>
     async function iniciarConfiguracion2FA() {
         try {
@@ -943,6 +964,32 @@
             alert('Error: ' + e);
         }
     }
+    async function verClaveRespaldo2FA() {
+        try {
+            const res = await fetch('/admin/2fa/ver_clave', { credentials: 'same-origin' });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                document.getElementById('txtSecret2FAResp').innerText = data.secret;
+                document.getElementById('imgQr2FAResp').src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(data.uri);
+                document.getElementById('modalVerClave2FA').style.display = 'flex';
+            } else {
+                alert(data.msg || 'No se pudo obtener la clave 2FA');
+            }
+        } catch(e) {
+            alert('Error de conexión: ' + e);
+        }
+    }
+
+    function copiarClave2FAResp() {
+        const txt = document.getElementById('txtSecret2FAResp').innerText.trim();
+        if (!txt) return;
+        navigator.clipboard.writeText(txt).then(() => {
+            alert('✅ Clave de respaldo 2FA copiada al portapapeles');
+        }).catch(() => {
+            prompt('Copia tu clave secreta de respaldo:', txt);
+        });
+    }
+
     const GRANJAS_DATA = {{ mapa_granjas | tojson if mapa_granjas is defined else (mapa_granjas_json | default('[]')) }};
     const USERS_ID_MAP = {
         {% for u in usuarios %}{{ u.username|tojson }}: {{ u.id }}{% if not loop.last %},{% endif %}{% endfor %}

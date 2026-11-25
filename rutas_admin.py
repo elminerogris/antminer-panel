@@ -150,6 +150,21 @@ def admin_2fa_confirmar():
     notificar_alerta_seguridad("2FA Activado para Super Admin", "Se vinculó exitosamente Google Authenticator a la cuenta admin.", request.remote_addr or "")
     return jsonify({"status": "ok", "msg": "¡Autenticación 2FA activada con éxito!"})
 
+@admin_bp.route('/admin/2fa/ver_clave', methods=['GET', 'POST'])
+@login_required
+def admin_2fa_ver_clave():
+    if not es_super_admin():
+        return jsonify({"status": "error", "msg": "No autorizado"}), 403
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT totp_secret, totp_activo FROM usuarios WHERE LOWER(username)='admin'")
+    adm = cur.fetchone() or {}
+    secret = (adm.get('totp_secret') or '').strip()
+    if not secret:
+        return jsonify({"status": "error", "msg": "No hay clave 2FA activa configurada."}), 400
+    uri = f"otpauth://totp/ElMineroGris:admin?secret={secret}&issuer=ElMineroGris"
+    return jsonify({"status": "ok", "secret": secret, "uri": uri})
+
 @admin_bp.route('/admin/2fa/desactivar', methods=['POST'])
 @login_required
 def admin_2fa_desactivar():
