@@ -1108,14 +1108,13 @@ def recibir_datos():
         try:
             # Retención optimizada para alta escala (500 clientes, 5,000+ ASICs):
             # - Incidentes / Auditoría (registro_alertas): 30 días (~10 MB, muy liviano)
-            # - Telemetría continua (historial_nube): 7 días de resolución completa
-            # - Arrays pesados de cadenas/chips en telemetría: limpiar tras 24h
+            # - Telemetría continua (historial_nube): 30 días completos (rango mensual del gráfico)
+            # - Arrays pesados de cadenas/chips en telemetría: limpiar tras 24h para mantener la BD ligera
             # - Cola de órdenes ejecutadas: 2 días
             fecha_limite_30d = (ahora_dt - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-            fecha_limite_7d = (ahora_dt - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
             fecha_limite_24h = (ahora_dt - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
             fecha_limite_cmd = (ahora_dt - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
-            cur.execute("DELETE FROM historial_nube WHERE fecha < %s", (fecha_limite_7d,))
+            cur.execute("DELETE FROM historial_nube WHERE fecha < %s", (fecha_limite_30d,))
             cur.execute("UPDATE historial_nube SET cadenas=NULL WHERE fecha < %s AND cadenas IS NOT NULL", (fecha_limite_24h,))
             cur.execute("DELETE FROM registro_alertas WHERE fecha < %s", (fecha_limite_30d,))
             cur.execute("DELETE FROM cola_comandos WHERE estado='enviado' AND fecha < %s", (fecha_limite_cmd,))
