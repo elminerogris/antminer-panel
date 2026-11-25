@@ -613,10 +613,13 @@ def recibir_datos():
         print(f"Error actualizando agentes_conectados ({agent_id}): {err_ag_reg}")
 
     cur.execute(
-        "SELECT zt_activo, zt_pool1, zt_worker_prefix, zt_pass1, zt_pool2, zt_pool3 FROM granjas_sedes WHERE owner=%s AND farm_id=%s LIMIT 1",
+        "SELECT nombre, ciudad, zt_activo, zt_pool1, zt_worker_prefix, zt_pass1, zt_pool2, zt_pool3 FROM granjas_sedes WHERE owner=%s AND farm_id=%s LIMIT 1",
         (owner_user, farm_id_efectivo)
     )
-    zt_cfg = cur.fetchone() or {}
+    row_sede_info = cur.fetchone() or {}
+    nombre_sede_act = str(row_sede_info.get('nombre') or farm_id_efectivo).strip() or farm_id_efectivo
+    ciudad_sede_act = str(row_sede_info.get('ciudad') or f_city).strip() or f_city
+    zt_cfg = row_sede_info
     zt_on = (a_int_seguro(zt_cfg.get('zt_activo'), 0) == 1) and bool(str(zt_cfg.get('zt_pool1') or '').strip())
 
     cur.execute("""
@@ -629,6 +632,9 @@ def recibir_datos():
         FROM mineros_activos WHERE owner=%s
     """, (owner_user,))
     rows_exist = cur.fetchall()
+
+    cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (owner_user,))
+    nombres_map = {r['ip']: str(r['nombre']).strip() for r in (cur.fetchall() or []) if r and r.get('nombre')}
 
     por_mac = {}
     por_sn = {}
@@ -742,6 +748,35 @@ def recibir_datos():
     guardados_ok = 0
     omitidos_por_plan = 0
 
+    batch_caida_hr = []
+    batch_recup_hr = []
+    batch_temp_alta = []
+    batch_temp_ok = []
+    batch_watchdog = []
+
+    # Detección temprana de apagón / corte de luz en la sede (si el agente reporta pero 0 mineros responden)
+    if not mineros_payload:
+        mineros_sede_previos = [
+            r for r in rows_exist
+            if (r.get('farm_id') == farm_id_efectivo or r.get('agent_id') == agent_id)
+            and calcular_segundos_desconectado(r.get('ultima_act')) < 240
+        ]
+        if len(mineros_sede_previos) >= 2:
+            if not alerta_en_enfriamiento(cur, owner_user, farm_id_efectivo, 'APAGON_SEDE', 300):
+                cant = len(mineros_sede_previos)
+                if alertas_on and tg_tok and tg_cid:
+                    msg_tg = (
+                        f"⚡ <b>ALERTA: CORTE DE LUZ / APAGÓN DETECTADO ({cant} equipos)</b>\n"
+                        f"🏭 Sede: <b>{nombre_sede_act}</b> ({ciudad_sede_act})\n"
+                        f"Estado: Los <b>{cant} equipos</b> de la granja dejaron de responder simultáneamente.\n"
+                        f"💡 <i>Diagnóstico: Corte de suministro eléctrico o breaker principal disparado en la sede.</i>"
+                    )
+                    enviar_telegram(tg_tok, tg_cid, msg_tg)
+                cur.execute(
+                    "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'APAGON_SEDE', %s, %s)",
+                    (owner_user, farm_id_efectivo, f"Corte de energía detectado: {cant} equipos apagados en {nombre_sede_act}.", ahora)
+                )
+
     for m in mineros_payload:
         try:
             ip_m = str(m.get('ip') or '').strip()
@@ -837,6 +872,7 @@ def recibir_datos():
                 total_existentes += 1
 
             mod_m = str(m.get('modelo') or 'Antminer')
+            nom_m = nombres_map.get(ip_m) or f"Minero {ip_m.split('.')[-1]}"
             algo_m = str(m.get('algoritmo') or 'SHA-256')
             mon_m = str(m.get('moneda') or 'BTC')
             hr_m = a_float_seguro(m.get('hashrate'), 0.0)
@@ -1044,11 +1080,15 @@ def recibir_datos():
                                     SET wd_cuarentena=1, wd_ultimo_reinicio=%s, wd_motivo_fallo=%s
                                     WHERE owner=%s AND agent_id=%s AND ip=%s
                                 """, (ahora, fallo_wd, owner_user, agent_id, ip_m))
-                                msg_q = f"🔒 CUARENTENA: {mod_m} ({ip_m}) falló tras {wd_reinicios} reinicios ({fallo_wd}). Puesto en SLEEP."
+                                msg_q = f"🔒 CUARENTENA: {nom_m} ({ip_m}) falló tras {wd_reinicios} reinicios ({fallo_wd}). Puesto en SLEEP."
                                 cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'WATCHDOG_CUARENTENA', %s, %s)",
                                             (owner_user, ip_m, msg_q, ahora))
                                 if alertas_on:
-                                    enviar_telegram(tg_tok, tg_cid, f"🔒 <b>WATCHDOG: MINERO EN CUARENTENA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nMotivo: <b>{fallo_wd}</b>\nReinicios fallidos: {wd_reinicios}/{wd_max_reinicios}\nAcción: Puesto en <b>REPOSO (Sleep)</b>.")
+                                    batch_watchdog.append({
+                                        'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
+                                        'tipo': 'cuarentena', 'motivo': fallo_wd,
+                                        'intento': wd_reinicios, 'max': wd_max_reinicios
+                                    })
                             else:
                                 nuevos_reb = wd_reinicios + 1
                                 ordenes.append({"ip": ip_m, "comando": "restart"})
@@ -1057,64 +1097,233 @@ def recibir_datos():
                                     SET wd_ultimo_reinicio=%s, wd_reinicios_seguidos=%s, wd_fallo_desde='', wd_motivo_fallo=%s
                                     WHERE owner=%s AND agent_id=%s AND ip=%s
                                 """, (ahora, nuevos_reb, fallo_wd, owner_user, agent_id, ip_m))
-                                msg_r = f"🔄 AUTO-REINICIO ({nuevos_reb}/{wd_max_reinicios}): {mod_m} ({ip_m}) por {fallo_wd}."
+                                msg_r = f"🔄 AUTO-REINICIO ({nuevos_reb}/{wd_max_reinicios}): {nom_m} ({ip_m}) por {fallo_wd}."
                                 cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'WATCHDOG_REBOOT', %s, %s)",
                                             (owner_user, ip_m, msg_r, ahora))
                                 if alertas_on:
-                                    enviar_telegram(tg_tok, tg_cid, f"🔄 <b>WATCHDOG: AUTO-REINICIO</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nMotivo: <b>{fallo_wd}</b>\nIntento: {nuevos_reb} de {wd_max_reinicios}")
+                                    batch_watchdog.append({
+                                        'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
+                                        'tipo': 'reinicio', 'motivo': fallo_wd,
+                                        'intento': nuevos_reb, 'max': wd_max_reinicios
+                                    })
 
-            # --- Gestión Inteligente de Alertas (Sin Spam: Notificación Única + Detección de Recuperación) ---
+            # --- Gestión Inteligente de Alertas (Anti-Spam, Agrupación y Anti-Flapping de 120s) ---
             prev_alerta_hr = a_int_seguro(prev_m.get('alerta_hr_disparada'), 0)
             prev_alerta_temp = a_int_seguro(prev_m.get('alerta_temp_disparada'), 0)
 
-            # 1. Alerta por Caída de Hashrate
+            # 1. Alerta por Caída de Hashrate (Anti-Flapping: requiere al menos 120s tras la última recuperación)
             if umbral_h > 0 and hr_m < umbral_h and temp_m > 5:
-                # El minero rinde por debajo del umbral configurado
                 if prev_alerta_hr == 0:
-                    cur.execute(
-                        "UPDATE mineros_activos SET alerta_hr_disparada=1 WHERE owner=%s AND agent_id=%s AND ip=%s",
-                        (owner_user, agent_id, ip_m)
-                    )
-                    msg_hr = f"El equipo {mod_m} ({ip_m}) cayó a {hr_m} {unid} (Mínimo: {umbral_h} {unid})."
-                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE', %s, %s)", (owner_user, ip_m, msg_hr, ahora))
-                    if alertas_on and tg_tok and tg_cid:
-                        enviar_telegram(tg_tok, tg_cid, f"⚠️ <b>CAÍDA DE HASHRATE</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nHashrate actual: <b>{hr_m} {unid}</b> (Mínimo: {umbral_h} {unid})\nTemperatura: {temp_m}°C")
+                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'HASHRATE_OK', 120):
+                        cur.execute(
+                            "UPDATE mineros_activos SET alerta_hr_disparada=1 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                            (owner_user, agent_id, ip_m)
+                        )
+                        msg_hr = f"El equipo {nom_m} ({ip_m}) cayó a {hr_m} {unid} (Mínimo: {umbral_h} {unid})."
+                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE', %s, %s)",
+                                    (owner_user, ip_m, msg_hr, ahora))
+                        if alertas_on:
+                            batch_caida_hr.append({
+                                'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
+                                'hr': hr_m, 'unid': unid, 'umbral': umbral_h, 'temp': temp_m
+                            })
             elif umbral_h > 0 and hr_m >= umbral_h:
-                # El minero está minando con normalidad
                 if prev_alerta_hr == 1:
-                    cur.execute(
-                        "UPDATE mineros_activos SET alerta_hr_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
-                        (owner_user, agent_id, ip_m)
-                    )
-                    msg_ok = f"El equipo {mod_m} ({ip_m}) recuperó su hashrate: {hr_m} {unid}."
-                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE_OK', %s, %s)", (owner_user, ip_m, msg_ok, ahora))
-                    if alertas_on and tg_tok and tg_cid:
-                        enviar_telegram(tg_tok, tg_cid, f"🟢 <b>HASHRATE RECUPERADO</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nHashrate: <b>{hr_m} {unid}</b> (Normalizado)\nTemperatura: {temp_m}°C")
+                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'HASHRATE', 120):
+                        cur.execute(
+                            "UPDATE mineros_activos SET alerta_hr_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                            (owner_user, agent_id, ip_m)
+                        )
+                        msg_ok = f"El equipo {nom_m} ({ip_m}) recuperó su hashrate: {hr_m} {unid}."
+                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE_OK', %s, %s)",
+                                    (owner_user, ip_m, msg_ok, ahora))
+                        if alertas_on:
+                            batch_recup_hr.append({
+                                'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
+                                'hr': hr_m, 'unid': unid, 'temp': temp_m
+                            })
 
-            # 2. Alerta por Exceso de Temperatura
+            # 2. Alerta por Exceso de Temperatura (Histéresis de 5°C y Anti-Flapping de 120s)
             if temp_m >= umbral_t:
                 if prev_alerta_temp == 0:
-                    cur.execute(
-                        "UPDATE mineros_activos SET alerta_temp_disparada=1 WHERE owner=%s AND agent_id=%s AND ip=%s",
-                        (owner_user, agent_id, ip_m)
-                    )
-                    msg_al = f"El equipo {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
-                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_al, ahora))
-                    if alertas_on and tg_tok and tg_cid:
-                        enviar_telegram(tg_tok, tg_cid, f"🔥 <b>ALERTA DE TEMPERATURA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b> (Límite: {umbral_t}°C)\nHashrate: {hr_m} {unid}")
+                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP_OK', 120):
+                        cur.execute(
+                            "UPDATE mineros_activos SET alerta_temp_disparada=1 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                            (owner_user, agent_id, ip_m)
+                        )
+                        msg_al = f"El equipo {nom_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
+                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)",
+                                    (owner_user, ip_m, msg_al, ahora))
+                        if alertas_on:
+                            batch_temp_alta.append({
+                                'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
+                                'temp': temp_m, 'umbral': umbral_t, 'hr': hr_m, 'unid': unid
+                            })
             elif temp_m > 0 and temp_m <= (umbral_t - 5):
-                # Histéresis de 5°C para evitar ráfagas de avisos por fluctuación leve
                 if prev_alerta_temp == 1:
-                    cur.execute(
-                        "UPDATE mineros_activos SET alerta_temp_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
-                        (owner_user, agent_id, ip_m)
-                    )
-                    msg_temp_ok = f"El equipo {mod_m} ({ip_m}) estabilizó su temperatura a {temp_m}°C."
-                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP_OK', %s, %s)", (owner_user, ip_m, msg_temp_ok, ahora))
-                    if alertas_on and tg_tok and tg_cid:
-                        enviar_telegram(tg_tok, tg_cid, f"🟢 <b>TEMPERATURA NORMALIZADA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b> (Enfriado)\nHashrate: {hr_m} {unid}")
+                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP', 120):
+                        cur.execute(
+                            "UPDATE mineros_activos SET alerta_temp_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                            (owner_user, agent_id, ip_m)
+                        )
+                        msg_temp_ok = f"El equipo {nom_m} ({ip_m}) estabilizó su temperatura a {temp_m}°C."
+                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP_OK', %s, %s)",
+                                    (owner_user, ip_m, msg_temp_ok, ahora))
+                        if alertas_on:
+                            batch_temp_ok.append({
+                                'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
+                                'temp': temp_m, 'hr': hr_m, 'unid': unid
+                            })
         except Exception as err_m:
             print(f"Error guardando minero {m.get('ip')}: {err_m}")
+
+    # ==================== DESPACHO AGRUPADO E INTELIGENTE A TELEGRAM (SIN SPAM) ====================
+    if alertas_on and tg_tok and tg_cid:
+        # 1. Caídas de Hashrate (Si caen 2 o más: 1 solo mensaje agrupado)
+        if len(batch_caida_hr) == 1:
+            it = batch_caida_hr[0]
+            enviar_telegram(
+                tg_tok, tg_cid,
+                f"⚠️ <b>CAÍDA DE HASHRATE</b>\n"
+                f"Minero: <b>{it['nombre']}</b> (<code>{it['ip']}</code>)\n"
+                f"Modelo: {it['modelo']}\n"
+                f"Hashrate actual: <b>{it['hr']} {it['unid']}</b> (Mínimo: {it['umbral']} {it['unid']})\n"
+                f"Temperatura: <b>{it['temp']}°C</b>"
+            )
+        elif len(batch_caida_hr) >= 2:
+            cant = len(batch_caida_hr)
+            lineas = [
+                f"⚠️ <b>CAÍDA DE HASHRATE COLECTIVA ({cant} equipos)</b>",
+                f"🏭 Sede: <b>{nombre_sede_act}</b> ({ciudad_sede_act})",
+                ""
+            ]
+            for it in batch_caida_hr[:15]:
+                lineas.append(f"• <b>{it['nombre']}</b> (<code>{it['ip']}</code>): <b>{it['hr']} {it['unid']}</b> ({it['temp']}°C)")
+            if cant > 15:
+                lineas.append(f"<i>...y {cant - 15} equipo(s) más afectados.</i>")
+            lineas.append("")
+            lineas.append("⚡ <i>Diagnóstico: Posible corte de luz, breaker del rack disparado o fallo de switch/red.</i>")
+            enviar_telegram(tg_tok, tg_cid, "\n".join(lineas))
+            cur.execute(
+                "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE_MASIVO', %s, %s)",
+                (owner_user, farm_id_efectivo, f"Caída masiva de hashrate en {cant} equipos de sede {nombre_sede_act}.", ahora)
+            )
+
+        # 2. Hashrate Recuperado (Si se recuperan 2 o más: 1 solo mensaje agrupado)
+        if len(batch_recup_hr) == 1:
+            it = batch_recup_hr[0]
+            enviar_telegram(
+                tg_tok, tg_cid,
+                f"🟢 <b>HASHRATE RECUPERADO</b>\n"
+                f"Minero: <b>{it['nombre']}</b> (<code>{it['ip']}</code>)\n"
+                f"Modelo: {it['modelo']}\n"
+                f"Hashrate: <b>{it['hr']} {it['unid']}</b> (Normalizado)\n"
+                f"Temperatura: <b>{it['temp']}°C</b>"
+            )
+        elif len(batch_recup_hr) >= 2:
+            cant = len(batch_recup_hr)
+            lineas = [
+                f"🟢 <b>HASHRATE RECUPERADO ({cant} equipos restablecidos)</b>",
+                f"🏭 Sede: <b>{nombre_sede_act}</b> ({ciudad_sede_act})",
+                ""
+            ]
+            for it in batch_recup_hr[:15]:
+                lineas.append(f"• <b>{it['nombre']}</b> (<code>{it['ip']}</code>): <b>{it['hr']} {it['unid']}</b> (Normalizado)")
+            if cant > 15:
+                lineas.append(f"<i>...y {cant - 15} equipo(s) más restablecidos.</i>")
+            lineas.append("")
+            lineas.append("✨ <i>Energía y hashrate normalizados en todos los equipos de la sede.</i>")
+            enviar_telegram(tg_tok, tg_cid, "\n".join(lineas))
+            cur.execute(
+                "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE_OK_MASIVO', %s, %s)",
+                (owner_user, farm_id_efectivo, f"Hashrate normalizado en {cant} equipos de sede {nombre_sede_act}.", ahora)
+            )
+
+        # 3. Alertas de Temperatura (Si sobrecalientan 2 o más: 1 solo mensaje agrupado)
+        if len(batch_temp_alta) == 1:
+            it = batch_temp_alta[0]
+            enviar_telegram(
+                tg_tok, tg_cid,
+                f"🔥 <b>ALERTA DE TEMPERATURA</b>\n"
+                f"Minero: <b>{it['nombre']}</b> (<code>{it['ip']}</code>)\n"
+                f"Modelo: {it['modelo']}\n"
+                f"Temperatura: <b>{it['temp']}°C</b> (Límite: {it['umbral']}°C)\n"
+                f"Hashrate: {it['hr']} {it['unid']}"
+            )
+        elif len(batch_temp_alta) >= 2:
+            cant = len(batch_temp_alta)
+            lineas = [
+                f"🔥 <b>ALERTA DE TEMPERATURA COLECTIVA ({cant} equipos)</b>",
+                f"🏭 Sede: <b>{nombre_sede_act}</b> ({ciudad_sede_act})",
+                ""
+            ]
+            for it in batch_temp_alta[:15]:
+                lineas.append(f"• <b>{it['nombre']}</b> (<code>{it['ip']}</code>): <b>{it['temp']}°C</b> (Límite: {it['umbral']}°C)")
+            if cant > 15:
+                lineas.append(f"<i>...y {cant - 15} equipo(s) más sobrecalentados.</i>")
+            lineas.append("")
+            lineas.append("🚨 <i>Revisa ventilación general, extractores o climatización de la sala inmediatamente.</i>")
+            enviar_telegram(tg_tok, tg_cid, "\n".join(lineas))
+            cur.execute(
+                "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP_MASIVA', %s, %s)",
+                (owner_user, farm_id_efectivo, f"Sobrecalentamiento masivo en {cant} equipos de sede {nombre_sede_act}.", ahora)
+            )
+
+        # 4. Temperatura Normalizada (Si enfrían 2 o más: 1 solo mensaje agrupado)
+        if len(batch_temp_ok) == 1:
+            it = batch_temp_ok[0]
+            enviar_telegram(
+                tg_tok, tg_cid,
+                f"🟢 <b>TEMPERATURA NORMALIZADA</b>\n"
+                f"Minero: <b>{it['nombre']}</b> (<code>{it['ip']}</code>)\n"
+                f"Temperatura: <b>{it['temp']}°C</b> (Enfriado)\n"
+                f"Hashrate: {it['hr']} {it['unid']}"
+            )
+        elif len(batch_temp_ok) >= 2:
+            cant = len(batch_temp_ok)
+            lineas = [
+                f"🟢 <b>TEMPERATURA NORMALIZADA ({cant} equipos enfriados)</b>",
+                f"🏭 Sede: <b>{nombre_sede_act}</b> ({ciudad_sede_act})",
+                ""
+            ]
+            for it in batch_temp_ok[:15]:
+                lineas.append(f"• <b>{it['nombre']}</b> (<code>{it['ip']}</code>): <b>{it['temp']}°C</b> (Enfriado)")
+            if cant > 15:
+                lineas.append(f"<i>...y {cant - 15} equipo(s) más normalizados.</i>")
+            enviar_telegram(tg_tok, tg_cid, "\n".join(lineas))
+
+        # 5. Watchdog Colectivo
+        if len(batch_watchdog) == 1:
+            it = batch_watchdog[0]
+            if it['tipo'] == 'cuarentena':
+                enviar_telegram(
+                    tg_tok, tg_cid,
+                    f"🔒 <b>WATCHDOG: MINERO EN CUARENTENA</b>\n"
+                    f"Minero: <b>{it['nombre']}</b> (<code>{it['ip']}</code>)\n"
+                    f"Motivo: <b>{it['motivo']}</b>\n"
+                    f"Reinicios fallidos: {it['intento']}/{it['max']}\n"
+                    f"Acción: Puesto en <b>REPOSO (Sleep)</b>."
+                )
+            else:
+                enviar_telegram(
+                    tg_tok, tg_cid,
+                    f"🔄 <b>WATCHDOG: AUTO-REINICIO</b>\n"
+                    f"Minero: <b>{it['nombre']}</b> (<code>{it['ip']}</code>)\n"
+                    f"Motivo: <b>{it['motivo']}</b>\n"
+                    f"Intento: {it['intento']} de {it['max']}"
+                )
+        elif len(batch_watchdog) >= 2:
+            cant = len(batch_watchdog)
+            lineas = [
+                f"🔄 <b>WATCHDOG: ACCIÓN COLECTIVA ({cant} equipos)</b>",
+                f"🏭 Sede: <b>{nombre_sede_act}</b> ({ciudad_sede_act})",
+                ""
+            ]
+            for it in batch_watchdog[:15]:
+                lineas.append(f"• <b>{it['nombre']}</b> (<code>{it['ip']}</code>): {'🔒 Cuarentena' if it['tipo']=='cuarentena' else '🔄 Reinicio'} ({it['motivo']})")
+            if cant > 15:
+                lineas.append(f"<i>...y {cant - 15} equipo(s) más.</i>")
+            enviar_telegram(tg_tok, tg_cid, "\n".join(lineas))
 
     try:
         cur.execute("UPDATE usuarios SET mineros_omitidos=%s WHERE username=%s", (0 if (es_pro and limite_efectivo == 0) else omitidos_por_plan, owner_user))
