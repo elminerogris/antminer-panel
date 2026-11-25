@@ -2,7 +2,7 @@ from flask import render_template, render_template_string, redirect, session
 from werkzeug.security import check_password_hash
 from jinja2 import TemplateNotFound
 from functools import wraps
-import json, urllib.request, urllib.parse, time, os, secrets, hashlib, re
+import json, urllib.request, urllib.parse, time, os, secrets, hashlib, re, threading
 from datetime import datetime
 
 LIMITE_MINEROS_GRATIS = 3
@@ -12,8 +12,9 @@ APK_VERSION_NAME = "1.3"
 cache_geo_granja = {}
 cache_clima_coord = {}
 cache_red = {
-    'datos': {'precio': 64809.0, 'dificultad_t': 134.82, 'recompensa': 3.125, 'red_ehs': 965.11},
-    'ultima_act': 0
+    'datos': {'precio': 96500.0, 'dificultad_t': 134.82, 'recompensa': 3.125, 'red_ehs': 965.11},
+    'ultima_act': time.time(),
+    'actualizando': False
 }
 
 def generar_api_key():
@@ -231,11 +232,11 @@ def _obtener_precio_btc():
             "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
             headers={'User-Agent': 'Mozilla/5.0'}
         )
-        precio = float(json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))['price'])
+        precio = float(json.loads(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8'))['price'])
         if precio > 1000:
             return precio
-    except Exception as e:
-        print(f"[Red BTC] Binance falló: {e}")
+    except Exception:
+        pass
 
     # 2. Coinbase
     try:
@@ -243,12 +244,12 @@ def _obtener_precio_btc():
             "https://api.coinbase.com/v2/prices/BTC-USD/spot",
             headers={'User-Agent': 'Mozilla/5.0'}
         )
-        j = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+        j = json.loads(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8'))
         precio = float(j['data']['amount'])
         if precio > 1000:
             return precio
-    except Exception as e:
-        print(f"[Red BTC] Coinbase falló: {e}")
+    except Exception:
+        pass
 
     # 3. CoinGecko
     try:
@@ -256,12 +257,12 @@ def _obtener_precio_btc():
             "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd",
             headers={'User-Agent': 'Mozilla/5.0'}
         )
-        j = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+        j = json.loads(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8'))
         precio = float(j['bitcoin']['usd'])
         if precio > 1000:
             return precio
-    except Exception as e:
-        print(f"[Red BTC] CoinGecko falló: {e}")
+    except Exception:
+        pass
 
     return None
 
@@ -273,15 +274,15 @@ def _obtener_dificultad_btc():
             "https://mempool.space/api/v1/mining/hashrate/3d",
             headers={'User-Agent': 'Mozilla/5.0'}
         )
-        j = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+        j = json.loads(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8'))
         diff = float(j.get('currentDifficulty') or 0)
         hr_red = float(j.get('currentHashrate') or 0)
         if diff > 0:
             dif_t = diff / 1_000_000_000_000
             ehs = round(hr_red / 1e18, 2) if hr_red > 0 else round(dif_t * 7.1583, 2)
             return dif_t, ehs
-    except Exception as e:
-        print(f"[Red BTC] Mempool dificultad falló: {e}")
+    except Exception:
+        pass
 
     # 2. Blockchain.info como respaldo
     try:
@@ -289,12 +290,12 @@ def _obtener_dificultad_btc():
             "https://blockchain.info/q/getdifficulty",
             headers={'User-Agent': 'Mozilla/5.0'}
         )
-        diff = float(urllib.request.urlopen(req, timeout=5).read().decode('utf-8').strip())
+        diff = float(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8').strip())
         if diff > 0:
             dif_t = diff / 1_000_000_000_000
             return dif_t, round(dif_t * 7.1583, 2)
-    except Exception as e:
-        print(f"[Red BTC] Blockchain.info dificultad falló: {e}")
+    except Exception:
+        pass
 
     return None, None
 
@@ -305,7 +306,7 @@ def _obtener_recompensa_btc():
             "https://mempool.space/api/blocks/tip/height",
             headers={'User-Agent': 'Mozilla/5.0'}
         )
-        altura = int(urllib.request.urlopen(req, timeout=4).read().decode('utf-8').strip())
+        altura = int(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8').strip())
         if altura > 0:
             halvings = altura // 210000
             return 50.0 / (2 ** halvings)
@@ -313,33 +314,44 @@ def _obtener_recompensa_btc():
         pass
     return None
 
+def _actualizar_datos_red_worker():
+    global cache_red
+    try:
+        datos = cache_red['datos'].copy()
+        precio = _obtener_precio_btc()
+        if precio is not None:
+            datos['precio'] = precio
+
+        dif_t, red_ehs = _obtener_dificultad_btc()
+        if dif_t is not None:
+            datos['dificultad_t'] = dif_t
+            datos['red_ehs'] = red_ehs
+
+        recomp = _obtener_recompensa_btc()
+        if recomp is not None:
+            datos['recompensa'] = recomp
+
+        cache_red['datos'] = datos
+    except Exception as e:
+        print(f"[Red BTC] Error worker fondo: {e}")
+    finally:
+        cache_red['ultima_act'] = time.time()
+        cache_red['actualizando'] = False
+
 def obtener_datos_red():
     global cache_red
     ahora = time.time()
-    if ahora - cache_red['ultima_act'] < 60:
-        return cache_red['datos']
-    datos = cache_red['datos'].copy()
+    # Si pasaron más de 5 minutos y no hay un hilo activo, actualizar en segundo plano sin frenar la web
+    if ahora - cache_red.get('ultima_act', 0) > 300 and not cache_red.get('actualizando', False):
+        cache_red['actualizando'] = True
+        try:
+            hilo = threading.Thread(target=_actualizar_datos_red_worker, daemon=True)
+            hilo.start()
+        except Exception:
+            cache_red['actualizando'] = False
 
-    precio = _obtener_precio_btc()
-    if precio is not None:
-        datos['precio'] = precio
-    else:
-        print("[Red BTC] ⚠️ No se pudo obtener precio de ninguna API, usando último valor conocido")
-
-    dif_t, red_ehs = _obtener_dificultad_btc()
-    if dif_t is not None:
-        datos['dificultad_t'] = dif_t
-        datos['red_ehs'] = red_ehs
-    else:
-        print("[Red BTC] ⚠️ No se pudo obtener dificultad de ninguna API, usando último valor conocido")
-
-    recomp = _obtener_recompensa_btc()
-    if recomp is not None:
-        datos['recompensa'] = recomp
-
-    cache_red['datos'] = datos
-    cache_red['ultima_act'] = ahora
-    return datos
+    # Retorna INSTANTÁNEAMENTE el último valor conocido sin frenar la petición web
+    return cache_red['datos']
 
 def obtener_codigo_agente_configurado(api_k, sub):
     with open('agente.py', 'r', encoding='utf-8') as f:
