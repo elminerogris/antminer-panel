@@ -446,3 +446,22 @@ def render_seguro(nombre_archivo, **contexto):
         {% endblock %}
         """
         return render_template_string(html_fallback, archivo=nombre_archivo, **contexto)
+
+def parsear_dispositivo(ua_string):
+    """Genera un nombre amigable de navegador/sistema a partir del User-Agent."""
+    ua = str(ua_string or "").lower()
+    os_name = "Dispositivo"
+    if "windows" in ua: os_name = "Windows"
+    elif "android" in ua: os_name = "Android"
+    elif "iphone" in ua or "ipad" in ua: os_name = "iPhone/iPad"
+    elif "macintosh" in ua or "mac os" in ua: os_name = "macOS"
+    elif "linux" in ua: os_name = "Linux"
+
+    browser = "Navegador"
+    if "edg/" in ua: browser = "Edge"
+    elif "chrome/" in ua and "safari/" in ua: browser = "Chrome"
+    elif "firefox/" in ua: browser = "Firefox"
+    elif "safari/" in ua and "chrome/" not in ua: browser = "Safari"
+    elif "opera/" in ua or "opr/" in ua: browser = "Opera"
+
+    return f"{browser} en {os_name}"

@@ -73,6 +73,15 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS registro_alertas (id SERIAL PRIMARY KEY, owner TEXT, ip TEXT, tipo TEXT, mensaje TEXT, fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS movimientos_saldo (id SERIAL PRIMARY KEY, username TEXT, tipo TEXT, monto REAL, nota TEXT DEFAULT '', fecha TEXT)''')
         c.execute('''CREATE TABLE IF NOT EXISTS config_global (clave TEXT PRIMARY KEY, valor TEXT DEFAULT '')''')
+        c.execute('''CREATE TABLE IF NOT EXISTS dispositivos_confianza (
+            id SERIAL PRIMARY KEY,
+            username TEXT,
+            token_hash TEXT UNIQUE,
+            dispositivo TEXT DEFAULT '',
+            ip TEXT DEFAULT '',
+            fecha_creacion TEXT DEFAULT '',
+            expira_en TEXT DEFAULT ''
+        )''')
 
         # --- Tablas Pro: Racks, Enlaces de Hosting (Solo Lectura) y Pagos Automáticos USDT ---
         c.execute('''CREATE TABLE IF NOT EXISTS racks_sedes (
@@ -398,6 +407,7 @@ def init_db():
         c.execute("CREATE INDEX IF NOT EXISTS idx_alertas_owner_id ON registro_alertas (owner, id DESC)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_alertas_fecha ON registro_alertas (fecha)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_mov_saldo_user ON movimientos_saldo (username, id DESC)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_disp_conf_user ON dispositivos_confianza (username, token_hash)")
 
         c.execute("SELECT id FROM usuarios WHERE LOWER(username)='admin'")
         if not c.fetchone():

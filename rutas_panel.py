@@ -11,7 +11,8 @@ from utils import (
     es_hash_seguro, verificar_password, a_int_seguro, a_float_seguro,
     clave_granja_minero, nombre_inteligente_minero, calcular_segundos_desconectado,
     ordenar_ip_key, obtener_datos_red, enviar_telegram, render_seguro,
-    generar_totp_secret, verificar_totp, notificar_alerta_seguridad
+    generar_totp_secret, verificar_totp, notificar_alerta_seguridad,
+    parsear_dispositivo
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
@@ -1532,7 +1533,25 @@ def login():
             session['plan'] = usr.get('plan', 'Gratis')
             session['saldo'] = usr.get('saldo', 0.0)
             session['last_seen_ts'] = time.time()
-            return redirect('/resumen')
+
+            resp = redirect('/resumen')
+            if request.form.get('recordar_dispositivo') == '1':
+                raw_token = secrets.token_hex(32)
+                tok_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+                ahora_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                exp_dt = (datetime.utcnow() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                ua_str = parsear_dispositivo(request.headers.get('User-Agent', ''))
+                cur.execute(
+                    "INSERT INTO dispositivos_confianza (username, token_hash, dispositivo, ip, fecha_creacion, expira_en) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (usr['username'], tok_hash, ua_str, _ip_cliente(), ahora_str, exp_dt)
+                )
+                resp.set_cookie(
+                    'emg_trusted_device', raw_token,
+                    max_age=30 * 86400, httponly=True,
+                    secure=bool(os.environ.get("RENDER") or os.environ.get("DATABASE_URL")),
+                    samesite='Lax'
+                )
+            return resp
 
         # 2. Paso 1: Verificación de Usuario y Contraseña
         ip_c = _ip_cliente()
@@ -1561,11 +1580,23 @@ def login():
             else:
                 cur.execute("UPDATE usuarios SET ultima_conexion=%s WHERE id=%s", (ahora_str, usr['id']))
 
-            # Si el usuario tiene 2FA activado, solicitar el segundo factor
+            # Si el usuario tiene 2FA activado, comprobar si este dispositivo ya fue recordado (Dispositivo de Confianza)
             if a_int_seguro(usr.get('totp_activo'), 0) == 1 and usr.get('totp_secret'):
-                session.clear()
-                session['2fa_pending_user'] = usr['username']
-                return render_seguro('login.html', mode='2fa')
+                disp_token = request.cookies.get('emg_trusted_device')
+                disp_valido = False
+                if disp_token:
+                    tok_hash = hashlib.sha256(disp_token.encode('utf-8')).hexdigest()
+                    cur.execute(
+                        "SELECT id FROM dispositivos_confianza WHERE LOWER(username)=LOWER(%s) AND token_hash=%s AND expira_en > %s LIMIT 1",
+                        (usr['username'], tok_hash, ahora_str)
+                    )
+                    if cur.fetchone():
+                        disp_valido = True
+
+                if not disp_valido:
+                    session.clear()
+                    session['2fa_pending_user'] = usr['username']
+                    return render_seguro('login.html', mode='2fa')
 
             # Anti-Session Fixation: limpiar identificador anterior antes de poblar la sesión
             session.clear()

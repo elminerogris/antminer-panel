@@ -453,7 +453,7 @@
             </div>
             <div style="font-size:0.76em; color:var(--text-muted); margin-top:2px;">
                 {% if admin_totp_activo %}
-                    Tu cuenta administrativa está blindada contra accesos no autorizados mediante códigos temporales de 6 dígitos.
+                    Tu cuenta administrativa está blindada con 2FA · <span style="color:var(--accent-blue-light);"><b>{{ disp_confianza_cnt }}</b> dispositivo(s) seguro(s) recordado(s)</span>.
                 {% else %}
                     Protege tu cuenta exigiendo un código temporal de Google Authenticator o Authy al iniciar sesión.
                 {% endif %}
@@ -462,6 +462,9 @@
     </div>
     <div>
         {% if admin_totp_activo %}
+            {% if disp_confianza_cnt > 0 %}
+                <button type="button" class="btn-adm" onclick="revocarDispositivosConfianza()" style="padding:6px 12px; font-size:0.80em; margin-right:6px;" title="Olvidar todos los navegadores guardados">🧹 Olvidar Dispositivos</button>
+            {% endif %}
             <button type="button" class="btn-adm" onclick="verClaveRespaldo2FA()" style="padding:6px 12px; font-size:0.80em; margin-right:6px;">📋 Ver Clave de Respaldo</button>
             <button type="button" class="btn-adm red" onclick="abrirModalDesactivar2FA()" style="padding:6px 12px; font-size:0.80em;">🔓 Desactivar 2FA</button>
         {% else %}
@@ -988,6 +991,22 @@
         }).catch(() => {
             prompt('Copia tu clave secreta de respaldo:', txt);
         });
+    }
+
+    async function revocarDispositivosConfianza() {
+        if (!confirm('¿Olvidar todos los dispositivos de confianza? En el próximo inicio de sesión volverá a pedir el código 2FA.')) return;
+        try {
+            const res = await fetch('/admin/2fa/revocar_dispositivos', { credentials: 'same-origin', method: 'POST' });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                alert('✅ Dispositivos revocados con éxito.');
+                window.location.reload();
+            } else {
+                alert(data.msg || 'Error al revocar');
+            }
+        } catch(e) {
+            alert('Error: ' + e);
+        }
     }
 
     const GRANJAS_DATA = {{ mapa_granjas | tojson if mapa_granjas is defined else (mapa_granjas_json | default('[]')) }};

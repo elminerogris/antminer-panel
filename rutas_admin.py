@@ -184,6 +184,18 @@ def admin_2fa_desactivar():
     notificar_alerta_seguridad("2FA Desactivado para Super Admin", "Se desactivó la protección 2FA de la cuenta admin.", request.remote_addr or "")
     return jsonify({"status": "ok", "msg": "2FA desactivado correctamente."})
 
+@admin_bp.route('/admin/2fa/revocar_dispositivos', methods=['POST'])
+@login_required
+def admin_2fa_revocar_dispositivos():
+    if not es_super_admin():
+        return jsonify({"status": "error", "msg": "No autorizado"}), 403
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    cur.execute("DELETE FROM dispositivos_confianza WHERE LOWER(username)='admin'")
+    notificar_alerta_seguridad("Dispositivos de Confianza Revocados", "El administrador revocó todos los dispositivos de confianza guardados.", request.remote_addr or "")
+    resp = jsonify({"status": "ok", "msg": "Se revocaron todos los dispositivos de confianza. En el próximo acceso se solicitará el código 2FA."})
+    resp.delete_cookie('emg_trusted_device')
+    return resp
+
 @admin_bp.route('/admin', methods=['GET', 'POST'])
 @login_required
 def admin_panel():
@@ -530,9 +542,13 @@ def admin_panel():
     row_totp = cur.fetchone()
     admin_totp_activo = bool(a_int_seguro((row_totp or {}).get('totp_activo'), 0) == 1)
 
+    cur.execute("SELECT COUNT(*) AS cnt FROM dispositivos_confianza WHERE LOWER(username)='admin' AND expira_en > %s", (datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),))
+    disp_cnt_row = cur.fetchone() or {}
+    disp_confianza_cnt = int(disp_cnt_row.get('cnt') or 0)
+
     return render_seguro(
         'admin.html', active_page='admin', usuarios=usuarios, stats=stats,
         movimientos=movimientos, mapa_granjas=mapa_granjas, mapa_granjas_json=json.dumps(mapa_granjas),
         anuncio_actual=anuncio_actual, por_vencer=por_vencer, msg=msg,
-        admin_totp_activo=admin_totp_activo
+        admin_totp_activo=admin_totp_activo, disp_confianza_cnt=disp_confianza_cnt
     )

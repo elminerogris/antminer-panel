@@ -365,7 +365,13 @@
                         <input type="text" id="codigo_2fa" name="codigo_2fa" placeholder="••••••" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" required autofocus style="text-align:center; font-size:1.45em; letter-spacing:6px; font-weight:bold; font-family:monospace; padding-left:36px; padding-right:12px;">
                     </div>
                 </div>
-                <button type="submit" class="btn-login" style="margin-top:14px;">🔓 Verificar e Ingresar</button>
+
+                <label style="display:flex; align-items:center; justify-content:center; gap:8px; font-size:0.82em; color:var(--text-muted); margin:12px 0 16px 0; cursor:pointer; user-select:none;">
+                    <input type="checkbox" name="recordar_dispositivo" value="1" checked style="accent-color:#3366ff; width:16px; height:16px; cursor:pointer;">
+                    <span>🛡️ Recordar este dispositivo por 30 días</span>
+                </label>
+
+                <button type="submit" class="btn-login">🔓 Verificar e Ingresar</button>
                 <div style="text-align:center; margin-top:16px;">
                     <a href="/login" style="font-size:0.80em; color:var(--text-muted); text-decoration:none;">← Cancelar y volver al inicio</a>
                 </div>
