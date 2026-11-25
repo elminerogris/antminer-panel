@@ -1,6 +1,6 @@
 from flask import Blueprint, redirect, request, session, jsonify, Response
 from werkzeug.security import generate_password_hash
-import psycopg2.extras, json, time, calendar, csv, io, uuid, secrets, threading
+import psycopg2.extras, json, time, calendar, csv, io, uuid, secrets, threading, hashlib
 from datetime import datetime, timedelta
 
 from db import get_db
