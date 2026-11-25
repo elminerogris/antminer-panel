@@ -918,7 +918,7 @@
                         <option value="de" translate="no" data-short="🌐 DE" data-full="🌐 Deutsch">🌐 Deutsch</option>
                     </select>
                 </div>
-                <div class="top-status" id="liveStatusPill" onclick="toggleAutoLive()" title="Toca para pausar o reanudar la actualización automática">
+                <div class="top-status" id="liveStatusPill" onclick="toggleAutoLive()" title="Conexión en vivo activa (toca para refrescar)">
                     <span id="relojTop" translate="no">00:00</span>
                     <span class="status-envivo" translate="no">
                         <div class="dot-pulse"></div>
@@ -1333,31 +1333,25 @@
             const lbl = document.getElementById('liveTxtLabel');
             if (!pill || !lbl) return;
 
-            if (!rutaPermiteLive()) {
+            if (!navigator.onLine) {
                 pill.classList.add('paused');
-                lbl.innerText = 'Fijo';
+                lbl.innerText = 'Sin red';
                 return;
             }
-            if (livePausadoUsuario) {
-                pill.classList.add('paused');
-                lbl.innerText = 'Pausado';
-            } else {
-                pill.classList.remove('paused');
-                lbl.innerText = 'En vivo';
-            }
+
+            pill.classList.remove('paused');
+            lbl.innerText = 'En vivo';
         }
 
         function toggleAutoLive() {
-            if (!rutaPermiteLive()) return;
-            livePausadoUsuario = !livePausadoUsuario;
-            try { localStorage.setItem('emg_live_paused', livePausadoUsuario ? '1' : '0'); } catch(e) {}
-            if (!livePausadoUsuario) {
-                liveSegundos = LIVE_INTERVAL_SEC;
-                mostrarLayoutToast('🟢 Actualización en vivo activada');
-            } else {
-                mostrarLayoutToast('⏸ Actualización automática pausada');
-            }
+            if (!navigator.onLine) return;
             actualizarUILive();
+            if (rutaPermiteLive()) {
+                actualizacionSilenciosaEnVivo();
+                mostrarLayoutToast('🟢 Actualizando datos en vivo...');
+            } else {
+                mostrarLayoutToast('🟢 Conexión en vivo activa');
+            }
         }
 
         setInterval(function() {
