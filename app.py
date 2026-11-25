@@ -39,11 +39,11 @@ def agregar_cabeceras_seguridad(response):
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://translate.google.com https://translate.googleapis.com; "
-        "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://translate.google.com https://translate.googleapis.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; "
         "font-src 'self' data: https://fonts.gstatic.com; "
-        "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://api.qrserver.com https://unpkg.com https://translate.google.com https://www.gstatic.com; "
-        "connect-src 'self' wss: ws: https://api.qrserver.com https://api.binance.com https://api.coinbase.com https://api.coingecko.com https://translate.googleapis.com; "
+        "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://*.google.com https://mt0.google.com https://mt1.google.com https://mt2.google.com https://mt3.google.com https://api.qrserver.com https://unpkg.com https://translate.google.com https://www.gstatic.com; "
+        "connect-src 'self' wss: ws: https://api.qrserver.com https://api.binance.com https://api.coinbase.com https://api.coingecko.com https://mempool.space https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.bigdatacloud.net https://ipapi.co https://translate.googleapis.com; "
         "object-src 'none'; "
         "frame-ancestors 'none';"
     )
