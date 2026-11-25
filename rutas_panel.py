@@ -1726,12 +1726,6 @@ def login():
             if a_int_seguro(usr.get('suspendido'), 0) == 1:
                 return render_seguro('login.html', error='Tu cuenta se encuentra suspendida. Contacta soporte.', mode='login')
 
-            # Verificar si la cuenta requiere verificación de correo
-            if a_int_seguro(usr.get('email_verificado'), 1) == 0:
-                session.clear()
-                session['pending_verify_user'] = usr['username']
-                return redirect('/verificar_email')
-
             ahora_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             if not es_hash_seguro(usr.get('password')):
                 cur.execute("UPDATE usuarios SET password=%s, ultima_conexion=%s WHERE id=%s", (generate_password_hash(p), ahora_str, usr['id']))
@@ -1823,83 +1817,19 @@ def register():
             if cur.fetchone():
                 return render_seguro('login.html', error='Este correo electrónico ya está registrado en otra cuenta.', mode='register')
 
-            codigo_otp = f"{secrets.randbelow(900000) + 100000}"
-            exp_otp = (datetime.utcnow() + timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
-            hoy_str = datetime.utcnow().strftime("%Y-%m-%d")
-
             cur.execute("""
                 INSERT INTO usuarios (username, email, fecha_registro, password, plan, saldo, api_key, email_verificado, email_token, email_token_exp)
-                VALUES (%s, %s, %s, %s, 'Gratis', 0.0, %s, 0, %s, %s)
-            """, (u, em, hoy_str, generate_password_hash(p), generar_api_key(), codigo_otp, exp_otp))
+                VALUES (%s, %s, %s, %s, 'Gratis', 0.0, %s, 1, '', '')
+            """, (u, em, hoy_str, generate_password_hash(p), generar_api_key()))
 
-            enviar_email_codigo(em, codigo_otp, u)
-            session.clear()
-            session['pending_verify_user'] = u
-            return redirect('/verificar_email')
+            return render_seguro('login.html', success='Cuenta creada exitosamente (Plan Gratis: hasta 3 mineros). Ahora inicia sesión.', mode='login')
         except Exception as e:
             return render_seguro('login.html', error='Ocurrió un error al crear la cuenta. Intenta de nuevo.', mode='register')
     return render_seguro('login.html', mode='register')
 
 @panel_bp.route('/verificar_email', methods=['GET', 'POST'])
 def verificar_email():
-    pending_u = session.get('pending_verify_user') or session.get('usuario')
-    if not pending_u:
-        return redirect('/login')
-
-    con = get_db(); con.autocommit = True
-    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM usuarios WHERE LOWER(username)=LOWER(%s)", (pending_u,))
-    usr = cur.fetchone()
-    if not usr:
-        session.clear()
-        return redirect('/login')
-
-    if a_int_seguro(usr.get('email_verificado'), 1) == 1:
-        return redirect('/resumen')
-
-    masked_email = enmascarar_email(usr.get('email') or '')
-
-    if request.method == 'POST':
-        ip_c = _ip_cliente()
-        if verificar_rate_limit(f"otp_email:{pending_u.lower()}", max_intentos=5, ventana_seg=300):
-            return render_seguro('verificar_email.html', username=usr['username'], email_masked=masked_email, error='Demasiados intentos incorrectos. Espera 5 minutos.'), 429
-
-        codigo_in = (request.form.get('codigo') or '').strip()
-        if not codigo_in:
-            return render_seguro('verificar_email.html', username=usr['username'], email_masked=masked_email, error='Ingresa el código de 6 dígitos.')
-
-        token_bd = str(usr.get('email_token') or '').strip()
-        exp_bd = str(usr.get('email_token_exp') or '').strip()
-
-        expirado = False
-        if exp_bd:
-            try:
-                exp_dt = datetime.strptime(exp_bd, "%Y-%m-%d %H:%M:%S")
-                if datetime.utcnow() > exp_dt:
-                    expirado = True
-            except:
-                expirado = True
-        else:
-            expirado = True
-
-        if expirado:
-            return render_seguro('verificar_email.html', username=usr['username'], email_masked=masked_email, error='El código ha expirado. Haz clic en "Reenviar código" para recibir uno nuevo.')
-
-        if not token_bd or codigo_in != token_bd:
-            return render_seguro('verificar_email.html', username=usr['username'], email_masked=masked_email, error='Código de verificación incorrecto.')
-
-        cur.execute("UPDATE usuarios SET email_verificado=1, email_token='', email_token_exp='' WHERE id=%s", (usr['id'],))
-
-        session.clear()
-        session.permanent = True
-        session['usuario'] = usr['username']
-        session['plan'] = usr.get('plan', 'Gratis')
-        session['saldo'] = usr.get('saldo', 0.0)
-        session['last_seen_ts'] = time.time()
-        session['admin_last_activity'] = time.time()
-        return redirect('/resumen?bienvenido=1')
-
-    return render_seguro('verificar_email.html', username=usr['username'], email_masked=masked_email)
+    return redirect('/resumen' if session.get('usuario') else '/login')
 
 @panel_bp.route('/reenviar_codigo_email', methods=['POST'])
 def reenviar_codigo_email():
