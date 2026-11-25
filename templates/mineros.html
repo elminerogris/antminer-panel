@@ -184,6 +184,54 @@
     .btn-scan-row-added { background: rgba(96, 165, 250, 0.14); color: var(--accent-blue-light); border: 1px solid rgba(96, 165, 250, 0.35); padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 0.80em; cursor: pointer; white-space: nowrap; }
     .btn-scan-row-added:hover { background: rgba(255, 82, 82, 0.18); color: var(--accent-red); border-color: rgba(255, 82, 82, 0.45); }
 
+    /* Badges de Marca, Moneda y Credenciales de Fábrica en el Escáner */
+    .scan-brand-badge {
+        font-size: 0.70em;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: rgba(56, 189, 248, 0.14);
+        color: var(--accent-cyan);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        text-transform: uppercase;
+        display: inline-block;
+    }
+    .scan-coin-badge {
+        font-size: 0.70em;
+        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 4px;
+        background: rgba(255, 179, 0, 0.14);
+        color: var(--accent-gold);
+        border: 1px solid rgba(255, 179, 0, 0.35);
+        text-transform: uppercase;
+        display: inline-block;
+    }
+    .scan-cred-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 5px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: rgba(37, 99, 235, 0.10);
+        border: 1px solid rgba(59, 130, 246, 0.30);
+        color: var(--text-secondary);
+        font-size: 0.76em;
+        cursor: pointer;
+        transition: all 0.16s ease;
+        user-select: none;
+    }
+    .scan-cred-pill:hover {
+        background: rgba(37, 99, 235, 0.22);
+        border-color: #3b82f6;
+        color: #fff;
+    }
+    .scan-copy-ico {
+        font-size: 0.88em;
+        opacity: 0.8;
+    }
+
     /* Aviso de Límite de Plan Gratis (abajo a la derecha) */
     .plan-limit-toast {
         position: fixed;
@@ -1083,10 +1131,24 @@
                         ? `<button type="button" class="btn-scan-row-added" title="Clic para quitar de tu granja" onclick="quitarMineroDesdeEscaner('${d.ip}', this)">✅ Añadido · ✕</button>`
                         : `<button type="button" class="btn-scan-row-add" onclick="agregarMineroDesdeEscaner('${d.ip}', this)">➕ Agregar</button>`;
 
+                    const marcaBadge = d.marca ? `<span class="scan-brand-badge">${d.marca}</span>` : '';
+                    const monedaBadge = d.moneda ? `<span class="scan-coin-badge">${d.moneda}</span>` : '';
+                    const credUser = d.cred_user || 'root';
+                    const credPass = d.cred_pass || 'root';
+                    const credHtml = `<div class="scan-cred-pill" title="Credenciales de fábrica: usuario '${credUser}' y contraseña '${credPass}' (clic para copiar)" onclick="copiarCredEscaner('${credUser}', '${credPass}', this)">
+                        <span>🔑 Acceso: <b>${credUser}</b> / <b>${credPass}</b></span>
+                        <span class="scan-copy-ico">📋 Copiar</span>
+                    </div>`;
+
                     return `<tr>
                         <td translate="no">
-                            <div style="color:var(--text-main); font-weight:bold;">${d.modelo}</div>
-                            <div style="font-size:0.82em; color:var(--accent-blue-light); font-family:monospace;">${d.ip}</div>
+                            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                <span style="color:var(--text-main); font-weight:bold;">${d.modelo}</span>
+                                ${marcaBadge}
+                                ${monedaBadge}
+                            </div>
+                            <div style="font-size:0.82em; color:var(--accent-blue-light); font-family:monospace; margin-top:2px;">${d.ip}</div>
+                            ${credHtml}
                         </td>
                         <td>
                             <input type="text" class="scan-inp-name" value="${nomVal}" placeholder="Nombre" oninput="scanState.nombres['${d.ip}']=this.value">
@@ -1131,6 +1193,23 @@
         });
 
         wrap.innerHTML = html || '<div style="text-align:center; padding:24px; color:var(--text-muted);">No hay coincidencias con tu búsqueda.</div>';
+    }
+
+    function copiarCredEscaner(user, pass, el) {
+        const texto = pass || user;
+        navigator.clipboard.writeText(texto).then(() => {
+            const orig = el.innerHTML;
+            el.innerHTML = `<span>✅ <b>Clave '${texto}' copiada</b></span>`;
+            el.style.borderColor = 'var(--accent-green)';
+            el.style.color = 'var(--accent-green)';
+            setTimeout(() => {
+                el.innerHTML = orig;
+                el.style.borderColor = '';
+                el.style.color = '';
+            }, 1800);
+        }).catch(() => {
+            mostrarToastFlota(`Acceso: ${user} / ${pass}`);
+        });
     }
 
     async function agregarMineroDesdeEscaner(ip, btn) {

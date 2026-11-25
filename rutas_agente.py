@@ -9,7 +9,7 @@ from utils import (
     verificar_password, a_int_seguro, a_float_seguro, evaluar_plan_usuario,
     clave_granja_minero, calcular_segundos_desconectado, alerta_en_enfriamiento,
     obtener_ubicacion_ip_agente, obtener_clima_coordenadas, ventilador_en_cero,
-    enviar_telegram, obtener_codigo_agente_configurado
+    enviar_telegram, obtener_codigo_agente_configurado, determinar_credenciales_defecto
 )
 
 agente_bp = Blueprint('agente_bp', __name__)
@@ -767,27 +767,34 @@ def recibir_datos():
 
             es_minero_nuevo = (prev_m is None)
 
+            marca_m = str(m.get('marca') or '').strip()
+            mod_m_desc = str(m.get('modelo') or 'Antminer').strip()
+            cred_calc = determinar_credenciales_defecto(marca_m, mod_m_desc)
+            if not marca_m:
+                marca_m = cred_calc['marca']
+            cred_def_m = str(m.get('cred_defecto') or f"{cred_calc['user']} / {cred_calc['pass']}").strip()
+
             try:
                 cur.execute("""
                     INSERT INTO mineros_descubiertos (
-                        owner, agent_id, farm_id, ip, mac, serial, modelo, algoritmo, moneda,
-                        unidad, hashrate, temp_max, consumo_w, worker1, pool1, ultima_act
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        owner, agent_id, farm_id, ip, mac, serial, marca, modelo, algoritmo, moneda,
+                        unidad, hashrate, temp_max, consumo_w, worker1, pool1, cred_defecto, ultima_act
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (owner, agent_id, ip) DO UPDATE SET
                         farm_id=EXCLUDED.farm_id,
                         mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_descubiertos.mac END,
                         serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_descubiertos.serial END,
-                        modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda,
+                        marca=EXCLUDED.marca, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda,
                         unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, temp_max=EXCLUDED.temp_max,
                         consumo_w=EXCLUDED.consumo_w, worker1=EXCLUDED.worker1, pool1=EXCLUDED.pool1,
-                        ultima_act=EXCLUDED.ultima_act
+                        cred_defecto=EXCLUDED.cred_defecto, ultima_act=EXCLUDED.ultima_act
                 """, (
                     owner_user, agent_id, farm_id_efectivo, ip_m, mc, sr,
-                    str(m.get('modelo') or 'Antminer'), str(m.get('algoritmo') or 'SHA-256'),
+                    marca_m, mod_m_desc, str(m.get('algoritmo') or 'SHA-256'),
                     str(m.get('moneda') or 'BTC'), str(m.get('unidad') or 'TH/s'),
                     a_float_seguro(m.get('hashrate'), 0.0), a_int_seguro(m.get('temp'), 0),
                     a_float_seguro(m.get('consumo'), 0.0), str(m.get('worker1') or ''),
-                    str(m.get('pool1') or ''), ahora
+                    str(m.get('pool1') or ''), cred_def_m, ahora
                 ))
             except Exception as err_desc:
                 print(f"Error guardando descubierto {ip_m}: {err_desc}")
@@ -873,10 +880,10 @@ def recibir_datos():
                     if tp >= 150 or tp < 0: ch['temp_p'] = 0
             cadenas_json = json.dumps(cadenas_list)
 
-            cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, farm_id, miner_uid, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fw_tipo, perfil_oc, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
+            cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, farm_id, miner_uid, marca, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fw_tipo, perfil_oc, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, cred_defecto, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
                             farm_id=CASE WHEN mineros_activos.farm_id IS NOT NULL AND mineros_activos.farm_id != '' THEN mineros_activos.farm_id ELSE EXCLUDED.farm_id END,
-                            miner_uid=EXCLUDED.miner_uid, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_activos.mac END, serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_activos.serial END, firmware=EXCLUDED.firmware, fw_tipo=EXCLUDED.fw_tipo, perfil_oc=EXCLUDED.perfil_oc, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns,
+                            miner_uid=EXCLUDED.miner_uid, marca=EXCLUDED.marca, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_activos.mac END, serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_activos.serial END, firmware=EXCLUDED.firmware, fw_tipo=EXCLUDED.fw_tipo, perfil_oc=EXCLUDED.perfil_oc, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, cred_defecto=EXCLUDED.cred_defecto,
                             farm_lat=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lat ELSE EXCLUDED.farm_lat END,
                             farm_lon=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lon ELSE EXCLUDED.farm_lon END,
                             farm_city=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_city ELSE EXCLUDED.farm_city END,
@@ -884,7 +891,7 @@ def recibir_datos():
                             real_lat=EXCLUDED.real_lat,
                             real_lon=EXCLUDED.real_lon,
                             real_source=EXCLUDED.real_source''',
-                        (ip_m, owner_user, agent_id, farm_id_asignada, miner_uid, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fw_tipo, perfil_oc, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
+                        (ip_m, owner_user, agent_id, farm_id_asignada, miner_uid, marca_m, mod_m, algo_m, mon_m, unid, hr_m, hr_30, temp_m, t_amb, cons_m, ahora, err, p1, w1, pa1, p2, w2, pa2, p3, w3, pa3, mc, sr, fw, fw_tipo, perfil_oc, fs, cadenas_json, up, st1, ac1, rj1, st2, ac2, rj2, st3, ac3, rj3, host, nproto, nmask, ngw, ndns, cred_def_m, f_lat, f_lon, f_city, f_country, f_lat, f_lon, f_source))
 
             if es_minero_nuevo and zt_on:
                 zt_p1 = str(zt_cfg.get('zt_pool1') or '').strip()
@@ -1305,8 +1312,8 @@ def api_escaner_resultados():
 
     hace_7d = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
     cur.execute("""
-        SELECT agent_id, farm_id, ip, mac, serial, modelo, algoritmo, moneda,
-               unidad, hashrate, temp_max, consumo_w, worker1, pool1, ultima_act
+        SELECT agent_id, farm_id, ip, mac, serial, marca, modelo, algoritmo, moneda,
+               unidad, hashrate, temp_max, consumo_w, worker1, pool1, cred_defecto, ultima_act
         FROM mineros_descubiertos
         WHERE owner=%s AND ultima_act >= %s
         ORDER BY ultima_act DESC, ip ASC
@@ -1348,6 +1355,14 @@ def api_escaner_resultados():
         activo_row = activos_por_ip.get(ip_d)
         ya_agregado = (activo_row is not None) or (bool(mac_d) and mac_d in macs_activas)
         modelo_d = d.get('modelo') or 'Antminer'
+        marca_d = d.get('marca') or ''
+        cred_d = d.get('cred_defecto') or ''
+
+        cred_info = determinar_credenciales_defecto(marca_d, modelo_d)
+        if not marca_d:
+            marca_d = cred_info['marca']
+        if not cred_d:
+            cred_d = f"{cred_info['user']} / {cred_info['pass']}"
 
         # Nombre: 1) guardado en sistema, 2) sufijo de worker1 (ej. giovanni.008 -> 008), 3) octeto IP
         nombre_defecto = nombres_map.get(ip_d) or _extraer_nombre_desde_worker(d.get('worker1'), ip_d)
@@ -1376,8 +1391,15 @@ def api_escaner_resultados():
             "agent_id": d.get('agent_id') or 'default',
             "farm_id": farm_asignada,
             "router_farm_id": router_fid,
+            "marca": marca_d,
             "modelo": modelo_d,
+            "algoritmo": d.get('algoritmo') or 'SHA-256',
             "moneda": d.get('moneda') or 'BTC',
+            "cred_defecto": cred_d,
+            "cred_user": cred_info.get('user', 'root'),
+            "cred_pass": cred_info.get('pass', 'root'),
+            "cred_alt": cred_info.get('alt', ''),
+            "cred_nota": cred_info.get('nota', ''),
             "nombre": nombre_defecto,
             "ultima_act": d.get('ultima_act') or '',
             "ya_agregado": ya_agregado

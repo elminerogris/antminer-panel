@@ -385,8 +385,28 @@
             </div>
             <table class="specs-list-pro">
                 <tr>
+                    <td data-net-tt="spec_marca">Fabricante / Marca</td>
+                    <td translate="no"><b style="color:var(--accent-cyan);">{{ extra.marca | default('ASIC OEM') }}</b></td>
+                </tr>
+                <tr>
                     <td data-net-tt="spec_modelo">Modelo Exacto</td>
                     <td translate="no"><b style="color:var(--text-main);">{{ modelo }}</b></td>
+                </tr>
+                <tr>
+                    <td data-net-tt="spec_algo">Algoritmo y Moneda</td>
+                    <td translate="no"><b style="color:var(--accent-gold);">{{ ultimo.moneda | default('BTC') }}</b> <span style="font-size:0.86em; color:var(--text-muted);">({{ ultimo.algoritmo | default('SHA-256') }})</span></td>
+                </tr>
+                <tr>
+                    <td data-net-tt="spec_cred">Acceso de Fábrica (Web/SSH)</td>
+                    <td>
+                        <div class="spec-copy-row">
+                            <span class="spec-copy-val" translate="no" style="color:var(--accent-green); font-weight:bold;">{{ extra.cred_user | default('root') }} / {{ extra.cred_pass | default('root') }}</span>
+                            <button type="button" class="btn-copy-pro" onclick="copiarTextoSpec('{{ extra.cred_pass | default('root') }}', this)" title="Copiar contraseña por defecto para login web">
+                                <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <span>Copiar Clave</span>
+                            </button>
+                        </div>
+                    </td>
                 </tr>
                 <tr>
                     <td data-net-tt="spec_fw">Versión Firmware</td>

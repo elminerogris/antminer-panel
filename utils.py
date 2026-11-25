@@ -202,7 +202,7 @@ def obtener_clima_coordenadas(lat, lon):
 
 def ventilador_en_cero(fans_str, modelo_str):
     ml = str(modelo_str or "").lower()
-    if any(w in ml for w in ("hyd", "hydro", "water", "m33", "m53", "m63")):
+    if any(w in ml for w in ("hyd", "hydro", "water", "q90", "m33", "m53", "m63")):
         return False
     fs = str(fans_str or "").strip()
     if not fs or "hydro" in fs.lower():
@@ -211,6 +211,84 @@ def ventilador_en_cero(fans_str, modelo_str):
     if not nums:
         return False
     return all(n == 0 for n in nums)
+
+def determinar_credenciales_defecto(marca="", modelo=""):
+    """
+    Retorna la marca normalizada, usuario y contraseña por defecto para el acceso
+    web / SSH de cualquier marca de ASIC (Avalon, WhatsMiner, Antminer, Fluminer, IceRiver, etc.)
+    """
+    txt = f"{marca} {modelo}".lower()
+    if any(k in txt for k in ("avalon", "canaan", "q90", "a10", "a11", "a12", "a13", "a14", "a15", "nano")):
+        return {
+            "marca": "Canaan Avalon",
+            "user": "root",
+            "pass": "root",
+            "alt": "admin / (vacía) o admin / admin",
+            "nota": "AvalonMiner · Canaan"
+        }
+    if any(k in txt for k in ("whatsminer", "microbt", "btminer", "m20", "m21", "m30", "m31", "m32", "m33", "m50", "m53", "m60", "m63")):
+        return {
+            "marca": "MicroBT WhatsMiner",
+            "user": "admin",
+            "pass": "admin",
+            "alt": "",
+            "nota": "BTMiner · WhatsMiner"
+        }
+    if any(k in txt for k in ("iceriver", "ks0", "ks1", "ks2", "ks3", "ks5")):
+        return {
+            "marca": "IceRiver",
+            "user": "admin",
+            "pass": "12345678",
+            "alt": "",
+            "nota": "IceRiver Kaspa"
+        }
+    if any(k in txt for k in ("goldshell", "box")):
+        return {
+            "marca": "Goldshell",
+            "user": "admin",
+            "pass": "12345678",
+            "alt": "admin / admin",
+            "nota": "Goldshell Miner"
+        }
+    if any(k in txt for k in ("fluminer", "flux")):
+        return {
+            "marca": "Fluminer",
+            "user": "root",
+            "pass": "root",
+            "alt": "admin / admin",
+            "nota": "Fluminer Altcoin"
+        }
+    if any(k in txt for k in ("jasminer", "x4", "x16")):
+        return {
+            "marca": "Jasminer",
+            "user": "root",
+            "pass": "root",
+            "alt": "admin / admin",
+            "nota": "Jasminer Etchash"
+        }
+    if any(k in txt for k in ("innosilicon", "t2t", "t3", "a10", "a11")):
+        return {
+            "marca": "Innosilicon",
+            "user": "admin",
+            "pass": "admin",
+            "alt": "root / root",
+            "nota": "Innosilicon A10/T2T"
+        }
+    if any(k in txt for k in ("antminer", "bitmain", "bmminer")):
+        return {
+            "marca": "Bitmain Antminer",
+            "user": "root",
+            "pass": "root",
+            "alt": "root / admin (antiguos) o Braiins: root / root",
+            "nota": "Bitmain Antminer"
+        }
+    return {
+        "marca": "ASIC Estándar",
+        "user": "root",
+        "pass": "root",
+        "alt": "admin / admin",
+        "nota": "Acceso de fábrica"
+    }
 
 def enviar_telegram(token, chat_id, texto):
     if not token or not chat_id: return False

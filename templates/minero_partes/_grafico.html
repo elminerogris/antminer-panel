@@ -788,7 +788,7 @@
     const algoritmoMinero = "{{ ultimo.algoritmo | default('SHA-256') }}";
     const modeloMineroStr = "{{ ultimo.modelo | default('') }}";
     const fansMineroStr = "{{ ultimo.fans | default('') }}";
-    const esMineroHydro = /hyd|hydro|water/i.test(modeloMineroStr + " " + fansMineroStr);
+    const esMineroHydro = /hyd|hydro|water|q90|m33|m53|m63/i.test(modeloMineroStr + " " + fansMineroStr);
     const UMBRAL_ALERTA_TEMP = esMineroHydro ? 62 : 75;
     const UMBRAL_CRIT_TEMP = esMineroHydro ? 70 : 85;
     let deltaTAguaGlobal = null;

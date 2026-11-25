@@ -12,7 +12,7 @@ from utils import (
     clave_granja_minero, nombre_inteligente_minero, calcular_segundos_desconectado,
     ordenar_ip_key, obtener_datos_red, enviar_telegram, render_seguro,
     generar_totp_secret, verificar_totp, notificar_alerta_seguridad,
-    parsear_dispositivo, fijar_cookie_dispositivo
+    parsear_dispositivo, fijar_cookie_dispositivo, determinar_credenciales_defecto
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
@@ -897,7 +897,14 @@ def detalle_minero(ip):
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0,
         'farm_lat': farm_lat, 'farm_lon': farm_lon, 'farm_city': farm_city, 'farm_country': farm_country
     }
+    cred_calc = determinar_credenciales_defecto(m.get('marca', ''), mod_str)
+    marca_val = m.get('marca') or cred_calc['marca']
+    cred_val = m.get('cred_defecto') or f"{cred_calc['user']} / {cred_calc['pass']}"
+
     extra = {
+        'marca': marca_val, 'cred_defecto': cred_val,
+        'cred_user': cred_calc['user'], 'cred_pass': cred_calc['pass'],
+        'cred_alt': cred_calc['alt'], 'cred_nota': cred_calc['nota'],
         'worker1': worker1, 'pool1': pool1, 'pass1': pass1, 'status1': status1, 'acc1': acc1, 'rej1': rej1,
         'worker2': worker2, 'pool2': pool2, 'pass2': pass2, 'status2': status2, 'acc2': acc2, 'rej2': rej2,
         'worker3': worker3, 'pool3': pool3, 'pass3': pass3, 'status3': status3, 'acc3': acc3, 'rej3': rej3,

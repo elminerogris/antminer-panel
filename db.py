@@ -177,6 +177,7 @@ def init_db():
             ip TEXT NOT NULL,
             mac TEXT DEFAULT '',
             serial TEXT DEFAULT '',
+            marca TEXT DEFAULT '',
             modelo TEXT DEFAULT 'Antminer',
             algoritmo TEXT DEFAULT 'SHA-256',
             moneda TEXT DEFAULT 'BTC',
@@ -186,6 +187,7 @@ def init_db():
             consumo_w REAL DEFAULT 0.0,
             worker1 TEXT DEFAULT '',
             pool1 TEXT DEFAULT '',
+            cred_defecto TEXT DEFAULT '',
             ultima_act TEXT DEFAULT ''
         )''')
 
@@ -260,6 +262,10 @@ def init_db():
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS prot_motivo TEXT DEFAULT ''",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS alerta_hr_disparada INTEGER DEFAULT 0",
             "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS alerta_temp_disparada INTEGER DEFAULT 0",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS marca TEXT DEFAULT ''",
+            "ALTER TABLE mineros_activos ADD COLUMN IF NOT EXISTS cred_defecto TEXT DEFAULT ''",
+            "ALTER TABLE mineros_descubiertos ADD COLUMN IF NOT EXISTS marca TEXT DEFAULT ''",
+            "ALTER TABLE mineros_descubiertos ADD COLUMN IF NOT EXISTS cred_defecto TEXT DEFAULT ''",
             "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS router_mac TEXT DEFAULT ''",
             "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS app_version TEXT DEFAULT ''",
             "ALTER TABLE granjas_sedes ADD COLUMN IF NOT EXISTS zt_activo INTEGER DEFAULT 0",

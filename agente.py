@@ -529,22 +529,106 @@ def buscar_llave(dic, posibles, defecto=None):
             return mapa[k]
     return defecto
 
+def determinar_credenciales_defecto(marca="", modelo=""):
+    """
+    Retorna la marca normalizada, usuario y contraseña por defecto para el acceso
+    web / SSH de cualquier marca de ASIC (Avalon, WhatsMiner, Antminer, Fluminer, IceRiver, etc.)
+    """
+    txt = f"{marca} {modelo}".lower()
+    if any(k in txt for k in ("avalon", "canaan", "q90", "a10", "a11", "a12", "a13", "a14", "a15", "nano")):
+        return {
+            "marca": "Canaan Avalon",
+            "user": "root",
+            "pass": "root",
+            "alt": "admin / (vacía) o admin / admin",
+            "nota": "AvalonMiner · Canaan"
+        }
+    if any(k in txt for k in ("whatsminer", "microbt", "btminer", "m20", "m21", "m30", "m31", "m32", "m33", "m50", "m53", "m60", "m63")):
+        return {
+            "marca": "MicroBT WhatsMiner",
+            "user": "admin",
+            "pass": "admin",
+            "alt": "",
+            "nota": "BTMiner · WhatsMiner"
+        }
+    if any(k in txt for k in ("iceriver", "ks0", "ks1", "ks2", "ks3", "ks5")):
+        return {
+            "marca": "IceRiver",
+            "user": "admin",
+            "pass": "12345678",
+            "alt": "",
+            "nota": "IceRiver Kaspa"
+        }
+    if any(k in txt for k in ("goldshell", "box")):
+        return {
+            "marca": "Goldshell",
+            "user": "admin",
+            "pass": "12345678",
+            "alt": "admin / admin",
+            "nota": "Goldshell Miner"
+        }
+    if any(k in txt for k in ("fluminer", "flux")):
+        return {
+            "marca": "Fluminer",
+            "user": "root",
+            "pass": "root",
+            "alt": "admin / admin",
+            "nota": "Fluminer Altcoin"
+        }
+    if any(k in txt for k in ("jasminer", "x4", "x16")):
+        return {
+            "marca": "Jasminer",
+            "user": "root",
+            "pass": "root",
+            "alt": "admin / admin",
+            "nota": "Jasminer Etchash"
+        }
+    if any(k in txt for k in ("innosilicon", "t2t", "t3", "a10", "a11")):
+        return {
+            "marca": "Innosilicon",
+            "user": "admin",
+            "pass": "admin",
+            "alt": "root / root",
+            "nota": "Innosilicon A10/T2T"
+        }
+    if any(k in txt for k in ("antminer", "bitmain", "bmminer")):
+        return {
+            "marca": "Bitmain Antminer",
+            "user": "root",
+            "pass": "root",
+            "alt": "root / admin (antiguos) o Braiins: root / root",
+            "nota": "Bitmain Antminer"
+        }
+    return {
+        "marca": "ASIC Estándar",
+        "user": "root",
+        "pass": "root",
+        "alt": "admin / admin",
+        "nota": "Acceso de fábrica"
+    }
+
 def detectar_algoritmo_y_moneda(modelo_str, pool_url=""):
     mod = str(modelo_str or "").lower()
     url = str(pool_url or "").lower()
 
+    if any(x in mod for x in ["flux", "zel"]) or any(x in url for x in ["flux.", "zel.", "zelhash"]):
+        return "ZelHash", "FLUX"
+    if any(x in mod for x in ["alph", "alephium"]) or any(x in url for x in ["alph.", "alephium.", "blake3"]):
+        return "Blake3", "ALPH"
+    if any(x in mod for x in ["ks3", "ks5", "ks0", "ks1", "ks2", "kheavy", "iceriver"]) or any(x in url for x in ["kas.", "kaspa", "kheavy"]):
+        return "kHeavyHash", "KAS"
     if any(x in mod for x in ["z15", "z11", "z9", "equihash"]) or any(x in url for x in ["zec.", "equihash", "zen."]):
         return "Equihash", "ZEC"
-    if any(x in mod for x in ["l7", "l9", "l3", "scrypt"]) or any(x in url for x in ["ltc.", "doge.", "scrypt"]):
+    if any(x in mod for x in ["l7", "l9", "l3", "scrypt", "elphapex"]) or any(x in url for x in ["ltc.", "doge.", "scrypt"]):
         return "Scrypt", "LTC/DOGE"
-    if any(x in mod for x in ["ks3", "ks5", "ks0", "ks1", "ks2", "kheavy"]) or any(x in url for x in ["kas.", "kaspa", "kheavy"]):
-        return "kHeavyHash", "KAS"
     if any(x in mod for x in ["ka3", "kd", "blake2s"]) or any(x in url for x in ["kda.", "kadena"]):
         return "Blake2S", "KDA"
     if any(x in mod for x in ["d9", "d7", "x11"]) or any(x in url for x in ["dash.", "x11"]):
         return "X11", "DASH"
-    if any(x in mod for x in ["e9", "etc", "ethash"]) or any(x in url for x in ["etc.", "ethash"]):
+    if any(x in mod for x in ["e9", "etc", "ethash", "jasminer"]) or any(x in url for x in ["etc.", "ethash", "etchash"]):
         return "EtHash", "ETC"
+    if any(x in mod for x in ["rvn", "kawpow"]) or any(x in url for x in ["rvn.", "ravencoin", "kawpow"]):
+        return "KawPow", "RVN"
     if any(x in url for x in ["bch."]):
         return "SHA-256", "BCH"
     return "SHA-256", "BTC"
@@ -553,26 +637,51 @@ def normalizar_hashrate_universal(valor_bruto, unidad_origen, modelo_str, algori
     val = a_float(valor_bruto)
     u_orig = str(unidad_origen or "").upper().strip()
 
+    if algoritmo == "ZelHash":
+        if val > 1000000:
+            return round(val / 1000000.0, 2), "MSol/s"
+        if val > 1000 or u_orig == "KSOL/S":
+            return round(val / 1000.0 if val > 1000 else val, 2), "kSol/s"
+        return round(val, 2), "Sol/s"
+
     if algoritmo == "Equihash":
         if val > 50000:
             val = val / 1000.0
         return round(val, 2), "kSol/s"
 
-    if algoritmo in ("Scrypt", "EtHash"):
-        if u_orig == "MHS" or val > 500:
+    if algoritmo == "kHeavyHash":
+        if u_orig in ("MHS", "MH/S") or val > 500000:
+            return round(val / 1000000.0, 2), "TH/s"
+        if u_orig in ("GHS", "GH/S") or val > 1000:
+            return round(val / 1000.0, 2), "TH/s"
+        if 0 < val <= 50:
+            return round(val, 2), "TH/s"
+        return round(val, 2), "GH/s"
+
+    if algoritmo == "Blake3":
+        if val > 500000:
+            return round(val / 1000000.0, 2), "TH/s"
+        if val > 1000:
+            return round(val / 1000.0, 2), "GH/s"
+        return round(val, 2), "GH/s"
+
+    if algoritmo in ("Scrypt", "EtHash", "KawPow"):
+        if u_orig in ("MHS", "MH/S") or val > 500:
             val = val / 1000.0
         return round(val, 2), "GH/s"
 
     if algoritmo == "X11":
-        if u_orig == "MHS" or val > 500000:
+        if u_orig in ("MHS", "MH/S") or val > 500000:
             return round(val / 1000000.0, 2), "TH/s"
         if val > 50:
             return round(val / 1000.0, 2), "TH/s"
         return round(val, 2), "TH/s"
 
-    if u_orig == "MHS" or val > 500000:
+    if u_orig in ("MHS", "MH/S") or val > 500000:
         return round(val / 1000000.0, 2), "TH/s"
-    if u_orig == "THS" or (0 < val < 1200):
+    if u_orig in ("GHS", "GH/S") or (1200 < val <= 500000):
+        return round(val / 1000.0, 2), "TH/s"
+    if u_orig in ("THS", "TH/S") or (0 < val <= 1200):
         return round(val, 2), "TH/s"
     return round(val / 1000.0, 2), "TH/s"
 
@@ -698,6 +807,8 @@ def extraer_whatsminer(ip, st_sum, ver_resp):
     else:
         fans_str = "0 / 0 RPM"
 
+    cred_wm = determinar_credenciales_defecto("WhatsMiner", modelo_str)
+
     return {
         "ip": ip, "marca": "WhatsMiner", "modelo": modelo_str,
         "algoritmo": algoritmo, "moneda": moneda, "unidad": unidad_hr,
@@ -710,7 +821,290 @@ def extraer_whatsminer(ip, st_sum, ver_resp):
         "gateway": estatica.get('gateway', f"{SUBNET}.1"), "dns": estatica.get('dns', '8.8.8.8'),
         "pool1": p1_url, "worker1": p1_usr, "pass1": p1_pas, "status1": p1_st, "acc1": int(p1_acc), "rej1": int(p1_rej),
         "pool2": p2_url, "worker2": p2_usr, "pass2": p2_pas, "status2": p2_st, "acc2": int(p2_acc), "rej2": int(p2_rej),
-        "pool3": p3_url, "worker3": p3_usr, "pass3": p3_pas, "status3": p3_st, "acc3": int(p3_acc), "rej3": int(p3_rej)
+        "pool3": p3_url, "worker3": p3_usr, "pass3": p3_pas, "status3": p3_st, "acc3": int(p3_acc), "rej3": int(p3_rej),
+        "cred_defecto": f"{cred_wm['user']} / {cred_wm['pass']}"
+    }
+
+# ==================== EXTRACTOR CANAAN AVALON (Q90 HYDRO, A12xx-A15xx, NANO) ====================
+def es_avalon(st, st_sum, ver_resp):
+    texto_check = " ".join([
+        str(st.get("Type", "")),
+        str(st.get("Miner", "")),
+        str(st.get("Description", "")),
+        str(st_sum.get("Type", "")),
+        str(st_sum.get("Miner", "")),
+        str(ver_resp or "")
+    ]).lower()
+    if any(w in texto_check for w in ["avalon", "canaan", "ava0", "ava1", "q90", "a10", "a11", "a12", "a13", "a14", "a15", "nano"]):
+        return True
+    if "AVA0" in st or "MM Version" in st or "DNA" in st:
+        return True
+    return False
+
+def extraer_avalon(ip, st_sum, ver_resp):
+    global cache_info_estatica
+    ahora_ts = time.time()
+    estatica = cache_info_estatica.get(ip, {})
+
+    stats_raw = peticion_4028(ip, "stats")
+    st_ava = {}
+    if stats_raw and isinstance(stats_raw, dict):
+        for item in stats_raw.get("STATS", []):
+            if isinstance(item, dict):
+                st_ava.update(item)
+                if "AVA0" in item and isinstance(item["AVA0"], dict):
+                    st_ava.update(item["AVA0"])
+
+    version_raw = peticion_4028(ip, "version")
+    ver_str = ""
+    miner_str = ""
+    if version_raw and isinstance(version_raw, dict):
+        v_list = version_raw.get("VERSION", [])
+        if v_list and isinstance(v_list[0], dict):
+            ver_str = str(v_list[0].get("CGMiner", "") or v_list[0].get("API", "")).strip()
+            miner_str = str(v_list[0].get("Miner", "")).strip()
+
+    if not estatica or (ahora_ts - estatica.get('ts', 0) > 600):
+        modelo_cand = miner_str or str(buscar_llave(st_sum, ["Type", "Model", "Miner"], buscar_llave(st_ava, ["Ver", "Type", "Model"], "Avalon Q90"))).strip()
+        if not modelo_cand or modelo_cand.lower() in ("canaan", "miner"):
+            modelo_cand = "Avalon Q90"
+        if "avalon" not in modelo_cand.lower():
+            modelo_cand = f"Avalon {modelo_cand}".strip()
+
+        dna = str(buscar_llave(st_ava, ["DNA", "dna", "SN", "sn"], f"AVA-{ip.replace('.', '')}")).strip()
+        fw = ver_str or str(buscar_llave(st_ava, ["Ver", "Firmware Version", "CGMiner"], "Canaan Avalon Firmware")).strip()
+        mac = str(buscar_llave(st_ava, ["MAC", "mac"], estatica.get("mac", "-"))).strip()
+        hostname = str(buscar_llave(st_ava, ["hostname"], f"Avalon{ip.split('.')[-1]}")).strip()
+
+        estatica = {
+            'ts': ahora_ts, 'marca': 'Avalon', 'modelo': modelo_cand, 'mac': mac,
+            'serial': dna, 'fw': fw, 'hostname': hostname, 'net_proto': 'Static',
+            'netmask': '255.255.255.0', 'gateway': f"{SUBNET}.1", 'dns': '8.8.8.8'
+        }
+        cache_info_estatica[ip] = estatica
+
+    modelo_str = estatica.get('modelo', 'Avalon Q90')
+    fw_str = estatica.get('fw', 'Canaan Avalon')
+
+    piscinas = peticion_4028(ip, "pools")
+    pl = piscinas.get('POOLS', []) if isinstance(piscinas, dict) else []
+
+    def datos_pool(idx):
+        if idx < len(pl) and isinstance(pl[idx], dict):
+            p = pl[idx]
+            url = str(buscar_llave(p, ['URL', 'url'], ''))
+            usr = str(buscar_llave(p, ['User', 'user'], ''))
+            pas = str(buscar_llave(p, ['Pass', 'pass'], '123'))
+            st_p = str(buscar_llave(p, ['Status', 'status'], 'Alive' if url else 'Dead'))
+            acc = a_entero(buscar_llave(p, ['Accepted', 'accepted'], 0))
+            rej = a_entero(buscar_llave(p, ['Rejected', 'rejected'], 0))
+            return url, usr, pas, st_p, acc, rej
+        return "", "", "123", "Dead", 0, 0
+
+    p1_url, p1_usr, p1_pas, p1_st, p1_acc, p1_rej = datos_pool(0)
+    p2_url, p2_usr, p2_pas, p2_st, p2_acc, p2_rej = datos_pool(1)
+    p3_url, p3_usr, p3_pas, p3_st, p3_acc, p3_rej = datos_pool(2)
+
+    algoritmo, moneda = detectar_algoritmo_y_moneda(modelo_str, p1_url)
+
+    raw_5s = buscar_llave(st_sum, ['GHS 5s', 'MHS 5s', 'HS 5s', 'rate_5s'], 0)
+    raw_avg = buscar_llave(st_sum, ['GHS av', 'MHS av', 'HS av'], raw_5s)
+    u_orig = "GHS" if ('GHS 5s' in st_sum or 'GHS av' in st_sum) else "MHS"
+    hr_5s, unidad_hr = normalizar_hashrate_universal(raw_5s, u_orig, modelo_str, algoritmo)
+    hr_30m, _ = normalizar_hashrate_universal(raw_avg, u_orig, modelo_str, algoritmo)
+    if hr_30m == 0:
+        hr_30m = hr_5s
+
+    c_w = a_float(buscar_llave(st_sum, ['Power', 'Power Limit'], buscar_llave(st_ava, ['Power', 'power'], 0)))
+    if c_w < 100 and hr_5s > 0:
+        c_w = hr_5s * 32.0
+    elif hr_5s == 0:
+        c_w = 100.0
+
+    uptime_str = formatear_uptime(buscar_llave(st_sum, ['Elapsed', 'Uptime'], 0))
+    errores_hw = a_entero(buscar_llave(st_sum, ['Hardware Errors'], 0))
+
+    t_inlet = a_entero(buscar_llave(st_ava, ['ITemp', 'Temp_Inlet', 'Inlet Temp'], 0))
+    t_outlet = a_entero(buscar_llave(st_ava, ['OTemp', 'Temp_Outlet', 'Outlet Temp'], 0))
+    t_chip_max = a_entero(buscar_llave(st_ava, ['TMax', 'Temp_Max', 'Chip Temp Max'], 0))
+
+    if t_chip_max >= 150: t_chip_max = 0
+    if t_inlet >= 120: t_inlet = 0
+    if t_outlet >= 120: t_outlet = 0
+
+    tm = t_chip_max if t_chip_max > 0 else (t_outlet if t_outlet > 0 else a_entero(buscar_llave(st_sum, ['Temperature'], 65)))
+
+    fan1 = a_entero(buscar_llave(st_ava, ['Fan1', 'fan1', 'Fan Speed In'], 0))
+    fan2 = a_entero(buscar_llave(st_ava, ['Fan2', 'fan2', 'Fan Speed Out'], 0))
+
+    es_q90_hydro = ("q90" in modelo_str.lower() or "hyd" in modelo_str.lower() or "water" in modelo_str.lower())
+    if es_q90_hydro:
+        delta_t = max(0, t_outlet - t_inlet) if (t_outlet > 0 and t_inlet > 0) else 0
+        if t_inlet > 0 and t_outlet > 0:
+            fans_str = f"💧 Hydro (Entrada {t_inlet}°C / Salida {t_outlet}°C · ΔT {delta_t}°C)"
+        elif t_inlet > 0:
+            fans_str = f"💧 Hydro (Entrada {t_inlet}°C)"
+        else:
+            fans_str = "💧 Hydro (Refrigeración Líquida Activa)"
+    elif fan1 > 0 or fan2 > 0:
+        fans_str = f"{fan1} / {fan2} RPM"
+    else:
+        fans_str = "0 / 0 RPM"
+
+    cadenas = []
+    for idx in range(3):
+        cadenas.append({
+            "id": idx + 1,
+            "temp_c": tm,
+            "temp_p": t_outlet if t_outlet > 0 else max(0, tm - 8),
+            "chips": 120,
+            "hw": errores_hw // 3 if errores_hw > 0 else 0,
+            "freq": a_entero(buscar_llave(st_ava, ['Freq', 'freq'], 450)),
+            "hr": round(float(hr_5s) / 3.0, 2) if hr_5s > 0 else 0.0
+        })
+
+    cred = determinar_credenciales_defecto("Avalon", modelo_str)
+
+    return {
+        "ip": ip, "marca": "Avalon", "modelo": modelo_str,
+        "algoritmo": algoritmo, "moneda": moneda, "unidad": unidad_hr,
+        "hashrate": round(float(hr_5s), 2), "hashrate_30m": round(float(hr_30m), 2),
+        "temp": int(tm), "temp_amb": int(t_inlet), "consumo": round(float(c_w), 0), "errores": int(errores_hw),
+        "fans": fans_str, "mac": estatica.get('mac', '-'), "serial": estatica.get('serial', f"AVA-{ip.replace('.', '')}"),
+        "firmware": fw_str, "fw_tipo": "Stock", "perfil_oc": "", "cadenas": cadenas, "uptime": uptime_str,
+        "hostname": estatica.get('hostname', f"Avalon{ip.split('.')[-1]}"),
+        "net_proto": estatica.get('net_proto', 'Static'), "netmask": estatica.get('netmask', '255.255.255.0'),
+        "gateway": estatica.get('gateway', f"{SUBNET}.1"), "dns": estatica.get('dns', '8.8.8.8'),
+        "pool1": p1_url, "worker1": p1_usr, "pass1": p1_pas, "status1": p1_st, "acc1": int(p1_acc), "rej1": int(p1_rej),
+        "pool2": p2_url, "worker2": p2_usr, "pass2": p2_pas, "status2": p2_st, "acc2": int(p2_acc), "rej2": int(p2_rej),
+        "pool3": p3_url, "worker3": p3_usr, "pass3": p3_pas, "status3": p3_st, "acc3": int(p3_acc), "rej3": int(p3_rej),
+        "cred_defecto": f"{cred['user']} / {cred['pass']}"
+    }
+
+# ==================== EXTRACTOR FLUMINER / ALTCOINS / ASICS UNIVERSALES ====================
+def es_fluminer_o_altcoin(st, st_sum, ver_resp):
+    texto_check = " ".join([
+        str(st.get("Type", "")),
+        str(st.get("Miner", "")),
+        str(st.get("Description", "")),
+        str(st_sum.get("Type", "")),
+        str(st_sum.get("Miner", "")),
+        str(ver_resp or "")
+    ]).lower()
+    if any(w in texto_check for w in ["fluminer", "flux", "iceriver", "goldshell", "jasminer", "innosilicon", "desiwe", "elphapex"]):
+        return True
+    return False
+
+def extraer_fluminer_o_generico(ip, st, st_sum, ver_resp):
+    global cache_info_estatica
+    ahora_ts = time.time()
+    estatica = cache_info_estatica.get(ip, {})
+
+    version_raw = peticion_4028(ip, "version")
+    ver_str = ""
+    miner_str = ""
+    if version_raw and isinstance(version_raw, dict):
+        v_list = version_raw.get("VERSION", [])
+        if v_list and isinstance(v_list[0], dict):
+            ver_str = str(v_list[0].get("CGMiner", "") or v_list[0].get("API", "")).strip()
+            miner_str = str(v_list[0].get("Miner", "")).strip()
+
+    piscinas = peticion_4028(ip, "pools")
+    pl = piscinas.get('POOLS', []) if isinstance(piscinas, dict) else []
+
+    def datos_pool(idx):
+        if idx < len(pl) and isinstance(pl[idx], dict):
+            p = pl[idx]
+            url = str(buscar_llave(p, ['URL', 'url'], ''))
+            usr = str(buscar_llave(p, ['User', 'user'], ''))
+            pas = str(buscar_llave(p, ['Pass', 'pass'], '123'))
+            st_p = str(buscar_llave(p, ['Status', 'status'], 'Alive' if url else 'Dead'))
+            acc = a_entero(buscar_llave(p, ['Accepted', 'accepted'], 0))
+            rej = a_entero(buscar_llave(p, ['Rejected', 'rejected'], 0))
+            return url, usr, pas, st_p, acc, rej
+        return "", "", "123", "Dead", 0, 0
+
+    p1_url, p1_usr, p1_pas, p1_st, p1_acc, p1_rej = datos_pool(0)
+    p2_url, p2_usr, p2_pas, p2_st, p2_acc, p2_rej = datos_pool(1)
+    p3_url, p3_usr, p3_pas, p3_st, p3_acc, p3_rej = datos_pool(2)
+
+    cand_texto = f"{miner_str} {buscar_llave(st, ['Type', 'Model', 'Miner'], '')} {buscar_llave(st_sum, ['Type', 'Model'], '')} {p1_url}".lower()
+    marca = "Fluminer" if ("fluminer" in cand_texto or "flux" in cand_texto) else (
+        "IceRiver" if ("iceriver" in cand_texto or "ks" in cand_texto) else (
+            "Goldshell" if "goldshell" in cand_texto else (
+                "Jasminer" if "jasminer" in cand_texto else (
+                    "Innosilicon" if "innosilicon" in cand_texto else "ASIC Universal"
+                )
+            )
+        )
+    )
+
+    if not estatica or (ahora_ts - estatica.get('ts', 0) > 600):
+        mod_det = miner_str or str(buscar_llave(st, ['Type', 'Model', 'Miner'], buscar_llave(st_sum, ['Type', 'Model'], f"{marca} ASIC"))).strip()
+        serial = str(buscar_llave(st, ['Serial', 'sn', 'DNA'], f"{marca[:3].upper()}-{ip.replace('.', '')}")).strip()
+        fw = ver_str or str(buscar_llave(st, ['Firmware Version', 'CGMiner'], f"{marca} Firmware")).strip()
+        mac = str(buscar_llave(st, ['mac', 'MAC'], estatica.get('mac', '-'))).strip()
+        hostname = str(buscar_llave(st, ['hostname'], f"{marca}{ip.split('.')[-1]}")).strip()
+
+        estatica = {
+            'ts': ahora_ts, 'marca': marca, 'modelo': mod_det, 'mac': mac,
+            'serial': serial, 'fw': fw, 'hostname': hostname, 'net_proto': 'Static',
+            'netmask': '255.255.255.0', 'gateway': f"{SUBNET}.1", 'dns': '8.8.8.8'
+        }
+        cache_info_estatica[ip] = estatica
+
+    modelo_str = estatica.get('modelo', f"{marca} ASIC")
+    algoritmo, moneda = detectar_algoritmo_y_moneda(modelo_str, p1_url)
+
+    raw_5s = buscar_llave(st_sum, ['HS 5s', 'GHS 5s', 'MHS 5s', 'rate_5s', 'KHS 5s'], buscar_llave(st, ['GHS 5s', 'MHS 5s', 'HS 5s'], 0))
+    raw_avg = buscar_llave(st_sum, ['HS av', 'GHS av', 'MHS av', 'rate_avg'], raw_5s)
+    u_orig = "MHS"
+    if 'GHS 5s' in st_sum or 'GHS av' in st_sum: u_orig = "GHS"
+    elif 'THS 5s' in st_sum or 'THS rt' in st_sum: u_orig = "THS"
+    elif 'KHS 5s' in st_sum: u_orig = "KHS"
+
+    hr_5s, unidad_hr = normalizar_hashrate_universal(raw_5s, u_orig, modelo_str, algoritmo)
+    hr_30m, _ = normalizar_hashrate_universal(raw_avg, u_orig, modelo_str, algoritmo)
+    if hr_30m == 0: hr_30m = hr_5s
+
+    c_w = a_float(buscar_llave(st_sum, ['Power', 'Power Limit'], buscar_llave(st, ['Power', 'power'], 0)))
+    if c_w < 50 and hr_5s > 0:
+        c_w = hr_5s * (30.0 if "TH" in unidad_hr else 1.2)
+
+    uptime_str = formatear_uptime(buscar_llave(st_sum, ['Elapsed', 'Uptime'], 0))
+    errores_hw = a_entero(buscar_llave(st_sum, ['Hardware Errors'], 0))
+
+    tm = a_entero(buscar_llave(st, ['Temperature', 'Chip Temp Max', 'temp_max'], buscar_llave(st_sum, ['Temperature', 'Chip Temp Max'], 60)))
+    if tm >= 150: tm = 0
+    t_amb = a_entero(buscar_llave(st, ['Env Temp', 'temp_pcb', 'Inlet Temp'], 0))
+    if t_amb >= 120: t_amb = 0
+
+    fan1 = a_entero(buscar_llave(st, ['Fan Speed In', 'Fan1', 'fan1'], 0))
+    fan2 = a_entero(buscar_llave(st, ['Fan Speed Out', 'Fan2', 'fan2'], 0))
+    fans_str = f"{fan1} / {fan2} RPM" if (fan1 > 0 or fan2 > 0) else "Auto / Normal"
+
+    cadenas = [{
+        "id": 1, "temp_c": tm, "temp_p": max(0, tm - 8),
+        "chips": 60, "hw": errores_hw, "freq": 0, "hr": hr_5s
+    }]
+
+    cred = determinar_credenciales_defecto(marca, modelo_str)
+
+    return {
+        "ip": ip, "marca": marca, "modelo": modelo_str,
+        "algoritmo": algoritmo, "moneda": moneda, "unidad": unidad_hr,
+        "hashrate": round(float(hr_5s), 2), "hashrate_30m": round(float(hr_30m), 2),
+        "temp": int(tm), "temp_amb": int(t_amb), "consumo": round(float(c_w), 0), "errores": int(errores_hw),
+        "fans": fans_str, "mac": estatica.get('mac', '-'), "serial": estatica.get('serial', f"{marca[:3].upper()}-{ip.replace('.', '')}"),
+        "firmware": estatica.get('fw', f"{marca} Firmware"), "fw_tipo": "Stock", "perfil_oc": "", "cadenas": cadenas,
+        "uptime": uptime_str,
+        "hostname": estatica.get('hostname', f"{marca}{ip.split('.')[-1]}"),
+        "net_proto": estatica.get('net_proto', 'Static'), "netmask": estatica.get('netmask', '255.255.255.0'),
+        "gateway": estatica.get('gateway', f"{SUBNET}.1"), "dns": estatica.get('dns', '8.8.8.8'),
+        "pool1": p1_url, "worker1": p1_usr, "pass1": p1_pas, "status1": p1_st, "acc1": int(p1_acc), "rej1": int(p1_rej),
+        "pool2": p2_url, "worker2": p2_usr, "pass2": p2_pas, "status2": p2_st, "acc2": int(p2_acc), "rej2": int(p2_rej),
+        "pool3": p3_url, "worker3": p3_usr, "pass3": p3_pas, "status3": p3_st, "acc3": int(p3_acc), "rej3": int(p3_rej),
+        "cred_defecto": f"{cred['user']} / {cred['pass']}"
     }
 
 def extraer_todo(ip):
@@ -723,6 +1117,9 @@ def extraer_todo(ip):
     if st_sum and es_whatsminer({}, st_sum, summary.get("STATUS", "")):
         return extraer_whatsminer(ip, st_sum, summary.get("STATUS", ""))
 
+    if st_sum and es_avalon({}, st_sum, summary.get("STATUS", "")):
+        return extraer_avalon(ip, st_sum, summary.get("STATUS", ""))
+
     stats = peticion_4028(ip, "stats")
     st = {}
     if stats and 'STATS' in stats:
@@ -732,6 +1129,12 @@ def extraer_todo(ip):
 
     if (st or st_sum) and es_whatsminer(st, st_sum, ""):
         return extraer_whatsminer(ip, st_sum, "")
+
+    if (st or st_sum) and es_avalon(st, st_sum, ""):
+        return extraer_avalon(ip, st_sum, "")
+
+    if (st or st_sum) and es_fluminer_o_altcoin(st, st_sum, ""):
+        return extraer_fluminer_o_generico(ip, st, st_sum, "")
 
     if not st and not st_sum:
         raw_st_cgi = peticion_http(ip, "stats.cgi", timeout_sec=4.5)
@@ -892,7 +1295,7 @@ def extraer_todo(ip):
     errores_hw = a_entero(buscar_llave(st, ['Hardware Errors', 'Device Hardware Errors', 'hw_errors'], buscar_llave(st_sum, ['Hardware Errors'], 0)))
     freq_global = a_entero(buscar_llave(st, ['frequency', 'freq_avg', 'freq', 'total_freqavg'], 0))
 
-    es_hydro = ("hyd" in mod_lower or "hydro" in mod_lower or "water" in mod_lower)
+    es_hydro = ("hyd" in mod_lower or "hydro" in mod_lower or "water" in mod_lower or "q90" in mod_lower or "m33" in mod_lower or "m53" in mod_lower or "m63" in mod_lower)
     amb_candidates = []
     water_out_candidates = []
 
@@ -1048,24 +1451,27 @@ def extraer_todo(ip):
         "hostname": hostname, "net_proto": net_proto, "netmask": netmask, "gateway": gateway, "dns": dns,
         "pool1": p1_url, "worker1": p1_usr, "pass1": p1_pas, "status1": p1_st, "acc1": int(p1_acc), "rej1": int(p1_rej),
         "pool2": p2_url, "worker2": p2_usr, "pass2": p2_pas, "status2": p2_st, "acc2": int(p2_acc), "rej2": int(p2_rej),
-        "pool3": p3_url, "worker3": p3_usr, "pass3": p3_pas, "status3": p3_st, "acc3": int(p3_acc), "rej3": int(p3_rej)
+        "pool3": p3_url, "worker3": p3_usr, "pass3": p3_pas, "status3": p3_st, "acc3": int(p3_acc), "rej3": int(p3_rej),
+        "cred_defecto": "root / root"
     }
 
 def escanear_red():
     print(f"Escaneando subred {SUBNET}.2 - {SUBNET}.254 (máx. {MAX_WORKERS} conexiones)...")
     encontradas = list(IPS_BASE)
-    def probar_4028(ip):
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.6)
-            s.connect((ip, 4028))
-            s.close()
-            return ip
-        except:
-            return None
+    def probar_ip(ip):
+        for port in (4028, 80):
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(0.5)
+                s.connect((ip, port))
+                s.close()
+                return ip
+            except:
+                pass
+        return None
     ips_a_probar = [f"{SUBNET}.{i}" for i in range(2, 255)]
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        for res in executor.map(probar_4028, ips_a_probar):
+        for res in executor.map(probar_ip, ips_a_probar):
             if res and res not in encontradas:
                 encontradas.append(res)
     print(f"Escaneo finalizado: {len(encontradas)} IP(s) monitoreadas: {encontradas}")
