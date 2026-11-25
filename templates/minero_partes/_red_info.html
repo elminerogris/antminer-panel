@@ -22,8 +22,8 @@
         justify-content: space-between;
         gap: 10px;
         flex-wrap: wrap;
-        background: rgba(255, 255, 255, 0.015);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: var(--bg-well-soft);
+        border-bottom: 1px solid var(--border-subtle);
     }
     .info-header-title {
         font-weight: bold;
@@ -43,7 +43,7 @@
     }
     .proto-badge-pro.static {
         background: rgba(56, 189, 248, 0.12);
-        color: #38bdf8;
+        color: var(--accent-cyan);
         border: 1px solid rgba(56, 189, 248, 0.35);
     }
     .proto-badge-pro.dhcp {
@@ -54,9 +54,9 @@
 
     /* Botón Mágico de Auto-Configuración IP Fija */
     .btn-auto-ip-pro {
-        background: linear-gradient(135deg, rgba(0, 230, 118, 0.18) 0%, rgba(16, 185, 129, 0.10) 100%);
+        background: linear-gradient(135deg, rgba(0, 230, 118, 0.16) 0%, rgba(16, 185, 129, 0.10) 100%);
         border: 1px solid rgba(0, 230, 118, 0.5);
-        color: #00e676;
+        color: var(--accent-green);
         padding: 6px 12px;
         border-radius: 7px;
         font-size: 0.76em;
@@ -66,12 +66,12 @@
         align-items: center;
         gap: 6px;
         transition: all 0.2s ease;
-        box-shadow: 0 0 10px rgba(0, 230, 118, 0.18);
+        box-shadow: 0 0 10px rgba(0, 230, 118, 0.16);
     }
     .btn-auto-ip-pro:hover {
-        background: rgba(0, 230, 118, 0.28);
+        background: #059669;
         color: #fff;
-        box-shadow: 0 0 16px rgba(0, 230, 118, 0.45);
+        box-shadow: 0 0 16px rgba(0, 230, 118, 0.4);
         transform: translateY(-1px);
     }
 
@@ -81,11 +81,11 @@
         border-collapse: collapse;
     }
     .specs-list-pro tr {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+        border-bottom: 1px solid var(--border-subtle);
         transition: background 0.15s ease;
     }
     .specs-list-pro tr:last-child { border-bottom: none; }
-    .specs-list-pro tr:hover { background: rgba(255, 255, 255, 0.02); }
+    .specs-list-pro tr:hover { background: var(--hover-bg); }
     .specs-list-pro td {
         padding: 10px 16px;
         font-size: 0.84em;
@@ -98,7 +98,7 @@
         user-select: none;
         width: 36%;
     }
-    .specs-list-pro td:first-child:hover { color: #fff; }
+    .specs-list-pro td:first-child:hover { color: var(--text-main); }
     .specs-list-pro td:last-child {
         text-align: right;
         color: var(--text-main);
@@ -125,7 +125,7 @@
         gap: 5px;
         background: rgba(51, 102, 255, 0.12);
         border: 1px solid rgba(59, 130, 246, 0.42);
-        color: #60a5fa;
+        color: var(--accent-blue-light);
         padding: 4px 9px;
         border-radius: 6px;
         font-family: 'Segoe UI', system-ui, sans-serif;
@@ -147,16 +147,16 @@
         flex-shrink: 0;
     }
     .btn-copy-pro:hover {
-        background: rgba(51, 102, 255, 0.25);
-        border-color: #60a5fa;
+        background: #2563eb;
+        border-color: #2563eb;
         color: #fff;
         box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
     }
     .btn-copy-pro.copied {
         background: rgba(0, 230, 118, 0.16);
-        border-color: #00e676;
-        color: #00e676;
-        box-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
+        border-color: var(--accent-green);
+        color: var(--accent-green);
+        box-shadow: 0 0 10px rgba(0, 230, 118, 0.25);
     }
 
     /* Selector Visual de Protocolo IP (Interruptor de 2 Botones) */
@@ -167,10 +167,10 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 6px;
-        background: rgba(10, 12, 18, 0.75);
+        background: var(--bg-well-deep);
         padding: 4px;
         border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border-subtle);
         margin-top: 5px;
     }
     .btn-proto-opt {
@@ -189,18 +189,18 @@
         gap: 6px;
         user-select: none;
     }
-    .btn-proto-opt:hover { color: #fff; background: rgba(255, 255, 255, 0.04); }
+    .btn-proto-opt:hover { color: var(--text-main); background: var(--hover-bg); }
     .btn-proto-opt.active-static {
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(51, 102, 255, 0.18) 100%);
-        color: #38bdf8;
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.20) 0%, rgba(51, 102, 255, 0.16) 100%);
+        color: var(--accent-cyan);
         border-color: rgba(56, 189, 248, 0.55);
-        box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
     }
     .btn-proto-opt.active-dhcp {
-        background: linear-gradient(135deg, rgba(192, 132, 252, 0.22) 0%, rgba(147, 51, 234, 0.18) 100%);
+        background: linear-gradient(135deg, rgba(192, 132, 252, 0.20) 0%, rgba(147, 51, 234, 0.16) 100%);
         color: #c084fc;
         border-color: rgba(192, 132, 252, 0.55);
-        box-shadow: 0 0 12px rgba(192, 132, 252, 0.25);
+        box-shadow: 0 0 12px rgba(192, 132, 252, 0.2);
     }
     .proto-helper-hint {
         font-size: 0.74em;
@@ -218,7 +218,7 @@
         background: rgba(255, 82, 82, 0.12);
         border: 1px solid rgba(255, 82, 82, 0.5);
         font-size: 0.79em;
-        color: #ffd0d0;
+        color: var(--accent-red);
         line-height: 1.45;
     }
     .ip-conflict-actions {
@@ -228,9 +228,9 @@
         margin-top: 9px;
     }
     .btn-fix-ip {
-        background: rgba(0, 230, 118, 0.2);
-        border: 1px solid #00e676;
-        color: #00e676;
+        background: rgba(0, 230, 118, 0.18);
+        border: 1px solid var(--accent-green);
+        color: var(--accent-green);
         padding: 5px 10px;
         border-radius: 6px;
         font-size: 0.92em;
@@ -238,11 +238,11 @@
         cursor: pointer;
         transition: 0.18s;
     }
-    .btn-fix-ip:hover { background: #00e676; color: #07120c; }
+    .btn-fix-ip:hover { background: #059669; color: #fff; }
     .btn-force-ip {
         background: rgba(255, 179, 0, 0.12);
         border: 1px solid rgba(255, 179, 0, 0.5);
-        color: #ffb300;
+        color: var(--accent-gold);
         padding: 5px 10px;
         border-radius: 6px;
         font-size: 0.92em;
@@ -250,7 +250,7 @@
         cursor: pointer;
         transition: 0.18s;
     }
-    .btn-force-ip:hover { background: rgba(255, 179, 0, 0.28); color: #fff; }
+    .btn-force-ip:hover { background: #d97706; color: #fff; }
 
     /* Formulario de Red Estática / DHCP */
     .net-form-body {
@@ -269,9 +269,9 @@
         cursor: help;
         user-select: none;
     }
-    .net-field-label:hover { color: #fff; }
+    .net-field-label:hover { color: var(--text-main); }
     .input-net-pro {
-        background: rgba(10, 12, 18, 0.55);
+        background: var(--bg-input);
         border: 1px solid var(--border-color);
         color: var(--text-main);
         padding: 8px 10px;
@@ -285,21 +285,21 @@
     }
     .input-net-pro:focus {
         border-color: #3b82f6;
-        background: rgba(10, 12, 18, 0.85);
+        background: var(--bg-input);
         box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
     }
     .input-net-pro.edited {
-        border-color: #38bdf8;
+        border-color: var(--accent-cyan);
         background: rgba(56, 189, 248, 0.06);
     }
     .input-net-pro.conflict {
-        border-color: #ff5252;
+        border-color: var(--accent-red);
         box-shadow: 0 0 10px rgba(255, 82, 82, 0.4);
     }
     .input-net-pro:disabled {
-        opacity: 0.4;
+        opacity: 0.5;
         cursor: not-allowed;
-        background: rgba(10, 12, 18, 0.3);
+        background: var(--bg-well-soft);
     }
 
     /* Píldoras rápidas de DNS */
@@ -310,7 +310,7 @@
         flex-wrap: wrap;
     }
     .dns-pill {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         color: var(--text-muted);
         padding: 2px 7px;
@@ -322,9 +322,9 @@
         transition: 0.15s;
     }
     .dns-pill:hover {
-        color: #fff;
+        color: var(--text-main);
         border-color: #3b82f6;
-        background: rgba(51, 102, 255, 0.16);
+        background: rgba(51, 102, 255, 0.14);
     }
 
     .net-footer-bar {
@@ -334,12 +334,12 @@
         justify-content: space-between;
         gap: 10px;
         flex-wrap: wrap;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        border-top: 1px solid var(--border-subtle);
     }
     .btn-save-net-pro {
-        background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%);
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.22) 0%, rgba(37, 99, 235, 0.12) 100%);
         border: 1px solid rgba(82, 140, 255, 0.65);
-        color: #60a5fa;
+        color: var(--accent-blue-light);
         padding: 8px 15px;
         border-radius: 7px;
         cursor: pointer;
@@ -349,21 +349,23 @@
         align-items: center;
         gap: 6px;
         transition: all 0.2s ease;
-        box-shadow: 0 0 10px rgba(51, 102, 255, 0.22);
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.2);
     }
     .btn-save-net-pro:hover {
         color: #fff;
-        background: rgba(51, 102, 255, 0.35);
-        border-color: #60a5fa;
-        box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+        background: #2563eb;
+        border-color: #2563eb;
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.45);
         transform: translateY(-1px);
     }
     .btn-save-net-pro.unsaved-pulse {
-        background: linear-gradient(135deg, rgba(51, 102, 255, 0.48) 0%, rgba(37, 99, 235, 0.32) 100%);
+        background: #2563eb;
         color: #fff;
         border-color: #38bdf8;
-        box-shadow: 0 0 16px rgba(56, 189, 248, 0.75);
+        box-shadow: 0 0 16px rgba(56, 189, 248, 0.65);
     }
+    :root[data-theme="light"] .proto-badge-pro.dhcp,
+    :root[data-theme="light"] .btn-proto-opt.active-dhcp { color: #7e22ce; }
 
     @media (max-width: 768px) {
         .net-form-body { grid-template-columns: 1fr; }

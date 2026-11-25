@@ -20,7 +20,7 @@
     }
     .kpi-card:hover {
         border-color: rgba(82, 140, 255, 0.65);
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 12px rgba(51, 102, 255, 0.22);
+        box-shadow: var(--shadow-card), 0 0 12px rgba(51, 102, 255, 0.22);
         transform: translateY(-2px);
     }
     .kpi-card h4 {
@@ -47,7 +47,7 @@
     .kpi-bar-bg {
         width: 100%;
         height: 4px;
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--border-subtle);
         border-radius: 3px;
         overflow: hidden;
         margin-top: 8px;
@@ -100,7 +100,7 @@
         border: 1px solid rgba(59, 130, 246, 0.4);
         border-radius: 12px;
         padding: 26px 24px;
-        box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4), 0 0 24px rgba(51, 102, 255, 0.12);
+        box-shadow: var(--shadow-card);
     }
     .onboarding-head {
         display: flex;
@@ -120,7 +120,7 @@
         gap: 8px;
         background: rgba(51, 102, 255, 0.14);
         border: 1px solid rgba(96, 165, 250, 0.45);
-        color: #93c5fd;
+        color: var(--accent-blue-light);
         padding: 7px 13px;
         border-radius: 20px;
         font-size: 0.78em;
@@ -134,8 +134,8 @@
         100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
     }
     .onboarding-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }
-    .ob-step { background: rgba(10, 12, 18, 0.48); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
-    .ob-step-num { width: 30px; height: 30px; border-radius: 8px; background: rgba(51, 102, 255, 0.2); border: 1px solid rgba(96, 165, 250, 0.5); color: #60a5fa; font-weight: 800; font-family: monospace; display: flex; align-items: center; justify-content: center; }
+    .ob-step { background: var(--bg-well); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+    .ob-step-num { width: 30px; height: 30px; border-radius: 8px; background: rgba(51, 102, 255, 0.2); border: 1px solid rgba(96, 165, 250, 0.5); color: var(--accent-blue-light); font-weight: 800; font-family: monospace; display: flex; align-items: center; justify-content: center; }
     .ob-step h3 { margin: 0; font-size: 1.0em; color: var(--text-main); }
     .ob-step p { margin: 0; font-size: 0.84em; color: var(--text-muted); line-height: 1.5; flex: 1; }
     .ob-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
@@ -149,7 +149,7 @@
         border-radius: 10px;
         padding: 18px;
         margin-bottom: 16px;
-        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+        box-shadow: var(--shadow-card);
     }
     .prof-calc-head {
         display: flex;
@@ -174,7 +174,7 @@
         margin-bottom: 16px;
     }
     .prof-btc-box {
-        background: rgba(10, 14, 24, 0.72);
+        background: var(--bg-well-deep);
         border: 1px solid rgba(59, 130, 246, 0.35);
         border-radius: 8px;
         padding: 11px 12px;
@@ -189,7 +189,7 @@
         font-family: monospace;
         font-size: 1.05em;
         font-weight: bold;
-        color: #60a5fa;
+        color: var(--accent-blue-light);
     }
     .prof-btc-lbl {
         font-size: 0.68em;
@@ -236,9 +236,9 @@
     .prof-input {
         width: 100%;
         height: 38px;
-        background: rgba(10, 12, 18, 0.78);
+        background: var(--bg-input);
         border: 1px solid var(--border-color);
-        color: #fff;
+        color: var(--text-main);
         padding: 8px 12px;
         border-radius: 7px;
         font-family: monospace;
@@ -260,8 +260,8 @@
         margin-bottom: 14px;
     }
     .prof-res-box {
-        background: rgba(10, 12, 18, 0.58);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-well);
+        border: 1px solid var(--border-subtle);
         border-radius: 8px;
         padding: 10px 8px;
         text-align: center;
@@ -276,8 +276,8 @@
         font-weight: bold;
         color: var(--text-main);
     }
-    .prof-res-val.pos { color: #00e676; }
-    .prof-res-val.neg { color: #ff5252; }
+    .prof-res-val.pos { color: var(--accent-green); }
+    .prof-res-val.neg { color: var(--accent-red); }
     .prof-res-lbl {
         font-size: 0.65em;
         color: var(--text-muted);
@@ -292,7 +292,7 @@
         align-items: center;
         gap: 10px 18px;
         padding-top: 12px;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        border-top: 1px solid var(--border-subtle);
         font-size: 0.78em;
         color: var(--text-muted);
     }
@@ -304,7 +304,7 @@
     .tarifa-save-status {
         font-family: monospace;
         font-size: 0.9em;
-        color: #00e676;
+        color: var(--accent-green);
     }
 
     /* Barra compacta de Acciones Masivas */
@@ -323,7 +323,7 @@
     .bulk-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
     .sel-badge {
         background: rgba(51, 102, 255, 0.12);
-        color: #60a5fa;
+        color: var(--accent-blue-light);
         border: 1px solid rgba(59, 130, 246, 0.45);
         padding: 6px 10px;
         border-radius: 7px;
@@ -332,9 +332,9 @@
         font-family: monospace;
         transition: 0.2s;
     }
-    .sel-badge.has-sel { background: rgba(51, 102, 255, 0.28); color: #fff; box-shadow: 0 0 12px rgba(59, 130, 246, 0.45); }
+    .sel-badge.has-sel { background: #2563eb; color: #fff; box-shadow: 0 0 12px rgba(59, 130, 246, 0.45); }
     .btn-action {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         color: var(--text-main);
         padding: 7px 12px;
@@ -349,35 +349,47 @@
         gap: 6px;
         user-select: none;
     }
-    .btn-action:hover { border-color: #3b82f6; color: #fff; background: rgba(51, 102, 255, 0.18); box-shadow: 0 0 12px rgba(59, 130, 246, 0.45); transform: translateY(-1px); }
+    .btn-action:hover { border-color: #3b82f6; color: var(--text-main); background: rgba(51, 102, 255, 0.14); box-shadow: 0 0 12px rgba(59, 130, 246, 0.35); transform: translateY(-1px); }
     .btn-action.dimmed { opacity: 0.45; }
 
     /* Tabla Principal de Resumen */
     .table-container { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table { width: 100%; min-width: 860px; border-collapse: collapse; white-space: nowrap; }
-    th { text-align: left; padding: 12px 15px; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.015); user-select: none; transition: 0.15s; }
+    th { text-align: left; padding: 12px 15px; color: var(--text-muted); font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border-color); background: var(--bg-well-soft); user-select: none; transition: 0.15s; }
     th.sortable { cursor: pointer; }
-    th.sortable:hover { color: #fff; background: rgba(59, 130, 246, 0.08); }
-    th.sort-active { color: #60a5fa !important; }
+    th.sortable:hover { color: var(--text-main); background: rgba(59, 130, 246, 0.08); }
+    th.sort-active { color: var(--accent-blue-light) !important; }
     .sort-arrow { display: inline-block; margin-left: 4px; font-size: 0.95em; opacity: 0.65; }
-    th.sort-active .sort-arrow { opacity: 1; color: #38bdf8; }
+    th.sort-active .sort-arrow { opacity: 1; color: var(--accent-cyan); }
 
-    td { padding: 13px 15px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.85em; vertical-align: middle; }
+    td { padding: 13px 15px; border-bottom: 1px solid var(--border-subtle); font-size: 0.85em; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tbody tr { transition: background 0.15s ease; cursor: pointer; }
-    tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
+    tbody tr:hover { background: var(--hover-bg); }
     tbody tr.selected-row { background: rgba(51, 102, 255, 0.11) !important; }
 
-    .miner-link { color: #60a5fa; font-weight: bold; text-decoration: none; font-size: 1.03em; }
-    .miner-link:hover { color: #fff; text-decoration: underline; }
+    .miner-link { color: var(--accent-blue-light); font-weight: bold; text-decoration: none; font-size: 1.03em; }
+    .miner-link:hover { color: var(--text-main); text-decoration: underline; }
     .sub-ip { font-size: 0.78em; color: var(--text-muted); font-family: monospace; margin-top: 2px; }
 
     /* Modal de Confirmación, Tooltip y Toast */
-    .res-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.72); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(3px); }
-    .res-modal-box { background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 22px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 14px 40px rgba(0,0,0,0.75); }
-    .res-smart-tooltip { position: fixed; display: none; width: 255px; max-width: calc(100vw - 20px); background: rgba(10, 11, 16, 0.98); border: 1px solid rgba(51, 102, 255, 0.55); border-radius: 7px; padding: 9px 11px; color: #d1d3e0; font-family: sans-serif; font-size: 11.5px; line-height: 1.4; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85); z-index: 99999; pointer-events: none; }
-    .res-tt-title { color: #fff; font-weight: bold; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.12); }
-    .res-toast { position: fixed; bottom: 22px; right: 22px; background: rgba(10, 12, 18, 0.96); border: 1px solid #00e676; color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 0.86em; font-weight: bold; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(0, 230, 118, 0.3); z-index: 9999; display: none; align-items: center; gap: 8px; }
+    .res-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.65); z-index: 2000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; backdrop-filter: blur(3px); }
+    .res-modal-box { background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 22px; max-width: 380px; width: 100%; text-align: center; box-shadow: var(--shadow-card); }
+    .res-smart-tooltip { position: fixed; display: none; width: 255px; max-width: calc(100vw - 20px); background: var(--bg-tooltip); border: 1px solid rgba(51, 102, 255, 0.55); border-radius: 7px; padding: 9px 11px; color: var(--text-tooltip); font-family: sans-serif; font-size: 11.5px; line-height: 1.4; box-shadow: var(--shadow-card); z-index: 99999; pointer-events: none; }
+    .res-tt-title { color: var(--text-main); font-weight: bold; margin-bottom: 4px; padding-bottom: 3px; border-bottom: 1px solid var(--border-subtle); }
+    .res-toast { position: fixed; bottom: 22px; right: 22px; background: var(--bg-tooltip); border: 1px solid var(--accent-green); color: var(--text-main); padding: 12px 18px; border-radius: 8px; font-size: 0.86em; font-weight: bold; box-shadow: var(--shadow-card); z-index: 9999; display: none; align-items: center; gap: 8px; }
+
+    :root[data-theme="light"] .t-ok,
+    :root[data-theme="light"] .badge-t-ok,
+    :root[data-theme="light"] .badge-efi-ok { color: #047857 !important; }
+    :root[data-theme="light"] .t-warn,
+    :root[data-theme="light"] .badge-t-warn,
+    :root[data-theme="light"] .badge-efi-high { color: #b45309 !important; }
+    :root[data-theme="light"] .t-crit,
+    :root[data-theme="light"] .badge-t-crit { color: #dc2626 !important; }
+    :root[data-theme="light"] .badge-kw { color: #0369a1; }
+    :root[data-theme="light"] .badge-efi-mid { color: #1d4ed8; }
+    :root[data-theme="light"] .coin-alt-pill { color: #7e22ce; background: rgba(147, 51, 234, 0.12); border-color: rgba(147, 51, 234, 0.35); }
 </style>
 
 <!-- Portal de Tooltip, Toast y Modal -->
@@ -418,14 +430,14 @@
             <div class="val" style="color:var(--accent-green); font-size:1.15em; margin-top:4px;" translate="no">{{ flota.ksol_total }} <span style="font-size:0.65em;">kSol/s</span></div>
         {% endif %}
         {% if flota.ghs_total > 0 %}
-            <div class="val" style="color:#ffb300; font-size:1.15em; margin-top:4px;" translate="no">{{ flota.ghs_total }} <span style="font-size:0.65em;">GH/s</span></div>
+            <div class="val" style="color:var(--accent-gold); font-size:1.15em; margin-top:4px;" translate="no">{{ flota.ghs_total }} <span style="font-size:0.65em;">GH/s</span></div>
         {% endif %}
         <div class="sub">Potencia total en línea</div>
     </div>
 
     <div class="kpi-card" data-rtt="kpi_consumo">
         <h4>🔌 Consumo Eléctrico</h4>
-        <div class="val" style="color:#38bdf8;" translate="no">{{ flota.consumo_kw }} <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">kW</span></div>
+        <div class="val" style="color:var(--accent-cyan);" translate="no">{{ flota.consumo_kw }} <span style="font-size:0.58em;color:var(--text-muted);font-weight:normal;">kW</span></div>
         <div class="sub"><span translate="no">{{ "{:,.0f}".format(flota.consumo_w_total) }}</span> Watts totales</div>
     </div>
 
@@ -442,13 +454,13 @@
 
     <div class="kpi-card" data-rtt="kpi_btc">
         <h4>₿ Precio BTC / Red</h4>
-        <div class="val" id="kpiPrecioBtc" style="color:#ffb300;" translate="no">${{ flota.precio_btc }}</div>
+        <div class="val" id="kpiPrecioBtc" style="color:var(--accent-gold);" translate="no">${{ flota.precio_btc }}</div>
         <div class="sub" id="kpiSubRed" translate="no">Dif: {{ flota.dificultad_t }}T | {{ flota.red_ehs }} EH/s</div>
     </div>
 
     <div class="kpi-card" data-rtt="kpi_ganancia">
         <h4>💰 Ganancia Neta / Día</h4>
-        <div class="val" id="gananciaNetaCard" style="color:{{ '#ff5252' if flota.ganancia_dia_raw < 0 else ('var(--text-muted)' if flota.ganancia_dia_raw == 0 else 'var(--accent-green)') }};" translate="no">{{ flota.ganancia_dia }}</div>
+        <div class="val" id="gananciaNetaCard" style="color:{{ 'var(--accent-red)' if flota.ganancia_dia_raw < 0 else ('var(--text-muted)' if flota.ganancia_dia_raw == 0 else 'var(--accent-green)') }};" translate="no">{{ flota.ganancia_dia }}</div>
         <div class="sub" id="subProyeccionMes">Proy. mes: <span translate="no">{{ '-$' if flota.ganancia_mes_raw < 0 else '$' }}{{ "%.0f"|format(flota.ganancia_mes_raw|abs) }}</span></div>
     </div>
 </div>
@@ -939,7 +951,7 @@
         const cardEl = document.getElementById('gananciaNetaCard');
         if (cardEl) {
             cardEl.innerText = (ganDia < 0 ? '-$' : '$') + Math.abs(ganDia).toFixed(2);
-            cardEl.style.color = ganDia < 0 ? '#ff5252' : (ganDia > 0 ? '#00e676' : 'var(--text-muted)');
+            cardEl.style.color = ganDia < 0 ? 'var(--accent-red)' : (ganDia > 0 ? 'var(--accent-green)' : 'var(--text-muted)');
         }
         const subMes = document.getElementById('subProyeccionMes');
         if (subMes) {
@@ -961,7 +973,7 @@
                 const netoEq = (btcEq * btcPrecioLive) - (kwEq * 24 * tarifa);
                 td.setAttribute('data-sort-num', netoEq.toFixed(4));
                 td.innerText = netoEq < 0 ? `-USD ${Math.abs(netoEq).toFixed(2)}` : `USD ${netoEq.toFixed(2)}`;
-                td.style.color = netoEq < 0 ? '#ff5252' : (netoEq > 0 ? 'var(--accent-green)' : 'var(--text-muted)');
+                td.style.color = netoEq < 0 ? 'var(--accent-red)' : (netoEq > 0 ? 'var(--accent-green)' : 'var(--text-muted)');
             });
         }
     }

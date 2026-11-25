@@ -12,7 +12,7 @@
 
     .alert-ok {
         background: rgba(0, 230, 118, 0.12); border: 1px solid rgba(0, 230, 118, 0.4);
-        color: #69f0ae; padding: 11px 15px; border-radius: 8px;
+        color: var(--accent-green); padding: 11px 15px; border-radius: 8px;
         margin-bottom: 16px; font-size: 0.86em; font-weight: 600;
     }
 
@@ -38,14 +38,14 @@
 
     .miners-pick {
         max-height: 260px; overflow-y: auto;
-        background: rgba(10, 12, 18, 0.5); border: 1px solid var(--border-color);
+        background: var(--bg-well); border: 1px solid var(--border-color);
         border-radius: 8px; padding: 10px; margin-bottom: 14px;
         display: flex; flex-direction: column; gap: 6px;
     }
     .pick-item {
         display: flex; align-items: center; gap: 9px;
         padding: 6px 8px; border-radius: 6px; font-size: 0.84em;
-        cursor: pointer; background: rgba(255, 255, 255, 0.02);
+        cursor: pointer; background: var(--bg-well-soft);
     }
     .pick-item:hover { background: rgba(51, 102, 255, 0.12); }
 
@@ -56,7 +56,7 @@
     }
 
     .link-item {
-        background: rgba(10, 12, 18, 0.55); border: 1px solid var(--border-color);
+        background: var(--bg-well); border: 1px solid var(--border-color);
         border-radius: 8px; padding: 13px; margin-bottom: 10px;
     }
     .link-head {
@@ -64,19 +64,20 @@
         gap: 8px; margin-bottom: 8px;
     }
     .link-url {
-        background: #07090f; border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-well-deep); border: 1px solid var(--border-subtle);
         border-radius: 6px; padding: 7px 10px; font-family: monospace;
-        font-size: 0.78em; color: #38bdf8; word-break: break-all; margin-bottom: 8px;
+        font-size: 0.78em; color: var(--accent-cyan); word-break: break-all; margin-bottom: 8px;
     }
     .link-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn-sm {
         padding: 5px 10px; border-radius: 6px; font-size: 0.78em;
         font-weight: bold; cursor: pointer; border: 1px solid var(--border-color);
-        background: rgba(255, 255, 255, 0.04); color: var(--text-main);
+        background: var(--bg-well-soft); color: var(--text-main);
         text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
     }
-    .btn-sm:hover { border-color: #60a5fa; color: #fff; }
-    .btn-sm.del { color: #ff8a80; border-color: rgba(255, 82, 82, 0.4); background: rgba(255, 82, 82, 0.1); }
+    .btn-sm:hover { border-color: #2563eb; background: #2563eb; color: #fff; }
+    .btn-sm.del { color: var(--accent-red); border-color: rgba(255, 82, 82, 0.4); background: rgba(255, 82, 82, 0.1); }
+    .btn-sm.del:hover { background: #dc2626; border-color: #dc2626; color: #fff; }
 </style>
 
 <div class="pro-header">

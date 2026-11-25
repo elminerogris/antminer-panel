@@ -10,7 +10,7 @@
                     title="Editar nombre y configuración de esta granja">✏️ Editar</button>
                 <button type="button" class="btn-inline-edit"
                     style="color:#ff5252; border-color:rgba(255,82,82,0.35);"
-                    onclick='eliminarGranjaDirecto({{ g.farm_id | tojson }}, {{ g.nombre | tojson }})'
+                    onclick='abrirModalEliminarGranja({{ g.farm_id | tojson }}, {{ g.nombre | tojson }}, {{ g.total }})'
                     title="Eliminar esta granja">🗑️</button>
             </div>
             <div class="farm-meta" translate="no">
@@ -24,7 +24,7 @@
             </div>
         </div>
         {% if g.total == 0 %}
-            <span class="farm-pill-status" style="background:rgba(148,163,184,0.12); color:#94a3b8; border:1px solid rgba(148,163,184,0.35);">⚪ Sin equipos</span>
+            <span class="farm-pill-status empty">⚪ Sin equipos</span>
         {% elif g.offline > 0 or g.temp_max >= 85 %}
             <span class="farm-pill-status crit">⚠️ Atención ({{ g.online }}/{{ g.total }})</span>
         {% elif g.temp_max >= 75 %}
@@ -38,20 +38,20 @@
     <div class="farm-kpis" translate="no">
         <div class="fk-item">
             <div class="fk-label">Hashrate</div>
-            <div class="fk-val" style="color:#3b82f6;">{{ g.hashrate }} <span style="font-size:0.68em;color:var(--text-muted);">TH/s</span></div>
+            <div class="fk-val fk-hashrate">{{ g.hashrate }} <span style="font-size:0.68em;color:var(--text-muted);">TH/s</span></div>
         </div>
         <div class="fk-item">
             <div class="fk-label">Consumo</div>
-            <div class="fk-val" style="color:#c084fc;">{{ g.consumo_kw }} <span style="font-size:0.68em;color:var(--text-muted);">kW</span></div>
+            <div class="fk-val fk-power">{{ g.consumo_kw }} <span style="font-size:0.68em;color:var(--text-muted);">kW</span></div>
         </div>
         <div class="fk-item">
             <div class="fk-label">Temp Pico</div>
-            <div class="fk-val" style="color:{{ '#ff5252' if g.temp_max >= 85 else ('#ffb300' if g.temp_max >= 75 else '#00e676') }};">{{ g.temp_max }}°C</div>
+            <div class="fk-val {{ 'fk-crit' if g.temp_max >= 85 else ('fk-warn' if g.temp_max >= 75 else 'fk-ok') }}">{{ g.temp_max }}°C</div>
         </div>
         <div class="fk-item">
             <div class="fk-label">Costo Luz/Día</div>
             {% if g.tarifa_kwh > 0 %}
-                <div class="fk-val" style="color:#38bdf8;">${{ "%.2f"|format(g.costo_dia) }}</div>
+                <div class="fk-val fk-cost">${{ "%.2f"|format(g.costo_dia) }}</div>
             {% else %}
                 <div class="fk-val" style="color:var(--text-muted); font-size:0.85em;">Sin tarifa</div>
             {% endif %}

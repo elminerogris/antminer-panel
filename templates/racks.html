@@ -17,7 +17,7 @@
         cursor: pointer;
     }
     .btn-rk-danger {
-        background: rgba(255, 82, 82, 0.12); color: #ff8a80;
+        background: rgba(255, 82, 82, 0.12); color: var(--accent-red);
         border: 1px solid rgba(255, 82, 82, 0.4);
         padding: 6px 11px; border-radius: 6px; font-weight: bold; font-size: 0.78em;
         cursor: pointer;
@@ -42,21 +42,21 @@
     .rack-slot {
         flex: 1; min-width: 118px; min-height: 76px;
         border-radius: 8px; padding: 8px 10px;
-        border: 1px dashed rgba(255, 255, 255, 0.14);
-        background: rgba(10, 12, 18, 0.45);
+        border: 1px dashed var(--border-color);
+        background: var(--bg-well);
         cursor: pointer; transition: 0.18s;
         display: flex; flex-direction: column; justify-content: space-between;
     }
-    .rack-slot:hover { border-color: #60a5fa; transform: translateY(-1px); }
+    .rack-slot:hover { border-color: #3b82f6; transform: translateY(-1px); }
     .slot-coord { font-size: 0.68em; color: var(--text-muted); font-family: monospace; }
 
     .slot-ok { border: 1px solid rgba(0, 230, 118, 0.5); background: rgba(0, 230, 118, 0.10); }
     .slot-warn { border: 1px solid rgba(255, 179, 0, 0.55); background: rgba(255, 179, 0, 0.12); }
     .slot-crit { border: 1px solid rgba(255, 82, 82, 0.65); background: rgba(255, 82, 82, 0.16); }
-    .slot-off { border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(148, 163, 184, 0.08); }
+    .slot-off { border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(148, 163, 184, 0.10); }
 
-    .slot-name { font-weight: bold; font-size: 0.84em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .slot-stats { font-size: 0.75em; font-family: monospace; color: #cbd5e1; margin-top: 3px; }
+    .slot-name { font-weight: bold; font-size: 0.84em; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .slot-stats { font-size: 0.75em; font-family: monospace; color: var(--text-secondary); margin-top: 3px; }
 
     /* Modales */
     .rk-modal-bg {

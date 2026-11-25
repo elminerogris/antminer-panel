@@ -1,0 +1,163 @@
+<div id="google_translate_element" style="display:none;"></div>
+<style>
+    .skiptranslate iframe,
+    .goog-te-banner-frame,
+    iframe.goog-te-banner-frame,
+    .VIpgJd-ZVi9od-ORHb-OEVmcd,
+    .VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
+    body > .skiptranslate { display: none !important; }
+    html, body { top: 0px !important; position: static !important; }
+    font { background-color: transparent !important; box-shadow: none !important; }
+    .emg-mini-lang {
+        background: rgba(16, 20, 32, 0.9);
+        color: #e2e8f0;
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        border-radius: 7px;
+        padding: 5px 9px;
+        font-size: 0.78em;
+        font-weight: 700;
+        cursor: pointer;
+        outline: none;
+    }
+    :root[data-theme="light"] .emg-mini-lang {
+        background: #ffffff;
+        color: #0f172a;
+        border-color: #cbd5e1;
+    }
+    .emg-theme-btn {
+        background: rgba(16, 20, 32, 0.9);
+        color: #e2e8f0;
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        border-radius: 7px;
+        padding: 4px 9px;
+        font-size: 0.84em;
+        cursor: pointer;
+        line-height: 1.25;
+        transition: border-color 0.2s, background 0.2s;
+    }
+    .emg-theme-btn:hover { border-color: #60a5fa; }
+    :root[data-theme="light"] .emg-theme-btn {
+        background: #ffffff;
+        color: #0f172a;
+        border-color: #cbd5e1;
+    }
+    @media (max-width: 600px) {
+        .emg-mini-lang { max-width: 118px; padding: 4px 6px; font-size: 0.74em; }
+    }
+</style>
+<script>
+    function toggleTemaStandalone(btn) {
+        const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+        const nxt = cur === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', nxt);
+        try { localStorage.setItem('emg_theme', nxt); } catch(e) {}
+        if (btn) btn.textContent = nxt === 'light' ? '🌙' : '☀️';
+    }
+    (function() {
+        try {
+            let lang = localStorage.getItem('emg_lang');
+            if (!lang) {
+                const bl = (navigator.language || navigator.userLanguage || 'es').toLowerCase().split('-')[0];
+                const map = { 'en':'en','zh':'zh-CN','hi':'hi','ar':'ar','pt':'pt','bn':'bn','ru':'ru','fr':'fr','de':'de','ja':'zh-CN','ko':'zh-CN' };
+                lang = (bl === 'es') ? 'es' : (map[bl] || 'es');
+            }
+            if (lang && lang !== 'es') {
+                document.cookie = 'googtrans=/es/' + lang + '; path=/';
+            } else {
+                document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+            }
+        } catch(e) {}
+    })();
+
+    function googleTranslateElementInit() {
+        if (window.google && google.translate) {
+            new google.translate.TranslateElement({pageLanguage: 'es', autoDisplay: false}, 'google_translate_element');
+        }
+    }
+
+    function _syncStandaloneLangCookie(lang) {
+        const host = window.location.hostname || '';
+        const parts = host.split('.');
+        const rootDomain = parts.length >= 2 ? '.' + parts.slice(-2).join('.') : '';
+        if (!lang || lang === 'es') {
+            const exp = 'expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            document.cookie = `googtrans=; ${exp}; path=/`;
+            if (host) document.cookie = `googtrans=; ${exp}; path=/; domain=${host}`;
+            if (rootDomain) document.cookie = `googtrans=; ${exp}; path=/; domain=${rootDomain}`;
+        } else {
+            const val = `/es/${lang}`;
+            document.cookie = `googtrans=${val}; path=/`;
+            if (host && host !== 'localhost' && !/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+                document.cookie = `googtrans=${val}; path=/; domain=${host}`;
+            }
+        }
+    }
+
+    function cambiarIdiomaStandalone(lang) {
+        const target = lang || 'es';
+        try { localStorage.setItem('emg_lang', target); } catch(e) {}
+        const sel = document.getElementById('langSelectorStandalone');
+        if (sel) sel.value = target;
+        _syncStandaloneLangCookie(target);
+
+        const estabaTrad = document.documentElement.classList.contains('translated-ltr')
+            || document.documentElement.classList.contains('translated-rtl');
+        if (target === 'es') {
+            const combo = document.querySelector('.goog-te-combo');
+            if (combo) {
+                combo.value = Array.from(combo.options || []).some(o => o.value === 'es') ? 'es' : '';
+                combo.dispatchEvent(new Event('change'));
+            }
+            if (estabaTrad) window.location.reload();
+            return;
+        }
+        const apply = () => {
+            const c = document.querySelector('.goog-te-combo');
+            if (!c) return false;
+            if (c.value !== target) {
+                c.value = target;
+                c.dispatchEvent(new Event('change'));
+            }
+            return true;
+        };
+        if (!apply()) {
+            let n = 0;
+            const iv = setInterval(() => { n++; if (apply() || n > 25) clearInterval(iv); }, 200);
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+        let lang = 'es';
+        try {
+            const saved = localStorage.getItem('emg_lang');
+            if (saved) lang = saved;
+            else {
+                const bl = (navigator.language || navigator.userLanguage || 'es').toLowerCase().split('-')[0];
+                const map = { 'en':'en','zh':'zh-CN','hi':'hi','ar':'ar','pt':'pt','bn':'bn','ru':'ru','fr':'fr','de':'de','ja':'zh-CN','ko':'zh-CN' };
+                if (bl !== 'es' && map[bl]) lang = map[bl];
+            }
+        } catch(e) {}
+        const sel = document.getElementById('langSelectorStandalone');
+        if (sel) sel.value = lang;
+        const btnTema = document.getElementById('btnTemaStandalone');
+        if (btnTema) {
+            let t = 'dark';
+            try { t = localStorage.getItem('emg_theme') || 'dark'; } catch(e) {}
+            if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            btnTema.textContent = (t === 'light') ? '🌙' : '☀️';
+        }
+        if (lang && lang !== 'es') {
+            let n = 0;
+            const iv = setInterval(() => {
+                n++;
+                const c = document.querySelector('.goog-te-combo');
+                if (c) {
+                    clearInterval(iv);
+                    if (c.value !== lang) { c.value = lang; c.dispatchEvent(new Event('change')); }
+                }
+                if (n > 30) clearInterval(iv);
+            }, 200);
+        }
+    });
+</script>
+<script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>

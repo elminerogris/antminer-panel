@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="/static/logo.png">
     <title>Hosting Login — El Minero Gris</title>
+    <script>try{if(localStorage.getItem('emg_theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
     <style>
         :root {
             --bg-main: #0a0c12;
             --bg-card: #121521;
+            --bg-input: rgba(10, 12, 18, 0.7);
             --border: rgba(255, 255, 255, 0.08);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
@@ -17,6 +19,20 @@
             --green: #00e676;
             --red: #ff5252;
         }
+        :root[data-theme="light"] {
+            --bg-main: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --border: #cbd5e1;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --blue: #2563eb;
+            --blue-light: #2563eb;
+            --green: #059669;
+            --red: #dc2626;
+        }
+        :root[data-theme="light"] .login-box { box-shadow: 0 12px 32px rgba(15, 23, 42, 0.10); }
+        :root[data-theme="light"] .error-box { color: #b91c1c; background: rgba(220, 38, 38, 0.08); }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -53,7 +69,7 @@
             text-transform: uppercase; font-weight: bold; margin-bottom: 6px;
         }
         .inp-group input {
-            width: 100%; background: rgba(10, 12, 18, 0.7); border: 1px solid var(--border);
+            width: 100%; background: var(--bg-input); border: 1px solid var(--border);
             color: var(--text-main); padding: 11px 14px; border-radius: 8px;
             font-size: 0.92em; outline: none;
         }
@@ -78,6 +94,21 @@
 </head>
 <body>
     <div class="login-box">
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-bottom:12px;">
+            <button type="button" id="btnTemaStandalone" class="emg-theme-btn" title="Cambiar tema claro/oscuro" onclick="toggleTemaStandalone(this)">☀️</button>
+            <select id="langSelectorStandalone" class="emg-mini-lang notranslate" translate="no" aria-label="Idioma" onchange="cambiarIdiomaStandalone(this.value)">
+                <option value="es" translate="no">🇪🇸 Español</option>
+                <option value="en" translate="no">🇺🇸 English</option>
+                <option value="pt" translate="no">🇧🇷 Português</option>
+                <option value="ru" translate="no">🇷🇺 Русский</option>
+                <option value="zh-CN" translate="no">🇨🇳 中文 (简体)</option>
+                <option value="hi" translate="no">🇮🇳 हिन्दी</option>
+                <option value="ar" translate="no">🇸🇦 العربية</option>
+                <option value="bn" translate="no">🇧🇩 বাংলা</option>
+                <option value="fr" translate="no">🇫🇷 Français</option>
+                <option value="de" translate="no">🇩🇪 Deutsch</option>
+            </select>
+        </div>
         <div class="login-logo">
             <img src="/static/logo.png" alt="Logo" onerror="this.outerHTML='<span style=\'font-size:2em;\'>⛏️</span>'">
             <h1>Portal de Cliente</h1>
@@ -105,5 +136,6 @@
             Panel impulsado por <a href="https://elminerogris.com" target="_blank" rel="noopener">El Minero Gris</a>
         </div>
     </div>
+    {% include "_lang_sync.html" %}
 </body>
 </html>

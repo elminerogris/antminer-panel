@@ -1,6 +1,6 @@
-from flask import Blueprint, redirect, request, session, Response
+from flask import Blueprint, redirect, request, session, Response, jsonify
 from werkzeug.security import generate_password_hash
-import psycopg2.extras, json
+import psycopg2.extras, json, math
 from datetime import datetime, timedelta
 
 from db import get_db
@@ -11,6 +11,36 @@ from utils import (
 )
 
 admin_bp = Blueprint('admin_bp', __name__)
+
+
+def _distancia_km(lat1, lon1, lat2, lon2):
+    if not (lat1 and lon1 and lat2 and lon2):
+        return 0.0
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return round(2 * r * math.asin(min(1.0, math.sqrt(a))), 1)
+
+
+@admin_bp.route('/admin/eliminar_granja', methods=['POST'])
+@login_required
+def admin_eliminar_granja():
+    if not es_super_admin():
+        return jsonify({"status": "error", "msg": "No autorizado"}), 403
+    data = request.get_json(silent=True) or {}
+    owner = str(data.get('owner') or '').strip()
+    farm_id = str(data.get('farm_id') or '').strip()
+    if not owner or not farm_id:
+        return jsonify({"status": "error", "msg": "owner y farm_id requeridos"}), 400
+
+    con = get_db()
+    con.autocommit = True
+    cur = con.cursor()
+    from rutas_panel import _borrar_granja_completa
+    eliminados_m, _ = _borrar_granja_completa(cur, owner, farm_id, eliminar_mineros=True)
+    return jsonify({"status": "ok", "eliminados_mineros": eliminados_m})
 
 @admin_bp.route('/admin/respaldo_json')
 @login_required
@@ -109,7 +139,7 @@ def admin_panel():
             cur.execute("DELETE FROM cola_comandos WHERE estado='enviado' AND fecha < %s", (fecha_lim,))
             cur.execute("DELETE FROM mineros_activos WHERE owner NOT IN (SELECT username FROM usuarios)")
             huerfanos = cur.rowcount
-            for tbl in ('nombres_mineros', 'logs_mineros', 'historial_nube', 'cola_comandos', 'registro_alertas'):
+            for tbl in ('nombres_mineros', 'logs_mineros', 'historial_nube', 'cola_comandos', 'registro_alertas', 'granjas_sedes', 'agentes_conectados', 'mineros_descubiertos', 'racks_sedes'):
                 cur.execute(f"DELETE FROM {tbl} WHERE owner NOT IN (SELECT username FROM usuarios)")
             msg = f"Limpieza completada: {borrados_h:,} filas antiguas (> {dias}d) y {huerfanos} minero(s) huérfano(s) eliminados."
         elif accion == 'editar_usuario_completo':
@@ -226,15 +256,26 @@ def admin_panel():
                 cur.execute("DELETE FROM usuarios WHERE id=%s", (uid,))
                 msg = f"Cuenta '{uname_del}' y todos sus datos asociados eliminados."
 
-    # 1. Todos los mineros de usuarios existentes para estadísticas globales y mapa
+    # 1. Todos los mineros y sedes reales de usuarios existentes para estadísticas globales y mapa
     cur.execute("""
-        SELECT m.owner, m.agent_id, m.ip, m.modelo, m.hashrate, m.temp_max, m.unidad, m.algoritmo,
+        SELECT m.owner, m.agent_id, m.farm_id, m.ip, m.modelo, m.hashrate, m.temp_max, m.unidad, m.algoritmo,
                m.ultima_act, m.farm_lat, m.farm_lon, m.farm_city, m.farm_country,
-               m.real_source, m.gps_manual, m.wd_cuarentena
+               m.real_lat, m.real_lon, m.real_source, m.gps_manual, m.wd_cuarentena
         FROM mineros_activos m
         INNER JOIN usuarios u ON u.username = m.owner
     """)
     todos_mineros = cur.fetchall()
+    cur.execute("""
+        SELECT gs.owner, gs.farm_id, gs.agent_id, gs.nombre, gs.ciudad, gs.subred
+        FROM granjas_sedes gs
+        INNER JOIN usuarios u ON u.username = gs.owner
+        ORDER BY gs.id ASC
+    """)
+    sedes_admin = {
+        (r['owner'], str(r.get('farm_id') or '').strip()): r
+        for r in (cur.fetchall() or [])
+        if str(r.get('farm_id') or '').strip()
+    }
     datos_red = obtener_datos_red()
 
     mapa_granjas_dict = {}
@@ -268,22 +309,41 @@ def admin_panel():
         else:
             mineros_offline_global += 1
 
-        ag_id = str(m.get('agent_id') or 'default').strip()
-        ciudad = str(m.get('farm_city') or 'Santa Cruz de la Sierra').strip()
+        ag_id = str(m.get('agent_id') or 'default').strip() or 'default'
+        fid = str(m.get('farm_id') or ag_id).strip() or 'default'
+        sede_info = sedes_admin.get((ow, fid)) or {}
+        ciudad_m = str(m.get('farm_city') or 'Santa Cruz de la Sierra').strip()
+        ciudad_sede = str(sede_info.get('ciudad') or ciudad_m).strip()
+        nombre_sede = str(sede_info.get('nombre') or '').strip() or f"Granja {ciudad_sede} ({fid})"
         subred = ".".join(str(m.get('ip') or '').split('.')[:3]) + ".x"
-        g_key = f"{ow}|{ag_id}|{subred}"
+        g_key = (ow, fid)
         geo_src = 'Pin Manual' if a_int_seguro(m.get('gps_manual'), 0) == 1 else str(m.get('real_source') or 'IP Pública')
+        lat_c = a_float_seguro(m.get('farm_lat'), -17.7833)
+        lon_c = a_float_seguro(m.get('farm_lon'), -63.1821)
+        r_lat = a_float_seguro(m.get('real_lat'), 0.0)
+        r_lon = a_float_seguro(m.get('real_lon'), 0.0)
 
         if g_key not in mapa_granjas_dict:
             mapa_granjas_dict[g_key] = {
-                'owner': ow, 'agent_id': ag_id, 'ciudad': ciudad, 'pais': str(m.get('farm_country') or ''),
-                'subred': subred, 'lat': a_float_seguro(m.get('farm_lat'), -17.7833),
-                'lon': a_float_seguro(m.get('farm_lon'), -63.1821),
-                'geo_source': geo_src,
+                'owner': ow, 'farm_id': fid, 'nombre': nombre_sede,
+                'agent_id': str(sede_info.get('agent_id') or ag_id),
+                'ciudad': ciudad_sede, 'pais': str(m.get('farm_country') or ''),
+                'subred': subred, '_subredes': {subred},
+                'lat': lat_c, 'lon': lon_c,
+                'real_lat': r_lat, 'real_lon': r_lon,
+                'gps_manual': a_int_seguro(m.get('gps_manual'), 0) == 1,
+                'desviacion_km': _distancia_km(lat_c, lon_c, r_lat, r_lon),
+                'geo_source': geo_src, 'real_source': str(m.get('real_source') or 'IP Pública'),
                 'total': 0, 'online': 0, 'offline': 0, 'hashrate': 0.0, 'temp_max': 0, 'cuarentena': 0,
                 'asics': []
             }
         gd = mapa_granjas_dict[g_key]
+        gd['_subredes'].add(subred)
+        gd['subred'] = ', '.join(sorted(gd['_subredes']))
+        if not gd['real_lat'] and r_lat:
+            gd['real_lat'] = r_lat
+            gd['real_lon'] = r_lon
+            gd['desviacion_km'] = _distancia_km(gd['lat'], gd['lon'], r_lat, r_lon)
         gd['total'] += 1
         if es_on:
             gd['online'] += 1
@@ -304,6 +364,7 @@ def admin_panel():
 
     mapa_granjas = []
     for gd in mapa_granjas_dict.values():
+        gd.pop('_subredes', None)
         gd['asics'] = sorted(gd['asics'], key=ordenar_ip_key)
         if gd['offline'] > 0 or gd['temp_max'] >= 85 or gd['cuarentena'] > 0:
             gd['color'] = '#ff5252'

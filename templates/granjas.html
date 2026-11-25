@@ -67,7 +67,7 @@
     .scanner-banner-info strong {
         display: block;
         font-size: 0.96em;
-        color: #e0f2fe;
+        color: var(--text-main);
     }
     .scanner-banner-info small {
         font-size: 0.8em;
@@ -117,13 +117,13 @@
     }
     .farm-card:hover {
         border-color: rgba(82, 140, 255, 0.55);
-        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+        box-shadow: var(--shadow-card);
     }
 
     .farm-card-top {
         padding: 16px 18px;
-        background: rgba(255, 255, 255, 0.015);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: var(--bg-well-soft);
+        border-bottom: 1px solid var(--border-subtle);
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
@@ -139,7 +139,7 @@
         flex-wrap: wrap;
     }
     .btn-inline-edit {
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         color: var(--text-muted);
         border-radius: 5px;
@@ -149,9 +149,9 @@
         transition: 0.15s;
     }
     .btn-inline-edit:hover {
-        color: #fff;
-        border-color: #60a5fa;
-        background: rgba(59, 130, 246, 0.2);
+        color: var(--text-main);
+        border-color: var(--accent-blue-light);
+        background: rgba(59, 130, 246, 0.16);
     }
     .farm-meta {
         font-size: 0.78em;
@@ -171,32 +171,39 @@
         font-family: monospace;
         white-space: nowrap;
     }
-    .farm-pill-status.ok { background: rgba(0, 230, 118, 0.12); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.35); }
+    .farm-pill-status.ok { background: rgba(0, 230, 118, 0.12); color: var(--accent-green); border: 1px solid rgba(0, 230, 118, 0.35); }
     .farm-pill-status.warn { background: rgba(255, 179, 0, 0.14); color: #ffb300; border: 1px solid rgba(255, 179, 0, 0.4); }
-    .farm-pill-status.crit { background: rgba(255, 82, 82, 0.15); color: #ff5252; border: 1px solid rgba(255, 82, 82, 0.4); }
+    .farm-pill-status.crit { background: rgba(255, 82, 82, 0.15); color: var(--accent-red); border: 1px solid rgba(255, 82, 82, 0.4); }
+    .farm-pill-status.empty { background: var(--bg-well-soft); color: var(--text-muted); border: 1px solid var(--border-color); }
 
     .farm-kpis {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 8px;
         padding: 14px 18px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid var(--border-subtle);
     }
     @media (max-width: 520px) {
         .farm-kpis { grid-template-columns: repeat(2, 1fr); }
     }
     .fk-item {
-        background: rgba(10, 12, 18, 0.45);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        background: var(--bg-well);
+        border: 1px solid var(--border-subtle);
         border-radius: 6px;
         padding: 8px 10px;
     }
     .fk-label { font-size: 0.68em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
     .fk-val { font-size: 1.05em; font-weight: bold; font-family: monospace; margin-top: 3px; color: var(--text-main); }
+    .fk-val.fk-hashrate { color: #3b82f6; }
+    .fk-val.fk-power { color: #a855f7; }
+    .fk-val.fk-ok { color: var(--accent-green); }
+    .fk-val.fk-warn { color: #ffb300; }
+    .fk-val.fk-crit { color: var(--accent-red); }
+    .fk-val.fk-cost { color: var(--accent-cyan); }
 
     .power-gauge-box {
         padding: 12px 18px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid var(--border-subtle);
     }
     .power-gauge-header {
         display: flex;
@@ -208,7 +215,7 @@
     .power-bar-bg {
         width: 100%;
         height: 7px;
-        background: rgba(255, 255, 255, 0.07);
+        background: var(--border-subtle);
         border-radius: 4px;
         overflow: hidden;
     }
@@ -227,13 +234,13 @@
         cursor: pointer;
         transition: 0.15s;
     }
-    .btn-edit-cap:hover { color: #fff; border-color: #3b82f6; }
+    .btn-edit-cap:hover { color: var(--text-main); border-color: #3b82f6; }
 
     /* Bloque Telemetría del Agente */
     .agent-info-box {
         padding: 12px 18px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        background: rgba(15, 23, 42, 0.35);
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--bg-well);
         display: flex;
         flex-direction: column;
         gap: 7px;
@@ -253,16 +260,21 @@
         font-weight: bold;
         color: var(--text-main);
     }
+    .agent-status-on { color: var(--accent-green); }
+    .agent-status-off { color: var(--accent-red); }
     .agent-mode-badge {
         background: rgba(56, 189, 248, 0.14);
         border: 1px solid rgba(56, 189, 248, 0.4);
-        color: #38bdf8;
+        color: var(--accent-cyan);
         padding: 2px 8px;
         border-radius: 12px;
         font-size: 0.72em;
         font-family: monospace;
         font-weight: bold;
     }
+    .agent-mode-badge.tunel-on { background: rgba(0, 230, 118, 0.12); border-color: rgba(0, 230, 118, 0.4); color: var(--accent-green); }
+    .agent-mode-badge.tunel-off { background: rgba(255, 179, 0, 0.12); border-color: rgba(255, 179, 0, 0.4); color: #ffb300; }
+    .agent-mode-badge.apk-upd { background: rgba(245, 158, 11, 0.18); border-color: rgba(245, 158, 11, 0.6); color: var(--accent-gold); }
     .agent-specs-row {
         display: flex;
         flex-wrap: wrap;
@@ -272,21 +284,21 @@
         color: var(--text-muted);
     }
     .agent-chip {
-        background: rgba(10, 12, 18, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.07);
+        background: var(--bg-well-deep);
+        border: 1px solid var(--border-subtle);
         padding: 3px 8px;
         border-radius: 5px;
-        color: #cbd5e1;
+        color: var(--text-secondary);
     }
-    .agent-chip.batt-ok { border-color: rgba(0, 230, 118, 0.35); color: #00e676; }
+    .agent-chip.batt-ok { border-color: rgba(0, 230, 118, 0.35); color: var(--accent-green); }
     .agent-chip.batt-warn { border-color: rgba(255, 179, 0, 0.45); color: #ffb300; }
-    .agent-chip.batt-crit { border-color: rgba(255, 82, 82, 0.5); color: #ff5252; }
+    .agent-chip.batt-crit { border-color: rgba(255, 82, 82, 0.5); color: var(--accent-red); }
 
     /* Bloque Router */
     .router-card-box {
         padding: 12px 18px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        background: rgba(10, 12, 18, 0.35);
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--bg-well);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -307,6 +319,8 @@
     }
     .router-title { font-size: 0.85em; font-weight: bold; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
     .router-sub { font-size: 0.74em; color: var(--text-muted); font-family: monospace; margin-top: 2px; }
+    .router-ip-txt { color: var(--accent-blue-light); }
+    .router-mac-txt { color: var(--accent-cyan); }
     .router-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .btn-router-enter {
         background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
@@ -322,7 +336,7 @@
         text-decoration: none;
     }
     .btn-router-ssl {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         color: var(--text-muted);
         padding: 6px 9px;
@@ -332,7 +346,7 @@
         font-family: monospace;
         text-decoration: none;
     }
-    .btn-router-ssl:hover { border-color: #38bdf8; color: #38bdf8; }
+    .btn-router-ssl:hover { border-color: var(--accent-cyan); color: var(--accent-cyan); }
 
     /* Mapa Térmico de Rack */
     .rack-map-box { padding: 12px 18px; flex: 1; }
@@ -365,19 +379,19 @@
         flex-direction: column;
         gap: 2px;
     }
-    .rack-tile:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); }
-    .rack-tile.ok { background: rgba(0, 230, 118, 0.10); border-color: rgba(0, 230, 118, 0.35); color: #00e676; }
+    .rack-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); }
+    .rack-tile.ok { background: rgba(0, 230, 118, 0.10); border-color: rgba(0, 230, 118, 0.35); color: var(--accent-green); }
     .rack-tile.warn { background: rgba(255, 179, 0, 0.14); border-color: rgba(255, 179, 0, 0.45); color: #ffb300; }
-    .rack-tile.crit { background: rgba(255, 82, 82, 0.16); border-color: rgba(255, 82, 82, 0.5); color: #ff5252; }
-    .rack-tile.off { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.12); color: var(--text-muted); opacity: 0.75; }
-    .rack-tile-name { font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
+    .rack-tile.crit { background: rgba(255, 82, 82, 0.16); border-color: rgba(255, 82, 82, 0.5); color: var(--accent-red); }
+    .rack-tile.off { background: var(--bg-well-soft); border-color: var(--border-color); color: var(--text-muted); opacity: 0.82; }
+    .rack-tile-name { font-weight: bold; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
     .btn-asic-edit {
         position: absolute;
         top: 3px;
         right: 3px;
-        background: rgba(10, 12, 18, 0.75);
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        color: #cbd5e1;
+        background: var(--bg-well-deep);
+        border: 1px solid var(--border-color);
+        color: var(--text-secondary);
         border-radius: 4px;
         font-size: 0.65em;
         padding: 1px 4px;
@@ -389,8 +403,8 @@
     /* Botonera de Acciones */
     .farm-actions-bar {
         padding: 12px 18px;
-        background: rgba(10, 12, 18, 0.5);
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        background: var(--bg-well);
+        border-top: 1px solid var(--border-subtle);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -398,7 +412,7 @@
         flex-wrap: wrap;
     }
     .btn-farm-cmd {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         color: var(--text-main);
         padding: 6px 10px;
@@ -410,18 +424,18 @@
         flex: 1 1 auto;
         text-align: center;
     }
-    .btn-farm-cmd:hover { border-color: #3b82f6; background: rgba(51, 102, 255, 0.18); color: #fff; }
-    .btn-farm-cmd.scan { color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); }
-    .btn-farm-cmd.eco { color: #00e676; border-color: rgba(0, 230, 118, 0.35); }
+    .btn-farm-cmd:hover { border-color: #3b82f6; background: rgba(51, 102, 255, 0.14); color: var(--text-main); }
+    .btn-farm-cmd.scan { color: var(--accent-cyan); border-color: rgba(56, 189, 248, 0.4); }
+    .btn-farm-cmd.eco { color: var(--accent-green); border-color: rgba(0, 230, 118, 0.35); }
     .btn-farm-cmd.sleep { color: #ffb300; border-color: rgba(255, 179, 0, 0.35); }
-    .btn-farm-cmd.reboot { color: #ff5252; border-color: rgba(255, 82, 82, 0.35); }
+    .btn-farm-cmd.reboot { color: var(--accent-red); border-color: rgba(255, 82, 82, 0.35); }
 
     /* Modales */
     .farm-modal-overlay {
         display: none;
         position: fixed;
         top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.72);
+        background: rgba(0, 0, 0, 0.65);
         z-index: 2000;
         align-items: center;
         justify-content: center;
@@ -435,15 +449,15 @@
         padding: 22px;
         max-width: 450px;
         width: 100%;
-        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.75);
+        box-shadow: var(--shadow-card);
     }
     .fm-group { margin-bottom: 13px; }
     .fm-group label { display: block; font-size: 0.74em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
     .fm-input {
         width: 100%;
-        background: rgba(10, 12, 18, 0.75);
+        background: var(--bg-input);
         border: 1px solid var(--border-color);
-        color: #fff;
+        color: var(--text-main);
         padding: 9px 11px;
         border-radius: 6px;
         font-family: monospace;
@@ -464,7 +478,7 @@
         max-height: 90vh;
         display: flex;
         flex-direction: column;
-        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.85);
+        box-shadow: var(--shadow-card);
     }
     .scan-controls-row {
         display: flex;
@@ -475,21 +489,21 @@
         margin-bottom: 12px;
     }
     .scan-search-inp {
-        background: rgba(10, 12, 18, 0.75);
+        background: var(--bg-input);
         border: 1px solid var(--border-color);
-        color: #fff;
+        color: var(--text-main);
         padding: 7px 11px;
         border-radius: 7px;
         font-size: 0.82em;
         width: 220px;
         outline: none;
     }
-    .scan-search-inp:focus { border-color: #38bdf8; }
+    .scan-search-inp:focus { border-color: var(--accent-cyan); }
 
     /* Barra única de Progreso */
     .scan-progress-card {
         display: none;
-        background: rgba(8, 12, 22, 0.85);
+        background: var(--bg-well-deep);
         border: 1px solid rgba(59, 130, 246, 0.35);
         border-radius: 9px;
         padding: 12px 15px;
@@ -508,7 +522,7 @@
     .scan-progress-track {
         width: 100%;
         height: 9px;
-        background: rgba(255, 255, 255, 0.08);
+        background: var(--border-subtle);
         border-radius: 999px;
         overflow: hidden;
     }
@@ -534,7 +548,7 @@
         display: none;
         background: rgba(0, 230, 118, 0.10);
         border: 1px solid rgba(0, 230, 118, 0.38);
-        color: #a7f3d0;
+        color: var(--accent-green);
         border-radius: 8px;
         padding: 10px 14px;
         margin-bottom: 12px;
@@ -554,12 +568,12 @@
     .scan-group-card {
         border: 1px solid var(--border-color);
         border-radius: 9px;
-        background: rgba(6, 8, 13, 0.55);
+        background: var(--bg-well);
         overflow: hidden;
     }
     .scan-group-hdr {
         padding: 9px 13px;
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border-bottom: 1px solid var(--border-color);
         display: flex;
         align-items: center;
@@ -572,7 +586,7 @@
     .scan-group-title {
         font-weight: bold;
         font-size: 0.88em;
-        color: #e2e8f0;
+        color: var(--text-main);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -585,27 +599,27 @@
         border-radius: 999px;
         background: rgba(56, 189, 248, 0.12);
         border: 1px solid rgba(56, 189, 248, 0.32);
-        color: #7dd3fc;
+        color: var(--accent-cyan);
     }
     .scan-agent-chip.off {
-        background: rgba(255, 255, 255, 0.04);
-        border-color: rgba(255, 255, 255, 0.12);
+        background: var(--bg-well-soft);
+        border-color: var(--border-color);
         color: var(--text-muted);
     }
 
     .scan-table { width: 100%; border-collapse: collapse; font-size: 0.82em; }
-    .scan-table th { text-align: left; padding: 9px 10px; background: rgba(255, 255, 255, 0.02); color: var(--text-muted); font-size: 0.75em; text-transform: uppercase; border-bottom: 1px solid var(--border-color); }
-    .scan-table td { padding: 8px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+    .scan-table th { text-align: left; padding: 9px 10px; background: var(--bg-well-soft); color: var(--text-muted); font-size: 0.75em; text-transform: uppercase; border-bottom: 1px solid var(--border-color); }
+    .scan-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); }
     .scan-table tr:last-child td { border-bottom: none; }
-    .scan-inp-name { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.14); color: #fff; padding: 5px 8px; border-radius: 5px; font-size: 0.92em; width: 140px; outline: none; }
-    .scan-inp-name:focus { border-color: #38bdf8; }
-    .scan-sel-farm { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.14); color: #cbd5e1; padding: 5px 7px; border-radius: 5px; font-size: 0.88em; max-width: 170px; outline: none; }
+    .scan-inp-name { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); padding: 5px 8px; border-radius: 5px; font-size: 0.92em; width: 140px; outline: none; }
+    .scan-inp-name:focus { border-color: var(--accent-cyan); }
+    .scan-sel-farm { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px 7px; border-radius: 5px; font-size: 0.88em; max-width: 170px; outline: none; }
 
     .btn-scan-row-add { background: linear-gradient(135deg, #00e676, #00c853); color: #07120c; border: 1px solid #69f0ae; padding: 5px 12px; border-radius: 6px; font-weight: 800; font-size: 0.82em; cursor: pointer; transition: 0.15s; white-space: nowrap; }
     .btn-scan-row-add:hover { filter: brightness(1.08); transform: translateY(-1px); }
     .btn-scan-row-add:disabled { opacity: 0.55; cursor: wait; }
-    .btn-scan-row-added { background: rgba(96, 165, 250, 0.14); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.35); padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 0.80em; cursor: pointer; white-space: nowrap; }
-    .btn-scan-row-added:hover { background: rgba(255, 82, 82, 0.18); color: #ff8a80; border-color: rgba(255, 82, 82, 0.45); }
+    .btn-scan-row-added { background: rgba(96, 165, 250, 0.14); color: var(--accent-blue-light); border: 1px solid rgba(96, 165, 250, 0.35); padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 0.80em; cursor: pointer; white-space: nowrap; }
+    .btn-scan-row-added:hover { background: rgba(255, 82, 82, 0.18); color: var(--accent-red); border-color: rgba(255, 82, 82, 0.45); }
 
     /* Aviso de Límite de Plan Gratis (abajo a la derecha) */
     .plan-limit-toast {
@@ -613,14 +627,14 @@
         bottom: 22px;
         right: 22px;
         max-width: 340px;
-        background: rgba(14, 17, 28, 0.98);
+        background: var(--bg-tooltip);
         border: 1px solid rgba(255, 179, 0, 0.65);
         border-radius: 10px;
         padding: 14px 16px;
-        color: #fef3c7;
+        color: var(--accent-gold);
         font-size: 0.86em;
         line-height: 1.45;
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 18px rgba(255, 179, 0, 0.25);
+        box-shadow: var(--shadow-card);
         z-index: 10000;
         display: none;
         flex-direction: column;
@@ -631,17 +645,30 @@
         position: fixed;
         bottom: 22px;
         right: 22px;
-        background: rgba(10, 12, 18, 0.96);
-        border: 1px solid #00e676;
-        color: #fff;
+        background: var(--bg-tooltip);
+        border: 1px solid var(--accent-green);
+        color: var(--text-main);
         padding: 12px 18px;
         border-radius: 8px;
         font-size: 0.85em;
         font-weight: bold;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+        box-shadow: var(--shadow-card);
         z-index: 9999;
         display: none;
     }
+
+    :root[data-theme="light"] .farm-pill-status.warn,
+    :root[data-theme="light"] .fk-val.fk-warn,
+    :root[data-theme="light"] .agent-mode-badge.tunel-off,
+    :root[data-theme="light"] .agent-chip.batt-warn,
+    :root[data-theme="light"] .rack-tile.warn,
+    :root[data-theme="light"] .btn-farm-cmd.sleep { color: #b45309; }
+    :root[data-theme="light"] .btn-farm-cmd.scan:hover,
+    :root[data-theme="light"] .btn-farm-cmd.eco:hover,
+    :root[data-theme="light"] .btn-farm-cmd.sleep:hover,
+    :root[data-theme="light"] .btn-farm-cmd.reboot:hover { color: var(--text-main); }
+    :root[data-theme="light"] .fk-val.fk-hashrate { color: #2563eb; }
+    :root[data-theme="light"] .fk-val.fk-power { color: #7e22ce; }
 </style>
 
 <div id="farmToast" class="farm-toast" translate="no"></div>
@@ -692,12 +719,12 @@
     <div class="scan-modal-box">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <div>
-                <h2 style="margin:0; font-size:1.18em; color:#e0f2fe;">🔍 Escanear Red</h2>
+                <h2 style="margin:0; font-size:1.18em; color:var(--text-main);">🔍 Escanear Red</h2>
                 <div id="scanHeaderQuota" style="font-size:0.78em; color:var(--text-muted); margin-top:2px;">
                     Detecta los Antminer en tus redes conectadas y agrégalos a tu granja.
                 </div>
             </div>
-            <button type="button" onclick="cerrarSmartScanner()" style="background:none; border:none; color:#94a3b8; font-size:1.35em; cursor:pointer;">✕</button>
+            <button type="button" onclick="cerrarSmartScanner()" style="background:none; border:none; color:var(--text-muted); font-size:1.35em; cursor:pointer;">✕</button>
         </div>
 
         <!-- Controles superiores -->
@@ -966,8 +993,8 @@
 
                     return `<tr>
                         <td translate="no">
-                            <div style="color:#fff; font-weight:bold;">${d.modelo}</div>
-                            <div style="font-size:0.82em; color:#60a5fa; font-family:monospace;">${d.ip}</div>
+                            <div style="color:var(--text-main); font-weight:bold;">${d.modelo}</div>
+                            <div style="font-size:0.82em; color:var(--accent-blue-light); font-family:monospace;">${d.ip}</div>
                         </td>
                         <td>
                             <input type="text" class="scan-inp-name" value="${nomVal}" placeholder="Nombre" oninput="scanState.nombres['${d.ip}']=this.value">
@@ -1082,5 +1109,27 @@
             btn.disabled = false;
         }
     }
+
+    window.addEventListener('emg:live-update', function(ev) {
+        const doc = ev && ev.detail && ev.detail.doc;
+        if (!doc) return;
+        const modalAbierto = Array.from(document.querySelectorAll('.farm-modal-overlay')).some(m => m.style.display === 'flex');
+        if (modalAbierto || document.querySelector('.asic-dragging')) return;
+
+        const nuevoGrid = doc.getElementById('farmsGridContainer');
+        const actualGrid = document.getElementById('farmsGridContainer');
+        if (nuevoGrid && actualGrid && actualGrid.innerHTML !== nuevoGrid.innerHTML) {
+            actualGrid.innerHTML = nuevoGrid.innerHTML;
+            if (typeof window.initFarmDragDropTargets === 'function') window.initFarmDragDropTargets();
+            if (typeof window._emgAplicarBotonesApk === 'function') window._emgAplicarBotonesApk();
+        }
+        ['mm_farm_id', 'fd_move_farm'].forEach(selId => {
+            const nuevoSel = doc.getElementById(selId);
+            const actualSel = document.getElementById(selId);
+            if (nuevoSel && actualSel && actualSel.innerHTML !== nuevoSel.innerHTML) {
+                actualSel.innerHTML = nuevoSel.innerHTML;
+            }
+        });
+    });
 </script>
 {% endblock %}

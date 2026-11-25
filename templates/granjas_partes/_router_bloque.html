@@ -4,7 +4,7 @@
             <svg width="26" height="22" viewBox="0 0 26 22" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M7 6C8.8 4.2 17.2 4.2 19 6" stroke="#60a5fa" stroke-width="1.8" stroke-linecap="round"/>
                 <path d="M9.5 8.5C10.9 7.2 15.1 7.2 16.5 8.5" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
-                <rect x="2" y="11" width="22" height="8" rx="2.5" fill="#1e293b" stroke="#60a5fa" stroke-width="1.5"/>
+                <rect x="2" y="11" width="22" height="8" rx="2.5" fill="var(--bg-well-deep)" stroke="#3b82f6" stroke-width="1.5"/>
                 <circle cx="6.5" cy="15" r="1.4" fill="#00e676"/>
                 <circle cx="10.5" cy="15" r="1.4" fill="#38bdf8"/>
             </svg>
@@ -12,12 +12,12 @@
         <div>
             <div class="router-title">
                 <span>Router / Gateway</span>
-                <span style="color:#60a5fa; font-family:monospace;">{{ g.gateway }}</span>
+                <span class="router-ip-txt" style="font-family:monospace;">{{ g.gateway }}</span>
             </div>
             <div class="router-sub">
                 Agente: {{ g.agent_id }} · Red {{ g.subred }}
                 {% if g.router_mac %}
-                <br><span style="color:#38bdf8;">MAC: {{ g.router_mac }}</span>
+                <br><span class="router-mac-txt">MAC: {{ g.router_mac }}</span>
                 {% endif %}
             </div>
         </div>

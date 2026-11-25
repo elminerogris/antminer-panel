@@ -12,7 +12,7 @@
 
     .alert-ok {
         background: rgba(0, 230, 118, 0.12); border: 1px solid rgba(0, 230, 118, 0.4);
-        color: #69f0ae; padding: 11px 15px; border-radius: 8px;
+        color: var(--accent-green); padding: 11px 15px; border-radius: 8px;
         margin-bottom: 16px; font-size: 0.86em; font-weight: 600;
     }
 
@@ -41,23 +41,24 @@
     }
 
     .perm-box {
-        background: rgba(10, 12, 18, 0.5); border: 1px solid var(--border-color);
+        background: var(--bg-well); border: 1px solid var(--border-color);
         border-radius: 8px; padding: 12px; margin-bottom: 14px;
-        font-size: 0.82em; line-height: 1.6; color: #cbd5e1;
+        font-size: 0.82em; line-height: 1.6; color: var(--text-secondary);
     }
 
     .tec-item {
         display: flex; align-items: center; justify-content: space-between;
         gap: 10px; padding: 12px; border-radius: 8px;
-        background: rgba(10, 12, 18, 0.55); border: 1px solid var(--border-color);
+        background: var(--bg-well); border: 1px solid var(--border-color);
         margin-bottom: 10px;
     }
     .btn-del {
-        background: rgba(255, 82, 82, 0.12); color: #ff8a80;
+        background: rgba(255, 82, 82, 0.12); color: var(--accent-red);
         border: 1px solid rgba(255, 82, 82, 0.4);
         padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.78em;
         cursor: pointer;
     }
+    .btn-del:hover { background: #dc2626; border-color: #dc2626; color: #fff; }
 </style>
 
 <div class="pro-header">
@@ -75,8 +76,8 @@
     <div class="card-box">
         <h2>➕ Crear Cuenta de Técnico</h2>
         <div class="perm-box">
-            <div><b style="color:#00e676;">✓ Permitido:</b> Ver Resumen, Mineros, Racks, Granjas, temperaturas, logs, reiniciar y prender LED (Blink).</div>
-            <div style="margin-top:4px;"><b style="color:#ff5252;">✕ Bloqueado:</b> Cambiar pools/wallets, cambiar IPs, Factory Reset, borrar equipos, Billetera y Ajustes.</div>
+            <div><b style="color:var(--accent-green);">✓ Permitido:</b> Ver Resumen, Mineros, Racks, Granjas, temperaturas, logs, reiniciar y prender LED (Blink).</div>
+            <div style="margin-top:4px;"><b style="color:var(--accent-red);">✕ Bloqueado:</b> Cambiar pools/wallets, cambiar IPs, Factory Reset, borrar equipos, Billetera y Ajustes.</div>
         </div>
         <form method="POST" action="/tecnicos">
             <input type="hidden" name="accion" value="crear_tecnico">

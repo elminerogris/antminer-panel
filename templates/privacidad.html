@@ -6,15 +6,29 @@
     <title>Política de Privacidad — El Minero Gris</title>
     <meta name="description" content="Política de privacidad y seguridad de El Minero Gris. Cómo protegemos tus datos y la red local de tu granja ASIC.">
     <link rel="canonical" href="https://elminerogris.com/privacidad">
+    <script>try{if(localStorage.getItem('emg_theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
     <style>
         :root {
             --bg-main: #090b12;
             --bg-card: #111420;
             --border: rgba(255, 255, 255, 0.09);
             --text-main: #f8fafc;
+            --text-body: #cbd5e1;
             --text-muted: #94a3b8;
             --blue-light: #60a5fa;
             --green: #00e676;
+            --highlight-text: #d1fae5;
+        }
+        :root[data-theme="light"] {
+            --bg-main: #f1f5f9;
+            --bg-card: #ffffff;
+            --border: #cbd5e1;
+            --text-main: #0f172a;
+            --text-body: #334155;
+            --text-muted: #64748b;
+            --blue-light: #2563eb;
+            --green: #059669;
+            --highlight-text: #065f46;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -43,7 +57,7 @@
         h1 { font-size: 1.85em; margin-bottom: 6px; }
         .updated { font-size: 0.82em; color: var(--text-muted); margin-bottom: 24px; font-family: monospace; }
         h2 { font-size: 1.15em; color: var(--blue-light); margin: 22px 0 8px 0; }
-        p, li { color: #cbd5e1; font-size: 0.94em; margin-bottom: 10px; }
+        p, li { color: var(--text-body); font-size: 0.94em; margin-bottom: 10px; }
         ul { padding-left: 20px; margin-bottom: 12px; }
         .highlight {
             background: rgba(0, 230, 118, 0.08);
@@ -51,14 +65,31 @@
             border-radius: 8px;
             padding: 14px 16px;
             margin: 18px 0;
-            color: #d1fae5;
+            color: var(--highlight-text);
             font-size: 0.92em;
         }
     </style>
 </head>
 <body>
     <div class="wrap">
-        <a href="/" class="back-link">← Volver a El Minero Gris</a>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+            <a href="/" class="back-link" style="margin-bottom:0;">← Volver a El Minero Gris</a>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button type="button" id="btnTemaStandalone" class="emg-theme-btn" title="Cambiar tema claro/oscuro" onclick="toggleTemaStandalone(this)">☀️</button>
+                <select id="langSelectorStandalone" class="emg-mini-lang notranslate" translate="no" aria-label="Idioma" onchange="cambiarIdiomaStandalone(this.value)">
+                    <option value="es" translate="no">🇪🇸 Español</option>
+                    <option value="en" translate="no">🇺🇸 English</option>
+                    <option value="pt" translate="no">🇧🇷 Português</option>
+                    <option value="ru" translate="no">🇷🇺 Русский</option>
+                    <option value="zh-CN" translate="no">🇨🇳 中文 (简体)</option>
+                    <option value="hi" translate="no">🇮🇳 हिन्दी</option>
+                    <option value="ar" translate="no">🇸🇦 العربية</option>
+                    <option value="bn" translate="no">🇧🇩 বাংলা</option>
+                    <option value="fr" translate="no">🇫🇷 Français</option>
+                    <option value="de" translate="no">🇩🇪 Deutsch</option>
+                </select>
+            </div>
+        </div>
         <h1>Política de Privacidad</h1>
         <div class="updated">Última actualización: Noviembre 2026</div>
 
@@ -83,5 +114,6 @@
         <h2>4. Eliminación de datos</h2>
         <p>El historial de gráficos se limpia automáticamente cada 30 días. Puedes eliminar tus mineros desde el panel en cualquier momento o solicitar la baja completa de tu cuenta contactando a soporte.</p>
     </div>
+    {% include "_lang_sync.html" %}
 </body>
 </html>

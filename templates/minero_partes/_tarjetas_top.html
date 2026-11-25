@@ -25,7 +25,7 @@
         width: 34px;
         height: 34px;
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         color: var(--text-main);
         text-decoration: none;
@@ -37,8 +37,8 @@
     .btn-back-pro:hover {
         border-color: var(--accent-blue);
         background: rgba(51, 102, 255, 0.15);
-        color: #fff;
-        box-shadow: 0 0 12px rgba(51, 102, 255, 0.4);
+        color: var(--text-main);
+        box-shadow: 0 0 12px rgba(51, 102, 255, 0.35);
         transform: translateX(-2px);
     }
     .miner-title-row {
@@ -67,13 +67,13 @@
     }
     .miner-status-badge.online {
         background: rgba(0, 230, 118, 0.12);
-        color: #00e676;
+        color: var(--accent-green);
         border: 1px solid rgba(0, 230, 118, 0.35);
         box-shadow: 0 0 10px rgba(0, 230, 118, 0.18);
     }
     .miner-status-badge.offline {
         background: rgba(255, 82, 82, 0.14);
-        color: #ff5252;
+        color: var(--accent-red);
         border: 1px solid rgba(255, 82, 82, 0.4);
     }
     .miner-pulse-dot {
@@ -83,15 +83,15 @@
         display: inline-block;
     }
     .miner-status-badge.online .miner-pulse-dot {
-        background: #00e676;
-        box-shadow: 0 0 8px #00e676;
+        background: var(--accent-green);
+        box-shadow: 0 0 8px var(--accent-green);
     }
     .miner-status-badge.offline .miner-pulse-dot {
-        background: #ff5252;
+        background: var(--accent-red);
     }
 
     .btn-edit-name-pro {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         color: var(--text-muted);
         padding: 4px 10px;
@@ -102,7 +102,7 @@
         transition: 0.18s;
     }
     .btn-edit-name-pro:hover {
-        color: #fff;
+        color: var(--text-main);
         border-color: var(--accent-blue);
         background: rgba(51, 102, 255, 0.14);
     }
@@ -118,11 +118,11 @@
         flex-wrap: wrap;
     }
     .meta-pill-tag {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-well-soft);
+        border: 1px solid var(--border-subtle);
         padding: 3px 8px;
         border-radius: 5px;
-        color: #d1d3e0;
+        color: var(--text-secondary);
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -135,7 +135,7 @@
         gap: 4px;
         background: rgba(51, 102, 255, 0.14);
         border: 1px solid rgba(59, 130, 246, 0.45);
-        color: #60a5fa;
+        color: var(--accent-blue-light);
         padding: 2px 7px;
         border-radius: 5px;
         font-family: 'Segoe UI', system-ui, sans-serif;
@@ -156,15 +156,15 @@
         flex-shrink: 0;
     }
     .btn-copy-ip-top:hover {
-        background: rgba(51, 102, 255, 0.28);
-        border-color: #60a5fa;
+        background: #2563eb;
+        border-color: #2563eb;
         color: #fff;
         box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
     }
     .btn-copy-ip-top.copied {
         background: rgba(0, 230, 118, 0.16);
-        border-color: #00e676;
-        color: #00e676;
+        border-color: var(--accent-green);
+        color: var(--accent-green);
     }
 
     /* Formulario inline para cambiar el alias del minero */
@@ -176,9 +176,9 @@
         flex-wrap: wrap;
     }
     .input-name-pro {
-        background: rgba(10, 12, 18, 0.85);
+        background: var(--bg-input);
         border: 1px solid #3b82f6;
-        color: #fff;
+        color: var(--text-main);
         padding: 5px 10px;
         border-radius: 6px;
         font-family: monospace;
@@ -234,7 +234,7 @@
     }
     .kpi-card-pro:hover, .kpi-card-pro.tt-active {
         border-color: rgba(82, 140, 255, 0.65);
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 12px rgba(51, 102, 255, 0.22);
+        box-shadow: var(--shadow-card);
         transform: translateY(-2px);
     }
     .kpi-top-row {
@@ -285,7 +285,7 @@
     .kpi-progress-bg {
         width: 100%;
         height: 4px;
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--border-subtle);
         border-radius: 3px;
         overflow: hidden;
         margin-top: 7px;
@@ -295,6 +295,8 @@
         border-radius: 3px;
         transition: width 0.3s ease;
     }
+    .kpi-purple-txt { color: #c084fc; }
+    :root[data-theme="light"] .kpi-purple-txt { color: #7e22ce !important; }
 
     @media (max-width: 768px) {
         .kpi-grid-pro {
@@ -346,7 +348,7 @@
             </span>
             <span class="meta-pill-tag">⏱️ Tiempo activo: <b style="color:var(--text-main);" translate="no">{{ ultimo.uptime }}</b></span>
             {% if ultimo.farm_city is defined and ultimo.farm_city %}
-            <span class="meta-pill-tag" style="color:#38bdf8; border-color:rgba(56,189,248,0.25);" translate="no">📍 {{ ultimo.farm_city }}</span>
+            <span class="meta-pill-tag" style="color:var(--accent-cyan); border-color:rgba(56,189,248,0.25);" translate="no">📍 {{ ultimo.farm_city }}</span>
             {% endif %}
         </div>
 
@@ -365,10 +367,10 @@
 <!-- Banner de Advertencia si está desconectado -->
 <div class="offline-alert-pro">
     <div>
-        <b style="color:#ff5252;">⛔ Este minero no responde en la red local</b>
+        <b style="color:var(--accent-red);">⛔ Este minero no responde en la red local</b>
         <span style="color:var(--text-muted); margin-left:6px;">Mostrando los últimos registros históricos almacenados en la base de datos.</span>
     </div>
-    <span style="font-family:monospace; font-size:0.9em; color:#ffb300;">Verifica alimentación o cable Ethernet</span>
+    <span style="font-family:monospace; font-size:0.9em; color:var(--accent-gold);">Verifica alimentación o cable Ethernet</span>
 </div>
 
 <!-- Grilla de 6 Tarjetas KPI Superiores -->
@@ -377,7 +379,7 @@
     <div class="kpi-card-pro" data-top-tt="kpi_hr5s">
         <div class="kpi-top-row">
             <h4 class="kpi-label">⚡ Hashrate 5s</h4>
-            <span class="kpi-mini-badge" style="background:{{ 'rgba(0,230,118,0.12)' if diff_hr_pct >= -3 else 'rgba(255,179,0,0.15)' }}; color:{{ '#00e676' if diff_hr_pct >= -3 else '#ffb300' }};" translate="no">
+            <span class="kpi-mini-badge" style="background:{{ 'rgba(0,230,118,0.12)' if diff_hr_pct >= -3 else 'rgba(255,179,0,0.15)' }}; color:{{ 'var(--accent-green)' if diff_hr_pct >= -3 else 'var(--accent-gold)' }};" translate="no">
                 {{ '+' if diff_hr_pct >= 0 else '' }}{{ "%.1f"|format(diff_hr_pct) }}%
             </span>
         </div>
@@ -393,9 +395,9 @@
     <div class="kpi-card-pro" data-top-tt="kpi_hr30m">
         <div class="kpi-top-row">
             <h4 class="kpi-label">📊 Promedio 30m</h4>
-            <span class="kpi-mini-badge" style="background:rgba(56,189,248,0.12); color:#38bdf8;">Estable</span>
+            <span class="kpi-mini-badge" style="background:rgba(56,189,248,0.12); color:var(--accent-cyan);">Estable</span>
         </div>
-        <div class="kpi-val-main" style="color:#38bdf8;" translate="no">
+        <div class="kpi-val-main" style="color:var(--accent-cyan);" translate="no">
             {{ "%.2f"|format(hr_30m) }} <span class="kpi-unit">{{ ultimo.unidad | default('TH/s') }}</span>
         </div>
         <div class="kpi-sub-row">
@@ -405,21 +407,22 @@
     </div>
 
     <!-- 3. TEMPERATURA MÁXIMA CHIPS -->
-    {% set col_t = '#ff5252' if t_max >= 85 else ('#ffb300' if t_max >= 75 else '#00e676') %}
+    {% set col_t = 'var(--accent-red)' if t_max >= 85 else ('var(--accent-gold)' if t_max >= 75 else 'var(--accent-green)') %}
+    {% set col_t_bar = '#ff5252' if t_max >= 85 else ('#ffb300' if t_max >= 75 else '#00e676') %}
     {% set txt_t = 'Crítica' if t_max >= 85 else ('Alerta' if t_max >= 75 else 'Óptima') %}
     <div class="kpi-card-pro" data-top-tt="kpi_temp">
         <div class="kpi-top-row">
             <h4 class="kpi-label">🌡️ Temp Máx</h4>
-            <span class="kpi-mini-badge" style="background:rgba(255,255,255,0.06); color:{{ col_t }};">{{ txt_t }}</span>
+            <span class="kpi-mini-badge" style="background:var(--bg-well-soft); color:{{ col_t }};">{{ txt_t }}</span>
         </div>
         <div class="kpi-val-main" style="color:{{ col_t }};" translate="no">
             {{ t_max }}°C
             {% if t_amb > 0 %}
-            <span class="kpi-unit" style="color:#00e676;">(Amb {{ t_amb }}°C)</span>
+            <span class="kpi-unit" style="color:var(--accent-green);">(Amb {{ t_amb }}°C)</span>
             {% endif %}
         </div>
         <div class="kpi-progress-bg">
-            <div class="kpi-progress-fill" style="width:{{ t_max if t_max <= 100 else 100 }}%; background:{{ col_t }};"></div>
+            <div class="kpi-progress-fill" style="width:{{ t_max if t_max <= 100 else 100 }}%; background:{{ col_t_bar }};"></div>
         </div>
     </div>
 
@@ -427,11 +430,11 @@
     <div class="kpi-card-pro" data-top-tt="kpi_consumo">
         <div class="kpi-top-row">
             <h4 class="kpi-label">🔌 Consumo</h4>
-            <span class="kpi-mini-badge" style="background:rgba(192,132,252,0.12); color:#c084fc;" translate="no">
+            <span class="kpi-mini-badge kpi-purple-txt" style="background:rgba(192,132,252,0.12);" translate="no">
                 {{ "%.1f"|format(efi_val) }} {{ ultimo.unidad_efi | default('J/TH') }}
             </span>
         </div>
-        <div class="kpi-val-main" style="color:#c084fc;" translate="no">
+        <div class="kpi-val-main kpi-purple-txt" translate="no">
             {{ ultimo.consumo }}
         </div>
         <div class="kpi-sub-row">
@@ -441,11 +444,11 @@
     </div>
 
     <!-- 5. ERRORES DE HARDWARE (HW) -->
-    {% set col_err = '#ff5252' if err_hw > 100 else ('#ffb300' if err_hw > 15 else '#00e676') %}
+    {% set col_err = 'var(--accent-red)' if err_hw > 100 else ('var(--accent-gold)' if err_hw > 15 else 'var(--accent-green)') %}
     <div class="kpi-card-pro" data-top-tt="kpi_errores">
         <div class="kpi-top-row">
             <h4 class="kpi-label">⚠️ Errores HW</h4>
-            <span class="kpi-mini-badge" style="background:rgba(255,255,255,0.05); color:{{ col_err }};">
+            <span class="kpi-mini-badge" style="background:var(--bg-well-soft); color:{{ col_err }};">
                 {{ 'Revisar' if err_hw > 100 else 'Normal' }}
             </span>
         </div>
@@ -462,14 +465,14 @@
     <div class="kpi-card-pro" data-top-tt="kpi_cooling">
         <div class="kpi-top-row">
             <h4 class="kpi-label">🌀 Refrigeración</h4>
-            <span class="kpi-mini-badge" style="background:rgba(56,189,248,0.12); color:#38bdf8;">Activa</span>
+            <span class="kpi-mini-badge" style="background:rgba(56,189,248,0.12); color:var(--accent-cyan);">Activa</span>
         </div>
         <div class="kpi-val-main" style="font-size:0.95em; margin-top:11px; color:var(--text-main); line-height:1.25;" translate="no">
             {{ ultimo.fans }}
         </div>
         <div class="kpi-sub-row" style="margin-top:8px;">
             <span>Flujo Térmico:</span>
-            <b style="color:#00e676;" translate="no">100% OK</b>
+            <b style="color:var(--accent-green);" translate="no">100% OK</b>
         </div>
     </div>
 </div>

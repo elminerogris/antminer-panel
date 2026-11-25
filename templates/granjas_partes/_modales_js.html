@@ -16,7 +16,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        background: rgba(15, 23, 42, 0.75);
+        background: var(--bg-well-deep);
         border: 1px solid var(--border-color);
         border-radius: 10px;
         padding: 12px 14px;
@@ -152,6 +152,49 @@
     </div>
 </div>
 
+<!-- Modal 4: Eliminar Granja (con opción de borrado completo o traslado de ASICs) -->
+<div class="farm-modal-overlay" id="farmDeleteModal" onclick="if(event.target===this) cerrarModalEliminarGranja()">
+    <div class="farm-modal-box" style="max-width:460px; border-color:rgba(255,82,82,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:10px; margin-bottom:14px;">
+            <span style="font-weight:bold; font-size:1.06em; color:#ef4444;">🗑️ Eliminar Granja</span>
+            <button type="button" class="btn-edit-cap" onclick="cerrarModalEliminarGranja()">✖</button>
+        </div>
+        <input type="hidden" id="fd_farm_id">
+        <div style="font-size:0.9em; color:var(--text-main); line-height:1.5; margin-bottom:12px;">
+            Vas a eliminar la granja <b id="fd_farm_name"></b>.
+            <span id="fd_miners_summary" style="color:var(--text-muted);"></span>
+        </div>
+
+        <div id="fd_options_box" style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+            <label style="display:flex; align-items:flex-start; gap:9px; padding:10px 12px; border-radius:8px; border:1px solid rgba(255,82,82,0.35); background:rgba(255,82,82,0.08); cursor:pointer; font-size:0.84em;">
+                <input type="radio" name="fd_accion" id="fd_mode_delete" value="delete" checked onchange="toggleFdMoveSelect()" style="margin-top:3px;">
+                <span>
+                    <strong style="color:#ef4444; display:block;">Eliminar granja y todos sus registros</strong>
+                    <small style="color:var(--text-muted);">Quita la granja, sus ASICs, racks y cachés del panel y del mapa Admin.</small>
+                </span>
+            </label>
+            <label id="fd_move_row" style="display:none; align-items:flex-start; gap:9px; padding:10px 12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-well); cursor:pointer; font-size:0.84em;">
+                <input type="radio" name="fd_accion" id="fd_mode_move" value="move" onchange="toggleFdMoveSelect()" style="margin-top:3px;">
+                <div style="flex:1; min-width:0;">
+                    <strong style="color:var(--text-main); display:block;">Eliminar solo la granja y mover sus ASICs a:</strong>
+                    <div id="fd_dest_wrap" style="margin-top:7px; display:none;">
+                        <select id="fd_move_farm" class="fm-input" style="padding:6px 9px; font-size:0.92em;">
+                            {% for g_opt in granjas %}
+                            <option value="{{ g_opt.farm_id }}">{{ g_opt.nombre }} ({{ g_opt.ciudad }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </label>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+            <button type="button" class="btn-farm-cmd" style="flex:0 0 auto; padding:8px 16px;" onclick="cerrarModalEliminarGranja()">Cancelar</button>
+            <button type="button" id="btnConfirmarEliminarGranja" class="btn-farm-cmd reboot" style="flex:0 0 auto; padding:8px 16px;" onclick="confirmarEliminarGranja()">🗑️ Eliminar Granja</button>
+        </div>
+    </div>
+</div>
+
 <script>
     let _dragPayload = null;
 
@@ -220,30 +263,108 @@
         });
     }
 
-    function eliminarGranjaDirecto(farmId, nombre) {
+    function abrirModalEliminarGranja(farmId, nombre, totalMineros) {
         if (!farmId) return;
-        const etiqueta = nombre ? `"${nombre}"` : 'esta granja';
-        if (!confirm(`¿Seguro que deseas eliminar ${etiqueta}?\n\nLos ASICs no se borran; si siguen conectados volverán a agruparse con su router.`)) return;
+        const fid = String(farmId);
+        document.getElementById('fd_farm_id').value = fid;
+        document.getElementById('fd_farm_name').innerText = nombre ? `"${nombre}"` : fid;
+        const count = Number(totalMineros || 0);
+        document.getElementById('fd_miners_summary').innerText = count > 0
+            ? ` Actualmente tiene ${count} equipo(s) ASIC asignado(s).`
+            : ' Esta granja no tiene ASICs asignados.';
+
+        const selMove = document.getElementById('fd_move_farm');
+        let opcionesDisponibles = 0;
+        if (selMove) {
+            Array.from(selMove.options).forEach(opt => {
+                const esMisma = (opt.value === fid);
+                opt.hidden = esMisma;
+                opt.disabled = esMisma;
+                if (!esMisma) opcionesDisponibles++;
+            });
+            const primera = Array.from(selMove.options).find(o => !o.disabled);
+            if (primera) selMove.value = primera.value;
+        }
+
+        const radioDel = document.getElementById('fd_mode_delete');
+        const radioMove = document.getElementById('fd_mode_move');
+        const moveRow = document.getElementById('fd_move_row');
+        if (radioDel) radioDel.checked = true;
+        if (radioMove) radioMove.checked = false;
+        if (moveRow) {
+            moveRow.style.display = (count > 0 && opcionesDisponibles > 0) ? 'flex' : 'none';
+        }
+        toggleFdMoveSelect();
+
+        const btn = document.getElementById('btnConfirmarEliminarGranja');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = '🗑️ Eliminar Granja';
+        }
+        document.getElementById('farmDeleteModal').style.display = 'flex';
+    }
+
+    function cerrarModalEliminarGranja() {
+        const m = document.getElementById('farmDeleteModal');
+        if (m) m.style.display = 'none';
+    }
+
+    function toggleFdMoveSelect() {
+        const moveChecked = document.getElementById('fd_mode_move')?.checked;
+        const wrap = document.getElementById('fd_dest_wrap');
+        if (wrap) wrap.style.display = moveChecked ? 'block' : 'none';
+    }
+
+    function confirmarEliminarGranja() {
+        const farmId = (document.getElementById('fd_farm_id')?.value || '').trim();
+        if (!farmId) return;
+        const moveChecked = Boolean(document.getElementById('fd_mode_move')?.checked);
+        const moverA = moveChecked ? (document.getElementById('fd_move_farm')?.value || '').trim() : '';
+
+        const btn = document.getElementById('btnConfirmarEliminarGranja');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = '⏳ Eliminando...';
+        }
 
         fetch('/api/granjas/eliminar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ farm_id: farmId })
+            body: JSON.stringify({
+                farm_id: farmId,
+                eliminar_mineros: !moveChecked,
+                mover_a_farm_id: moverA
+            })
         })
         .then(r => r.json())
         .then(d => {
             if (d.status === 'ok') {
+                cerrarModalEliminarGranja();
                 cerrarFarmModal();
-                mostrarFarmToast('Granja eliminada.');
-                setTimeout(() => window.location.reload(), 500);
+                const card = document.querySelector(`.farm-card[data-farm-id="${CSS.escape(farmId)}"]`);
+                if (card) card.style.opacity = '0.35';
+                mostrarFarmToast(moveChecked ? 'Granja eliminada y ASICs trasladados.' : 'Granja eliminada por completo.');
+                setTimeout(() => window.location.reload(), 450);
+            } else {
+                if (btn) { btn.disabled = false; btn.innerText = '🗑️ Eliminar Granja'; }
+                alert(d.msg || 'No se pudo eliminar la granja');
             }
+        })
+        .catch(() => {
+            if (btn) { btn.disabled = false; btn.innerText = '🗑️ Eliminar Granja'; }
         });
     }
 
     function eliminarGranjaActual() {
         const farmId = document.getElementById('fm_id').value.trim();
         const nombre = document.getElementById('fm_nombre').value.trim();
-        eliminarGranjaDirecto(farmId, nombre);
+        let total = 0;
+        if (farmId) {
+            const card = document.querySelector(`.farm-card[data-farm-id="${CSS.escape(farmId)}"]`);
+            if (card) total = card.querySelectorAll('.rack-tile-wrap').length;
+        }
+        cerrarFarmModal();
+        abrirModalEliminarGranja(farmId, nombre, total);
     }
 
     function abrirEditarMineroModal(ip, nombre, farmId) {
@@ -342,8 +463,11 @@
         });
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.farm-card').forEach(card => {
+    window.initFarmDragDropTargets = function() {
+        document.querySelectorAll('.farm-card[data-farm-id]').forEach(card => {
+            if (card.dataset.dragBound === '1') return;
+            card.dataset.dragBound = '1';
+
             card.addEventListener('dragover', (e) => {
                 if (!_dragPayload) return;
                 const targetId = card.getAttribute('data-farm-id');
@@ -384,6 +508,10 @@
                 document.getElementById('dragConfirmModal').style.display = 'flex';
             });
         });
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        window.initFarmDragDropTargets();
     });
 
     function comandoGranja(accion, ips, nombreGranja) {

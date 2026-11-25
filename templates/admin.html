@@ -7,6 +7,18 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
 <style>
+    .adm-top-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding: 13px 16px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
     .adm-card {
         background: var(--bg-card);
         border: 1px solid var(--border-color);
@@ -16,7 +28,7 @@
     }
     .adm-card-hdr {
         padding: 13px 16px;
-        background: rgba(255, 255, 255, 0.015);
+        background: var(--bg-well-soft);
         border-bottom: 1px solid var(--border-color);
         display: flex;
         align-items: center;
@@ -29,7 +41,7 @@
     .adm-flash {
         background: rgba(0, 230, 118, 0.12);
         border: 1px solid rgba(0, 230, 118, 0.45);
-        color: #69f0ae;
+        color: var(--accent-green);
         padding: 11px 15px;
         border-radius: 8px;
         margin-bottom: 16px;
@@ -39,7 +51,7 @@
     .adm-warn-bar {
         background: rgba(255, 179, 0, 0.14);
         border: 1px solid rgba(255, 179, 0, 0.45);
-        color: #ffd54f;
+        color: var(--accent-gold);
         padding: 10px 14px;
         border-radius: 8px;
         margin-bottom: 16px;
@@ -61,13 +73,13 @@
     .ak-lbl { font-size: 0.70em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; letter-spacing: 0.4px; }
     .ak-val { font-size: 1.42em; font-weight: bold; font-family: monospace; margin-top: 5px; color: var(--text-main); }
     .ak-sub { font-size: 0.73em; color: var(--text-muted); margin-top: 3px; font-family: monospace; }
-    .db-bar-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+    .db-bar-bg { width: 100%; height: 6px; background: var(--border-subtle); border-radius: 4px; overflow: hidden; margin-top: 6px; }
     .db-bar-fill { height: 100%; border-radius: 4px; }
 
     /* Selector Segmented Control de Capa GPS */
     .gps-subbar {
         padding: 8px 16px;
-        background: rgba(10, 12, 18, 0.55);
+        background: var(--bg-well);
         border-bottom: 1px solid var(--border-color);
         display: flex;
         align-items: center;
@@ -77,7 +89,7 @@
     }
     .gps-segmented {
         display: inline-flex;
-        background: rgba(10, 12, 18, 0.9);
+        background: var(--bg-well-deep);
         border: 1px solid var(--border-color);
         border-radius: 7px;
         padding: 3px;
@@ -94,29 +106,29 @@
         cursor: pointer;
         transition: 0.15s;
     }
-    .gps-seg-btn:hover { color: #fff; }
+    .gps-seg-btn:hover { color: var(--text-main); }
     .gps-seg-btn.active {
-        background: rgba(51, 102, 255, 0.25);
+        background: rgba(51, 102, 255, 0.22);
         border-color: #3b82f6;
-        color: #60a5fa;
+        color: var(--accent-blue-light);
     }
     .gps-seg-btn.active.real-mode {
-        background: rgba(16, 185, 129, 0.22);
+        background: rgba(16, 185, 129, 0.20);
         border-color: #10b981;
         color: #34d399;
     }
     .gps-seg-btn.active.cmp-mode {
-        background: rgba(245, 158, 11, 0.22);
+        background: rgba(245, 158, 11, 0.20);
         border-color: #f59e0b;
         color: #fbbf24;
     }
 
-    /* Mapa Oscuro NOC */
+    /* Mapa NOC adaptable al tema */
     .map-wrapper {
         position: relative;
         width: 100%;
         height: 410px;
-        background: #0a0c12;
+        background: var(--bg-input);
     }
     .map-wrapper.fullscreen {
         position: fixed;
@@ -124,24 +136,24 @@
         height: 100vh !important;
         z-index: 9998;
     }
-    #globalFarmsMap { width: 100%; height: 100%; background: #0a0c12; z-index: 1; }
+    #globalFarmsMap { width: 100%; height: 100%; background: var(--bg-input); z-index: 1; }
     #globalFarmsMap.noc-dark-tiles .leaflet-tile-pane {
         filter: invert(100%) hue-rotate(180deg) brightness(90%) contrast(92%) saturate(85%);
     }
     .leaflet-control-zoom a {
-        background: #141824 !important;
-        color: #e2e8f0 !important;
-        border-color: rgba(59, 130, 246, 0.35) !important;
+        background: var(--bg-card) !important;
+        color: var(--text-main) !important;
+        border-color: var(--border-color) !important;
     }
     .leaflet-control-zoom a:hover {
-        background: #1e293b !important;
-        color: #fff !important;
+        background: var(--hover-bg) !important;
+        color: var(--text-main) !important;
     }
     .leaflet-control-attribution {
-        background: rgba(10, 12, 18, 0.78) !important;
-        color: #94a3b8 !important;
+        background: var(--bg-tooltip) !important;
+        color: var(--text-muted) !important;
     }
-    .leaflet-control-attribution a { color: #60a5fa !important; }
+    .leaflet-control-attribution a { color: var(--accent-blue-light) !important; }
 
     .map-controls-bar {
         display: flex;
@@ -150,7 +162,7 @@
         flex-wrap: wrap;
     }
     .map-pill-btn {
-        background: rgba(10, 12, 18, 0.75);
+        background: var(--bg-well-deep);
         border: 1px solid var(--border-color);
         color: var(--text-muted);
         padding: 4px 9px;
@@ -160,34 +172,35 @@
         cursor: pointer;
         transition: 0.15s;
     }
-    .map-pill-btn:hover { color: #fff; border-color: #3b82f6; }
+    .map-pill-btn:hover { color: var(--text-main); border-color: #3b82f6; }
     .map-pill-btn.active {
-        background: rgba(51, 102, 255, 0.25);
+        background: rgba(51, 102, 255, 0.22);
         border-color: #3b82f6;
-        color: #60a5fa;
+        color: var(--accent-blue-light);
     }
     .map-pill-btn.drag-on {
-        background: rgba(255, 179, 0, 0.25);
+        background: rgba(255, 179, 0, 0.22);
         border-color: #ffb300;
-        color: #ffd54f;
+        color: var(--accent-gold);
     }
     .map-hud {
         position: absolute;
         bottom: 12px;
         left: 12px;
         z-index: 500;
-        background: rgba(10, 12, 18, 0.88);
+        background: var(--bg-tooltip);
         backdrop-filter: blur(6px);
         border: 1px solid rgba(59, 130, 246, 0.35);
         border-radius: 8px;
         padding: 7px 12px;
         font-family: monospace;
         font-size: 0.78em;
-        color: #e2e8f0;
+        color: var(--text-main);
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
         pointer-events: none;
+        box-shadow: var(--shadow-card);
     }
 
     /* Pin Ovalado 2 Niveles */
@@ -199,8 +212,8 @@
         pointer-events: auto;
     }
     .farm-pin-owner {
-        background: rgba(10, 13, 22, 0.94);
-        color: #e2e8f0;
+        background: var(--bg-tooltip);
+        color: var(--text-main);
         border: 1px solid rgba(96, 165, 250, 0.55);
         border-radius: 6px;
         padding: 2px 7px;
@@ -209,11 +222,11 @@
         font-weight: 700;
         white-space: nowrap;
         margin-bottom: 3px;
-        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.8);
+        box-shadow: var(--shadow-card);
     }
     .farm-pin-owner.real-border { border-color: #10b981; }
     .farm-pin-owner span {
-        color: #60a5fa;
+        color: var(--accent-blue-light);
         font-family: monospace;
         margin-left: 3px;
     }
@@ -223,7 +236,7 @@
         overflow: hidden;
         border-radius: 14px;
         border: 2px solid #ffffff;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.85);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
         font-family: monospace;
         font-size: 11px;
         font-weight: 800;
@@ -240,7 +253,7 @@
         justify-content: center;
         padding: 0 7px;
     }
-    .fpo-left.zero { background: #1e293b; color: #64748b; }
+    .fpo-left.zero { background: #334155; color: #cbd5e1; }
     .fpo-right {
         flex: 1;
         background: #ff5252;
@@ -251,7 +264,7 @@
         padding: 0 7px;
         border-left: 1px solid rgba(0, 0, 0, 0.35);
     }
-    .fpo-right.zero { background: #1e293b; color: #64748b; }
+    .fpo-right.zero { background: #334155; color: #cbd5e1; }
     .farm-pin-tip {
         width: 0;
         height: 0;
@@ -288,7 +301,7 @@
         font-size: 13px;
         color: #fff;
         border: 2px solid #ffffff;
-        box-shadow: 0 0 14px rgba(0, 0, 0, 0.8);
+        box-shadow: 0 0 14px rgba(0, 0, 0, 0.5);
     }
     .cluster-badge.alert-pulse { animation: pinPulse 1.6s infinite; }
     @keyframes pinPulse {
@@ -297,15 +310,15 @@
         100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0); }
     }
     .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-        background: #121521 !important;
-        color: #f1f5f9 !important;
+        background: var(--bg-card) !important;
+        color: var(--text-main) !important;
         border: 1px solid rgba(59, 130, 246, 0.45);
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85) !important;
+        box-shadow: var(--shadow-card) !important;
     }
     .leaflet-control-layers {
-        background: rgba(18, 21, 33, 0.92) !important;
-        color: #e2e8f0 !important;
-        border: 1px solid rgba(59, 130, 246, 0.4) !important;
+        background: var(--bg-tooltip) !important;
+        color: var(--text-main) !important;
+        border: 1px solid var(--border-color) !important;
         border-radius: 7px !important;
     }
     .popup-badge-src {
@@ -320,7 +333,7 @@
     .popup-asics-list {
         margin-top: 7px;
         padding-top: 6px;
-        border-top: 1px solid rgba(255, 255, 255, 0.10);
+        border-top: 1px solid var(--border-subtle);
         max-height: 135px;
         overflow-y: auto;
         font-family: monospace;
@@ -331,7 +344,7 @@
         justify-content: space-between;
         gap: 8px;
         padding: 2px 0;
-        border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+        border-bottom: 1px dashed var(--border-subtle);
     }
 
     .adm-grid-2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-bottom: 18px; }
@@ -342,39 +355,40 @@
     .adm-table { width: 100%; min-width: 1040px; border-collapse: collapse; font-size: 0.83em; }
     .adm-table th {
         text-align: left; padding: 10px 12px; font-size: 0.72em; text-transform: uppercase;
-        color: var(--text-muted); background: rgba(255,255,255,0.015); border-bottom: 1px solid var(--border-color);
+        color: var(--text-muted); background: var(--bg-well-soft); border-bottom: 1px solid var(--border-color);
     }
-    .adm-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
-    .adm-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+    .adm-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+    .adm-table tbody tr:hover { background: var(--hover-bg); }
 
     .adm-input, .adm-select {
-        background: rgba(10, 12, 18, 0.75); border: 1px solid var(--border-color); color: var(--text-main);
+        background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main);
         padding: 7px 10px; border-radius: 6px; font-family: monospace; font-size: 0.86em; outline: none;
     }
     .adm-input:focus { border-color: #3b82f6; }
 
     .btn-adm {
-        background: rgba(51, 102, 255, 0.16); border: 1px solid rgba(59, 130, 246, 0.5); color: #60a5fa;
+        background: rgba(51, 102, 255, 0.16); border: 1px solid rgba(59, 130, 246, 0.5); color: var(--accent-blue-light);
         padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 0.80em; cursor: pointer;
         display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
     }
-    .btn-adm:hover { background: rgba(51, 102, 255, 0.35); color: #fff; }
-    .btn-adm.green { background: rgba(0, 230, 118, 0.12); border-color: rgba(0, 230, 118, 0.45); color: #00e676; }
-    .btn-adm.green:hover { background: rgba(0, 230, 118, 0.28); color: #fff; }
-    .btn-adm.gold { background: rgba(255, 179, 0, 0.14); border-color: rgba(255, 179, 0, 0.45); color: #ffd54f; }
-    .btn-adm.gold:hover { background: rgba(255, 179, 0, 0.30); color: #fff; }
+    .btn-adm:hover { background: #2563eb; color: #fff; }
+    .btn-adm.green { background: rgba(0, 230, 118, 0.12); border-color: rgba(0, 230, 118, 0.45); color: var(--accent-green); }
+    .btn-adm.green:hover { background: #059669; color: #fff; }
+    .btn-adm.gold { background: rgba(255, 179, 0, 0.14); border-color: rgba(255, 179, 0, 0.45); color: var(--accent-gold); }
+    .btn-adm.gold:hover { background: #d97706; color: #fff; }
     .btn-adm.purple { background: rgba(168, 85, 247, 0.16); border-color: rgba(168, 85, 247, 0.5); color: #d8b4fe; }
-    .btn-adm.purple:hover { background: rgba(168, 85, 247, 0.34); color: #fff; }
-    .btn-adm.red { background: rgba(255, 82, 82, 0.12); border-color: rgba(255, 82, 82, 0.4); color: #ff5252; }
-    .btn-adm.red:hover { background: rgba(255, 82, 82, 0.28); color: #fff; }
+    .btn-adm.purple:hover { background: #7c3aed; color: #fff; }
+    .btn-adm.red { background: rgba(255, 82, 82, 0.12); border-color: rgba(255, 82, 82, 0.4); color: var(--accent-red); }
+    .btn-adm.red:hover { background: #dc2626; color: #fff; }
 
     .pill-plan { padding: 2px 8px; border-radius: 12px; font-size: 0.76em; font-weight: bold; font-family: monospace; }
-    .pill-pro { background: rgba(0, 230, 118, 0.14); color: #00e676; border: 1px solid rgba(0, 230, 118, 0.4); }
+    .pill-pro { background: rgba(0, 230, 118, 0.14); color: var(--accent-green); border: 1px solid rgba(0, 230, 118, 0.4); }
     .pill-free { background: rgba(148, 153, 176, 0.14); color: var(--text-muted); border: 1px solid var(--border-color); }
     .pill-susp { background: rgba(255, 82, 82, 0.18); color: #ff8a80; border: 1px solid rgba(255, 82, 82, 0.45); }
 
+    .adm-purple-txt { color: #d8b4fe; }
     .nota-privada-chip {
-        margin-top: 3px; font-size: 0.78em; color: #ffd54f;
+        margin-top: 3px; font-size: 0.78em; color: var(--accent-gold);
         background: rgba(255, 179, 0, 0.10); border: 1px solid rgba(255, 179, 0, 0.25);
         border-radius: 4px; padding: 2px 6px; display: inline-block;
         max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -382,18 +396,34 @@
 
     /* Modales */
     .adm-modal-bg {
-        display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
         z-index: 9999; align-items: center; justify-content: center; padding: 14px;
     }
     .adm-modal {
         background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 10px;
-        padding: 20px; width: 100%; max-width: 450px; box-shadow: 0 16px 40px rgba(0,0,0,0.85);
+        padding: 20px; width: 100%; max-width: 450px; box-shadow: var(--shadow-card);
         max-height: 92vh; overflow-y: auto;
     }
     .adm-field { margin-bottom: 12px; }
     .adm-field label { display: block; font-size: 0.74em; color: var(--text-muted); font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
     .adm-field input, .adm-field select, .adm-field textarea { width: 100%; }
+
+    :root[data-theme="light"] .gps-seg-btn.active.real-mode { color: #047857; }
+    :root[data-theme="light"] .gps-seg-btn.active.cmp-mode { color: #b45309; }
+    :root[data-theme="light"] .btn-adm.purple { color: #6d28d9; background: rgba(124, 58, 237, 0.10); }
+    :root[data-theme="light"] .btn-adm.purple:hover { color: #fff; background: #6d28d9; }
+    :root[data-theme="light"] .pill-susp { color: #b91c1c; }
+    :root[data-theme="light"] .adm-purple-txt { color: #7e22ce !important; }
+    :root[data-theme="light"] .popup-badge-real { color: #047857 !important; }
 </style>
+
+<div class="adm-top-bar">
+    <div>
+        <h2 style="margin:0; font-size:1.22em; color:var(--text-main);">🛡️ Panel Admin Global</h2>
+        <div style="font-size:0.78em; color:var(--text-muted); margin-top:2px;">Control de clientes, granjas activas, mapa NOC y PostgreSQL</div>
+    </div>
+    <button type="button" class="btn-adm" onclick="window.location.reload()">🔄 Actualizar</button>
+</div>
 
 {% if msg %}
 <div class="adm-flash">✅ {{ msg }}</div>
@@ -419,22 +449,22 @@
     </div>
     <div class="ak-box">
         <div class="ak-lbl">🏭 Granjas</div>
-        <div class="ak-val" style="color:#38bdf8;">{{ stats.granjas }}</div>
+        <div class="ak-val" style="color:var(--accent-cyan);">{{ stats.granjas }}</div>
         <div class="ak-sub">Ubicaciones activas</div>
     </div>
     <div class="ak-box">
         <div class="ak-lbl">⛏️ ASICs Totales</div>
-        <div class="ak-val" style="color:#60a5fa;">{{ stats.mineros }}</div>
-        <div class="ak-sub"><span style="color:#00e676;">{{ stats.mineros_online }} on</span> · <span style="color:#ff5252;">{{ stats.mineros_offline }} off</span></div>
+        <div class="ak-val" style="color:var(--accent-blue-light);">{{ stats.mineros }}</div>
+        <div class="ak-sub"><span style="color:var(--accent-green);">{{ stats.mineros_online }} on</span> · <span style="color:var(--accent-red);">{{ stats.mineros_offline }} off</span></div>
     </div>
     <div class="ak-box">
         <div class="ak-lbl">⚡ Hashrate Global</div>
-        <div class="ak-val" style="color:#c084fc;">{{ stats.hashrate_global }} <span style="font-size:0.55em; color:var(--text-muted);">TH/s</span></div>
+        <div class="ak-val adm-purple-txt">{{ stats.hashrate_global }} <span style="font-size:0.55em; color:var(--text-muted);">TH/s</span></div>
         <div class="ak-sub">BTC / SHA-256</div>
     </div>
     <div class="ak-box">
         <div class="ak-lbl">💰 Saldo / Bonus</div>
-        <div class="ak-val" style="color:#00e676;">${{ "%.2f"|format(stats.saldo_total) }}</div>
+        <div class="ak-val" style="color:var(--accent-green);">${{ "%.2f"|format(stats.saldo_total) }}</div>
         <div class="ak-sub">🎁 Promo: ${{ "%.2f"|format(stats.bonus_total) }} USDT</div>
     </div>
     <div class="ak-box">
@@ -472,10 +502,10 @@
     <div class="map-wrapper" id="mapWrapper">
         <div id="globalFarmsMap" class="noc-dark-tiles"></div>
         <div class="map-hud" translate="no">
-            <span>🟢 Online: <b style="color:#00e676;">{{ stats.mineros_online }}</b></span>
-            <span>🔴 Offline: <b style="color:#ff5252;">{{ stats.mineros_offline }}</b></span>
-            <span>⚡ <b style="color:#c084fc;">{{ stats.hashrate_global }} TH/s</b></span>
-            <span id="hudDragStatus" style="display:none; color:#ffd54f;">✋ Modo Mover Pin activo</span>
+            <span>🟢 Online: <b style="color:var(--accent-green);">{{ stats.mineros_online }}</b></span>
+            <span>🔴 Offline: <b style="color:var(--accent-red);">{{ stats.mineros_offline }}</b></span>
+            <span>⚡ <b class="adm-purple-txt">{{ stats.hashrate_global }} TH/s</b></span>
+            <span id="hudDragStatus" style="display:none; color:var(--accent-gold);">✋ Modo Mover Pin activo</span>
         </div>
     </div>
 </div>
@@ -555,7 +585,7 @@
                     </td>
                     <td style="font-family:monospace; color:var(--text-muted);" translate="no">
                         <div>{{ u.fecha_registro or '-' }}</div>
-                        <div style="font-size:0.78em; color:#94a3b8;">🕒 {{ (u.ultima_conexion or 'Sin ingreso')[:16] }}</div>
+                        <div style="font-size:0.78em; color:var(--text-muted);">🕒 {{ (u.ultima_conexion or 'Sin ingreso')[:16] }}</div>
                     </td>
                     <td>
                         <span class="pill-plan {{ 'pill-pro' if u.plan == 'Pro' else 'pill-free' }}">{{ u.plan }}</span>
@@ -563,23 +593,23 @@
                         <span class="pill-plan pill-susp">SUSPENDIDO</span>
                         {% endif %}
                         {% if u.pro_dias is not none and u.pro_dias > 0 %}
-                        <div style="font-size:0.78em; color:#d8b4fe; font-family:monospace; margin-top:3px;">
+                        <div class="adm-purple-txt" style="font-size:0.78em; font-family:monospace; margin-top:3px;">
                             ⏳ {{ u.pro_dias }}d · {{ (u.limite_efectivo ~ ' eq.') if u.limite_efectivo > 0 else 'Ilimitado' }}
                         </div>
                         {% endif %}
                     </td>
                     <td style="font-family:monospace;" translate="no">
                         <b>{{ u.online_mineros }}/{{ u.total_mineros }}</b> eq.
-                        <div style="font-size:0.80em; color:#60a5fa;">{{ u.hashrate_btc }} TH/s</div>
+                        <div style="font-size:0.80em; color:var(--accent-blue-light);">{{ u.hashrate_btc }} TH/s</div>
                     </td>
                     <td style="font-family:monospace;" translate="no">
-                        <b style="color:#00e676;">${{ "%.2f"|format(u.gen_dia) }}/d</b>
+                        <b style="color:var(--accent-green);">${{ "%.2f"|format(u.gen_dia) }}/d</b>
                         <div style="font-size:0.80em; color:var(--text-muted);">~${{ "%.0f"|format(u.gen_mes) }}/mes</div>
                     </td>
                     <td style="font-family:monospace;" translate="no">
-                        <b style="color:#38bdf8;">${{ "%.2f"|format(u.saldo or 0) }}</b>
+                        <b style="color:var(--accent-cyan);">${{ "%.2f"|format(u.saldo or 0) }}</b>
                         {% if u.saldo_bonus and u.saldo_bonus > 0 %}
-                        <div style="font-size:0.80em; color:#ffd54f;">🎁 Promo: ${{ "%.2f"|format(u.saldo_bonus) }}</div>
+                        <div style="font-size:0.80em; color:var(--accent-gold);">🎁 Promo: ${{ "%.2f"|format(u.saldo_bonus) }}</div>
                         {% endif %}
                         <div style="font-size:0.76em; color:var(--text-muted);">Dep: ${{ "%.2f"|format(u.total_dep) }} · Mes: -${{ "%.2f"|format(u.gasto_mes) }}</div>
                     </td>
@@ -633,7 +663,7 @@
                         <td style="font-family:monospace; color:var(--text-muted);" translate="no">{{ mv.fecha }}</td>
                         <td style="font-weight:bold;" translate="no">{{ mv.username }}</td>
                         <td style="text-transform:uppercase; font-family:monospace; font-size:0.85em;">{{ mv.tipo }}</td>
-                        <td style="font-family:monospace; font-weight:bold; color:{{ '#d8b4fe' if mv.tipo == 'regalo_pro' else ('#00e676' if mv.monto >= 0 else '#ff5252') }};" translate="no">
+                        <td class="{{ 'adm-purple-txt' if mv.tipo == 'regalo_pro' else '' }}" style="font-family:monospace; font-weight:bold;{{ '' if mv.tipo == 'regalo_pro' else (' color:var(--accent-green);' if mv.monto >= 0 else ' color:var(--accent-red);') }}" translate="no">
                             {% if mv.tipo == 'regalo_pro' %}
                                 🎁 PRO
                             {% else %}
@@ -675,7 +705,7 @@
                     <input type="text" name="nueva_password" id="ed_pass" class="adm-input" placeholder="Dejar vacío para no cambiar">
                     <button type="button" class="btn-adm gold" onclick="generarClaveTemporal()" style="white-space:nowrap;">🔑 Temporal</button>
                 </div>
-                <div id="tempPassHint" style="font-size:0.75em; color:#00e676; margin-top:4px; display:none;"></div>
+                <div id="tempPassHint" style="font-size:0.75em; color:var(--accent-green); margin-top:4px; display:none;"></div>
             </div>
             <div class="adm-field">
                 <label>Plan</label>
@@ -690,7 +720,7 @@
             </div>
             <div class="adm-field" style="display:flex; align-items:center; gap:8px;">
                 <input type="checkbox" name="suspendido" id="ed_susp" value="1" style="width:16px; height:16px; accent-color:#ff5252;">
-                <label for="ed_susp" style="margin:0; cursor:pointer; color:#ff8a80;">Suspender acceso de esta cuenta</label>
+                <label for="ed_susp" style="margin:0; cursor:pointer; color:var(--accent-red);">Suspender acceso de esta cuenta</label>
             </div>
             <button type="submit" class="btn-emg-save" style="width:100%; padding:9px 14px;"
                     data-save-title="💾 Guardar Cambios de Usuario"
@@ -708,8 +738,8 @@
             <button type="button" onclick="document.getElementById('modalSaldoUsr').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">✕</button>
         </div>
         <div style="font-size:0.82em; color:var(--text-muted); margin-bottom:12px;">
-            Saldo real: <b id="sal_actual" style="color:#00e676;"></b> ·
-            🎁 Promo: <b id="sal_bonus_actual" style="color:#ffd54f;"></b>
+            Saldo real: <b id="sal_actual" style="color:var(--accent-green);"></b> ·
+            🎁 Promo: <b id="sal_bonus_actual" style="color:var(--accent-gold);"></b>
         </div>
         <form method="POST" action="/admin">
             <input type="hidden" name="accion" value="movimiento_saldo">
@@ -858,12 +888,12 @@
             if (a.online) {
                 html += `<div class="popup-asic-row">
                     <span>🟢 ${a.ip}</span>
-                    <span style="color:#00e676;">${a.hr} ${a.unidad} · ${a.temp}°C</span>
+                    <span style="color:var(--accent-green);">${a.hr} ${a.unidad} · ${a.temp}°C</span>
                 </div>`;
             } else {
                 html += `<div class="popup-asic-row">
                     <span>🔴 ${a.ip}</span>
-                    <span style="color:#ff5252;">OFFLINE</span>
+                    <span style="color:var(--accent-red);">OFFLINE</span>
                 </div>`;
             }
         });
@@ -933,13 +963,13 @@
             });
 
             const badgeOrigen = useReal
-                ? `<span class="popup-badge-src" style="background:rgba(16,185,129,0.2);color:#34d399;border:1px solid #10b981;">🛰️ Real: ${g.real_source || 'IP Pública'}</span>`
+                ? `<span class="popup-badge-src popup-badge-real" style="background:rgba(16,185,129,0.16);color:#34d399;border:1px solid #10b981;">🛰️ Real: ${g.real_source || 'IP Pública'}</span>`
                 : (g.gps_manual
-                    ? `<span class="popup-badge-src" style="background:rgba(59,130,246,0.2);color:#60a5fa;border:1px solid #3b82f6;">📍 Fijado por Cliente</span>`
-                    : `<span class="popup-badge-src" style="background:rgba(148,163,184,0.2);color:#cbd5e1;border:1px solid #64748b;">🌐 Auto: ${g.real_source || 'IP Pública'}</span>`);
+                    ? `<span class="popup-badge-src" style="background:rgba(59,130,246,0.16);color:var(--accent-blue-light);border:1px solid #3b82f6;">📍 Fijado por Cliente</span>`
+                    : `<span class="popup-badge-src" style="background:rgba(148,163,184,0.16);color:var(--text-secondary);border:1px solid #64748b;">🌐 Auto: ${g.real_source || 'IP Pública'}</span>`);
 
             const desvHtml = (g.desviacion_km && g.desviacion_km >= 0.5)
-                ? `<div style="font-size:11px; color:#fbbf24; margin-top:3px;">⚠️ Desviación: <b>${g.desviacion_km} km</b> vs GPS Real (${g.real_source})</div>`
+                ? `<div style="font-size:11px; color:var(--accent-gold); margin-top:3px;">⚠️ Desviación: <b>${g.desviacion_km} km</b> vs GPS Real (${g.real_source})</div>`
                 : '';
 
             const climaHtml = (g.clima_ext !== null && g.clima_ext !== undefined)
@@ -948,21 +978,30 @@
 
             const uid = USERS_ID_MAP[g.owner];
             const btnSoporteHtml = uid
-                ? `<div style="margin-top:8px;"><a href="/admin/soporte/${uid}" class="btn-adm gold" style="width:100%; justify-content:center;">🛠️ Entrar a Soporte (${g.owner})</a></div>`
+                ? `<a href="/admin/soporte/${uid}" class="btn-adm gold" style="flex:1; justify-content:center;">🛠️ Soporte (${g.owner})</a>`
+                : '';
+            const btnDelGranjaHtml = g.farm_id
+                ? `<button type="button" class="btn-adm red" style="justify-content:center;" onclick="eliminarGranjaAdminEnc('${encodeURIComponent(g.owner)}','${encodeURIComponent(g.farm_id)}','${encodeURIComponent(g.nombre || g.ciudad || g.farm_id)}')" title="Eliminar esta granja y sus registros">🗑️</button>`
+                : '';
+            const btnsPopupHtml = (btnSoporteHtml || btnDelGranjaHtml)
+                ? `<div style="margin-top:8px; display:flex; gap:6px;">${btnSoporteHtml}${btnDelGranjaHtml}</div>`
                 : '';
 
+            const tituloGranja = g.nombre ? `${g.nombre} (${g.ciudad})` : g.ciudad;
+            const estadoColor = (g.color === '#00e676') ? 'var(--accent-green)' : ((g.color === '#ff5252') ? 'var(--accent-red)' : 'var(--accent-gold)');
+
             marker.bindPopup(`
-                <div style="font-family:sans-serif; font-size:12px; line-height:1.5; min-width:230px;">
+                <div style="font-family:sans-serif; font-size:12px; line-height:1.5; min-width:235px;">
                     ${badgeOrigen}
-                    <div style="font-weight:bold; font-size:13px; margin-bottom:2px; color:#60a5fa;">🏭 ${g.ciudad}</div>
-                    <div style="font-family:monospace; font-size:11px; color:#94a3b8; margin-bottom:5px;">Subred: ${g.subred}</div>
+                    <div style="font-weight:bold; font-size:13px; margin-bottom:2px; color:var(--accent-blue-light);">🏭 ${tituloGranja}</div>
+                    <div style="font-family:monospace; font-size:11px; color:var(--text-muted); margin-bottom:5px;">Subred: ${g.subred}${g.farm_id ? ' · ' + g.farm_id : ''}</div>
                     👤 Dueño: <b>${g.owner}</b> · Total: <b>${g.total} ASICs</b><br>
-                    🟢 En línea: <b style="color:#00e676;">${g.online}</b> · 🔴 Offline: <b style="color:#ff5252;">${g.offline}</b><br>
-                    ⚡ Hashrate: <b style="color:#c084fc;">${g.hashrate} TH/s</b> · 🌡️ <b>${g.temp_max}°C</b>${climaHtml}<br>
-                    Estado: <b style="color:${g.color};">${g.estado_txt}</b>
+                    🟢 En línea: <b style="color:var(--accent-green);">${g.online}</b> · 🔴 Offline: <b style="color:var(--accent-red);">${g.offline}</b><br>
+                    ⚡ Hashrate: <b class="adm-purple-txt">${g.hashrate} TH/s</b> · 🌡️ <b>${g.temp_max}°C</b>${climaHtml}<br>
+                    Estado: <b style="color:${estadoColor};">${g.estado_txt}</b>
                     ${desvHtml}
                     ${construirListaAsicsPopup(g.asics)}
-                    ${btnSoporteHtml}
+                    ${btnsPopupHtml}
                 </div>
             `);
 
@@ -980,7 +1019,8 @@
                         ciudad: g.ciudad,
                         pais: g.pais || 'Bolivia',
                         owner: g.owner,
-                        subred: g.subred
+                        subred: g.subred,
+                        farm_id: g.farm_id || ''
                     })
                 }).then(() => {
                     if (typeof mostrarLayoutToast === 'function') {
@@ -1075,6 +1115,32 @@
         }
     }
 
+    function eliminarGranjaAdminEnc(ownerEnc, farmIdEnc, nombreEnc) {
+        const owner = decodeURIComponent(ownerEnc || '');
+        const farmId = decodeURIComponent(farmIdEnc || '');
+        const nombre = decodeURIComponent(nombreEnc || farmId);
+        if (!owner || !farmId) return;
+        if (!confirm(`¿Eliminar por completo la granja "${nombre}" del cliente "${owner}"?\nSe borrará la sede y todos sus registros asociados.`)) return;
+
+        fetch('/admin/eliminar_granja', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ owner: owner, farm_id: farmId })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'ok') {
+                if (typeof mostrarLayoutToast === 'function') {
+                    mostrarLayoutToast(`🗑️ Granja "${nombre}" eliminada.`);
+                }
+                setTimeout(() => window.location.reload(), 400);
+            } else {
+                alert(d.msg || 'No se pudo eliminar la granja');
+            }
+        })
+        .catch(() => alert('Error de red al eliminar la granja'));
+    }
+
     window.addEventListener('load', function() {
         const capaOscura = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             maxZoom: 19,
@@ -1089,9 +1155,13 @@
             attribution: '&copy; Google Maps'
         });
 
+        const esTemaClaroInicial = (document.documentElement.getAttribute('data-theme') === 'light');
+        const mapEl = document.getElementById('globalFarmsMap');
+        if (mapEl) mapEl.classList.toggle('noc-dark-tiles', !esTemaClaroInicial);
+
         admMap = L.map('globalFarmsMap', {
             scrollWheelZoom: true,
-            layers: [capaOscura]
+            layers: [esTemaClaroInicial ? capaCalles : capaOscura]
         }).setView([-15.0, -60.0], 3);
 
         admMap.on('baselayerchange', function(e) {
@@ -1101,6 +1171,22 @@
                 el.classList.add('noc-dark-tiles');
             } else {
                 el.classList.remove('noc-dark-tiles');
+            }
+        });
+
+        window.addEventListener('emg:theme-change', function(ev) {
+            if (!admMap) return;
+            const light = (ev && ev.detail && ev.detail.theme === 'light');
+            const el = document.getElementById('globalFarmsMap');
+            if (admMap.hasLayer(capaSatelite)) return;
+            if (light) {
+                if (admMap.hasLayer(capaOscura)) admMap.removeLayer(capaOscura);
+                if (!admMap.hasLayer(capaCalles)) admMap.addLayer(capaCalles);
+                if (el) el.classList.remove('noc-dark-tiles');
+            } else {
+                if (admMap.hasLayer(capaCalles)) admMap.removeLayer(capaCalles);
+                if (!admMap.hasLayer(capaOscura)) admMap.addLayer(capaOscura);
+                if (el) el.classList.add('noc-dark-tiles');
             }
         });
 

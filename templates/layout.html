@@ -18,6 +18,21 @@
                 const savedTheme = localStorage.getItem('emg_theme');
                 if (savedTheme === 'light' || savedTheme === 'dark') {
                     document.documentElement.setAttribute('data-theme', savedTheme);
+                    const metaT = document.querySelector('meta[name="theme-color"]');
+                    if (metaT) metaT.setAttribute('content', savedTheme === 'light' ? '#f1f5f9' : '#0d0f17');
+                }
+            } catch(e) {}
+            try {
+                let lang = localStorage.getItem('emg_lang');
+                if (!lang) {
+                    const bl = (navigator.language || navigator.userLanguage || 'es').toLowerCase().split('-')[0];
+                    const map = { 'en':'en','zh':'zh-CN','hi':'hi','ar':'ar','pt':'pt','bn':'bn','ru':'ru','fr':'fr','de':'de','ja':'zh-CN','ko':'zh-CN' };
+                    lang = (bl === 'es') ? 'es' : (map[bl] || 'es');
+                }
+                if (lang && lang !== 'es') {
+                    document.cookie = 'googtrans=/es/' + lang + '; path=/';
+                } else {
+                    document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
                 }
             } catch(e) {}
         })();
@@ -30,34 +45,56 @@
             --bg-sidebar: #12141f;
             --bg-card: #161926;
             --bg-input: #0a0c12;
+            --bg-well: rgba(10, 12, 18, 0.55);
+            --bg-well-deep: rgba(10, 12, 18, 0.85);
+            --bg-well-soft: rgba(255, 255, 255, 0.03);
+            --bg-terminal: #07090f;
+            --bg-tooltip: rgba(10, 11, 16, 0.98);
             --border-color: #25283a;
+            --border-subtle: rgba(255, 255, 255, 0.07);
             --text-main: #ffffff;
+            --text-secondary: #cbd5e1;
+            --text-tooltip: #d1d3e0;
             --text-muted: #9499b0;
             --text-sub: #747991;
             --accent-blue: #3366ff;
             --accent-blue-light: #60a5fa;
+            --accent-cyan: #38bdf8;
             --accent-green: #00e676;
             --accent-red: #ff5252;
+            --accent-gold: #ffd54f;
             --hover-bg: rgba(255, 255, 255, 0.04);
             --active-bg: rgba(51, 102, 255, 0.14);
             --topbar-bg: rgba(13, 15, 23, 0.90);
+            --shadow-card: 0 10px 28px rgba(0, 0, 0, 0.72);
         }
         :root[data-theme="light"] {
             --bg-body: #f1f5f9;
             --bg-sidebar: #ffffff;
             --bg-card: #ffffff;
             --bg-input: #f8fafc;
-            --border-color: #e2e8f0;
+            --bg-well: #f8fafc;
+            --bg-well-deep: #f1f5f9;
+            --bg-well-soft: #f8fafc;
+            --bg-terminal: #0f172a;
+            --bg-tooltip: #ffffff;
+            --border-color: #cbd5e1;
+            --border-subtle: #e2e8f0;
             --text-main: #0f172a;
+            --text-secondary: #334155;
+            --text-tooltip: #334155;
             --text-muted: #64748b;
-            --text-sub: #94a3b8;
+            --text-sub: #64748b;
             --accent-blue: #2563eb;
-            --accent-blue-light: #3b82f6;
-            --accent-green: #10b981;
-            --accent-red: #ef4444;
-            --hover-bg: #f1f5f9;
+            --accent-blue-light: #2563eb;
+            --accent-cyan: #0284c7;
+            --accent-green: #059669;
+            --accent-red: #dc2626;
+            --accent-gold: #b45309;
+            --hover-bg: #e2e8f0;
             --active-bg: rgba(37, 99, 235, 0.10);
-            --topbar-bg: rgba(255, 255, 255, 0.92);
+            --topbar-bg: rgba(255, 255, 255, 0.94);
+            --shadow-card: 0 6px 20px rgba(15, 23, 42, 0.08);
         }
 
         * { box-sizing: border-box; }
@@ -72,20 +109,27 @@
             height: 100dvh;
             overflow: hidden;
             top: 0 !important;
+            position: static !important;
             font-variant-numeric: tabular-nums;
         }
 
         button, a, select { touch-action: manipulation; }
 
-        .skiptranslate iframe { display: none !important; }
-        body { top: 0px !important; }
+        .skiptranslate iframe,
+        .goog-te-banner-frame,
+        iframe.goog-te-banner-frame,
+        .VIpgJd-ZVi9od-ORHb-OEVmcd,
+        .VIpgJd-ZVi9od-aZ2wEe-wOHMyf { display: none !important; }
+        body > .skiptranslate { display: none !important; }
+        html, body { top: 0px !important; }
+        font { background-color: transparent !important; box-shadow: none !important; }
         #google_translate_element { display: none; }
         a { text-decoration: none; color: inherit; }
 
         .support-mode-bar {
             background: rgba(255, 179, 0, 0.18);
             border-bottom: 1px solid rgba(255, 179, 0, 0.55);
-            color: #ffd54f;
+            color: var(--accent-gold);
             padding: 7px 16px;
             font-size: 0.80em;
             font-weight: bold;
@@ -116,6 +160,8 @@
             flex-wrap: wrap;
             gap: 8px;
         }
+        :root[data-theme="light"] .plan-limit-bar,
+        :root[data-theme="light"] .net-offline-bar { color: #b91c1c; background: rgba(239, 68, 68, 0.10); }
         .plan-upgrade-btn {
             background: linear-gradient(135deg, #3366ff 0%, #2563eb 100%);
             color: #fff;
@@ -135,6 +181,7 @@
             font-size: 0.80em;
             font-weight: 600;
         }
+        :root[data-theme="light"] .global-announce-bar { color: #1d4ed8; background: rgba(37, 99, 235, 0.10); }
         .net-offline-bar {
             display: none;
             background: rgba(255, 82, 82, 0.16);
@@ -232,7 +279,7 @@
         .menu a.wa-support-link:hover {
             background: rgba(37, 211, 102, 0.15);
             border-color: #25d366;
-            color: #fff;
+            color: var(--text-main);
         }
 
         .sidebar-bottom {
@@ -243,7 +290,7 @@
             gap: 8px;
         }
         .user-wallet-box {
-            background: rgba(255, 255, 255, 0.025);
+            background: var(--bg-well-soft);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 10px 12px;
@@ -285,7 +332,7 @@
             border-radius: 6px;
             background: rgba(255, 179, 0, 0.12);
             border: 1px solid rgba(255, 179, 0, 0.35);
-            color: #ffd54f;
+            color: var(--accent-gold);
             font-size: 0.74em;
             font-family: monospace;
             font-weight: bold;
@@ -297,16 +344,16 @@
             bottom: calc(100% + 8px);
             left: 0;
             width: 220px;
-            background: rgba(10, 12, 18, 0.98);
+            background: var(--bg-tooltip);
             border: 1px solid rgba(255, 179, 0, 0.55);
-            color: #e2e8f0;
+            color: var(--text-tooltip);
             padding: 9px 10px;
             border-radius: 7px;
             font-family: sans-serif;
             font-size: 11px;
             font-weight: normal;
             line-height: 1.4;
-            box-shadow: 0 10px 24px rgba(0,0,0,0.85);
+            box-shadow: var(--shadow-card);
             z-index: 99999;
         }
         .promo-credit-pill:hover .promo-tooltip-box,
@@ -323,6 +370,7 @@
             border-radius: 6px;
             text-align: center;
         }
+        :root[data-theme="light"] .pro-days-chip { color: #7e22ce; }
         .btn-logout-pro {
             color: var(--accent-red);
             font-size: 0.82em;
@@ -375,8 +423,12 @@
         .top-btn { width: 36px; font-size: 1.05em; color: var(--text-muted); }
         .top-btn:hover, .top-lang-select:hover {
             border-color: #3b82f6;
-            color: #fff;
+            color: var(--accent-blue-light);
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+        }
+        .top-lang-select option {
+            background: var(--bg-card);
+            color: var(--text-main);
         }
         .top-lang-select { padding: 0 10px; outline: none; }
 
@@ -477,14 +529,14 @@
             bottom: 22px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(10, 12, 18, 0.96);
+            background: var(--bg-tooltip);
             border: 1px solid #3b82f6;
-            color: #fff;
+            color: var(--text-main);
             padding: 10px 18px;
             border-radius: 8px;
             font-size: 0.85em;
             font-weight: bold;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 14px rgba(59, 130, 246, 0.35);
+            box-shadow: var(--shadow-card), 0 0 14px rgba(59, 130, 246, 0.25);
             z-index: 99999;
             display: none;
             align-items: center;
@@ -556,18 +608,18 @@
             display: none;
             width: 280px;
             max-width: calc(100vw - 20px);
-            background: rgba(10, 11, 16, 0.98);
+            background: var(--bg-tooltip);
             border: 1px solid rgba(51, 102, 255, 0.55);
             border-radius: 7px;
             padding: 10px 12px;
-            color: #d1d3e0;
+            color: var(--text-tooltip);
             font-family: sans-serif;
             font-size: 11.5px;
             font-weight: normal;
             line-height: 1.45;
             white-space: normal;
             text-align: left;
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
+            box-shadow: var(--shadow-card);
             z-index: 100000;
             pointer-events: none;
         }
@@ -575,7 +627,7 @@
             position: absolute;
             width: 10px;
             height: 10px;
-            background: rgba(10, 11, 16, 0.98);
+            background: var(--bg-tooltip);
             transform: rotate(45deg);
         }
         .emg-save-tt-arrow.bottom {
@@ -589,22 +641,22 @@
             border-top: 1px solid rgba(51, 102, 255, 0.55);
         }
         .emg-save-tt-header {
-            color: #fff;
+            color: var(--text-main);
             font-weight: bold;
             font-size: 12px;
             margin-bottom: 5px;
             padding-bottom: 4px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            border-bottom: 1px solid var(--border-subtle);
         }
         .emg-save-tt-note {
             margin-top: 6px;
             padding: 5px 7px;
             background: rgba(56, 189, 248, 0.08);
-            border-left: 2px solid #38bdf8;
+            border-left: 2px solid var(--accent-cyan);
             border-radius: 3px;
             font-family: monospace;
             font-size: 10.5px;
-            color: #38bdf8;
+            color: var(--accent-cyan);
         }
 
         /* Modal Ping Pools */
@@ -650,7 +702,7 @@
             cursor: pointer;
             font-weight: bold;
         }
-        .ping-close-btn:hover { color: #fff; border-color: var(--accent-red); }
+        .ping-close-btn:hover { color: var(--accent-red); border-color: var(--accent-red); }
         .ping-controls { display: flex; gap: 8px; flex-wrap: wrap; }
         .ping-select {
             flex: 1;
@@ -740,18 +792,18 @@
             <div class="logo-text" translate="no">El Minero <span>Gris</span></div>
         </div>
 
-        <div class="sidebar-mobile-lang">
-            <select class="top-lang-select" id="langSelectorMobile" style="width:100%; display:flex;" onchange="cambiarIdioma(this.value)">
-                <option value="es">🌐 Español</option>
-                <option value="en">🌐 English</option>
-                <option value="zh-CN">🌐 中文 (Chino)</option>
-                <option value="hi">🌐 हिन्दी (Hindi)</option>
-                <option value="ar">🌐 العربية (Árabe)</option>
-                <option value="pt">🌐 Português</option>
-                <option value="bn">🌐 বাংলা (Bengalí)</option>
-                <option value="ru">🌐 Русский (Ruso)</option>
-                <option value="fr">🌐 Français</option>
-                <option value="de">🌐 Deutsch</option>
+        <div class="sidebar-mobile-lang notranslate" translate="no">
+            <select class="top-lang-select notranslate" translate="no" id="langSelectorMobile" style="width:100%; display:flex;" onchange="cambiarIdioma(this.value)">
+                <option value="es" translate="no">🇪🇸 Español</option>
+                <option value="en" translate="no">🇺🇸 English</option>
+                <option value="pt" translate="no">🇧🇷 Português</option>
+                <option value="ru" translate="no">🇷🇺 Русский</option>
+                <option value="zh-CN" translate="no">🇨🇳 中文 (简体)</option>
+                <option value="hi" translate="no">🇮🇳 हिन्दी</option>
+                <option value="ar" translate="no">🇸🇦 العربية</option>
+                <option value="bn" translate="no">🇧🇩 বাংলা</option>
+                <option value="fr" translate="no">🇫🇷 Français</option>
+                <option value="de" translate="no">🇩🇪 Deutsch</option>
             </select>
         </div>
 
@@ -852,18 +904,20 @@
 
             <div class="top-bar-right">
                 <button type="button" class="top-btn" onclick="toggleTheme()" id="themeIcon" title="Cambiar tema claro/oscuro">☀️</button>
-                <select class="top-lang-select" id="langSelector" onchange="cambiarIdioma(this.value)" title="Cambiar idioma">
-                    <option value="es">🌐 Español</option>
-                    <option value="en">🌐 English</option>
-                    <option value="zh-CN">🌐 中文 (Chino)</option>
-                    <option value="hi">🌐 हिन्दी (Hindi)</option>
-                    <option value="ar">🌐 العربية (Árabe)</option>
-                    <option value="pt">🌐 Português</option>
-                    <option value="bn">🌐 বাংলা (Bengalí)</option>
-                    <option value="ru">🌐 Русский (Ruso)</option>
-                    <option value="fr">🌐 Français</option>
-                    <option value="de">🌐 Deutsch</option>
-                </select>
+                <div class="notranslate" translate="no" style="display:inline-flex;">
+                    <select class="top-lang-select notranslate" translate="no" id="langSelector" onchange="cambiarIdioma(this.value)" title="Idioma / Language">
+                        <option value="es" translate="no">🇪🇸 Español</option>
+                        <option value="en" translate="no">🇺🇸 English</option>
+                        <option value="pt" translate="no">🇧🇷 Português</option>
+                        <option value="ru" translate="no">🇷🇺 Русский</option>
+                        <option value="zh-CN" translate="no">🇨🇳 中文 (简体)</option>
+                        <option value="hi" translate="no">🇮🇳 हिन्दी</option>
+                        <option value="ar" translate="no">🇸🇦 العربية</option>
+                        <option value="bn" translate="no">🇧🇩 বাংলা</option>
+                        <option value="fr" translate="no">🇫🇷 Français</option>
+                        <option value="de" translate="no">🇩🇪 Deutsch</option>
+                    </select>
+                </div>
                 <div class="top-status" id="liveStatusPill" onclick="toggleAutoLive()" title="Toca para pausar o reanudar la actualización automática">
                     <span id="relojTop" translate="no">00:00</span>
                     <span class="status-envivo" translate="no">
@@ -1019,67 +1073,108 @@
             new google.translate.TranslateElement({pageLanguage: 'es', autoDisplay: false}, 'google_translate_element');
         }
 
-        function cambiarIdioma(lang) {
-            let s = document.querySelector(".goog-te-combo");
-            if (s) { s.value = lang; s.dispatchEvent(new Event("change")); }
-            let d = document.getElementById('langSelector');
-            let m = document.getElementById('langSelectorMobile');
+        function _setGoogTransCookie(lang) {
+            const host = window.location.hostname || '';
+            const parts = host.split('.');
+            const rootDomain = parts.length >= 2 ? '.' + parts.slice(-2).join('.') : '';
+            if (!lang || lang === 'es') {
+                const exp = 'expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                document.cookie = `googtrans=; ${exp}; path=/`;
+                if (host) document.cookie = `googtrans=; ${exp}; path=/; domain=${host}`;
+                if (rootDomain) document.cookie = `googtrans=; ${exp}; path=/; domain=${rootDomain}`;
+            } else {
+                const val = `/es/${lang}`;
+                document.cookie = `googtrans=${val}; path=/`;
+                if (host && host !== 'localhost' && !/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+                    document.cookie = `googtrans=${val}; path=/; domain=${host}`;
+                }
+            }
+        }
+
+        function _sincronizarSelectoresIdioma(lang) {
+            const d = document.getElementById('langSelector');
+            const m = document.getElementById('langSelectorMobile');
             if (d) d.value = lang;
             if (m) m.value = lang;
-            try { localStorage.setItem('emg_lang', lang); } catch(e) {}
+        }
+
+        function cambiarIdioma(lang) {
+            const target = lang || 'es';
+            try { localStorage.setItem('emg_lang', target); } catch(e) {}
+            _sincronizarSelectoresIdioma(target);
+            _setGoogTransCookie(target);
+
+            const estabaTraducido = document.documentElement.classList.contains('translated-ltr')
+                || document.documentElement.classList.contains('translated-rtl');
+
+            if (target === 'es') {
+                const combo = document.querySelector(".goog-te-combo");
+                if (combo) {
+                    const tieneEs = Array.from(combo.options || []).some(o => o.value === 'es');
+                    combo.value = tieneEs ? 'es' : '';
+                    combo.dispatchEvent(new Event("change"));
+                }
+                if (estabaTraducido) {
+                    window.location.reload();
+                }
+                return;
+            }
+
+            const aplicarEnCombo = () => {
+                const combo = document.querySelector(".goog-te-combo");
+                if (!combo) return false;
+                if (combo.value !== target) {
+                    combo.value = target;
+                    combo.dispatchEvent(new Event("change"));
+                }
+                return true;
+            };
+            if (!aplicarEnCombo()) {
+                let n = 0;
+                const t = setInterval(() => {
+                    n++;
+                    if (aplicarEnCombo() || n > 25) clearInterval(t);
+                }, 200);
+            }
         }
 
         function detectarIdiomaAutomatico() {
-            /* Si el usuario ya eligió un idioma manualmente, respetar eso */
             try {
                 const guardado = localStorage.getItem('emg_lang');
-                if (guardado && guardado !== 'es') {
-                    return guardado;
-                }
-                if (guardado === 'es') return null; /* ya está en español, no cambiar */
+                if (guardado) return guardado === 'es' ? null : guardado;
             } catch(e) {}
 
-            /* Detectar idioma del navegador */
             const browserLang = (navigator.language || navigator.userLanguage || 'es').toLowerCase();
             const mapeo = {
                 'en': 'en', 'zh': 'zh-CN', 'hi': 'hi', 'ar': 'ar',
                 'pt': 'pt', 'bn': 'bn', 'ru': 'ru', 'fr': 'fr', 'de': 'de',
                 'ja': 'zh-CN', 'ko': 'zh-CN'
             };
-
-            /* Buscar match exacto primero (ej: "pt-BR" → "pt"), luego prefijo */
             const prefijo = browserLang.split('-')[0];
-            if (prefijo === 'es') return null; /* español, no cambiar */
-
+            if (prefijo === 'es') return null;
             return mapeo[prefijo] || null;
         }
 
         function aplicarIdiomaInicial() {
-            const idiomaDetectado = detectarIdiomaAutomatico();
-            if (idiomaDetectado) {
-                /* Esperar a que Google Translate cargue */
+            const activo = detectarIdiomaAutomatico() || 'es';
+            _sincronizarSelectoresIdioma(activo);
+            _setGoogTransCookie(activo);
+
+            if (activo !== 'es') {
                 let intentos = 0;
                 const intervalo = setInterval(function() {
                     intentos++;
                     const combo = document.querySelector(".goog-te-combo");
                     if (combo) {
                         clearInterval(intervalo);
-                        cambiarIdioma(idiomaDetectado);
+                        if (combo.value !== activo) {
+                            combo.value = activo;
+                            combo.dispatchEvent(new Event("change"));
+                        }
                     }
-                    if (intentos > 30) clearInterval(intervalo); /* timeout 6s */
+                    if (intentos > 30) clearInterval(intervalo);
                 }, 200);
             }
-
-            /* Sincronizar el selector visual con el idioma guardado */
-            try {
-                const guardado = localStorage.getItem('emg_lang');
-                if (guardado) {
-                    let d = document.getElementById('langSelector');
-                    let m = document.getElementById('langSelectorMobile');
-                    if (d) d.value = guardado;
-                    if (m) m.value = guardado;
-                }
-            } catch(e) {}
         }
 
         function actualizarReloj() {
@@ -1092,9 +1187,11 @@
 
         function sincronizarIconoTema() {
             const h = document.documentElement;
+            const esLight = (h.getAttribute('data-theme') === 'light');
             const i = document.getElementById('themeIcon');
-            if (!i) return;
-            i.innerText = (h.getAttribute('data-theme') === 'light') ? '🌙' : '☀️';
+            if (i) i.innerText = esLight ? '🌙' : '☀️';
+            const metaT = document.querySelector('meta[name="theme-color"]');
+            if (metaT) metaT.setAttribute('content', esLight ? '#f1f5f9' : '#0d0f17');
         }
 
         function toggleTheme() {
@@ -1103,6 +1200,7 @@
             h.setAttribute('data-theme', next);
             try { localStorage.setItem('emg_theme', next); } catch(e) {}
             sincronizarIconoTema();
+            window.dispatchEvent(new CustomEvent('emg:theme-change', { detail: { theme: next } }));
         }
 
         const LIVE_INTERVAL_SEC = 20;

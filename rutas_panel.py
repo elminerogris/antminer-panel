@@ -362,6 +362,64 @@ def api_granjas_guardar():
     """, (usr_actual, farm_id, nombre, ciudad, gateway, cap_kw, tarifa_kwh, notas))
     return jsonify({"status": "ok", "farm_id": farm_id, "nombre": nombre})
 
+def _borrar_granja_completa(cur, owner, farm_id, eliminar_mineros=True, mover_a_farm_id=""):
+    """Elimina una granja/sede por completo (o traslada sus mineros) evitando registros huérfanos."""
+    cur.execute(
+        "SELECT agent_id FROM granjas_sedes WHERE owner=%s AND farm_id=%s LIMIT 1",
+        (owner, farm_id)
+    )
+    row_sede = cur.fetchone()
+    ag_ref = str((row_sede[0] if (row_sede and not isinstance(row_sede, dict)) else (row_sede or {}).get('agent_id')) or farm_id).strip() or farm_id
+
+    cur.execute(
+        "SELECT ip FROM mineros_activos WHERE owner=%s AND (farm_id=%s OR ((farm_id IS NULL OR farm_id='') AND agent_id=%s))",
+        (owner, farm_id, ag_ref)
+    )
+    rows_ip = cur.fetchall() or []
+    ips_afectadas = [str(r[0] if not isinstance(r, dict) else r['ip']).strip() for r in rows_ip]
+
+    eliminados_m = 0
+    movidos_m = 0
+    if mover_a_farm_id and mover_a_farm_id != farm_id:
+        cur.execute(
+            "UPDATE mineros_activos SET farm_id=%s WHERE owner=%s AND (farm_id=%s OR ((farm_id IS NULL OR farm_id='') AND agent_id=%s))",
+            (mover_a_farm_id, owner, farm_id, ag_ref)
+        )
+        movidos_m = cur.rowcount
+        cur.execute("UPDATE racks_sedes SET farm_id=%s WHERE owner=%s AND farm_id=%s", (mover_a_farm_id, owner, farm_id))
+        cur.execute("UPDATE agentes_conectados SET farm_id=%s WHERE owner=%s AND farm_id=%s", (mover_a_farm_id, owner, farm_id))
+        cur.execute("UPDATE mineros_descubiertos SET farm_id=%s WHERE owner=%s AND farm_id=%s", (mover_a_farm_id, owner, farm_id))
+    elif eliminar_mineros:
+        cur.execute(
+            "DELETE FROM mineros_activos WHERE owner=%s AND (farm_id=%s OR ((farm_id IS NULL OR farm_id='') AND agent_id=%s))",
+            (owner, farm_id, ag_ref)
+        )
+        eliminados_m = cur.rowcount
+        if ips_afectadas:
+            cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s", (owner,))
+            ips_restantes = {str(r[0] if not isinstance(r, dict) else r['ip']).strip() for r in (cur.fetchall() or [])}
+            for ip_x in ips_afectadas:
+                if ip_x and ip_x not in ips_restantes:
+                    for tbl in ('nombres_mineros', 'logs_mineros', 'cola_comandos'):
+                        cur.execute(f"DELETE FROM {tbl} WHERE owner=%s AND ip=%s", (owner, ip_x))
+        cur.execute("DELETE FROM racks_sedes WHERE owner=%s AND farm_id=%s", (owner, farm_id))
+        cur.execute("DELETE FROM mineros_descubiertos WHERE owner=%s AND farm_id=%s", (owner, farm_id))
+        cur.execute("DELETE FROM agentes_conectados WHERE owner=%s AND farm_id=%s", (owner, farm_id))
+        if ag_ref:
+            cur.execute(
+                "DELETE FROM agentes_conectados WHERE owner=%s AND agent_id=%s AND NOT EXISTS (SELECT 1 FROM granjas_sedes gs WHERE gs.owner=%s AND gs.agent_id=%s AND gs.farm_id != %s)",
+                (owner, ag_ref, owner, ag_ref, farm_id)
+            )
+    else:
+        cur.execute(
+            "UPDATE mineros_activos SET farm_id=agent_id WHERE owner=%s AND farm_id=%s",
+            (owner, farm_id)
+        )
+
+    cur.execute("DELETE FROM granjas_sedes WHERE owner=%s AND farm_id=%s", (owner, farm_id))
+    return eliminados_m, movidos_m
+
+
 @panel_bp.route('/api/granjas/eliminar', methods=['POST'])
 @login_required
 def api_granjas_eliminar():
@@ -371,10 +429,14 @@ def api_granjas_eliminar():
     if not farm_id:
         return jsonify({"status": "error", "msg": "farm_id requerido"}), 400
 
+    mover_a = str(data.get('mover_a_farm_id') or '').strip()
+    eliminar_mineros = bool(data.get('eliminar_mineros', True))
+
     con = get_db(); con.autocommit = True; cur = con.cursor()
-    cur.execute("UPDATE mineros_activos SET farm_id=agent_id WHERE owner=%s AND farm_id=%s", (usr_actual, farm_id))
-    cur.execute("DELETE FROM granjas_sedes WHERE owner=%s AND farm_id=%s", (usr_actual, farm_id))
-    return jsonify({"status": "ok"})
+    eliminados_m, movidos_m = _borrar_granja_completa(
+        cur, usr_actual, farm_id, eliminar_mineros=eliminar_mineros, mover_a_farm_id=mover_a
+    )
+    return jsonify({"status": "ok", "eliminados_mineros": eliminados_m, "movidos_mineros": movidos_m})
 
 @panel_bp.route('/api/granjas/editar_minero', methods=['POST'])
 @login_required
@@ -492,11 +554,21 @@ def api_guardar_gps():
     if es_super_admin() and data.get('owner'):
         owner_target = str(data.get('owner')).strip()
 
+    farm_id = str(data.get('farm_id') or '').strip()
     agent_id = str(data.get('agent_id') or '').strip()
     subred = str(data.get('subred') or '').strip()
     con = get_db(); con.autocommit = True; cur = con.cursor()
 
-    if agent_id and subred and subred.endswith('.x'):
+    if farm_id:
+        cur.execute(
+            "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s AND (farm_id=%s OR ((farm_id IS NULL OR farm_id='') AND agent_id=%s))",
+            (lat, lon, ciudad, pais, owner_target, farm_id, agent_id or farm_id)
+        )
+        cur.execute(
+            "UPDATE granjas_sedes SET ciudad=%s WHERE owner=%s AND farm_id=%s",
+            (ciudad, owner_target, farm_id)
+        )
+    elif agent_id and subred and subred.endswith('.x'):
         cur.execute(
             "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s AND agent_id=%s AND ip LIKE %s",
             (lat, lon, ciudad, pais, owner_target, agent_id, subred[:-1] + '%')
@@ -843,8 +915,12 @@ def mineros():
     cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
     nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
 
-    cur.execute("SELECT farm_id, nombre FROM granjas_sedes WHERE owner=%s", (usr_actual,))
-    granjas_dict = {str(row['farm_id']).strip(): str(row['nombre']).strip() for row in cur.fetchall() if row.get('farm_id') and row.get('nombre')}
+    cur.execute("SELECT farm_id, nombre, ciudad FROM granjas_sedes WHERE owner=%s", (usr_actual,))
+    sedes_dict = {
+        str(row['farm_id']).strip(): row
+        for row in (cur.fetchall() or [])
+        if str(row.get('farm_id') or '').strip()
+    }
 
     datos_red = obtener_datos_red()
     lista_mineros = []
@@ -858,6 +934,19 @@ def mineros():
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
         nombre = nombre_inteligente_minero(ip, nombres_dict, m.get('worker1'))
+        ag_id = str(m.get('agent_id') or 'default').strip() or 'default'
+        fid = str(m.get('farm_id') or ag_id).strip() or 'default'
+        sede_info = sedes_dict.get(fid) or {}
+        granja_nombre = str(sede_info.get('nombre') or '').strip()
+        if not granja_nombre:
+            ciudad_m = str(sede_info.get('ciudad') or m.get('farm_city') or '').strip()
+            if ciudad_m:
+                granja_nombre = f"Granja {ciudad_m} ({fid})"
+            elif fid != 'default':
+                granja_nombre = f"Granja ({fid})"
+            else:
+                granja_nombre = "Granja Principal"
+
         segs = calcular_segundos_desconectado(m.get('ultima_act'))
         es_online = segs < 300
 

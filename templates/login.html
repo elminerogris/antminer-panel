@@ -6,18 +6,46 @@
     <link rel="icon" type="image/png" href="/static/logo.png">
     <link rel="apple-touch-icon" href="/static/logo.png">
     <title>El Minero Gris — Acceso al Panel</title>
+    <script>
+        (function() {
+            try {
+                const t = localStorage.getItem('emg_theme');
+                if (t === 'light' || t === 'dark') {
+                    document.documentElement.setAttribute('data-theme', t);
+                }
+            } catch(e) {}
+        })();
+    </script>
     <style>
-        :root {
+        :root, :root[data-theme="dark"] {
             --bg-body: #0d0f17;
             --bg-card: #151824;
             --bg-input: #0a0c12;
+            --bg-well: rgba(10, 12, 18, 0.75);
             --border-color: #262a3d;
+            --border-subtle: rgba(255, 255, 255, 0.07);
             --text-main: #ffffff;
             --text-muted: #9499b0;
             --accent-blue: #3366ff;
             --accent-blue-light: #60a5fa;
             --accent-red: #ff5252;
             --accent-green: #00e676;
+            --hover-bg: rgba(255, 255, 255, 0.06);
+        }
+        :root[data-theme="light"] {
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --bg-well: #f1f5f9;
+            --border-color: #cbd5e1;
+            --border-subtle: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent-blue: #2563eb;
+            --accent-blue-light: #2563eb;
+            --accent-red: #dc2626;
+            --accent-green: #059669;
+            --hover-bg: #e2e8f0;
         }
 
         * {
@@ -29,8 +57,8 @@
             background-color: var(--bg-body);
             background-image:
                 radial-gradient(circle at 50% 0%, rgba(51, 102, 255, 0.14) 0%, transparent 55%),
-                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+                linear-gradient(var(--border-subtle) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
             background-size: 100% 100%, 36px 36px, 36px 36px;
             color: var(--text-main);
             display: flex;
@@ -40,17 +68,22 @@
             min-height: 100vh;
             margin: 0;
             padding: 20px;
+            top: 0 !important;
+            position: static !important;
         }
 
         .login-card {
-            background: linear-gradient(165deg, rgba(24, 28, 44, 0.96) 0%, rgba(15, 17, 26, 0.98) 100%);
+            background: var(--bg-card);
             padding: 34px 28px 28px 28px;
             border-radius: 12px;
-            border: 1px solid rgba(59, 130, 246, 0.28);
+            border: 1px solid rgba(59, 130, 246, 0.30);
             width: 100%;
             max-width: 390px;
             box-shadow: 0 18px 48px rgba(0, 0, 0, 0.72), 0 0 28px rgba(51, 102, 255, 0.10);
             backdrop-filter: blur(8px);
+        }
+        :root[data-theme="light"] .login-card {
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.10);
         }
 
         /* Logo */
@@ -88,10 +121,10 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 5px;
-            background: rgba(10, 12, 18, 0.75);
+            background: var(--bg-well);
             padding: 4px;
             border-radius: 9px;
-            border: 1px solid rgba(255, 255, 255, 0.07);
+            border: 1px solid var(--border-subtle);
             margin-bottom: 22px;
         }
         .tab {
@@ -107,20 +140,20 @@
             transition: all 0.2s ease;
         }
         .tab:hover {
-            color: #fff;
-            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-main);
+            background: var(--hover-bg);
         }
         .tab.active {
-            background: linear-gradient(135deg, rgba(51, 102, 255, 0.32) 0%, rgba(37, 99, 235, 0.18) 100%);
+            background: linear-gradient(135deg, rgba(51, 102, 255, 0.24) 0%, rgba(37, 99, 235, 0.14) 100%);
             color: var(--accent-blue-light);
             border-color: #3b82f6;
-            box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
         }
         .tab.active.reg-tab {
-            background: linear-gradient(135deg, rgba(0, 230, 118, 0.22) 0%, rgba(0, 200, 100, 0.10) 100%);
+            background: linear-gradient(135deg, rgba(0, 230, 118, 0.18) 0%, rgba(0, 200, 100, 0.08) 100%);
             color: var(--accent-green);
             border-color: rgba(0, 230, 118, 0.55);
-            box-shadow: 0 0 12px rgba(0, 230, 118, 0.25);
+            box-shadow: 0 0 12px rgba(0, 230, 118, 0.2);
         }
 
         /* Alertas */
@@ -138,12 +171,12 @@
         .alert-error {
             background: rgba(255, 82, 82, 0.12);
             border: 1px solid rgba(255, 82, 82, 0.45);
-            color: #ff8a8a;
+            color: var(--accent-red);
         }
         .alert-success {
             background: rgba(0, 230, 118, 0.12);
             border: 1px solid rgba(0, 230, 118, 0.45);
-            color: #69f0ae;
+            color: var(--accent-green);
         }
 
         /* Campos de Formulario */
@@ -199,15 +232,15 @@
             transition: 0.15s;
         }
         .btn-toggle-pass:hover {
-            color: #fff;
-            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            background: var(--hover-bg);
         }
 
         /* Barra de fortaleza de contraseña (solo en registro) */
         .pass-strength-bar {
             height: 4px;
             width: 100%;
-            background: rgba(255, 255, 255, 0.06);
+            background: var(--border-subtle);
             border-radius: 3px;
             margin-top: 7px;
             overflow: hidden;
@@ -238,22 +271,22 @@
             cursor: pointer;
             transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
             margin-top: 6px;
-            box-shadow: 0 0 14px rgba(59, 130, 246, 0.45);
+            box-shadow: 0 0 14px rgba(59, 130, 246, 0.35);
         }
         .btn-login:hover {
             background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            box-shadow: 0 0 22px rgba(59, 130, 246, 0.75);
+            box-shadow: 0 0 22px rgba(59, 130, 246, 0.65);
             transform: translateY(-1px);
         }
         .btn-register {
             background: linear-gradient(135deg, #00e676 0%, #00c853 100%);
             color: #07120c;
             border: 1px solid #69f0ae;
-            box-shadow: 0 0 14px rgba(0, 230, 118, 0.4);
+            box-shadow: 0 0 14px rgba(0, 230, 118, 0.35);
         }
         .btn-register:hover {
             background: linear-gradient(135deg, #00f07c 0%, #00b84c 100%);
-            box-shadow: 0 0 22px rgba(0, 230, 118, 0.7);
+            box-shadow: 0 0 22px rgba(0, 230, 118, 0.6);
             transform: translateY(-1px);
         }
         .btn-login:disabled {
@@ -266,7 +299,7 @@
         .login-footer {
             margin-top: 22px;
             padding-top: 14px;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            border-top: 1px solid var(--border-subtle);
             text-align: center;
             font-size: 0.74em;
             color: var(--text-muted);
@@ -288,6 +321,23 @@
 </head>
 <body>
     <div class="login-card">
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-bottom:12px;">
+            <button type="button" id="btnTemaStandalone" title="Cambiar tema claro/oscuro"
+                onclick="(function(b){var c=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';document.documentElement.setAttribute('data-theme',c);try{localStorage.setItem('emg_theme',c);}catch(e){}b.textContent=c==='light'?'🌙':'☀️';})(this)"
+                style="background:var(--bg-well); border:1px solid var(--border-color); color:var(--text-main); border-radius:6px; padding:4px 9px; cursor:pointer; font-size:0.85em;">☀️</button>
+            <select id="langSelectorStandalone" class="emg-mini-lang notranslate" translate="no" aria-label="Idioma" onchange="cambiarIdiomaStandalone(this.value)">
+                <option value="es" translate="no">🇪🇸 Español</option>
+                <option value="en" translate="no">🇺🇸 English</option>
+                <option value="pt" translate="no">🇧🇷 Português</option>
+                <option value="ru" translate="no">🇷🇺 Русский</option>
+                <option value="zh-CN" translate="no">🇨🇳 中文 (简体)</option>
+                <option value="hi" translate="no">🇮🇳 हिन्दी</option>
+                <option value="ar" translate="no">🇸🇦 العربية</option>
+                <option value="bn" translate="no">🇧🇩 বাংলা</option>
+                <option value="fr" translate="no">🇫🇷 Français</option>
+                <option value="de" translate="no">🇩🇪 Deutsch</option>
+            </select>
+        </div>
         <div class="logo-container">
             <img src="/static/logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
             <div class="logo-text">El Minero <span>Gris</span></div>
@@ -405,6 +455,8 @@
                 btn.innerText = "{{ '⏳ Creando cuenta...' if mode == 'register' else '⏳ Autenticando...' }}";
             }
         }
+        (function(){ try { var b = document.getElementById('btnTemaStandalone'); if (b) b.textContent = (localStorage.getItem('emg_theme') === 'light') ? '🌙' : '☀️'; } catch(e){} })();
     </script>
+    {% include "_lang_sync.html" %}
 </body>
 </html>

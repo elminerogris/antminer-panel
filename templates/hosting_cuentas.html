@@ -12,12 +12,12 @@
 
     .alert-ok {
         background: rgba(0, 230, 118, 0.12); border: 1px solid rgba(0, 230, 118, 0.4);
-        color: #69f0ae; padding: 11px 15px; border-radius: 8px;
+        color: var(--accent-green); padding: 11px 15px; border-radius: 8px;
         margin-bottom: 16px; font-size: 0.86em; font-weight: 600;
     }
     .alert-error {
         background: rgba(255, 82, 82, 0.12); border: 1px solid rgba(255, 82, 82, 0.4);
-        color: #ff8a80; padding: 11px 15px; border-radius: 8px;
+        color: var(--accent-red); padding: 11px 15px; border-radius: 8px;
         margin-bottom: 16px; font-size: 0.86em; font-weight: 600;
     }
     .grid-2 {
@@ -42,20 +42,20 @@
 
     .miners-pick {
         max-height: 240px; overflow-y: auto;
-        background: rgba(10, 12, 18, 0.5); border: 1px solid var(--border-color);
+        background: var(--bg-well); border: 1px solid var(--border-color);
         border-radius: 8px; padding: 10px; margin-bottom: 14px;
         display: flex; flex-direction: column; gap: 4px;
     }
     .pick-item {
         display: flex; align-items: center; gap: 9px;
         padding: 6px 8px; border-radius: 6px; font-size: 0.84em;
-        cursor: pointer; background: rgba(255, 255, 255, 0.02);
+        cursor: pointer; background: var(--bg-well-soft);
     }
     .pick-item:hover { background: rgba(51, 102, 255, 0.12); }
 
     .permisos-grid {
         display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
-        background: rgba(10, 12, 18, 0.5); border: 1px solid var(--border-color);
+        background: var(--bg-well); border: 1px solid var(--border-color);
         border-radius: 8px; padding: 12px; margin-bottom: 14px;
     }
     .perm-item {
@@ -73,7 +73,7 @@
     }
 
     .cuenta-item {
-        background: rgba(10, 12, 18, 0.55); border: 1px solid var(--border-color);
+        background: var(--bg-well); border: 1px solid var(--border-color);
         border-radius: 10px; padding: 14px; margin-bottom: 12px;
     }
     .cuenta-head {
@@ -84,21 +84,21 @@
         display: inline-flex; align-items: center; gap: 7px;
         background: rgba(51, 102, 255, 0.12); border: 1px solid rgba(59, 130, 246, 0.35);
         padding: 5px 12px; border-radius: 999px; font-weight: bold; font-size: 0.88em;
-        color: #60a5fa;
+        color: var(--accent-blue-light);
     }
     .cuenta-status-on {
         background: rgba(0, 230, 118, 0.12); border: 1px solid rgba(0, 230, 118, 0.4);
-        color: #00e676; padding: 3px 10px; border-radius: 999px;
+        color: var(--accent-green); padding: 3px 10px; border-radius: 999px;
         font-size: 0.72em; font-weight: bold;
     }
     .cuenta-status-off {
         background: rgba(255, 82, 82, 0.12); border: 1px solid rgba(255, 82, 82, 0.4);
-        color: #ff5252; padding: 3px 10px; border-radius: 999px;
+        color: var(--accent-red); padding: 3px 10px; border-radius: 999px;
         font-size: 0.72em; font-weight: bold;
     }
     .cuenta-info { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.82em; margin-bottom: 10px; }
     .cuenta-info .info-chip {
-        background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color);
+        background: var(--bg-well-soft); border: 1px solid var(--border-color);
         padding: 4px 10px; border-radius: 6px; font-family: monospace;
     }
     .perms-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
@@ -106,24 +106,26 @@
         font-size: 0.72em; padding: 3px 8px; border-radius: 5px;
         font-weight: bold; border: 1px solid;
     }
-    .perm-on { background: rgba(0, 230, 118, 0.1); border-color: rgba(0, 230, 118, 0.4); color: #69f0ae; }
-    .perm-off { background: rgba(255, 82, 82, 0.08); border-color: rgba(255, 82, 82, 0.3); color: #ff8a80; }
+    .perm-on { background: rgba(0, 230, 118, 0.1); border-color: rgba(0, 230, 118, 0.4); color: var(--accent-green); }
+    .perm-off { background: rgba(255, 82, 82, 0.08); border-color: rgba(255, 82, 82, 0.3); color: var(--accent-red); }
 
     .cuenta-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .btn-sm {
         padding: 5px 10px; border-radius: 6px; font-size: 0.78em;
         font-weight: bold; cursor: pointer; border: 1px solid var(--border-color);
-        background: rgba(255, 255, 255, 0.04); color: var(--text-main);
+        background: var(--bg-well-soft); color: var(--text-main);
         text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
     }
-    .btn-sm:hover { border-color: #60a5fa; color: #fff; }
-    .btn-sm.del { color: #ff8a80; border-color: rgba(255, 82, 82, 0.4); background: rgba(255, 82, 82, 0.1); }
-    .btn-sm.warn { color: #ffb300; border-color: rgba(255, 179, 0, 0.4); background: rgba(255, 179, 0, 0.1); }
+    .btn-sm:hover { border-color: #2563eb; background: #2563eb; color: #fff; }
+    .btn-sm.del { color: var(--accent-red); border-color: rgba(255, 82, 82, 0.4); background: rgba(255, 82, 82, 0.1); }
+    .btn-sm.del:hover { background: #dc2626; border-color: #dc2626; color: #fff; }
+    .btn-sm.warn { color: var(--accent-gold); border-color: rgba(255, 179, 0, 0.4); background: rgba(255, 179, 0, 0.1); }
+    .btn-sm.warn:hover { background: #d97706; border-color: #d97706; color: #fff; }
 
     .login-url-box {
-        background: #07090f; border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-well-deep); border: 1px solid var(--border-subtle);
         border-radius: 8px; padding: 10px 14px; margin: 12px 0 0 0;
-        font-family: monospace; font-size: 0.82em; color: #38bdf8;
+        font-family: monospace; font-size: 0.82em; color: var(--accent-cyan);
         word-break: break-all; display:flex; align-items:center; justify-content:space-between; gap:8px;
     }
 
@@ -256,7 +258,7 @@
                 </div>
 
                 {% if c.notas %}
-                <div style="font-size:0.78em; color:var(--text-muted); margin-bottom:10px; padding:6px 10px; background:rgba(255,255,255,0.03); border-radius:6px;">📝 {{ c.notas }}</div>
+                <div style="font-size:0.78em; color:var(--text-muted); margin-bottom:10px; padding:6px 10px; background:var(--bg-well-soft); border-radius:6px;">📝 {{ c.notas }}</div>
                 {% endif %}
 
                 <div class="cuenta-actions">

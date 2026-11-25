@@ -50,7 +50,7 @@
         border-radius: 10px; padding: 28px 16px;
         text-align: center; cursor: pointer;
         margin-bottom: 14px; transition: all 0.25s;
-        background: rgba(10, 12, 18, 0.5);
+        background: var(--bg-well);
     }
     .upload-zone:hover, .upload-zone.drag-over {
         border-color: #3b82f6;
@@ -61,7 +61,7 @@
     .upload-zone .upload-text { font-size: 0.86em; color: var(--text-muted); }
     .upload-zone .upload-text strong { color: var(--text-main); }
     .upload-zone .file-name {
-        font-family: monospace; font-size: 0.84em; color: #00e676;
+        font-family: monospace; font-size: 0.84em; color: var(--accent-green);
         margin-top: 8px; font-weight: bold; display: none;
     }
 
@@ -74,7 +74,7 @@
 
     /* Firmware items list */
     .fw-item {
-        background: rgba(10, 12, 18, 0.55); border: 1px solid var(--border-color);
+        background: var(--bg-well); border: 1px solid var(--border-color);
         border-radius: 10px; padding: 14px; margin-bottom: 10px;
     }
     .fw-head {
@@ -84,18 +84,20 @@
     .fw-name { font-weight: bold; font-size: 0.95em; }
     .fw-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.78em; }
     .fw-chip {
-        background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color);
+        background: var(--bg-well-soft); border: 1px solid var(--border-color);
         padding: 3px 9px; border-radius: 6px; font-family: monospace;
     }
     .fw-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
     .btn-sm {
         padding: 5px 10px; border-radius: 6px; font-size: 0.78em;
         font-weight: bold; cursor: pointer; border: 1px solid var(--border-color);
-        background: rgba(255, 255, 255, 0.04); color: var(--text-main);
+        background: var(--bg-well-soft); color: var(--text-main);
     }
-    .btn-sm:hover { border-color: #60a5fa; color: #fff; }
-    .btn-sm.del { color: #ff8a80; border-color: rgba(255, 82, 82, 0.4); background: rgba(255, 82, 82, 0.1); }
-    .btn-sm.flash { color: #ffd54f; border-color: rgba(255, 179, 0, 0.4); background: rgba(255, 179, 0, 0.1); }
+    .btn-sm:hover { border-color: #2563eb; background: #2563eb; color: #fff; }
+    .btn-sm.del { color: var(--accent-red); border-color: rgba(255, 82, 82, 0.4); background: rgba(255, 82, 82, 0.1); }
+    .btn-sm.del:hover { background: #dc2626; border-color: #dc2626; color: #fff; }
+    .btn-sm.flash { color: var(--accent-gold); border-color: rgba(255, 179, 0, 0.4); background: rgba(255, 179, 0, 0.1); }
+    .btn-sm.flash:hover { background: #d97706; border-color: #d97706; color: #fff; }
 
     /* Flash modal */
     .modal-backdrop {
@@ -108,7 +110,7 @@
         width: 100%; max-width: 620px;
         background: var(--bg-card); border: 1px solid var(--border-color);
         border-radius: 12px; padding: 20px;
-        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.75);
+        box-shadow: var(--shadow-card);
     }
     .modal-head {
         display: flex; align-items: center; justify-content: space-between;
@@ -120,17 +122,17 @@
         color: var(--text-muted); border-radius: 6px; width: 32px; height: 32px;
         cursor: pointer; font-weight: bold; font-size: 1.1em;
     }
-    .close-btn:hover { color: #fff; border-color: #ff5252; }
+    .close-btn:hover { color: var(--text-main); border-color: var(--accent-red); }
 
     .miners-pick {
         max-height: 240px; overflow-y: auto;
-        background: rgba(10, 12, 18, 0.5); border: 1px solid var(--border-color);
+        background: var(--bg-well); border: 1px solid var(--border-color);
         border-radius: 8px; padding: 10px; margin-bottom: 14px;
     }
     .pick-item {
         display: flex; align-items: center; gap: 9px;
         padding: 6px 8px; border-radius: 6px; font-size: 0.84em;
-        cursor: pointer; background: rgba(255, 255, 255, 0.02);
+        cursor: pointer; background: var(--bg-well-soft);
     }
     .pick-item:hover { background: rgba(51, 102, 255, 0.12); }
     .pick-controls { display: flex; gap: 8px; margin-bottom: 10px; }
@@ -144,20 +146,20 @@
     }
     .job-table td {
         padding: 8px 12px; font-size: 0.82em;
-        border-bottom: 1px solid rgba(255,255,255,0.04);
+        border-bottom: 1px solid var(--border-subtle);
     }
     .job-table tr:last-child td { border-bottom: none; }
     .status-badge {
         display: inline-flex; align-items: center; gap: 5px;
         padding: 3px 10px; border-radius: 999px; font-size: 0.78em; font-weight: bold;
     }
-    .st-pendiente { background: rgba(148,163,184,0.15); color: #94a3b8; }
-    .st-en_progreso { background: rgba(96,165,250,0.15); color: #60a5fa; }
-    .st-completado { background: rgba(0,230,118,0.15); color: #00e676; }
-    .st-error { background: rgba(255,82,82,0.15); color: #ff5252; }
+    .st-pendiente { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+    .st-en_progreso { background: rgba(96,165,250,0.15); color: var(--accent-blue-light); }
+    .st-completado { background: rgba(0,230,118,0.15); color: var(--accent-green); }
+    .st-error { background: rgba(255,82,82,0.15); color: var(--accent-red); }
 
     .progress-bar-wrap {
-        background: rgba(255,255,255,0.06); border-radius: 4px;
+        background: var(--bg-well); border-radius: 4px;
         height: 6px; width: 80px; overflow: hidden;
     }
     .progress-bar-fill {
@@ -185,11 +187,11 @@
 
 <!-- KPIs -->
 <div class="fw-kpis">
-    <div class="fw-kpi"><small>Firmwares Subidos</small><strong style="color:#60a5fa;">{{ firmwares|length }}</strong></div>
-    <div class="fw-kpi"><small>En Cola</small><strong style="color:#94a3b8;">{{ stats.pendiente }}</strong></div>
-    <div class="fw-kpi"><small>En Progreso</small><strong style="color:#ffb300;">{{ stats.en_progreso }}</strong></div>
-    <div class="fw-kpi"><small>Completados</small><strong style="color:#00e676;">{{ stats.completado }}</strong></div>
-    <div class="fw-kpi"><small>Errores</small><strong style="color:#ff5252;">{{ stats.error }}</strong></div>
+    <div class="fw-kpi"><small>Firmwares Subidos</small><strong style="color:var(--accent-blue-light);">{{ firmwares|length }}</strong></div>
+    <div class="fw-kpi"><small>En Cola</small><strong style="color:var(--text-muted);">{{ stats.pendiente }}</strong></div>
+    <div class="fw-kpi"><small>En Progreso</small><strong style="color:var(--accent-gold);">{{ stats.en_progreso }}</strong></div>
+    <div class="fw-kpi"><small>Completados</small><strong style="color:var(--accent-green);">{{ stats.completado }}</strong></div>
+    <div class="fw-kpi"><small>Errores</small><strong style="color:var(--accent-red);">{{ stats.error }}</strong></div>
 </div>
 
 <div class="grid-2">
@@ -255,7 +257,7 @@
                     <span class="fw-chip">📅 {{ fw.fecha_subida }}</span>
                 </div>
                 {% if fw.notas %}
-                <div style="font-size:0.76em; color:var(--text-muted); margin-top:6px; padding:5px 8px; background:rgba(255,255,255,0.03); border-radius:5px;">📝 {{ fw.notas }}</div>
+                <div style="font-size:0.76em; color:var(--text-muted); margin-top:6px; padding:5px 8px; background:var(--bg-well-soft); border-radius:5px;">📝 {{ fw.notas }}</div>
                 {% endif %}
                 <div class="fw-actions">
                     <button class="btn-sm flash" onclick="abrirModalFlash({{ fw.id }}, '{{ fw.nombre }}', '{{ fw.modelo_compatible }}')">⚡ Flashear Equipos</button>
@@ -335,7 +337,7 @@
             {% endfor %}
         </div>
 
-        <div style="background:rgba(255,179,0,0.1); border:1px solid rgba(255,179,0,0.3); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:0.82em; color:#ffd54f;">
+        <div style="background:rgba(255,179,0,0.1); border:1px solid rgba(255,179,0,0.3); border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:0.82em; color:var(--accent-gold);">
             ⚠️ <strong>Advertencia:</strong> El flasheo de firmware reiniciará cada equipo. Los ASICs estarán offline durante 3-10 minutos. Asegúrate de que el firmware sea compatible con el modelo del equipo.
         </div>
 

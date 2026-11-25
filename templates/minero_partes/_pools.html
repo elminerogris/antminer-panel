@@ -15,8 +15,8 @@
         justify-content: space-between;
         gap: 12px;
         flex-wrap: wrap;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        background: rgba(255, 255, 255, 0.01);
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--bg-well-soft);
     }
     .pools-title-group {
         display: flex;
@@ -34,7 +34,7 @@
     }
     .pools-active-badge {
         font-size: 0.72em;
-        color: #00e676;
+        color: var(--accent-green);
         background: rgba(0, 230, 118, 0.1);
         border: 1px solid rgba(0, 230, 118, 0.3);
         padding: 2px 9px;
@@ -45,7 +45,7 @@
     .btn-guia-pools {
         background: rgba(56, 189, 248, 0.1);
         border: 1px solid rgba(56, 189, 248, 0.35);
-        color: #38bdf8;
+        color: var(--accent-cyan);
         padding: 3px 9px;
         border-radius: 12px;
         font-size: 0.72em;
@@ -54,7 +54,7 @@
         transition: 0.18s;
     }
     .btn-guia-pools:hover {
-        background: rgba(56, 189, 248, 0.22);
+        background: #0284c7;
         color: #fff;
     }
 
@@ -65,16 +65,16 @@
         background: linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, rgba(51, 102, 255, 0.04) 100%);
         border-bottom: 1px solid rgba(56, 189, 248, 0.25);
         font-size: 0.80em;
-        color: #d1d3e0;
+        color: var(--text-secondary);
         line-height: 1.5;
     }
-    .pools-beginner-guide b { color: #fff; }
+    .pools-beginner-guide b { color: var(--text-main); }
 
     /* Botón Guardar con efecto Neon Glow */
     .btn-guardar-pools {
-        background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%);
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.22) 0%, rgba(37, 99, 235, 0.12) 100%);
         border: 1px solid rgba(82, 140, 255, 0.65);
-        color: #60a5fa;
+        color: var(--accent-blue-light);
         padding: 7px 14px;
         border-radius: 7px;
         cursor: pointer;
@@ -85,29 +85,29 @@
         align-items: center;
         gap: 6px;
         transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
-        box-shadow: 0 0 10px rgba(51, 102, 255, 0.25);
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.2);
         user-select: none;
     }
     .btn-guardar-pools:hover {
         color: #ffffff;
-        background: rgba(51, 102, 255, 0.35);
-        border-color: #60a5fa;
-        box-shadow: 0 0 16px rgba(59, 130, 246, 0.65), inset 0 0 8px rgba(51, 102, 255, 0.3);
+        background: #2563eb;
+        border-color: #2563eb;
+        box-shadow: 0 0 16px rgba(59, 130, 246, 0.55);
         transform: translateY(-1px);
     }
     .btn-guardar-pools.unsaved-pulse {
-        background: linear-gradient(135deg, rgba(51, 102, 255, 0.48) 0%, rgba(37, 99, 235, 0.32) 100%);
+        background: #2563eb;
         color: #fff;
         border-color: #38bdf8;
-        box-shadow: 0 0 18px rgba(56, 189, 248, 0.75);
+        box-shadow: 0 0 18px rgba(56, 189, 248, 0.65);
     }
 
     /* Contenedor del botón Guardar debajo de la 3ra pool (solo celular) */
     .pools-mobile-footer {
         display: none;
         padding: 12px 14px;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-        background: rgba(10, 12, 18, 0.35);
+        border-top: 1px solid var(--border-subtle);
+        background: var(--bg-well);
     }
 
     /* Barra de estadísticas rápidas y plantillas de Pools */
@@ -118,7 +118,7 @@
         gap: 10px 14px;
         flex-wrap: wrap;
         padding: 10px 16px;
-        background: rgba(10, 12, 18, 0.45);
+        background: var(--bg-well);
         border-bottom: 1px solid var(--border-color);
         font-size: 0.75em;
     }
@@ -134,13 +134,13 @@
         gap: 4px;
         color: var(--text-muted);
         cursor: help;
-        border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
+        border-bottom: 1px dotted var(--border-color);
         padding-bottom: 1px;
         user-select: none;
         transition: 0.18s;
     }
     .pool-stat-item:hover {
-        color: #fff;
+        color: var(--text-main);
         border-bottom-color: var(--accent-blue);
     }
     .pool-stat-item b {
@@ -163,7 +163,7 @@
         bottom: 0;
         width: 34px;
         pointer-events: none;
-        background: linear-gradient(to right, rgba(10, 12, 18, 0) 0%, rgba(13, 15, 23, 0.96) 92%);
+        background: linear-gradient(to right, rgba(0, 0, 0, 0) 0%, var(--bg-card) 92%);
         transition: opacity 0.25s ease;
         z-index: 3;
     }
@@ -187,7 +187,7 @@
         flex-shrink: 0;
     }
     .preset-pill {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         color: var(--text-muted);
         padding: 4px 10px;
@@ -201,15 +201,15 @@
         flex-shrink: 0;
     }
     .preset-pill:hover {
-        color: #fff;
+        color: var(--text-main);
         border-color: var(--accent-blue);
-        background: rgba(51, 102, 255, 0.15);
-        box-shadow: 0 0 10px rgba(51, 102, 255, 0.35);
+        background: rgba(51, 102, 255, 0.14);
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.25);
     }
     .sync-toggle-pill {
         background: rgba(51, 102, 255, 0.12);
         border: 1px solid rgba(51, 102, 255, 0.45);
-        color: #60a5fa;
+        color: var(--accent-blue-light);
         padding: 3px 9px;
         border-radius: 14px;
         font-size: 0.92em;
@@ -222,7 +222,7 @@
         user-select: none;
     }
     .sync-toggle-pill.off {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border-color: var(--border-color);
         color: var(--text-muted);
         opacity: 0.65;
@@ -233,9 +233,9 @@
         display: none;
         padding: 5px 14px;
         font-size: 0.72em;
-        color: #60a5fa;
+        color: var(--accent-blue-light);
         background: rgba(51, 102, 255, 0.06);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid var(--border-subtle);
         text-align: right;
         transition: opacity 0.3s ease, max-height 0.3s ease, padding 0.3s ease;
         max-height: 36px;
@@ -263,7 +263,7 @@
         bottom: 0;
         width: 38px;
         pointer-events: none;
-        background: linear-gradient(to right, rgba(13, 15, 23, 0) 0%, var(--bg-card, #11131c) 92%);
+        background: linear-gradient(to right, rgba(0, 0, 0, 0) 0%, var(--bg-card) 92%);
         transition: opacity 0.25s ease;
         z-index: 4;
     }
@@ -291,13 +291,13 @@
         text-transform: uppercase;
         letter-spacing: 0.4px;
         color: var(--text-muted);
-        background: rgba(255, 255, 255, 0.015);
+        background: var(--bg-well-soft);
         border-bottom: 1px solid var(--border-color);
         cursor: help;
         user-select: none;
         white-space: nowrap;
     }
-    .pools-table-pro th:hover { color: #fff; }
+    .pools-table-pro th:hover { color: var(--text-main); }
     .pools-table-pro td {
         padding: 9px 10px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -333,7 +333,7 @@
         font-family: monospace;
         font-size: 0.88em;
         background: rgba(51, 102, 255, 0.14);
-        color: #60a5fa;
+        color: var(--accent-blue-light);
         border: 1px solid rgba(51, 102, 255, 0.35);
     }
     .pool-rank-help-dot { font-size: 0.70em; color: var(--text-muted); opacity: 0.8; }
@@ -343,9 +343,9 @@
         color: var(--text-muted);
         margin-top: 2px;
         font-weight: 600;
-        border-bottom: 1px dotted rgba(255, 255, 255, 0.25);
+        border-bottom: 1px dotted var(--border-color);
     }
-    .pool-rank-wrap:hover .pool-rank-sub { color: #fff; border-bottom-color: #60a5fa; }
+    .pool-rank-wrap:hover .pool-rank-sub { color: var(--text-main); border-bottom-color: var(--accent-blue-light); }
 
     /* Inputs con botón SVG de copiar integrado */
     .input-pool-wrap {
@@ -355,7 +355,7 @@
         width: 100%;
     }
     .input-pool-pro {
-        background: rgba(10, 12, 18, 0.55);
+        background: var(--bg-input);
         border: 1px solid var(--border-color);
         color: var(--text-main);
         padding: 7px 30px 7px 9px;
@@ -374,15 +374,15 @@
     }
     .input-pool-pro:focus {
         border-color: #3b82f6;
-        background: rgba(10, 12, 18, 0.85);
+        background: var(--bg-input);
         box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
     }
     .input-pool-pro.edited {
-        border-color: #38bdf8;
+        border-color: var(--accent-cyan);
         background: rgba(56, 189, 248, 0.06);
     }
     .input-pool-pro.invalid-url {
-        border-color: #ff5252;
+        border-color: var(--accent-red);
         box-shadow: 0 0 8px rgba(255, 82, 82, 0.4);
     }
     .btn-copy-inline {
@@ -390,7 +390,7 @@
         right: 4px;
         background: rgba(51, 102, 255, 0.12);
         border: 1px solid rgba(59, 130, 246, 0.35);
-        color: #60a5fa;
+        color: var(--accent-blue-light);
         cursor: pointer;
         width: 22px;
         height: 22px;
@@ -412,13 +412,13 @@
     }
     .btn-copy-inline:hover {
         color: #fff;
-        background: rgba(51, 102, 255, 0.28);
-        border-color: #60a5fa;
+        background: #2563eb;
+        border-color: #2563eb;
     }
     .btn-copy-inline.copied {
-        color: #00e676;
+        color: var(--accent-green);
         background: rgba(0, 230, 118, 0.18);
-        border-color: #00e676;
+        border-color: var(--accent-green);
     }
 
     /* Píldora de estado Alive / Dead */
@@ -436,12 +436,12 @@
     }
     .pool-status-pill.alive {
         background: rgba(0, 230, 118, 0.12);
-        color: #00e676;
+        color: var(--accent-green);
         border: 1px solid rgba(0, 230, 118, 0.35);
     }
     .pool-status-pill.dead {
         background: rgba(255, 82, 82, 0.12);
-        color: #ff5252;
+        color: var(--accent-red);
         border: 1px solid rgba(255, 82, 82, 0.35);
     }
     .status-dot-pulse {
@@ -450,8 +450,8 @@
         border-radius: 50%;
         display: inline-block;
     }
-    .pool-status-pill.alive .status-dot-pulse { background: #00e676; box-shadow: 0 0 6px #00e676; }
-    .pool-status-pill.dead .status-dot-pulse { background: #ff5252; }
+    .pool-status-pill.alive .status-dot-pulse { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+    .pool-status-pill.dead .status-dot-pulse { background: var(--accent-red); }
 
     /* Contenedores alineados de Aceptados y Rechazados */
     .shares-cell-wrap {
@@ -462,7 +462,7 @@
     .shares-bar-bg {
         width: 100%;
         height: 4px;
-        background: rgba(255, 255, 255, 0.08);
+        background: var(--border-subtle);
         border-radius: 3px;
         overflow: hidden;
         margin-top: 4px;
@@ -568,10 +568,10 @@
                 Aceptados: <b style="color:var(--accent-green);">{{ "{:,}".format(total_acc_global) }}</b>
             </div>
             <div class="pool-stat-item" data-pool-tt="stat_rej">
-                Rechazados: <b style="color:{{ '#ff5252' if pct_rej_global > 1.5 else ('#ffb300' if pct_rej_global > 0.8 else 'var(--text-main)') }};">{{ "{:,}".format(total_rej_global) }} ({{ "%.2f"|format(pct_rej_global) }}%)</b>
+                Rechazados: <b style="color:{{ 'var(--accent-red)' if pct_rej_global > 1.5 else ('var(--accent-gold)' if pct_rej_global > 0.8 else 'var(--text-main)') }};">{{ "{:,}".format(total_rej_global) }} ({{ "%.2f"|format(pct_rej_global) }}%)</b>
             </div>
             <div class="pool-stat-item" data-pool-tt="stat_eficiencia">
-                Calidad Stratum: <b style="color:{{ '#00e676' if pct_acc_global >= 98.5 else '#ffb300' }};">{{ "%.2f"|format(pct_acc_global) }}%</b>
+                Calidad Stratum: <b style="color:{{ 'var(--accent-green)' if pct_acc_global >= 98.5 else 'var(--accent-gold)' }};">{{ "%.2f"|format(pct_acc_global) }}%</b>
             </div>
             <div class="sync-toggle-pill" id="btnSyncWorkerToggle" data-pool-tt="sync_toggle" onclick="alternarAutoSyncWorker()">
                 🔗 Auto-copiar Worker: <span id="txtSyncEstado">ON</span>

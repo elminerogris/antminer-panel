@@ -16,8 +16,8 @@
         justify-content: space-between;
         gap: 12px;
         flex-wrap: wrap;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        background: rgba(255, 255, 255, 0.01);
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--bg-well-soft);
     }
     .wd-title-group {
         display: flex;
@@ -42,24 +42,24 @@
         cursor: help;
     }
     .wd-status-badge.on {
-        color: #00e676;
+        color: var(--accent-green);
         background: rgba(0, 230, 118, 0.10);
         border: 1px solid rgba(0, 230, 118, 0.35);
     }
     .wd-status-badge.off {
         color: var(--text-muted);
-        background: rgba(255, 255, 255, 0.04);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
     }
     .wd-status-badge.pico {
-        color: #ffd54f;
+        color: var(--accent-gold);
         background: rgba(255, 179, 0, 0.16);
         border: 1px solid rgba(255, 179, 0, 0.45);
     }
     .btn-guia-wd {
         background: rgba(56, 189, 248, 0.10);
         border: 1px solid rgba(56, 189, 248, 0.35);
-        color: #38bdf8;
+        color: var(--accent-cyan);
         padding: 3px 9px;
         border-radius: 12px;
         font-size: 0.72em;
@@ -67,7 +67,7 @@
         cursor: pointer;
         transition: 0.18s;
     }
-    .btn-guia-wd:hover { background: rgba(56, 189, 248, 0.22); color: #fff; }
+    .btn-guia-wd:hover { background: #0284c7; color: #fff; }
 
     .wd-beginner-guide {
         display: none;
@@ -75,10 +75,10 @@
         background: linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, rgba(51, 102, 255, 0.04) 100%);
         border-bottom: 1px solid rgba(56, 189, 248, 0.25);
         font-size: 0.80em;
-        color: #d1d3e0;
+        color: var(--text-secondary);
         line-height: 1.55;
     }
-    .wd-beginner-guide b { color: #fff; }
+    .wd-beginner-guide b { color: var(--text-main); }
 
     .wd-subbar {
         display: flex;
@@ -87,7 +87,7 @@
         gap: 10px 14px;
         flex-wrap: wrap;
         padding: 10px 16px;
-        background: rgba(10, 12, 18, 0.45);
+        background: var(--bg-well);
         border-bottom: 1px solid var(--border-color);
         font-size: 0.75em;
     }
@@ -103,11 +103,11 @@
         gap: 4px;
         color: var(--text-muted);
         cursor: help;
-        border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
+        border-bottom: 1px dotted var(--border-color);
         padding-bottom: 1px;
         user-select: none;
     }
-    .wd-stat-item:hover { color: #fff; border-bottom-color: var(--accent-blue); }
+    .wd-stat-item:hover { color: var(--text-main); border-bottom-color: var(--accent-blue); }
     .wd-stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.05em; }
 
     .wd-presets-bar {
@@ -118,7 +118,7 @@
     }
     .preset-label { color: var(--text-muted); font-size: 0.92em; margin-right: 2px; cursor: help; }
     .preset-pill {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         color: var(--text-muted);
         padding: 4px 10px;
@@ -130,14 +130,14 @@
         user-select: none;
     }
     .preset-pill:hover {
-        color: #fff;
+        color: var(--text-main);
         border-color: var(--accent-blue);
-        background: rgba(51, 102, 255, 0.15);
-        box-shadow: 0 0 10px rgba(51, 102, 255, 0.35);
+        background: rgba(51, 102, 255, 0.14);
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.25);
     }
 
     .btn-outline-wd {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         color: var(--text-main);
         border: 1px solid var(--border-color);
         padding: 8px 14px;
@@ -151,12 +151,12 @@
         gap: 6px;
         transition: 0.18s;
     }
-    .btn-outline-wd:hover { border-color: #3b82f6; color: #60a5fa; background: rgba(51, 102, 255, 0.12); }
+    .btn-outline-wd:hover { border-color: #3b82f6; color: var(--accent-blue-light); background: rgba(51, 102, 255, 0.12); }
 
     .alert-flash-pro {
         background: linear-gradient(90deg, rgba(0, 230, 118, 0.14) 0%, rgba(0, 230, 118, 0.04) 100%);
         border: 1px solid rgba(0, 230, 118, 0.45);
-        color: #69f0ae;
+        color: var(--accent-green);
         padding: 11px 15px;
         border-radius: 8px;
         margin-bottom: 16px;
@@ -180,7 +180,7 @@
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 10px;
-        background: rgba(10, 12, 18, 0.55);
+        background: var(--bg-well);
         border: 1px solid rgba(255, 82, 82, 0.25);
         padding: 9px 12px;
         border-radius: 6px;
@@ -189,15 +189,15 @@
     }
     .btn-release-q {
         background: rgba(0, 230, 118, 0.14);
-        border: 1px solid #00e676;
-        color: #00e676;
+        border: 1px solid var(--accent-green);
+        color: var(--accent-green);
         padding: 5px 12px;
         border-radius: 6px;
         font-weight: bold;
         font-size: 0.82em;
         cursor: pointer;
     }
-    .btn-release-q:hover { background: #00e676; color: #000; }
+    .btn-release-q:hover { background: #059669; color: #fff; }
 
     .wd-grid {
         display: grid;
@@ -229,7 +229,7 @@
         justify-content: space-between;
         gap: 8px;
         padding: 10px 12px;
-        background: rgba(10, 12, 18, 0.45);
+        background: var(--bg-well);
         border: 1px solid var(--border-color);
         border-radius: 7px;
         margin-bottom: 8px;
@@ -266,8 +266,8 @@
         width: 14px;
         height: 14px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.08);
-        color: #9499b0;
+        background: var(--border-subtle);
+        color: var(--text-muted);
         font-size: 9.5px;
         font-family: serif;
         font-style: italic;
@@ -275,11 +275,11 @@
         cursor: help;
         flex-shrink: 0;
     }
-    .info-dot:hover { background: rgba(51, 102, 255, 0.4); color: #fff; }
+    .info-dot:hover { background: #2563eb; color: #fff; }
 
     .input-pro-dark {
         width: 100%;
-        background: rgba(10, 12, 18, 0.65);
+        background: var(--bg-input);
         border: 1px solid var(--border-color);
         color: var(--text-main);
         padding: 8px 11px;
@@ -292,9 +292,9 @@
 
     .input-num-sm {
         width: 64px;
-        background: rgba(10, 12, 18, 0.85);
+        background: var(--bg-input);
         border: 1px solid var(--border-color);
-        color: #38bdf8;
+        color: var(--accent-cyan);
         padding: 4px 6px;
         border-radius: 6px;
         font-family: monospace;
@@ -304,9 +304,9 @@
         outline: none;
     }
     .select-acc-sm {
-        background: rgba(10, 12, 18, 0.85);
+        background: var(--bg-input);
         border: 1px solid var(--border-color);
-        color: #cbd5e1;
+        color: var(--text-secondary);
         padding: 4px 6px;
         border-radius: 6px;
         font-family: monospace;
@@ -320,7 +320,7 @@
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 4px;
-        background: rgba(10, 12, 18, 0.7);
+        background: var(--bg-well-deep);
         padding: 4px;
         border-radius: 8px;
         border: 1px solid var(--border-color);
@@ -342,14 +342,14 @@
         transition: 0.18s;
     }
     .scope-tab input:checked + span {
-        background: linear-gradient(135deg, rgba(51, 102, 255, 0.32) 0%, rgba(37, 99, 235, 0.18) 100%);
-        color: #60a5fa;
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.24) 0%, rgba(37, 99, 235, 0.14) 100%);
+        color: var(--accent-blue-light);
         border-color: #3b82f6;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
     }
 
     .selector-list-box {
-        background: rgba(10, 12, 18, 0.65);
+        background: var(--bg-well);
         border: 1px solid var(--border-color);
         border-radius: 7px;
         padding: 8px 10px;
@@ -362,7 +362,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 6px 4px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid var(--border-subtle);
         font-size: 0.81em;
     }
     .sel-row:last-child { border-bottom: none; }
@@ -387,18 +387,18 @@
         flex-wrap: wrap;
         gap: 6px;
         font-size: 0.78em;
-        color: #94a3b8;
+        color: var(--text-muted);
         margin-bottom: 10px;
     }
-    .curt-savings-head b { color: #69f0ae; }
+    .curt-savings-head b { color: var(--accent-green); }
     .curt-savings-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
         gap: 10px;
     }
     .curt-kpi {
-        background: rgba(10, 12, 18, 0.55);
-        border: 1px solid rgba(255, 255, 255, 0.07);
+        background: var(--bg-well);
+        border: 1px solid var(--border-subtle);
         border-radius: 7px;
         padding: 9px 12px;
     }
@@ -413,12 +413,12 @@
         font-size: 1.18em;
         font-weight: bold;
         font-family: monospace;
-        color: #00e676;
+        color: var(--accent-green);
     }
     .curt-kpi-sub {
         font-size: 0.74em;
         font-family: monospace;
-        color: #94a3b8;
+        color: var(--text-muted);
         margin-top: 2px;
     }
 
@@ -430,12 +430,12 @@
         text-transform: uppercase;
         letter-spacing: 0.4px;
         color: var(--text-muted);
-        background: rgba(255, 255, 255, 0.015);
+        background: var(--bg-well-soft);
         border-bottom: 1px solid var(--border-color);
         text-align: left;
     }
-    .hist-table-pro td { padding: 9px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-    .hist-table-pro tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+    .hist-table-pro td { padding: 9px 12px; border-bottom: 1px solid var(--border-subtle); }
+    .hist-table-pro tbody tr:hover { background: var(--hover-bg); }
     .badge-ev {
         display: inline-block;
         padding: 2px 8px;
@@ -444,10 +444,10 @@
         font-weight: bold;
         font-family: monospace;
     }
-    .badge-TEMP, .badge-CORTE_TERMICO { background: rgba(255, 82, 82, 0.14); color: #ff8a80; border: 1px solid rgba(255, 82, 82, 0.4); }
-    .badge-HASHRATE, .badge-HORARIO_PICO { background: rgba(255, 179, 0, 0.14); color: #ffd54f; border: 1px solid rgba(255, 179, 0, 0.4); }
-    .badge-HORARIO_NORMAL, .badge-GRANJA_ONLINE { background: rgba(0, 230, 118, 0.14); color: #69f0ae; border: 1px solid rgba(0, 230, 118, 0.4); }
-    .badge-WATCHDOG_REBOOT { background: rgba(51, 102, 255, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.45); }
+    .badge-TEMP, .badge-CORTE_TERMICO { background: rgba(255, 82, 82, 0.14); color: var(--accent-red); border: 1px solid rgba(255, 82, 82, 0.4); }
+    .badge-HASHRATE, .badge-HORARIO_PICO { background: rgba(255, 179, 0, 0.14); color: var(--accent-gold); border: 1px solid rgba(255, 179, 0, 0.4); }
+    .badge-HORARIO_NORMAL, .badge-GRANJA_ONLINE { background: rgba(0, 230, 118, 0.14); color: var(--accent-green); border: 1px solid rgba(0, 230, 118, 0.4); }
+    .badge-WATCHDOG_REBOOT { background: rgba(51, 102, 255, 0.18); color: var(--accent-blue-light); border: 1px solid rgba(59, 130, 246, 0.45); }
     .badge-WATCHDOG_CUARENTENA { background: rgba(168, 85, 247, 0.20); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.5); }
 
     .wd-smart-tooltip {
@@ -455,35 +455,36 @@
         display: none;
         width: 275px;
         max-width: calc(100vw - 20px);
-        background: rgba(10, 11, 16, 0.98);
+        background: var(--bg-tooltip);
         border: 1px solid rgba(51, 102, 255, 0.55);
         border-radius: 7px;
         padding: 10px 12px;
-        color: #d1d3e0;
+        color: var(--text-tooltip);
         font-size: 11.5px;
         line-height: 1.45;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
+        box-shadow: var(--shadow-card);
         z-index: 99999;
         pointer-events: none;
     }
     .wd-tt-title {
-        color: #fff;
+        color: var(--text-main);
         font-weight: bold;
         font-size: 12px;
         margin-bottom: 5px;
         padding-bottom: 4px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        border-bottom: 1px solid var(--border-subtle);
     }
     .wd-tt-range {
         margin-top: 6px;
         padding: 5px 7px;
         background: rgba(56, 189, 248, 0.08);
-        border-left: 2px solid #38bdf8;
+        border-left: 2px solid var(--accent-cyan);
         border-radius: 3px;
         font-family: monospace;
         font-size: 10.5px;
-        color: #38bdf8;
+        color: var(--accent-cyan);
     }
+    :root[data-theme="light"] .badge-WATCHDOG_CUARENTENA { color: #7e22ce; }
 </style>
 
 <div id="wdSmartTooltip" class="wd-smart-tooltip"></div>
@@ -541,7 +542,7 @@
             <div class="wd-stats-list">
                 <div class="wd-stat-item" data-wd-tt="stat_granjas">Granjas: <b>{{ granjas_disp|length }}</b></div>
                 <div class="wd-stat-item" data-wd-tt="stat_mineros">Equipos: <b>{{ mineros_disp|length }}</b></div>
-                <div class="wd-stat-item" data-wd-tt="stat_cuarentena">En Sleep/Cuarentena: <b style="color:{{ '#ff5252' if en_cuarentena|length > 0 else '#00e676' }};">{{ en_cuarentena|length }}</b></div>
+                <div class="wd-stat-item" data-wd-tt="stat_cuarentena">En Sleep/Cuarentena: <b style="color:{{ 'var(--accent-red)' if en_cuarentena|length > 0 else 'var(--accent-green)' }};">{{ en_cuarentena|length }}</b></div>
             </div>
             <div class="wd-presets-bar">
                 <span class="preset-label" data-wd-tt="presets_wd">⚡ Cargar Perfil (sin guardar):</span>
@@ -856,12 +857,12 @@
                     </div>
                     <div class="curt-kpi">
                         <div class="curt-kpi-lbl">Proyección Mensual</div>
-                        <div class="curt-kpi-val" style="color:#38bdf8;">${{ '%.2f'|format(ahorro_curt.usd_mes) }}</div>
+                        <div class="curt-kpi-val" style="color:var(--accent-cyan);">${{ '%.2f'|format(ahorro_curt.usd_mes) }}</div>
                         <div class="curt-kpi-sub">{{ ahorro_curt.kwh_mes|int }} kWh menos/mes</div>
                     </div>
                     <div class="curt-kpi">
                         <div class="curt-kpi-lbl">Ahorro Real (30 días)</div>
-                        <div class="curt-kpi-val" style="color:#ffd54f;">${{ '%.2f'|format(ahorro_curt.usd_real_30d) }}</div>
+                        <div class="curt-kpi-val" style="color:var(--accent-gold);">${{ '%.2f'|format(ahorro_curt.usd_real_30d) }}</div>
                         <div class="curt-kpi-sub">{{ ahorro_curt.ejecuciones_30d }} ciclo(s) ejecutado(s)</div>
                     </div>
                 </div>
@@ -937,7 +938,7 @@
         </div>
         <form method="POST" action="/alertas" style="margin:0;" onsubmit="return confirm('¿Vaciar todo el historial de alertas?');">
             <input type="hidden" name="accion" value="limpiar_historial">
-            <button type="submit" class="btn-outline-wd" style="color:#ff5252; border-color:rgba(255,82,82,0.35);">🗑️ Limpiar</button>
+            <button type="submit" class="btn-outline-wd" style="color:var(--accent-red); border-color:rgba(255,82,82,0.35);">🗑️ Limpiar</button>
         </form>
     </div>
     <div class="hist-scroll">
@@ -955,7 +956,7 @@
                     {% for h in historial %}
                     <tr>
                         <td style="font-family:monospace; color:var(--text-muted); white-space:nowrap;" translate="no">{{ h.fecha }}</td>
-                        <td style="font-family:monospace; font-weight:bold;" translate="no"><a href="/minero/{{ h.ip }}" style="color:#60a5fa;">{{ h.ip }}</a></td>
+                        <td style="font-family:monospace; font-weight:bold;" translate="no"><a href="/minero/{{ h.ip }}" style="color:var(--accent-blue-light);">{{ h.ip }}</a></td>
                         <td><span class="badge-ev badge-{{ h.tipo }}" translate="no">{{ h.tipo }}</span></td>
                         <td>{{ h.mensaje }}</td>
                     </tr>

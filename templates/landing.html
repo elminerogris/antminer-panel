@@ -9,6 +9,7 @@
     <link rel="canonical" href="https://elminerogris.com/">
     <meta name="robots" content="index, follow">
     <link rel="icon" type="image/png" href="/static/logo.png">
+    <link rel="apple-touch-icon" href="/static/logo.png">
 
     <!-- Open Graph (WhatsApp, Telegram, Facebook) -->
     <meta property="og:type" content="website">
@@ -16,15 +17,15 @@
     <meta property="og:title" content="El Minero Gris — Controla tu Granja ASIC desde el Celular">
     <meta property="og:description" content="Hashrate en vivo, temperaturas, alertas Telegram, Watchdog, Horarios de Tarifa Pico y acceso web local a tus Antminer y Router sin abrir puertos.">
     <meta property="og:site_name" content="El Minero Gris">
-    <meta property="og:image" content="https://elminerogris.com/static/og-preview.png">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
+    <meta property="og:image" content="https://elminerogris.com/static/logo.png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
 
     <!-- Twitter / X Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="El Minero Gris — Controla tu Granja ASIC desde el Celular">
     <meta name="twitter:description" content="Monitoreo 24/7, Watchdog, Telegram y Proxy Web Local para Antminer y WhatsMiner sin VPN ni abrir puertos.">
-    <meta name="twitter:image" content="https://elminerogris.com/static/og-preview.png">
+    <meta name="twitter:image" content="https://elminerogris.com/static/logo.png">
 
     <!-- Datos estructurados para Google (Schema.org) -->
     <script type="application/ld+json">
@@ -35,7 +36,7 @@
       "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "Web, Android, Windows, Linux",
       "url": "https://elminerogris.com/",
-      "image": "https://elminerogris.com/static/og-preview.png",
+      "image": "https://elminerogris.com/static/logo.png",
       "description": "Plataforma en la nube para monitorear y controlar mineros ASIC Antminer y WhatsMiner de forma remota sin VPN ni abrir puertos.",
       "offers": {
         "@type": "Offer",
@@ -45,443 +46,1017 @@
     }
     </script>
 
+    <script>try{if(localStorage.getItem('emg_theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
     <style>
         :root {
-            --bg-main: #090b12;
-            --bg-card: #111420;
-            --bg-soft: #161b2c;
-            --border: rgba(255, 255, 255, 0.09);
+            --bg-main: #07090e;
+            --bg-card: #0f131d;
+            --bg-card-hover: #141a28;
+            --bg-soft: #161c2c;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(59, 130, 246, 0.45);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
-            --blue: #3366ff;
+            --blue: #2563eb;
             --blue-light: #60a5fa;
-            --green: #00e676;
-            --amber: #ffb300;
-            --red: #ff5252;
+            --blue-glow: rgba(37, 99, 235, 0.25);
+            --green: #10b981;
+            --green-glow: rgba(16, 185, 129, 0.2);
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --purple: #a855f7;
+            --radius-lg: 16px;
+            --radius-md: 10px;
         }
+        :root[data-theme="light"] {
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --bg-soft: #e2e8f0;
+            --border: #e2e8f0;
+            --border-hover: #93c5fd;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --blue: #2563eb;
+            --blue-light: #1d4ed8;
+            --blue-glow: rgba(37, 99, 235, 0.12);
+            --green: #059669;
+            --green-glow: rgba(5, 150, 105, 0.10);
+            --amber: #d97706;
+            --red: #dc2626;
+            --purple: #7e22ce;
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
-            background: radial-gradient(circle at 20% 0%, rgba(51, 102, 255, 0.14), transparent 40%), var(--bg-main);
+            background: radial-gradient(circle at 15% 0%, rgba(37, 99, 235, 0.15), transparent 45%),
+                        radial-gradient(circle at 85% 25%, rgba(16, 185, 129, 0.08), transparent 40%),
+                        var(--bg-main);
             color: var(--text-main);
             line-height: 1.6;
+            min-height: 100vh;
         }
         a { text-decoration: none; color: inherit; }
-        .container { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+        .container { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
 
+        /* Top Bar */
+        .top-bar {
+            background: linear-gradient(90deg, #1e3a8a, #0f172a, #065f46);
+            color: #e2e8f0;
+            font-size: 0.82em;
+            padding: 8px 16px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .top-bar strong { color: #fff; }
+        .top-bar a {
+            color: #93c5fd;
+            font-weight: 700;
+            text-decoration: underline;
+            transition: color 0.15s;
+        }
+        .top-bar a:hover { color: #fff; }
+
+        /* Navbar */
         .nav {
             position: sticky; top: 0; z-index: 100;
-            background: rgba(9, 11, 18, 0.85);
-            backdrop-filter: blur(10px);
+            background: rgba(7, 9, 14, 0.88);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
             border-bottom: 1px solid var(--border);
+            transition: background 0.3s ease;
+        }
+        :root[data-theme="light"] .nav {
+            background: rgba(255, 255, 255, 0.94);
         }
         .nav-inner {
             display: flex; align-items: center; justify-content: space-between;
-            height: 68px; gap: 16px;
+            height: 72px; gap: 16px;
         }
         .brand {
-            display: flex; align-items: center; gap: 10px;
-            font-weight: 800; font-size: 1.12em; letter-spacing: -0.3px;
+            display: flex; align-items: center; gap: 12px;
+            font-weight: 800; font-size: 1.18em; letter-spacing: -0.4px;
         }
-        .brand-logo {
-            width: 34px; height: 34px; border-radius: 8px;
-            background: linear-gradient(135deg, var(--blue), #1d4ed8);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 900; box-shadow: 0 0 16px rgba(51, 102, 255, 0.45);
+        .brand-logo-img {
+            width: 40px; height: 40px; border-radius: 10px;
+            object-fit: cover;
+            box-shadow: 0 0 20px rgba(37, 99, 235, 0.45);
+            background: #111420;
+            border: 1px solid rgba(255,255,255,0.12);
+            transition: transform 0.2s ease;
         }
-        .nav-links { display: flex; align-items: center; gap: 20px; font-size: 0.9em; color: var(--text-muted); }
-        .nav-links a:hover { color: #fff; }
+        .brand:hover .brand-logo-img { transform: scale(1.05); }
+        .brand-text span { color: var(--blue-light); }
+
+        .nav-links { display: flex; align-items: center; gap: 22px; font-size: 0.9em; font-weight: 500; color: var(--text-muted); }
+        .nav-links a { transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text-main); }
         .nav-cta { display: flex; align-items: center; gap: 10px; }
+
+        /* Buttons */
         .btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-            padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 0.9em;
-            transition: all 0.2s ease; cursor: pointer; border: 1px solid transparent;
+            padding: 11px 20px; border-radius: var(--radius-md); font-weight: 700; font-size: 0.92em;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; border: 1px solid transparent;
+            text-align: center;
         }
+        .btn-sm { padding: 8px 14px; font-size: 0.85em; }
         .btn-primary {
-            background: linear-gradient(135deg, var(--blue), #2563eb);
-            color: #fff; border-color: var(--blue-light);
-            box-shadow: 0 0 18px rgba(51, 102, 255, 0.4);
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #fff; border-color: rgba(96, 165, 250, 0.5);
+            box-shadow: 0 4px 18px var(--blue-glow);
         }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 26px rgba(59, 130, 246, 0.65); }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45);
+            color: #fff;
+        }
+        .btn-apk {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #fff; border-color: rgba(52, 211, 153, 0.45);
+            box-shadow: 0 4px 18px var(--green-glow);
+        }
+        .btn-apk:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+            color: #fff;
+        }
         .btn-outline {
-            background: rgba(255, 255, 255, 0.03); color: #e2e8f0; border-color: var(--border);
+            background: rgba(255, 255, 255, 0.04); color: var(--text-main); border-color: var(--border);
         }
-        .btn-outline:hover { border-color: var(--blue-light); color: #fff; }
+        :root[data-theme="light"] .btn-outline {
+            background: #ffffff; color: #0f172a; border-color: #cbd5e1;
+        }
+        .btn-outline:hover {
+            border-color: var(--blue-light);
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--blue-light);
+        }
 
-        .hero { padding: 72px 0 64px 0; }
+        /* Hero */
+        .hero { padding: 64px 0 54px 0; position: relative; }
         .hero-grid {
-            display: grid; grid-template-columns: 1.08fr 0.92fr; gap: 42px; align-items: center;
+            display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 40px; align-items: center;
         }
+        .hero-badge-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
         .pill {
             display: inline-flex; align-items: center; gap: 8px;
-            padding: 5px 12px; border-radius: 999px;
-            background: rgba(51, 102, 255, 0.14); border: 1px solid rgba(96, 165, 250, 0.35);
-            color: var(--blue-light); font-size: 0.76em; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 18px;
+            padding: 6px 14px; border-radius: 999px;
+            background: rgba(37, 99, 235, 0.12); border: 1px solid rgba(96, 165, 250, 0.35);
+            color: var(--blue-light); font-size: 0.78em; font-weight: 700;
+            letter-spacing: 0.4px;
         }
+        .pill-green {
+            background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35);
+            color: var(--green);
+        }
+        .pulse-dot {
+            width: 8px; height: 8px; border-radius: 50%; background: #10b981;
+            box-shadow: 0 0 10px #10b981; display: inline-block;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
         .hero h1 {
-            font-size: clamp(2.1rem, 4.2vw, 3.25rem);
-            line-height: 1.12; font-weight: 850; letter-spacing: -1px; margin-bottom: 18px;
+            font-size: clamp(2.2rem, 4.4vw, 3.4rem);
+            line-height: 1.14; font-weight: 850; letter-spacing: -1.2px; margin-bottom: 20px;
         }
-        .hero h1 span { color: var(--blue-light); }
-        .hero-sub { font-size: 1.05em; color: var(--text-muted); margin-bottom: 26px; max-width: 540px; }
-        .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+        .hero h1 .highlight {
+            background: linear-gradient(135deg, #60a5fa, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-sub {
+            font-size: 1.08em; color: var(--text-muted); margin-bottom: 28px; max-width: 560px; line-height: 1.65;
+        }
+        .hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; }
         .hero-checks {
-            display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.82em; color: #cbd5e1; margin-bottom: 28px;
+            display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.85em; color: var(--text-muted); margin-bottom: 30px;
         }
-        .hero-checks span b { color: var(--green); }
+        .hero-checks span { display: inline-flex; align-items: center; gap: 6px; }
+        .hero-checks span b { color: var(--green); font-size: 1.1em; }
+
         .hero-metrics {
             display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
-            padding-top: 22px; border-top: 1px solid var(--border);
+            padding-top: 24px; border-top: 1px solid var(--border);
         }
-        .hm-val { font-size: 1.35em; font-weight: 800; color: var(--blue-light); font-family: monospace; }
+        .hm-val { font-size: 1.4em; font-weight: 850; color: var(--blue-light); font-family: monospace; }
         .hm-lbl { font-size: 0.72em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
 
+        /* Mockup */
+        .mockup-wrap { position: relative; }
         .mockup {
-            background: var(--bg-card); border: 1px solid rgba(96, 165, 250, 0.28);
-            border-radius: 14px; padding: 16px;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 40px rgba(51, 102, 255, 0.14);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 18px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65), 0 0 35px rgba(37, 99, 235, 0.15);
+            transition: all 0.3s ease;
+        }
+        :root[data-theme="light"] .mockup {
+            box-shadow: 0 16px 45px rgba(15, 23, 42, 0.12);
         }
         .mk-top {
             display: flex; align-items: center; justify-content: space-between;
-            padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border);
-            font-size: 0.78em; font-family: monospace; color: var(--text-muted);
+            padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border);
+            font-size: 0.8em; font-family: monospace; color: var(--text-muted);
         }
-        .mk-dots { display: flex; gap: 6px; }
-        .mk-dots i { width: 9px; height: 9px; border-radius: 50%; display: block; background: #334155; }
-        .mk-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+        .mk-dots { display: flex; gap: 7px; }
+        .mk-dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+        .mk-dots i:nth-child(1) { background: #ef4444; }
+        .mk-dots i:nth-child(2) { background: #f59e0b; }
+        .mk-dots i:nth-child(3) { background: #10b981; }
+
+        .mk-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
         .mk-kpi {
-            background: rgba(9, 11, 18, 0.65); border: 1px solid var(--border);
-            border-radius: 8px; padding: 10px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 11px;
         }
-        .mk-kpi small { font-size: 0.68em; color: var(--text-muted); text-transform: uppercase; display: block; }
-        .mk-kpi strong { font-size: 1.1em; font-family: monospace; }
+        :root[data-theme="light"] .mk-kpi { background: #f8fafc; }
+        .mk-kpi small { font-size: 0.68em; color: var(--text-muted); text-transform: uppercase; display: block; font-weight: 600; }
+        .mk-kpi strong { font-size: 1.15em; font-family: monospace; display: block; margin-top: 3px; }
+
         .mk-row {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 9px 10px; border-radius: 7px; background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.04); margin-bottom: 7px;
-            font-family: monospace; font-size: 0.8em;
+            padding: 10px 12px; border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            margin-bottom: 8px;
+            font-family: monospace; font-size: 0.82em;
+            transition: background 0.15s;
         }
-        .mk-alert {
-            margin-top: 10px; padding: 10px 12px; border-radius: 8px;
-            background: rgba(0, 230, 118, 0.08); border: 1px solid rgba(0, 230, 118, 0.35);
-            font-size: 0.78em; color: #a7f3d0; display: flex; align-items: center; gap: 8px;
+        :root[data-theme="light"] .mk-row { background: #f8fafc; }
+        .mk-row:hover { background: rgba(37, 99, 235, 0.06); }
+        .mk-tag {
+            padding: 2px 7px; border-radius: 4px; font-size: 0.75em; font-weight: 700;
+        }
+        .mk-tag-green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        :root[data-theme="light"] .mk-tag-green { color: #059669; }
+
+        .mk-toast {
+            margin-top: 14px; padding: 12px 14px; border-radius: 10px;
+            background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35);
+            font-size: 0.8em; color: #a7f3d0; display: flex; align-items: flex-start; gap: 10px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+        }
+        :root[data-theme="light"] .mk-toast {
+            background: rgba(5, 150, 105, 0.1); color: #065f46;
+        }
+        .mk-phone-badge {
+            margin-top: 8px; padding: 8px 12px; border-radius: 8px;
+            background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.25);
+            font-size: 0.78em; color: var(--blue-light); display: flex; align-items: center; justify-content: space-between;
         }
 
-        section { padding: 64px 0; }
-        .sec-head { text-align: center; max-width: 680px; margin: 0 auto 40px auto; }
-        .sec-head h2 { font-size: clamp(1.6rem, 3vw, 2.3rem); margin-bottom: 10px; letter-spacing: -0.5px; }
-        .sec-head p { color: var(--text-muted); font-size: 0.98em; }
+        /* Sections */
+        section { padding: 72px 0; }
+        .sec-head { text-align: center; max-width: 720px; margin: 0 auto 46px auto; }
+        .sec-head h2 { font-size: clamp(1.8rem, 3.2vw, 2.45rem); margin-bottom: 12px; letter-spacing: -0.6px; font-weight: 850; }
+        .sec-head p { color: var(--text-muted); font-size: 1.02em; line-height: 1.6; }
 
-        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+        /* Beginner Feature Cards */
+        .beginner-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px;
+        }
+        .bg-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            position: relative;
+            transition: all 0.25s ease;
+        }
+        .bg-card:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+        }
+        .bg-card-icon {
+            width: 52px; height: 52px; border-radius: 12px;
+            background: rgba(37, 99, 235, 0.12); border: 1px solid rgba(96, 165, 250, 0.35);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5em; margin-bottom: 18px;
+        }
+        .bg-card h3 { font-size: 1.18em; font-weight: 750; margin-bottom: 10px; }
+        .bg-card p { font-size: 0.92em; color: var(--text-muted); line-height: 1.65; }
+
+        /* Step Cards */
+        .steps-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; position: relative;
+        }
+        .step-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            display: flex; flex-direction: column;
+            position: relative;
+            transition: all 0.25s ease;
+        }
+        .step-card:hover { border-color: var(--border-hover); transform: translateY(-4px); }
+        .step-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .step-number {
+            width: 42px; height: 42px; border-radius: 10px;
+            background: linear-gradient(135deg, rgba(37,99,235,0.25), rgba(37,99,235,0.08));
+            border: 1px solid rgba(96,165,250,0.45);
+            color: var(--blue-light); font-weight: 900; font-family: monospace; font-size: 1.2em;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .step-time {
+            font-size: 0.75em; font-weight: 700; color: var(--green);
+            background: rgba(16, 185, 129, 0.12); padding: 4px 10px; border-radius: 999px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        .step-card h3 { font-size: 1.15em; font-weight: 750; margin-bottom: 10px; }
+        .step-card p { font-size: 0.9em; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; flex: 1; }
+        .step-footer {
+            padding-top: 14px; border-top: 1px solid var(--border);
+            font-size: 0.82em; color: var(--blue-light); font-weight: 600;
+        }
+
+        /* Comparison Section */
+        .compare-box {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 980px; margin: 0 auto;
+        }
+        .compare-card {
+            border-radius: var(--radius-lg); padding: 30px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+        }
+        .compare-card.bad {
+            border-color: rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.02);
+        }
+        :root[data-theme="light"] .compare-card.bad {
+            background: rgba(239, 68, 68, 0.04); border-color: rgba(239, 68, 68, 0.25);
+        }
+        .compare-card.good {
+            border-color: rgba(16, 185, 129, 0.45);
+            background: rgba(16, 185, 129, 0.03);
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.08);
+        }
+        :root[data-theme="light"] .compare-card.good {
+            background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.3);
+        }
+        .compare-card h3 { font-size: 1.2em; font-weight: 800; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+        .compare-list { list-style: none; display: flex; flex-direction: column; gap: 14px; font-size: 0.92em; }
+        .compare-list li { display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
+        .compare-list li span.icon { font-size: 1.1em; line-height: 1.3; }
+
+        /* Calculator */
+        .calc-wrapper {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 34px;
+            max-width: 900px;
+            margin: 0 auto;
+            box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+        }
+        :root[data-theme="light"] .calc-wrapper {
+            box-shadow: 0 12px 35px rgba(15, 23, 42, 0.08);
+        }
+        .calc-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 32px; align-items: center; }
+        .calc-form { display: flex; flex-direction: column; gap: 18px; }
+        .form-group label { display: block; font-size: 0.84em; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .calc-select, .calc-input {
+            width: 100%; padding: 12px 14px; border-radius: var(--radius-md);
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+            color: var(--text-main); font-size: 0.95em; outline: none; transition: border-color 0.2s;
+        }
+        :root[data-theme="light"] .calc-select, :root[data-theme="light"] .calc-input {
+            background: #f8fafc; border-color: #cbd5e1;
+        }
+        .calc-select:focus, .calc-input:focus { border-color: var(--blue-light); }
+
+        .calc-results {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 22px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        :root[data-theme="light"] .calc-results { background: #f8fafc; }
+        .calc-kpi-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; }
+        .calc-kpi-row span { color: var(--text-muted); }
+        .calc-kpi-row strong { font-family: monospace; font-size: 1.05em; color: var(--text-main); }
+        .calc-profit-box {
+            margin-top: 8px; padding: 14px; border-radius: 8px;
+            background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35);
+            text-align: center;
+        }
+        .calc-profit-val { font-size: 1.8em; font-weight: 900; color: var(--green); font-family: monospace; }
+        .calc-profit-lbl { font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+
+        /* Hardware Logos */
+        .hardware-brands {
+            display: flex; justify-content: center; align-items: center; gap: 24px; flex-wrap: wrap; margin-top: 32px;
+        }
+        .hw-badge {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
+            border-radius: 999px; padding: 8px 18px; font-size: 0.86em; font-weight: 700;
+            display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted);
+        }
+        :root[data-theme="light"] .hw-badge { background: #ffffff; border-color: #cbd5e1; color: #334155; }
+
+        /* Features Grid */
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 20px; }
         .card {
             background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 12px; padding: 22px; transition: 0.2s ease;
+            border-radius: var(--radius-lg); padding: 24px; transition: all 0.2s ease;
         }
-        .card:hover { border-color: rgba(96, 165, 250, 0.45); transform: translateY(-2px); }
-        .step-num {
-            width: 32px; height: 32px; border-radius: 8px;
-            background: rgba(51, 102, 255, 0.18); border: 1px solid rgba(96, 165, 250, 0.45);
-            color: var(--blue-light); font-weight: 800; font-family: monospace;
-            display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
-        }
-        .card h3 { font-size: 1.06em; margin-bottom: 8px; }
-        .card p { font-size: 0.88em; color: var(--text-muted); }
+        .card:hover { border-color: var(--border-hover); transform: translateY(-3px); }
+        .card-icon { font-size: 1.8em; margin-bottom: 14px; display: inline-block; }
+        .card h3 { font-size: 1.1em; font-weight: 750; margin-bottom: 8px; }
+        .card p { font-size: 0.88em; color: var(--text-muted); line-height: 1.6; }
 
-        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; max-width: 780px; margin: 0 auto; }
+        /* Pricing */
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; max-width: 820px; margin: 0 auto; }
         .price-card {
             background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 14px; padding: 28px; display: flex; flex-direction: column;
+            border-radius: var(--radius-lg); padding: 32px; display: flex; flex-direction: column;
+            transition: all 0.25s ease;
         }
         .price-card.pro {
             border-color: rgba(96, 165, 250, 0.65);
-            box-shadow: 0 0 32px rgba(51, 102, 255, 0.16);
+            box-shadow: 0 0 36px rgba(37, 99, 235, 0.2);
+            position: relative;
         }
-        .price-val { font-size: 2.2em; font-weight: 850; margin: 10px 0 4px 0; font-family: monospace; }
-        .price-list { list-style: none; margin: 18px 0 24px 0; flex: 1; }
-        .price-list li { padding: 6px 0; font-size: 0.9em; color: #cbd5e1; }
-        .price-list li::before { content: "✓ "; color: var(--green); font-weight: bold; }
+        .price-popular-tag {
+            position: absolute; top: -12px; right: 24px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #fff; font-size: 0.72em; font-weight: 800; text-transform: uppercase;
+            padding: 4px 12px; border-radius: 999px; letter-spacing: 0.6px;
+        }
+        .price-val { font-size: 2.4em; font-weight: 900; margin: 12px 0 6px 0; font-family: monospace; }
+        .price-list { list-style: none; margin: 20px 0 28px 0; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .price-list li { font-size: 0.9em; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+        .price-list li b { color: var(--green); }
 
-        .faq-list { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+        /* FAQ */
+        .faq-list { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
         details.faq-item {
             background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 10px; padding: 16px 18px;
+            border-radius: var(--radius-md); padding: 18px 22px;
+            transition: border-color 0.2s;
         }
-        details.faq-item summary { font-weight: 700; cursor: pointer; list-style: none; }
-        details.faq-item p { margin-top: 10px; font-size: 0.9em; color: var(--text-muted); }
+        details.faq-item:hover { border-color: var(--border-hover); }
+        details.faq-item summary { font-weight: 750; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+        details.faq-item summary::after { content: "+"; font-size: 1.4em; color: var(--blue-light); line-height: 1; }
+        details.faq-item[open] summary::after { content: "−"; }
+        details.faq-item p { margin-top: 12px; font-size: 0.92em; color: var(--text-muted); line-height: 1.65; }
 
-        footer {
-            border-top: 1px solid var(--border); padding: 32px 0;
-            color: var(--text-muted); font-size: 0.85em; text-align: center;
+        /* CTA Banner */
+        .cta-banner {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(16, 185, 129, 0.12));
+            border: 1px solid rgba(96, 165, 250, 0.35);
+            border-radius: var(--radius-lg);
+            padding: 48px 32px;
+            text-align: center;
+            max-width: 940px;
+            margin: 0 auto;
         }
+        .cta-banner h2 { font-size: clamp(1.8rem, 3.2vw, 2.4rem); margin-bottom: 12px; font-weight: 850; }
+        .cta-banner p { color: var(--text-muted); max-width: 580px; margin: 0 auto 24px auto; font-size: 1.05em; }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border); padding: 36px 0;
+            color: var(--text-muted); font-size: 0.86em; text-align: center; margin-top: 60px;
+        }
+        .footer-brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 12px; }
+        .footer-brand img { width: 24px; height: 24px; border-radius: 6px; }
         .footer-links {
-            margin-top: 10px;
-            display: flex;
-            justify-content: center;
-            gap: 16px;
-            flex-wrap: wrap;
+            margin-top: 12px; display: flex; justify-content: center; gap: 18px; flex-wrap: wrap;
         }
         .footer-links a:hover { color: var(--blue-light); text-decoration: underline; }
 
+        /* WhatsApp Floating */
         .wa-float-btn {
-            position: fixed;
-            bottom: 22px;
-            right: 22px;
-            z-index: 999;
+            position: fixed; bottom: 22px; right: 22px; z-index: 999;
             background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
-            color: #fff;
-            padding: 11px 16px;
-            border-radius: 999px;
-            font-weight: 700;
-            font-size: 0.88em;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 16px rgba(37, 211, 102, 0.45);
+            color: #fff; padding: 12px 18px; border-radius: 999px;
+            font-weight: 700; font-size: 0.9em;
+            display: inline-flex; align-items: center; gap: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(37, 211, 102, 0.35);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         .wa-float-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.65), 0 0 22px rgba(37, 211, 102, 0.7);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), 0 0 22px rgba(37, 211, 102, 0.6);
         }
 
         @media (max-width: 960px) {
             .hero-grid { grid-template-columns: 1fr; }
             .nav-links { display: none; }
             .hero-metrics { grid-template-columns: repeat(2, 1fr); }
+            .beginner-grid, .steps-grid, .compare-box, .calc-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
+    <!-- Top Announcement -->
+    <div class="top-bar">
+        <span>🚀 <strong>Nuevo APK Android v2.0 disponible</strong> · Monitorea tu granja sin abrir puertos desde un celular viejo.</span>
+        <a href="/static/ElMineroGris-Agente.apk" download>Descargar APK directo (3.2 MB) →</a>
+    </div>
+
+    <!-- Header / Navbar -->
     <header class="nav">
         <div class="container nav-inner">
-            <a href="/" class="brand">
-                <div class="brand-logo">MG</div>
-                <span>El Minero Gris</span>
+            <a href="/" class="brand" title="El Minero Gris — Inicio">
+                <img src="/static/logo.png" alt="Logo El Minero Gris" class="brand-logo-img" onerror="this.outerHTML='<span style=\'font-size:1.4em;\'>⛏️</span>'">
+                <div class="brand-text">El Minero <span>Gris</span></div>
             </a>
             <nav class="nav-links">
                 <a href="#como-funciona">Cómo funciona</a>
+                <a href="#principiantes">Para Principiantes</a>
+                <a href="#calculadora">Calculadora</a>
                 <a href="#funciones">Funciones</a>
                 <a href="/compatibilidad">Compatibilidad</a>
                 <a href="/guia">Guía</a>
                 <a href="#precios">Precios</a>
             </nav>
             <div class="nav-cta">
-                <a href="/login" class="btn btn-outline">Iniciar sesión</a>
-                <a href="/register" class="btn btn-primary">Crear cuenta gratis</a>
+                <button type="button" id="btnTemaStandalone" class="emg-theme-btn" title="Cambiar tema claro/oscuro" onclick="toggleTemaStandalone(this)">☀️</button>
+                <select id="langSelectorStandalone" class="emg-mini-lang notranslate" translate="no" aria-label="Idioma" onchange="cambiarIdiomaStandalone(this.value)">
+                    <option value="es" translate="no">🇪🇸 Español</option>
+                    <option value="en" translate="no">🇺🇸 English</option>
+                    <option value="pt" translate="no">🇧🇷 Português</option>
+                    <option value="ru" translate="no">🇷🇺 Русский</option>
+                    <option value="zh-CN" translate="no">🇨🇳 中文 (简体)</option>
+                    <option value="hi" translate="no">🇮🇳 हिन्दी</option>
+                    <option value="ar" translate="no">🇸🇦 العربية</option>
+                    <option value="bn" translate="no">🇧🇩 বাংলা</option>
+                    <option value="fr" translate="no">🇫🇷 Français</option>
+                    <option value="de" translate="no">🇩🇪 Deutsch</option>
+                </select>
+                <a href="/login" class="btn btn-outline btn-sm">Iniciar sesión</a>
+                <a href="/register" class="btn btn-primary btn-sm">Crear cuenta gratis</a>
             </div>
         </div>
     </header>
 
     <main>
+        <!-- Hero Section -->
         <section class="hero">
             <div class="container hero-grid">
                 <div>
-                    <div class="pill">● Monitoreo de Flota ASIC en Tiempo Real</div>
-                    <h1>Monitorea y controla tus <span>Antminer y WhatsMiner</span> desde cualquier lugar</h1>
+                    <div class="hero-badge-wrap">
+                        <div class="pill pill-green">
+                            <span class="pulse-dot"></span> Monitoreo en Tiempo Real 24/7
+                        </div>
+                        <div class="pill">Cero Configuración de Router</div>
+                    </div>
+                    <h1>Controla tu Granja ASIC <span class="highlight">desde cualquier lugar</span> sin ser experto en redes</h1>
                     <p class="hero-sub">
-                        Hashrate en vivo, temperaturas, reinicio remoto, alertas por Telegram y acceso directo a la web local de tus equipos y router. Sin abrir puertos, sin VPN y sin IP fija.
+                        Hashrate en vivo, temperaturas, reinicio automático (Watchdog), alertas a tu Telegram y acceso directo a la web de cada minero y de tu router. Todo mediante un celular Android o PC en tu red local.
                     </p>
                     <div class="hero-actions">
-                        <a href="/register" class="btn btn-primary">Crear cuenta gratis →</a>
-                        <a href="/guia" class="btn btn-outline">Ver guía paso a paso</a>
+                        <a href="/static/ElMineroGris-Agente.apk" class="btn btn-apk" download>
+                            <span>📱</span> Descargar APK Android (3.2 MB)
+                        </a>
+                        <a href="/register" class="btn btn-primary">
+                            <span>🚀</span> Empezar Gratis (3 Mineros)
+                        </a>
+                        <a href="/guia" class="btn btn-outline">
+                            <span>📖</span> Guía de 2 Minutos
+                        </a>
                     </div>
                     <div class="hero-checks">
-                        <span><b>✓</b> Gratis hasta 3 mineros</span>
-                        <span><b>✓</b> Funciona con CGNAT y Starlink</span>
-                        <span><b>✓</b> Corre en celular Android o PC</span>
+                        <span><b>✓</b> Sin abrir puertos ni VPN</span>
+                        <span><b>✓</b> Funciona con Starlink, 4G y fibra</span>
+                        <span><b>✓</b> No toca contraseñas ni billeteras</span>
                     </div>
                     <div class="hero-metrics">
                         <div>
                             <div class="hm-val">25s</div>
-                            <div class="hm-lbl">Actualización</div>
+                            <div class="hm-lbl">Frecuencia Datos</div>
                         </div>
                         <div>
                             <div class="hm-val">&lt;1s</div>
-                            <div class="hm-lbl">Comandos Túnel</div>
+                            <div class="hm-lbl">Túnel WebSocket</div>
                         </div>
                         <div>
                             <div class="hm-val">24/7</div>
-                            <div class="hm-lbl">Watchdog &amp; Alertas</div>
+                            <div class="hm-lbl">Watchdog Activo</div>
                         </div>
                         <div>
                             <div class="hm-val">2 min</div>
-                            <div class="hm-lbl">Instalación</div>
+                            <div class="hm-lbl">Instalación Total</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mockup" aria-label="Vista previa del panel El Minero Gris">
-                    <div class="mk-top">
-                        <div class="mk-dots"><i></i><i></i><i></i></div>
-                        <span style="color:var(--green);">● En vivo · Túnel WebSocket Activo</span>
-                    </div>
-                    <div class="mk-kpis">
-                        <div class="mk-kpi">
-                            <small>Hashrate Total</small>
-                            <strong style="color:var(--blue-light);">1,403.5 TH/s</strong>
+                <!-- Mockup Preview -->
+                <div class="mockup-wrap">
+                    <div class="mockup" aria-label="Vista previa del panel El Minero Gris">
+                        <div class="mk-top">
+                            <div class="mk-dots"><i></i><i></i><i></i></div>
+                            <span style="color:var(--green); display:flex; align-items:center; gap:6px;">
+                                <span class="pulse-dot"></span> Sincronizado · WebSocket Activo
+                            </span>
                         </div>
-                        <div class="mk-kpi">
-                            <small>Consumo</small>
-                            <strong style="color:#c084fc;">28.9 kW</strong>
+                        <div class="mk-kpis">
+                            <div class="mk-kpi">
+                                <small>Hashrate Flota</small>
+                                <strong style="color:var(--blue-light);">1,403.5 TH/s</strong>
+                            </div>
+                            <div class="mk-kpi">
+                                <small>Consumo Total</small>
+                                <strong style="color:var(--purple);">28.9 kW</strong>
+                            </div>
+                            <div class="mk-kpi">
+                                <small>Temp. Máxima</small>
+                                <strong style="color:var(--green);">68 °C</strong>
+                            </div>
                         </div>
-                        <div class="mk-kpi">
-                            <small>Temp. Máx</small>
-                            <strong style="color:var(--green);">68 °C</strong>
+                        <div class="mk-row">
+                            <span><b style="color:var(--text-main);">001</b> · Antminer S21+</span>
+                            <span style="color:var(--blue-light); font-weight:700;">227.4 TH/s</span>
+                            <span class="mk-tag mk-tag-green">66°C · 3.39 kW</span>
                         </div>
-                    </div>
-                    <div class="mk-row">
-                        <span><b style="color:#fff;">001</b> · Antminer S21+</span>
-                        <span style="color:var(--blue-light);">227.4 TH/s</span>
-                        <span style="color:var(--green);">66°C ●</span>
-                    </div>
-                    <div class="mk-row">
-                        <span><b style="color:#fff;">002</b> · Antminer S19k Pro</span>
-                        <span style="color:var(--blue-light);">121.8 TH/s</span>
-                        <span style="color:var(--green);">68°C ●</span>
-                    </div>
-                    <div class="mk-row">
-                        <span><b style="color:#fff;">003</b> · WhatsMiner M50</span>
-                        <span style="color:var(--blue-light);">118.2 TH/s</span>
-                        <span style="color:var(--amber);">74°C ●</span>
-                    </div>
-                    <div class="mk-alert">
-                        <span>📱</span>
-                        <span><b>Agente APK activo (Xiaomi Mi A2 Lite)</b> · Batería 98% ⚡ · Proxy Web Local listo</span>
+                        <div class="mk-row">
+                            <span><b style="color:var(--text-main);">002</b> · Antminer S19k Pro</span>
+                            <span style="color:var(--blue-light); font-weight:700;">121.8 TH/s</span>
+                            <span class="mk-tag mk-tag-green">68°C · 2.79 kW</span>
+                        </div>
+                        <div class="mk-row">
+                            <span><b style="color:var(--text-main);">003</b> · WhatsMiner M50</span>
+                            <span style="color:var(--blue-light); font-weight:700;">118.2 TH/s</span>
+                            <span class="mk-tag mk-tag-green">72°C · 3.28 kW</span>
+                        </div>
+                        <div class="mk-toast">
+                            <span>🤖</span>
+                            <div>
+                                <strong>Watchdog Inteligente:</strong> Minero 003 se recuperó automáticamente tras reinicio suave por 0 TH/s. No tuviste que viajar a la sede.
+                            </div>
+                        </div>
+                        <div class="mk-phone-badge">
+                            <span>📱 <b>Agente APK:</b> Xiaomi Redmi 9A · Wi-Fi Granja 94%</span>
+                            <span style="color:var(--green); font-weight:bold;">Batería 98% ⚡</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
+        <!-- Beginner Friendly Section -->
+        <section id="principiantes" style="background: rgba(255,255,255,0.01); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+            <div class="container">
+                <div class="sec-head">
+                    <div class="pill">Diseñado para la vida real</div>
+                    <h2>¿Nuevo en minería ASIC? Es mucho más fácil de lo que imaginas</h2>
+                    <p>No necesitas conocimientos de ingeniería en redes ni contratar servicios costosos. Conectas tus mineros y los vigilas desde el sofá o tu trabajo.</p>
+                </div>
+                <div class="beginner-grid">
+                    <div class="bg-card">
+                        <div class="bg-card-icon">🔌</div>
+                        <h3>Cero puertos abiertos</h3>
+                        <p>Los métodos tradicionales te obligaban a abrir puertos en el router, exponiendo tus mineros a hackers y escáneres. Nuestro agente solo crea conexiones salientes seguras con cifrado TLS.</p>
+                    </div>
+                    <div class="bg-card">
+                        <div class="bg-card-icon">📱</div>
+                        <h3>Usa un celular viejo de $20</h3>
+                        <p>No compres computadoras costosas ni dejes tu laptop encendida consumiendo electricidad. Cualquier teléfono Android conectado al Wi-Fi de tus mineros sirve de enlace 24/7.</p>
+                    </div>
+                    <div class="bg-card">
+                        <div class="bg-card-icon">🌐</div>
+                        <h3>Funciona con cualquier internet</h3>
+                        <p>¿Tienes Starlink en el campo, datos 4G/5G o fibra óptica con CGNAT donde tu proveedor no te da IP fija? El Minero Gris funciona a la perfección en todas esas redes.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3 Simple Steps -->
         <section id="como-funciona">
             <div class="container">
                 <div class="sec-head">
-                    <div class="pill">Fácil para principiantes</div>
-                    <h2>En línea en 3 pasos — sin saber de redes</h2>
-                    <p>Tus mineros nunca quedan expuestos a internet. Un agente liviano en tu red local crea un túnel saliente seguro hacia tu panel.</p>
+                    <div class="pill">En línea en minutos</div>
+                    <h2>Solo 3 pasos para controlar tu granja</h2>
+                    <p>Configuración rápida sin comandos técnicos ni terminales complicadas.</p>
                 </div>
-                <div class="grid-3">
-                    <div class="card">
-                        <div class="step-num">1</div>
+                <div class="steps-grid">
+                    <div class="step-card">
+                        <div class="step-header">
+                            <div class="step-number">1</div>
+                            <span class="step-time">30 segundos</span>
+                        </div>
                         <h3>Crea tu cuenta gratuita</h3>
-                        <p>Regístrate en segundos sin tarjeta de crédito. Obtienes tu API Key privada al instante desde Ajustes.</p>
+                        <p>Ingresa un usuario y contraseña. No pedimos tarjeta de crédito ni datos bancarios. Tu cuenta incluye hasta 3 mineros gratis para siempre.</p>
+                        <div class="step-footer">
+                            <a href="/register">Crear cuenta gratis →</a>
+                        </div>
                     </div>
-                    <div class="card">
-                        <div class="step-num">2</div>
-                        <h3>Conecta un celular viejo o PC</h3>
-                        <p>Instala nuestra app Android (APK) en cualquier celular conectado al Wi-Fi de tu granja, o ejecuta el agente en Windows, Linux, Raspberry Pi o TV Box.</p>
+                    <div class="step-card">
+                        <div class="step-header">
+                            <div class="step-number">2</div>
+                            <span class="step-time">1 minuto</span>
+                        </div>
+                        <h3>Instala el Agente en tu red</h3>
+                        <p>Descarga nuestro APK en un celular Android conectado al Wi-Fi de tu granja (o corre el script en Windows/Linux/Raspberry Pi) e inicia sesión con tu usuario.</p>
+                        <div class="step-footer">
+                            <a href="/static/ElMineroGris-Agente.apk" download>Descargar APK oficial →</a>
+                        </div>
                     </div>
-                    <div class="card">
-                        <div class="step-num">3</div>
-                        <h3>Controla todo desde donde estés</h3>
-                        <p>El agente detecta automáticamente tus Antminer y WhatsMiner. Revisa métricas, recibe alertas en Telegram y entra a su web local con datos móviles.</p>
+                    <div class="step-card">
+                        <div class="step-header">
+                            <div class="step-number">3</div>
+                            <span class="step-time">Instantáneo</span>
+                        </div>
+                        <h3>¡Tus mineros aparecen solos!</h3>
+                        <p>El agente escanea tu red automáticamente, detecta tus Antminer y WhatsMiner y empieza a transmitir hashrate, temperaturas y estado en tiempo real a tu panel.</p>
+                        <div class="step-footer">
+                            <a href="/guia">Ver tutorial completo con capturas →</a>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
+        <!-- Comparison Section -->
+        <section style="background: rgba(255,255,255,0.01); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+            <div class="container">
+                <div class="sec-head">
+                    <div class="pill">Comparativa directa</div>
+                    <h2>La forma antigua vs. Con El Minero Gris</h2>
+                    <p>Por qué los mineros eligen nuestra solución frente a métodos viejos y riesgosos.</p>
+                </div>
+                <div class="compare-box">
+                    <div class="compare-card bad">
+                        <h3 style="color:var(--red);"><span>❌</span> La forma antigua (Difícil y costosa)</h3>
+                        <ul class="compare-list">
+                            <li>
+                                <span class="icon">🚫</span>
+                                <div><strong>Pagar IP pública fija:</strong> Las telefónicas cobran $20 a $50 USD extra cada mes por una IP fija.</div>
+                            </li>
+                            <li>
+                                <span class="icon">⚠️</span>
+                                <div><strong>Puertos abiertos inseguros:</strong> Abrir puertos en el router atrae ataques de bots que cambian tus pools de minería.</div>
+                            </li>
+                            <li>
+                                <span class="icon">💻</span>
+                                <div><strong>Dejar una PC encendida:</strong> Consume más de 150W de electricidad solo para monitorear, aumentando tu factura.</div>
+                            </li>
+                            <li>
+                                <span class="icon">🚗</span>
+                                <div><strong>Viajar a la granja por un minero colgado:</strong> Si un ASIC cae a 0 TH/s de madrugada, pierdes horas de minado hasta que vas a desenchufarlo.</div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="compare-card good">
+                        <h3 style="color:var(--green);"><span>✅</span> Con El Minero Gris (Simple y seguro)</h3>
+                        <ul class="compare-list">
+                            <li>
+                                <span class="icon">⚡</span>
+                                <div><strong>Funciona con cualquier internet:</strong> Starlink, 4G, fibra o satelital sin pagar un centavo extra por IPs fijas.</div>
+                            </li>
+                            <li>
+                                <span class="icon">🛡️</span>
+                                <div><strong>100% Sin puertos abiertos:</strong> Conexión inversa cifrada TLS. Nadie desde internet puede escanear tu red interna.</div>
+                            </li>
+                            <li>
+                                <span class="icon">📱</span>
+                                <div><strong>Usa un celular viejo de 5W:</strong> Gasta prácticamente nada de luz y te avisa por Telegram si se corta la electricidad.</div>
+                            </li>
+                            <li>
+                                <span class="icon">🤖</span>
+                                <div><strong>Watchdog automático 24/7:</strong> Si un minero cae a 0 TH/s o pierde placas, se reinicia solo en menos de 2 minutos.</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Calculator for Beginners -->
+        <section id="calculadora">
+            <div class="container">
+                <div class="sec-head">
+                    <div class="pill">Calculadora Rápida</div>
+                    <h2>Calcula el rendimiento estimado de tu equipo</h2>
+                    <p>Selecciona tu modelo y tu costo de electricidad para proyectar tus resultados diarios y mensuales.</p>
+                </div>
+                <div class="calc-wrapper">
+                    <div class="calc-grid">
+                        <div class="calc-form">
+                            <div class="form-group">
+                                <label for="calcModel">Modelo de Minero ASIC</label>
+                                <select id="calcModel" class="calc-select" onchange="calcularRentabilidadLanding()">
+                                    <option value="216,3390">Antminer S21+ (216 TH/s · 3,390 W)</option>
+                                    <option value="234,3510">Antminer S21 Pro (234 TH/s · 3,510 W)</option>
+                                    <option value="200,3500">Antminer S21 (200 TH/s · 3,500 W)</option>
+                                    <option value="120,2760" selected>Antminer S19k Pro (120 TH/s · 2,760 W)</option>
+                                    <option value="140,3010">Antminer S19 XP (140 TH/s · 3,010 W)</option>
+                                    <option value="95,3250">Antminer S19 (95 TH/s · 3,250 W)</option>
+                                    <option value="118,3280">WhatsMiner M50 (118 TH/s · 3,280 W)</option>
+                                    <option value="126,3500">WhatsMiner M50S (126 TH/s · 3,500 W)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="calcTarifa">Costo de Electricidad ($ USD por kWh)</label>
+                                <input type="number" id="calcTarifa" class="calc-input" value="0.05" step="0.005" min="0" max="0.5" oninput="calcularRentabilidadLanding()">
+                            </div>
+                            <p style="font-size:0.82em; color:var(--text-muted); line-height:1.5;">
+                                💡 <em>Nota: Estimación de referencia basada en dificultad estándar de Bitcoin. Dentro de tu panel de El Minero Gris los cálculos se actualizan automáticamente en tiempo real con datos de tu pool y tarifa configurada.</em>
+                            </p>
+                        </div>
+
+                        <div class="calc-results">
+                            <div class="calc-kpi-row">
+                                <span>Hashrate proyectado:</span>
+                                <strong id="resHashrate">120.0 TH/s</strong>
+                            </div>
+                            <div class="calc-kpi-row">
+                                <span>Consumo diario:</span>
+                                <strong id="resKwh">66.24 kWh / día</strong>
+                            </div>
+                            <div class="calc-kpi-row">
+                                <span>Costo eléctrico diario:</span>
+                                <strong id="resCostoLuz" style="color:var(--amber);">$3.31 USD</strong>
+                            </div>
+                            <div class="calc-profit-box">
+                                <div class="calc-profit-lbl">Ganancia Neta Estimada</div>
+                                <div class="calc-profit-val" id="resGananciaNeta">$3.89 USD / día</div>
+                                <div style="font-size:0.8em; color:var(--text-muted); margin-top:4px;" id="resGananciaMes">Aprox. $116.70 USD / mes</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hardware compatibility logos -->
+                <div class="hardware-brands">
+                    <span class="hw-badge">⛏️ Bitmain Antminer (S19, S21, Hydro, L7, L9)</span>
+                    <span class="hw-badge">⚡ MicroBT WhatsMiner (M30, M50, M60)</span>
+                    <span class="hw-badge">🧠 Braiins OS / VNISH / Stock</span>
+                    <a href="/compatibilidad" style="color:var(--blue-light); font-weight:700; font-size:0.86em; text-decoration:underline;">Ver los 60+ modelos soportados →</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Features -->
         <section id="funciones">
             <div class="container">
                 <div class="sec-head">
-                    <div class="pill">Todo incluido</div>
-                    <h2>Herramientas profesionales hechas simples</h2>
-                    <p>Diseñado para proteger tu inversión, ahorrar electricidad y evitar viajes innecesarios a la granja.</p>
+                    <div class="pill">Herramientas profesionales</div>
+                    <h2>Todo lo que necesitas para cuidar tu inversión</h2>
+                    <p>Diseñado específicamente para evitar viajes de emergencia a la granja y maximizar tus ganancias.</p>
                 </div>
                 <div class="grid-3">
                     <div class="card">
-                        <h3>📱 Agente en Android, PC o TV Box</h3>
-                        <p>No necesitas dejar una computadora costosa encendida. Usa un celular Android con nuestro APK, Termux, Raspberry Pi o Windows con monitoreo de batería.</p>
+                        <div class="card-icon">🤖</div>
+                        <h3>Watchdog Automático Inteligente</h3>
+                        <p>Detecta caídas a 0 TH/s, placas desconectadas o anomalías térmicas y envía un reinicio seguro en segundos. Incluye cuarentena inteligente para no gastar reinicios en bucle.</p>
                     </div>
                     <div class="card">
-                        <h3>🌐 Proxy Web Local (ASIC y Router)</h3>
-                        <p>Abre la página interna original de cada Antminer y de tu router local desde cualquier lugar sin AnyDesk, TeamViewer ni VPN.</p>
+                        <div class="card-icon">🌐</div>
+                        <h3>Proxy Web Local (ASIC y Router)</h3>
+                        <p>Abre la página web original de configuración de tu Antminer o de tu Router local desde tu celular o computadora en la calle, con un solo clic y sin AnyDesk ni VPN.</p>
                     </div>
                     <div class="card">
-                        <h3>🛡️ Watchdog y Protección Térmica</h3>
-                        <p>Reinicio automático por 0 TH/s o placa caída, cuarentena anti-bucle y modo Sleep automático por sobrecalentamiento o clima exterior.</p>
+                        <div class="card-icon">⚡</div>
+                        <h3>Horarios de Tarifa Pico (Curtailment)</h3>
+                        <p>Programa horas de electricidad cara (ej. 18:00 a 22:00) para poner automáticamente los mineros en Low Power o Sleep y regresarlos a Normal cuando la tarifa baja.</p>
                     </div>
                     <div class="card">
-                        <h3>⏰ Horarios de Tarifa Pico</h3>
-                        <p>Automatiza el cambio a Low Power o Sleep en las horas de electricidad cara (ej. 18:00 a 22:00) y vuelve a Normal automáticamente.</p>
+                        <div class="card-icon">📲</div>
+                        <h3>Alertas Instantáneas en Telegram</h3>
+                        <p>Notificaciones de corte de luz, desconexión de internet, celular con batería baja, sobrecalentamiento y resumen diario de producción matutino.</p>
                     </div>
                     <div class="card">
-                        <h3>📲 Alertas Instantáneas en Telegram</h3>
-                        <p>Avisos en tiempo real por corte de luz/internet en la sede, temperatura alta, caída de hashrate, batería baja del celular y resumen diario.</p>
+                        <div class="card-icon">📊</div>
+                        <h3>Control de Costos y Reporte CSV</h3>
+                        <p>Visualiza el consumo en kW de cada sede, calcula tu gasto de luz diario y mensual con precisión y exporta reportes detallados para tus socios o clientes.</p>
                     </div>
                     <div class="card">
-                        <h3>🏭 Gestión Multi-Granja</h3>
-                        <p>Organiza tus equipos por sede, supervisa la carga del transformador (kW), calcula el costo eléctrico diario y envía órdenes masivas en 1 clic.</p>
+                        <div class="card-icon">🏭</div>
+                        <h3>Gestión Multi-Granja y Multi-Sede</h3>
+                        <p>¿Tienes mineros en tu casa y otros en un galpón? Agrúpalos por granjas, asigna nombres personalizados a cada máquina y envía órdenes masivas en 1 clic.</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="precios">
+        <!-- Pricing Section -->
+        <section id="precios" style="background: rgba(255,255,255,0.01); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
             <div class="container">
                 <div class="sec-head">
-                    <div class="pill">Planes transparentes</div>
-                    <h2>Empieza gratis y escala cuando quieras</h2>
-                    <p>Prueba todas las bases sin compromiso con tus primeros equipos.</p>
+                    <div class="pill">Sin sorpresas</div>
+                    <h2>Comienza gratis y escala cuando tu flota crezca</h2>
+                    <p>No pedimos tarjeta de crédito para empezar. Prueba todas las funciones con tus primeros equipos.</p>
                 </div>
                 <div class="pricing-grid">
                     <div class="price-card">
                         <h3>Plan Gratis</h3>
-                        <div class="price-val">$0 <span style="font-size:0.42em; color:var(--text-muted);">/mes</span></div>
-                        <p style="font-size:0.86em; color:var(--text-muted);">Ideal para empezar a monitorear tus primeros equipos.</p>
+                        <div class="price-val">$0 <span style="font-size:0.42em; color:var(--text-muted); font-weight:normal;">/mes</span></div>
+                        <p style="font-size:0.88em; color:var(--text-muted);">Ideal para principiantes con sus primeros mineros en casa.</p>
                         <ul class="price-list">
-                            <li>Hasta 3 mineros ASIC activos</li>
-                            <li>Agente Android APK y Python PC</li>
-                            <li>Alertas en Telegram y Watchdog</li>
-                            <li>Proxy Web Local para ASIC y Router</li>
-                            <li>Historial de 24 horas</li>
+                            <li><b>✓</b> Hasta 3 mineros ASIC activos</li>
+                            <li><b>✓</b> Agente Android APK y Python PC</li>
+                            <li><b>✓</b> Watchdog automático de reinicio</li>
+                            <li><b>✓</b> Alertas directas a Telegram</li>
+                            <li><b>✓</b> Proxy Web Local para ASIC y Router</li>
+                            <li><b>✓</b> Historial de 24 horas</li>
                         </ul>
-                        <a href="/register" class="btn btn-outline" style="width:100%;">Empezar Gratis</a>
+                        <a href="/register" class="btn btn-outline" style="width:100%;">Empezar Gratis Ahora</a>
                     </div>
+
                     <div class="price-card pro">
+                        <div class="price-popular-tag">Más Popular</div>
                         <h3 style="color:var(--blue-light);">Plan Pro</h3>
-                        <div class="price-val">Escalable <span style="font-size:0.42em; color:var(--text-muted);">por flota</span></div>
-                        <p style="font-size:0.86em; color:var(--text-muted);">Para granjas en crecimiento y operadores profesionales.</p>
+                        <div class="price-val">Escalable <span style="font-size:0.4em; color:var(--text-muted); font-weight:normal;">por flota</span></div>
+                        <p style="font-size:0.88em; color:var(--text-muted);">Para granjas comerciales, técnicos y operadores medianos.</p>
                         <ul class="price-list">
-                            <li>Mineros y sedes ilimitados</li>
-                            <li>Acciones masivas en 1 clic por granja</li>
-                            <li>Historial extendido de 30 días</li>
-                            <li>Exportación de reportes CSV</li>
-                            <li>Soporte prioritario por WhatsApp</li>
+                            <li><b>✓</b> Mineros y sedes ilimitados</li>
+                            <li><b>✓</b> Acciones masivas en 1 clic por granja</li>
+                            <li><b>✓</b> Automatización de Tarifa Pico (Curtailment)</li>
+                            <li><b>✓</b> Historial extendido de 30 días</li>
+                            <li><b>✓</b> Exportación de reportes CSV para socios</li>
+                            <li><b>✓</b> Soporte prioritario por WhatsApp directo</li>
                         </ul>
-                        <a href="/register" class="btn btn-primary" style="width:100%;">Crear cuenta y probar</a>
+                        <a href="/register" class="btn btn-primary" style="width:100%;">Crear Cuenta Pro</a>
                     </div>
                 </div>
             </div>
         </section>
 
+        <!-- FAQ Section -->
         <section id="faq">
             <div class="container">
                 <div class="sec-head">
-                    <h2>Preguntas frecuentes</h2>
+                    <div class="pill">Respuestas claras</div>
+                    <h2>Preguntas frecuentes de principiantes</h2>
+                    <p>Todo lo que necesitas saber antes de conectar tu primer minero.</p>
                 </div>
                 <div class="faq-list">
-                    <details class="faq-item">
-                        <summary>¿Necesito abrir puertos en mi router o tener IP fija?</summary>
-                        <p>No. El agente (APK Android o PC) crea una conexión saliente segura hacia El Minero Gris. Funciona perfectamente detrás de Starlink, 4G/5G y proveedores con CGNAT.</p>
+                    <details class="faq-item" open>
+                        <summary>¿Realmente puedo usar un celular Android viejo como agente?</summary>
+                        <p>Sí. Solo necesitas instalar nuestro archivo APK en un teléfono conectado a la misma red Wi-Fi donde están tus mineros. El celular se encarga de leer los datos de los ASIC y enviarlos a tu panel. Recomendamos dejarlo enchufado con su cargador. El panel incluso te avisará si el cargador se desconecta.</p>
                     </details>
                     <details class="faq-item">
-                        <summary>¿Qué modelos de mineros son compatibles?</summary>
-                        <p>Es compatible con la mayoría de equipos Bitmain Antminer (S19, S19k Pro, S19 XP, S21, S21+, S23, Hydro, L7, L9, Z15, KS3/KS5) y MicroBT WhatsMiner (M30, M50, M60 y series Hydro). <a href="/compatibilidad" style="color:var(--blue-light); text-decoration:underline;">Ver lista completa</a>.</p>
+                        <summary>¿Es seguro? ¿Alguien puede robar mis bitcoins o cambiar mi pool?</summary>
+                        <p>100% seguro. El agente nunca tiene acceso a tus billeteras ni a tus llaves privadas. La comunicación entre el agente y la nube utiliza encriptación TLS de nivel bancario. Además, tus mineros nunca quedan expuestos a internet porque no abres puertos en tu router.</p>
                     </details>
                     <details class="faq-item">
-                        <summary>¿Puedo usar un celular Android viejo en lugar de una computadora?</summary>
-                        <p>Sí. Solo conectas el celular al Wi-Fi de la granja, instalas nuestro APK oficial e inicias sesión. Incluso te avisará por Telegram si el cargador se desconecta o la batería baja del 20%.</p>
+                        <summary>¿Qué pasa si se corta la luz o el internet en mi granja?</summary>
+                        <p>El sistema detectará inmediatamente la pérdida de señal y te enviará una alerta automática a tu Telegram: <em>"⚠️ Posible corte de luz o caída de internet en Sede Principal"</em>. En cuanto regrese la energía, el agente se reconectará solo sin que tengas que intervenir.</p>
                     </details>
+                    <details class="faq-item">
+                        <summary>¿Cómo funciona el Watchdog si un minero se congela o cae a 0 TH/s?</summary>
+                        <p>El Watchdog supervisa el hashrate cada pocos segundos. Si un equipo deja de minar o pierde una placa de hash, el sistema le envía un comando de reinicio remoto automáticamente para devolverlo a producción en minutos, ahorrándote horas de pérdida de ganancia.</p>
+                    </details>
+                    <details class="faq-item">
+                        <summary>¿Puedo ver la página interna original del minero desde fuera de mi casa?</summary>
+                        <p>Sí. Gracias a nuestra función de <strong>Proxy Web Local</strong>, puedes abrir la página web interna de cualquier Antminer, WhatsMiner o incluso del propio router de tu granja desde cualquier parte del mundo con tus datos móviles, tal como si estuvieras conectado con un cable de red en el lugar.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <!-- Final Call to Action -->
+        <section style="padding-top: 0;">
+            <div class="container">
+                <div class="cta-banner">
+                    <h2>¿Listo para tomar el control de tu granja?</h2>
+                    <p>Únete a mineros en toda Latinoamérica que monitorean sus equipos con El Minero Gris. Gratis hasta 3 mineros, sin tarjeta de crédito.</p>
+                    <div style="display:flex; justify-content:center; gap:14px; flex-wrap:wrap;">
+                        <a href="/register" class="btn btn-primary" style="padding:14px 28px; font-size:1.05em;">
+                            🚀 Crear Cuenta Gratis Ahora
+                        </a>
+                        <a href="/static/ElMineroGris-Agente.apk" class="btn btn-apk" style="padding:14px 28px; font-size:1.05em;" download>
+                            📱 Descargar APK para Android
+                        </a>
+                    </div>
                 </div>
             </div>
         </section>
     </main>
 
+    <!-- Footer -->
     <footer>
         <div class="container">
-            <p>© 2026 <b>El Minero Gris</b> — Monitoreo y Control Remoto de Granjas ASIC.</p>
+            <div class="footer-brand">
+                <img src="/static/logo.png" alt="Logo El Minero Gris" onerror="this.outerHTML='⛏️'">
+                <span>El Minero Gris</span>
+            </div>
+            <p>© 2026 <b>El Minero Gris</b> — Monitoreo, Watchdog y Control Remoto de Mineros ASIC.</p>
             <div class="footer-links">
+                <a href="#como-funciona">Cómo Funciona</a>
+                <span>·</span>
                 <a href="/compatibilidad">Mineros Compatibles</a>
                 <span>·</span>
                 <a href="/guia">Guía de Instalación</a>
@@ -495,9 +1070,55 @@
         </div>
     </footer>
 
+    <!-- Floating WhatsApp -->
     <a href="https://wa.me/59160805856?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20El%20Minero%20Gris" target="_blank" rel="noopener" class="wa-float-btn" aria-label="Soporte por WhatsApp">
         <span>💬</span>
         <span>Soporte WhatsApp</span>
     </a>
+
+    <!-- Mini Script for Interactive Landing Calculator -->
+    <script>
+    function calcularRentabilidadLanding() {
+        const select = document.getElementById('calcModel');
+        const tarifaInput = document.getElementById('calcTarifa');
+        if (!select || !tarifaInput) return;
+
+        const partes = select.value.split(',');
+        const th = parseFloat(partes[0]) || 120;
+        const watts = parseFloat(partes[1]) || 2760;
+        const tarifa = parseFloat(tarifaInput.value) || 0;
+
+        // Estimación estándar BTC aproximada ($0.06 USD por TH/s al día antes de costo eléctrico)
+        const btcPorThDia = 0.060; 
+        const ingresoBrutoDia = th * btcPorThDia;
+
+        // Consumo kWh diario
+        const kwhDia = (watts * 24) / 1000.0;
+        const costoLuzDia = kwhDia * tarifa;
+        const gananciaNetaDia = ingresoBrutoDia - costoLuzDia;
+        const gananciaNetaMes = gananciaNetaDia * 30.0;
+
+        document.getElementById('resHashrate').innerText = th.toFixed(1) + ' TH/s';
+        document.getElementById('resKwh').innerText = kwhDia.toFixed(2) + ' kWh / día (' + (watts/1000.0).toFixed(2) + ' kW)';
+        document.getElementById('resCostoLuz').innerText = '$' + costoLuzDia.toFixed(2) + ' USD';
+        
+        const netEl = document.getElementById('resGananciaNeta');
+        const mesEl = document.getElementById('resGananciaMes');
+
+        if (gananciaNetaDia >= 0) {
+            netEl.style.color = 'var(--green)';
+            netEl.innerText = '$' + gananciaNetaDia.toFixed(2) + ' USD / día';
+            mesEl.innerText = 'Aprox. $' + gananciaNetaMes.toFixed(2) + ' USD / mes';
+        } else {
+            netEl.style.color = 'var(--red)';
+            netEl.innerText = '-$' + Math.abs(gananciaNetaDia).toFixed(2) + ' USD / día';
+            mesEl.innerText = 'Pérdida por costo eléctrico alto';
+        }
+    }
+    // Inicializar cálculo al cargar
+    document.addEventListener('DOMContentLoaded', calcularRentabilidadLanding);
+    </script>
+
+    {% include "_lang_sync.html" %}
 </body>
 </html>

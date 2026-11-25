@@ -43,11 +43,11 @@
     }
     .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
     .preset-btn {
-        background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color);
+        background: var(--bg-well-soft); border: 1px solid var(--border-color);
         color: var(--text-main); padding: 6px 12px; border-radius: 6px;
         font-family: monospace; font-weight: bold; font-size: 0.84em; cursor: pointer;
     }
-    .preset-btn:hover { border-color: #60a5fa; background: rgba(51, 102, 255, 0.16); }
+    .preset-btn:hover { border-color: #3b82f6; background: rgba(51, 102, 255, 0.14); }
 
     .btn-primary {
         width: 100%; background: linear-gradient(135deg, #3366ff, #2563eb);
@@ -63,31 +63,31 @@
 
     .pay-box {
         display: none; margin-top: 16px; padding: 16px; border-radius: 10px;
-        background: rgba(10, 12, 18, 0.72); border: 1px solid rgba(96, 165, 250, 0.45);
+        background: var(--bg-well); border: 1px solid rgba(96, 165, 250, 0.45);
         text-align: center;
     }
     .pay-addr {
-        background: #06080d; border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--bg-well-deep); border: 1px solid var(--border-color);
         padding: 9px 10px; border-radius: 6px; font-family: monospace;
-        font-size: 0.8em; color: #00e676; word-break: break-all; margin: 10px 0;
+        font-size: 0.8em; color: var(--accent-green); word-break: break-all; margin: 10px 0;
     }
     .pay-status {
         display: inline-block; padding: 5px 12px; border-radius: 999px;
         font-size: 0.78em; font-weight: bold; font-family: monospace;
         background: rgba(255, 179, 0, 0.14); border: 1px solid rgba(255, 179, 0, 0.45);
-        color: #ffd54f; margin-top: 8px;
+        color: var(--accent-gold); margin-top: 8px;
     }
     .pay-status.ok {
-        background: rgba(0, 230, 118, 0.14); border-color: rgba(0, 230, 118, 0.5); color: #00e676;
+        background: rgba(0, 230, 118, 0.14); border-color: rgba(0, 230, 118, 0.5); color: var(--accent-green);
     }
 
-    .pro-features { list-style: none; padding: 0; margin: 0 0 18px 0; font-size: 0.88em; color: #cbd5e1; }
+    .pro-features { list-style: none; padding: 0; margin: 0 0 18px 0; font-size: 0.88em; color: var(--text-secondary); }
     .pro-features li { padding: 5px 0; }
-    .pro-features li::before { content: "✓ "; color: #00e676; font-weight: bold; }
+    .pro-features li::before { content: "✓ "; color: var(--accent-green); font-weight: bold; }
 
     .hist-table { width: 100%; border-collapse: collapse; font-size: 0.84em; }
     .hist-table th { text-align: left; padding: 9px 10px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); font-size: 0.78em; text-transform: uppercase; }
-    .hist-table td { padding: 9px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); font-family: monospace; }
+    .hist-table td { padding: 9px 10px; border-bottom: 1px solid var(--border-subtle); font-family: monospace; }
 </style>
 
 <div class="plan-header">
@@ -135,10 +135,10 @@
         </select>
 
         <button type="button" id="btnGenerarUsdt" class="btn-primary" onclick="generarPagoUsdt()">💎 Generar Dirección de Pago USDT</button>
-        <div id="usdtErr" style="color:#ff8a80; font-size:0.82em; margin-top:8px; display:none;"></div>
+        <div id="usdtErr" style="color:var(--accent-red); font-size:0.82em; margin-top:8px; display:none;"></div>
 
         <div id="usdtPayBox" class="pay-box">
-            <div style="font-size:0.84em; color:#cbd5e1;">Envía exactamente <b id="payExactAmount" style="color:#fff;"></b> (<span id="payRedLbl"></span>):</div>
+            <div style="font-size:0.84em; color:var(--text-secondary);">Envía exactamente <b id="payExactAmount" style="color:var(--text-main);"></b> (<span id="payRedLbl"></span>):</div>
             <img id="payQrImg" src="" alt="QR USDT" style="width:160px; height:160px; border-radius:8px; margin:12px auto 4px auto; display:block; background:#fff; padding:6px;">
             <div id="payAddressTxt" class="pay-addr" translate="no"></div>
             <button type="button" class="preset-btn" onclick="copiarDireccionUsdt(this)">📋 Copiar Dirección</button>

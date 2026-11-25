@@ -13,7 +13,7 @@
         gap: 4px;
         background: rgba(56, 189, 248, 0.10);
         border: 1px solid rgba(56, 189, 248, 0.30);
-        color: #7dd3fc;
+        color: var(--accent-cyan);
         padding: 2px 9px;
         border-radius: 12px;
         font-size: 0.72em;
@@ -29,14 +29,14 @@
         color: #d8b4fe;
     }
     .btn-help-guide:hover, .btn-help-guide.tt-active {
-        background: rgba(56, 189, 248, 0.24);
-        border-color: #38bdf8;
+        background: #0284c7;
+        border-color: #0284c7;
         color: #ffffff;
         box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
     }
     .btn-tz-toggle:hover, .btn-tz-toggle.tt-active {
-        background: rgba(168, 85, 247, 0.28);
-        border-color: #c084fc;
+        background: #7c3aed;
+        border-color: #7c3aed;
         color: #ffffff;
         box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
     }
@@ -61,9 +61,9 @@
         display: none;
         align-items: center;
         gap: 6px;
-        background: rgba(15, 23, 42, 0.75);
+        background: var(--bg-well-deep);
         border: 1px solid rgba(56, 189, 248, 0.40);
-        color: #e2e8f0;
+        color: var(--text-secondary);
         padding: 3px 4px 3px 9px;
         border-radius: 16px;
         font-size: 0.72em;
@@ -71,12 +71,12 @@
         cursor: pointer;
         user-select: none;
         transition: all 0.2s ease;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        box-shadow: var(--shadow-card);
     }
     .farm-gps-btn:hover {
-        border-color: #38bdf8;
+        border-color: var(--accent-cyan);
         background: rgba(56, 189, 248, 0.14);
-        box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.30);
         transform: translateY(-1px);
     }
     .farm-gps-btn:active { transform: translateY(0); }
@@ -84,9 +84,9 @@
         display: inline-flex;
         align-items: center;
         gap: 3px;
-        background: rgba(56, 189, 248, 0.20);
+        background: rgba(56, 189, 248, 0.18);
         border: 1px solid rgba(56, 189, 248, 0.45);
-        color: #7dd3fc;
+        color: var(--accent-cyan);
         padding: 1px 7px;
         border-radius: 12px;
         font-size: 0.92em;
@@ -95,9 +95,9 @@
         transition: 0.18s;
     }
     .farm-gps-btn:hover .farm-gps-edit-tag {
-        background: #38bdf8;
-        color: #0b0f19;
-        border-color: #38bdf8;
+        background: #0284c7;
+        color: #fff;
+        border-color: #0284c7;
     }
 
     /* Estadísticas rápidas del periodo */
@@ -107,7 +107,7 @@
         flex-wrap: wrap;
         margin-bottom: 10px;
         padding: 8px 10px;
-        background: rgba(255, 255, 255, 0.02);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         border-radius: 6px;
         font-size: 0.75em;
@@ -119,15 +119,14 @@
         color: var(--text-muted);
         position: relative;
         cursor: help;
-        border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
+        border-bottom: 1px dotted var(--border-color);
         padding-bottom: 1px;
         user-select: none;
         transition: 0.18s;
     }
     .stat-item:hover, .stat-item.tt-active {
-        color: #fff;
+        color: var(--text-main);
         border-bottom-color: var(--accent-blue);
-        text-shadow: 0 0 8px rgba(51, 102, 255, 0.45);
     }
     .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.06em; }
     .stat-info-icon {
@@ -137,8 +136,8 @@
         width: 13px;
         height: 13px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.07);
-        color: #8b8d9c;
+        background: var(--border-subtle);
+        color: var(--text-muted);
         font-size: 9px;
         font-family: serif;
         font-style: italic;
@@ -149,7 +148,7 @@
     }
     .stat-item:hover .stat-info-icon,
     .stat-item.tt-active .stat-info-icon {
-        background: rgba(51, 102, 255, 0.4);
+        background: #2563eb;
         color: #fff;
     }
 
@@ -170,25 +169,25 @@
         display: inline-flex;
         align-items: center;
         gap: 3px;
-        background: rgba(13, 15, 23, 0.78);
+        background: var(--bg-tooltip);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
         padding: 3px 4px;
         border-radius: 9px;
-        border: 1px solid rgba(255, 255, 255, 0.10);
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-card);
     }
     .filter-divider {
         width: 1px;
         height: 15px;
-        background: rgba(255, 255, 255, 0.12);
+        background: var(--border-color);
         margin: 0 3px;
         flex-shrink: 0;
     }
 
     .lod-badge {
         font-size: 0.72em;
-        color: #93c5fd;
+        color: var(--accent-blue-light);
         background: rgba(59, 130, 246, 0.10);
         border: 1px solid rgba(59, 130, 246, 0.22);
         padding: 4px 8px;
@@ -200,8 +199,8 @@
         transition: all 0.2s ease;
     }
     .lod-badge:hover, .lod-badge.tt-active {
-        border-color: rgba(96, 165, 250, 0.7);
-        background: rgba(59, 130, 246, 0.22);
+        border-color: #2563eb;
+        background: #2563eb;
         color: #fff;
         box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
     }
@@ -222,26 +221,23 @@
         position: relative;
     }
     .btn-filter:hover, .btn-filter.tt-active {
-        color: #ffffff;
-        background: rgba(51, 102, 255, 0.18);
+        color: var(--text-main);
+        background: rgba(51, 102, 255, 0.14);
         border-color: rgba(82, 140, 255, 0.55);
-        box-shadow: 0 0 10px rgba(51, 102, 255, 0.35);
-        text-shadow: 0 0 6px rgba(255, 255, 255, 0.45);
     }
     .btn-filter.active {
-        background: linear-gradient(135deg, rgba(51, 102, 255, 0.35) 0%, rgba(37, 99, 235, 0.20) 100%);
-        color: #60a5fa;
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.25) 0%, rgba(37, 99, 235, 0.14) 100%);
+        color: var(--accent-blue-light);
         border-color: #3b82f6;
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.18);
-        text-shadow: 0 0 6px rgba(96, 165, 250, 0.55);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
     }
     .btn-filter:active { transform: scale(0.96); }
 
     .btn-reset-zoom {
         display: none;
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(51, 102, 255, 0.22) 100%);
-        border: 1px solid #38bdf8;
-        color: #38bdf8;
+        background: rgba(56, 189, 248, 0.14);
+        border: 1px solid var(--accent-cyan);
+        color: var(--accent-cyan);
         padding: 4px 8px;
         border-radius: 6px;
         cursor: pointer;
@@ -249,12 +245,11 @@
         font-weight: bold;
         white-space: nowrap;
         transition: all 0.2s ease;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
     }
     .btn-reset-zoom:hover {
-        background: rgba(56, 189, 248, 0.35);
+        background: #0284c7;
         color: #fff;
-        box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
+        box-shadow: 0 0 14px rgba(56, 189, 248, 0.45);
     }
 
     /* Leyendas interactivas compactas */
@@ -267,7 +262,7 @@
     }
     .legend-pill {
         position: relative;
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
         color: var(--text-main);
         padding: 3px 9px;
@@ -283,8 +278,8 @@
     }
     .legend-pill:hover, .legend-pill.tt-active {
         border-color: var(--accent-blue);
-        background: rgba(51, 102, 255, 0.16);
-        box-shadow: 0 0 12px rgba(51, 102, 255, 0.4);
+        background: rgba(51, 102, 255, 0.14);
+        box-shadow: 0 0 10px rgba(51, 102, 255, 0.25);
     }
     .legend-pill.off { opacity: 0.35; }
     .legend-pill.off .legend-label-txt { text-decoration: line-through; }
@@ -297,8 +292,8 @@
         width: 14px;
         height: 14px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.07);
-        color: #a5a7b5;
+        background: var(--border-subtle);
+        color: var(--text-muted);
         font-size: 9.5px;
         font-family: serif;
         font-style: italic;
@@ -309,7 +304,7 @@
     }
     .legend-pill:hover .legend-info-icon,
     .legend-info-icon:hover {
-        background: rgba(51, 102, 255, 0.35);
+        background: #2563eb;
         color: #fff;
     }
 
@@ -319,18 +314,18 @@
         display: none;
         width: 280px;
         max-width: calc(100vw - 20px);
-        background: rgba(10, 11, 16, 0.98);
+        background: var(--bg-tooltip);
         border: 1px solid rgba(51, 102, 255, 0.55);
         border-radius: 7px;
         padding: 10px 12px;
-        color: #d1d3e0;
+        color: var(--text-tooltip);
         font-family: sans-serif;
         font-size: 11.5px;
         font-weight: normal;
         line-height: 1.45;
         white-space: normal;
         text-align: left;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
+        box-shadow: var(--shadow-card);
         z-index: 99999;
         pointer-events: none;
     }
@@ -338,7 +333,7 @@
         position: absolute;
         width: 10px;
         height: 10px;
-        background: rgba(10, 11, 16, 0.98);
+        background: var(--bg-tooltip);
         transform: rotate(45deg);
     }
     .smart-tt-arrow.bottom {
@@ -352,12 +347,12 @@
         border-top: 1px solid rgba(51, 102, 255, 0.55);
     }
     .pill-tt-header {
-        color: #fff;
+        color: var(--text-main);
         font-weight: bold;
         font-size: 12px;
         margin-bottom: 5px;
         padding-bottom: 4px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        border-bottom: 1px solid var(--border-subtle);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -366,16 +361,16 @@
         margin-top: 6px;
         padding: 5px 7px;
         background: rgba(56, 189, 248, 0.08);
-        border-left: 2px solid #38bdf8;
+        border-left: 2px solid var(--accent-cyan);
         border-radius: 3px;
         font-family: monospace;
         font-size: 10.5px;
-        color: #38bdf8;
+        color: var(--accent-cyan);
     }
     .pill-tt-action {
         margin-top: 5px;
         font-size: 10px;
-        color: #8b8d9c;
+        color: var(--text-muted);
         font-style: italic;
     }
 
@@ -383,7 +378,7 @@
     .farm-loc-modal-bg {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.78);
+        background: rgba(0, 0, 0, 0.65);
         backdrop-filter: blur(5px);
         z-index: 99998;
         display: none;
@@ -396,44 +391,44 @@
         max-width: 520px;
         max-height: 92vh;
         overflow-y: auto;
-        background: #11131c;
+        background: var(--bg-card);
         border: 1px solid rgba(56, 189, 248, 0.45);
         border-radius: 12px;
         padding: 16px;
-        color: #e2e8f0;
-        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.9);
+        color: var(--text-main);
+        box-shadow: var(--shadow-card);
     }
     .farm-loc-input-row { display: flex; gap: 6px; margin-top: 10px; }
     .farm-loc-input {
         flex: 1;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: var(--bg-input);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 8px 10px;
-        color: #fff;
+        color: var(--text-main);
         font-size: 13px;
         outline: none;
     }
-    .farm-loc-input:focus { border-color: #38bdf8; }
+    .farm-loc-input:focus { border-color: var(--accent-cyan); }
     .farm-loc-results { margin-top: 8px; max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
     .farm-loc-item {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-well-soft);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 7px 10px;
         cursor: pointer;
         font-size: 12px;
         transition: 0.15s;
     }
-    .farm-loc-item:hover { background: rgba(56, 189, 248, 0.18); border-color: #38bdf8; }
+    .farm-loc-item:hover { background: rgba(56, 189, 248, 0.14); border-color: var(--accent-cyan); }
     .farm-map-container {
         width: 100%;
         height: 250px;
         border-radius: 8px;
         margin-top: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
+        border: 1px solid var(--border-color);
         overflow: hidden;
-        background: #0b0d14;
+        background: var(--bg-input);
         z-index: 1;
     }
     .farm-loc-selected-bar {
@@ -483,9 +478,9 @@
         top: 50%;
         right: 24px;
         transform: translateY(-50%) translateX(8px);
-        background: rgba(10, 14, 22, 0.92);
+        background: var(--bg-tooltip);
         border: 1px solid rgba(0, 230, 118, 0.6);
-        color: #69f0ae;
+        color: var(--accent-green);
         padding: 5px 11px;
         border-radius: 20px;
         font-size: 0.75em;
@@ -494,7 +489,7 @@
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.22s ease, transform 0.22s ease;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), 0 0 12px rgba(0, 230, 118, 0.28);
+        box-shadow: var(--shadow-card);
         z-index: 35;
     }
     .edge-live-pill.show { opacity: 1; transform: translateY(-50%) translateX(0); }
@@ -519,9 +514,9 @@
         top: 50%;
         left: 24px;
         transform: translateY(-50%) translateX(-8px);
-        background: rgba(10, 14, 22, 0.92);
+        background: var(--bg-tooltip);
         border: 1px solid rgba(56, 189, 248, 0.6);
-        color: #7dd3fc;
+        color: var(--accent-cyan);
         padding: 5px 11px;
         border-radius: 20px;
         font-size: 0.75em;
@@ -530,7 +525,7 @@
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.22s ease, transform 0.22s ease;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), 0 0 12px rgba(56, 189, 248, 0.28);
+        box-shadow: var(--shadow-card);
         z-index: 35;
     }
     .edge-start-pill.show { opacity: 1; transform: translateY(-50%) translateX(0); }
@@ -541,18 +536,18 @@
         bottom: 34px;
         right: 22px;
         z-index: 35;
-        background: rgba(13, 18, 30, 0.92);
+        background: var(--bg-tooltip);
         border: 1px solid rgba(0, 230, 118, 0.65);
-        color: #00e676;
+        color: var(--accent-green);
         padding: 5px 11px;
         border-radius: 18px;
         font-size: 0.75em;
         font-weight: bold;
         cursor: pointer;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65), 0 0 10px rgba(0, 230, 118, 0.25);
+        box-shadow: var(--shadow-card);
         transition: all 0.18s ease;
     }
-    .btn-ir-ahora:hover { background: rgba(0, 230, 118, 0.22); color: #fff; transform: translateY(-1px); }
+    .btn-ir-ahora:hover { background: #059669; color: #fff; transform: translateY(-1px); }
 
     /* Tooltip flotante en línea 0 debajo del gráfico */
     .custom-chart-tooltip {
@@ -560,17 +555,17 @@
         position: absolute;
         display: none;
         pointer-events: none;
-        background: rgba(10, 11, 16, 0.96);
-        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: var(--bg-tooltip);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 9px 12px;
-        color: #fff;
+        color: var(--text-main);
         font-family: sans-serif;
         font-size: 0.78em;
         line-height: 1.45;
         z-index: 2200;
         white-space: nowrap;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+        box-shadow: var(--shadow-card);
         transform: translate3d(-50%, 0, 0);
         will-change: left, top;
     }
@@ -582,14 +577,14 @@
         transform: translateX(-50%);
         border-width: 0 6px 6px 6px;
         border-style: solid;
-        border-color: transparent transparent rgba(10, 11, 16, 0.96) transparent;
+        border-color: transparent transparent var(--bg-tooltip) transparent;
     }
     .tt-title {
         font-weight: bold;
         margin-bottom: 5px;
-        color: #fff;
+        color: var(--text-main);
         font-size: 1.02em;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid var(--border-subtle);
         padding-bottom: 3px;
         display: flex;
         justify-content: space-between;
@@ -606,34 +601,36 @@
         transition: background 0.12s ease, opacity 0.12s ease;
     }
     .tt-row.tt-focus {
-        background: rgba(56, 189, 248, 0.20);
-        border-left: 3px solid #38bdf8;
-        color: #ffffff;
+        background: rgba(56, 189, 248, 0.16);
+        border-left: 3px solid var(--accent-cyan);
+        color: var(--text-main);
         font-weight: 600;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
     }
     .tt-row.tt-dim { opacity: 0.62; }
     .tt-focus-arrow {
         margin-left: auto;
         padding-left: 8px;
-        color: #38bdf8;
+        color: var(--accent-cyan);
         font-size: 0.95em;
         font-weight: bold;
     }
-    .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.95em; }
+    .tt-sub { padding-left: 18px; color: var(--text-tooltip); font-family: monospace; font-size: 0.95em; }
     .tt-sub.tt-dim { opacity: 0.58; }
     .tt-box { width: 9px; height: 9px; display: inline-block; border-radius: 2px; flex-shrink: 0; }
     .tt-event-box {
         margin-top: 5px;
         padding: 4px 7px;
         border-radius: 4px;
-        background: rgba(56, 189, 248, 0.14);
-        border-left: 3px solid #38bdf8;
-        color: #bae6fd;
+        background: rgba(56, 189, 248, 0.12);
+        border-left: 3px solid var(--accent-cyan);
+        color: var(--accent-cyan);
         font-size: 0.90em;
         white-space: normal;
         max-width: 290px;
     }
+    :root[data-theme="light"] .btn-tz-toggle { color: #7e22ce; }
+    :root[data-theme="light"] .btn-tz-toggle:hover,
+    :root[data-theme="light"] .btn-tz-toggle.tt-active { color: #fff; }
     .tt-badge-status {
         margin-top: 4px;
         padding: 3px 7px;
@@ -679,9 +676,9 @@
     <div class="farm-loc-modal">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <b style="font-size:14.5px;">🗺️ Editar GPS de tus Máquinas</b>
-            <button type="button" onclick="cerrarModalUbicacionGranja()" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:17px;">✕</button>
+            <button type="button" onclick="cerrarModalUbicacionGranja()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:17px;">✕</button>
         </div>
-        <div style="font-size:11.5px; color:#94a3b8; margin-top:4px;">
+        <div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">
             Busca una ciudad, usa <b>Mi GPS</b> o <b>toca / arrastra el pin en el mapa</b> donde están instalados tus mineros.
         </div>
 
@@ -697,10 +694,10 @@
 
         <div class="farm-loc-selected-bar">
             <div>
-                <div style="color:#94a3b8; font-size:10.5px;">Ubicación seleccionada:</div>
-                <b id="farmLocPreviewTxt" style="color:#38bdf8;">--</b>
+                <div style="color:var(--text-muted); font-size:10.5px;">Ubicación seleccionada:</div>
+                <b id="farmLocPreviewTxt" style="color:var(--accent-cyan);">--</b>
             </div>
-            <div style="font-family:monospace; font-size:10.5px; color:#94a3b8;" id="farmLocCoordsTxt">0.000, 0.000</div>
+            <div style="font-family:monospace; font-size:10.5px; color:var(--text-muted);" id="farmLocCoordsTxt">0.000, 0.000</div>
         </div>
 
         <div class="farm-loc-actions">
@@ -1768,17 +1765,18 @@
                 const xInicioDatos = Math.min(ca.right, Math.max(ca.left, xAxis.getPixelForValue(primerTsGrabadoGlobal)));
                 if (xInicioDatos > ca.left + 12) {
                     ctx.save();
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+                    ctx.fillStyle = (document.documentElement.getAttribute('data-theme') === 'light') ? 'rgba(15, 23, 42, 0.06)' : 'rgba(0, 0, 0, 0.28)';
                     ctx.fillRect(ca.left, ca.top, xInicioDatos - ca.left, ca.bottom - ca.top);
                     ctx.restore();
                 }
             }
 
+            const esClaroGrid = (document.documentElement.getAttribute('data-theme') === 'light');
             const span = xAxis.max - xAxis.min;
             if (span <= 5400) {
                 ctx.save();
                 ctx.beginPath();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
+                ctx.strokeStyle = esClaroGrid ? 'rgba(15, 23, 42, 0.08)' : 'rgba(255, 255, 255, 0.045)';
                 ctx.lineWidth = 1;
                 const pasoGuia = span <= 3600 ? 60 : 120;
                 const primerMin = Math.ceil(xAxis.min / pasoGuia) * pasoGuia;
@@ -1831,6 +1829,7 @@
             }
 
             if (xAxis && primerTsGrabadoGlobal > xAxis.min + 180) {
+                const esClaro = (document.documentElement.getAttribute('data-theme') === 'light');
                 const xInicioDatos = xAxis.getPixelForValue(primerTsGrabadoGlobal);
                 if (xInicioDatos > ca.left + 45 && xInicioDatos < ca.right - 15) {
                     ctx.beginPath();
@@ -1838,19 +1837,19 @@
                     ctx.moveTo(xInicioDatos, ca.top);
                     ctx.lineTo(xInicioDatos, ca.bottom);
                     ctx.lineWidth = 1.2;
-                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                    ctx.strokeStyle = esClaro ? 'rgba(2, 132, 199, 0.55)' : 'rgba(56, 189, 248, 0.45)';
                     ctx.stroke();
                     ctx.setLineDash([]);
 
                     const fechaIniStr = formatearFechaTooltip(new Date(primerTsGrabadoGlobal * 1000));
                     const duracionTxt = diasRealesGrabados >= 1 ? `${diasRealesGrabados}d` : `${horasRealesGrabadas}h`;
                     ctx.font = 'bold 10px sans-serif';
-                    ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
+                    ctx.fillStyle = esClaro ? 'rgba(2, 132, 199, 0.95)' : 'rgba(56, 189, 248, 0.85)';
                     if (xInicioDatos - ca.left > 145) {
                         ctx.textAlign = 'right';
                         ctx.fillText(`◀ Sin registro previo`, xInicioDatos - 8, ca.top + 18);
                         ctx.font = '9.5px monospace';
-                        ctx.fillStyle = 'rgba(165, 167, 181, 0.78)';
+                        ctx.fillStyle = esClaro ? 'rgba(71, 85, 105, 0.88)' : 'rgba(165, 167, 181, 0.78)';
                         ctx.fillText(`Inicio: ${fechaIniStr} (${duracionTxt})`, xInicioDatos - 8, ca.top + 32);
                     } else {
                         ctx.textAlign = 'left';
@@ -1858,6 +1857,9 @@
                     }
                 }
             }
+
+            const esClaroCanvas = (document.documentElement.getAttribute('data-theme') === 'light');
+            const haloCol = esClaroCanvas ? 'rgba(255, 255, 255, 0.92)' : 'rgba(13, 15, 23, 0.85)';
 
             if (yAxis && promedioHrOperativoGlobal > 0 && visibilidadCurvas['hr'] !== false) {
                 const yProm = yAxis.getPixelForValue(promedioHrOperativoGlobal);
@@ -1867,15 +1869,15 @@
                     ctx.moveTo(ca.left, yProm);
                     ctx.lineTo(ca.right, yProm);
                     ctx.lineWidth = 1;
-                    ctx.strokeStyle = 'rgba(96, 165, 250, 0.42)';
+                    ctx.strokeStyle = esClaroCanvas ? 'rgba(37, 99, 235, 0.50)' : 'rgba(96, 165, 250, 0.42)';
                     ctx.stroke();
                     ctx.setLineDash([]);
 
                     ctx.font = 'bold 9.5px sans-serif';
                     ctx.lineWidth = 3;
-                    ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
+                    ctx.strokeStyle = haloCol;
                     ctx.textAlign = 'left';
-                    ctx.fillStyle = 'rgba(96, 165, 250, 0.90)';
+                    ctx.fillStyle = esClaroCanvas ? 'rgba(37, 99, 235, 0.95)' : 'rgba(96, 165, 250, 0.90)';
                     const lblProm = `Prom ${promedioHrOperativoGlobal.toFixed(1)} ${unidadMinero}`;
                     ctx.strokeText(lblProm, ca.left + 44, yProm - 4);
                     ctx.fillText(lblProm, ca.left + 44, yProm - 4);
@@ -1897,9 +1899,11 @@
 
                     ctx.font = 'bold 9.5px sans-serif';
                     ctx.lineWidth = 3;
-                    ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
+                    ctx.strokeStyle = haloCol;
                     ctx.textAlign = 'right';
-                    ctx.fillStyle = (corteCfg.activo || esMineroHydro) ? 'rgba(255, 110, 110, 0.92)' : 'rgba(255, 110, 110, 0.50)';
+                    ctx.fillStyle = esClaroCanvas
+                        ? ((corteCfg.activo || esMineroHydro) ? 'rgba(220, 38, 38, 0.92)' : 'rgba(220, 38, 38, 0.52)')
+                        : ((corteCfg.activo || esMineroHydro) ? 'rgba(255, 110, 110, 0.92)' : 'rgba(255, 110, 110, 0.50)');
                     const lblCorte = esMineroHydro
                         ? `Límite Hydro ${corteCfg.temp}°C`
                         : `Corte ${corteCfg.temp}°C${corteCfg.activo ? '' : ' (OFF)'}`;
@@ -1910,11 +1914,11 @@
 
             ctx.font = 'bold 10.5px sans-serif';
             ctx.lineWidth = 3;
-            ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
+            ctx.strokeStyle = haloCol;
 
             if (yAxis && yAxis.ticks) {
                 ctx.textAlign = 'left';
-                ctx.fillStyle = 'rgba(165, 167, 181, 0.88)';
+                ctx.fillStyle = esClaroCanvas ? 'rgba(51, 65, 85, 0.92)' : 'rgba(165, 167, 181, 0.88)';
                 yAxis.ticks.forEach((t, idx) => {
                     const yPos = yAxis.getPixelForTick(idx);
                     if (yPos >= ca.top - 2 && yPos <= ca.bottom + 2) {
@@ -1926,7 +1930,7 @@
                 });
                 if (ca.top >= 18) {
                     ctx.font = 'bold 9.5px sans-serif';
-                    ctx.fillStyle = 'rgba(96, 165, 250, 0.85)';
+                    ctx.fillStyle = esClaroCanvas ? 'rgba(37, 99, 235, 0.92)' : 'rgba(96, 165, 250, 0.85)';
                     ctx.strokeText(`⚡ ${unidadMinero}`, ca.left + 4, ca.top - 7);
                     ctx.fillText(`⚡ ${unidadMinero}`, ca.left + 4, ca.top - 7);
                 }
@@ -1935,7 +1939,7 @@
             if (y1Axis && y1Axis.ticks) {
                 ctx.font = 'bold 10.5px sans-serif';
                 ctx.textAlign = 'right';
-                ctx.fillStyle = 'rgba(255, 179, 0, 0.85)';
+                ctx.fillStyle = esClaroCanvas ? 'rgba(180, 83, 9, 0.92)' : 'rgba(255, 179, 0, 0.85)';
                 y1Axis.ticks.forEach((t, idx) => {
                     const yPos = y1Axis.getPixelForTick(idx);
                     if (yPos >= ca.top - 2 && yPos <= ca.bottom + 2) {
@@ -1970,7 +1974,7 @@
             ctx.moveTo(x, topY);
             ctx.lineTo(x, bottomY);
             ctx.lineWidth = 1;
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)';
+            ctx.strokeStyle = (document.documentElement.getAttribute('data-theme') === 'light') ? 'rgba(15, 23, 42, 0.35)' : 'rgba(255, 255, 255, 0.42)';
             ctx.stroke();
             ctx.restore();
         }
@@ -2810,7 +2814,7 @@
                     scales: {
                         x: {
                             type: 'linear', bounds: 'ticks', offset: false, min: limiteIzq, max: limiteDer,
-                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            grid: { color: (document.documentElement.getAttribute('data-theme') === 'light') ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.05)' },
                             afterBuildTicks: function(axis) {
                                 const start = axis.min;
                                 const end = axis.max;
@@ -2836,14 +2840,14 @@
                             },
                             ticks: {
                                 minRotation: 0, maxRotation: 0, autoSkip: false, align: 'inner',
-                                color: '#8b8d9c', font: { size: 10.5 },
+                                color: (document.documentElement.getAttribute('data-theme') === 'light') ? '#475569' : '#8b8d9c', font: { size: 10.5 },
                                 callback: function(value, index, ticksArr) {
                                     const spanVis = (ticksArr && ticksArr.length > 1) ? (ticksArr[ticksArr.length - 1].value - ticksArr[0].value) : 86400;
                                     return formatearEtiquetaEjeX(new Date(value * 1000), rangoActual, spanVis);
                                 }
                             }
                         },
-                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0, ticks: { display: false } },
+                        y: { grid: { color: (document.documentElement.getAttribute('data-theme') === 'light') ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.05)' }, min: 0, ticks: { display: false } },
                         y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100, ticks: { display: false, stepSize: 20 } },
                         y2: { display: false, min: 0, max: topeEjeErrores }
                     }
@@ -2893,6 +2897,16 @@
             cargandoLiveGrafico = false;
         }
     }
+
+    window.addEventListener('emg:theme-change', function(ev) {
+        if (!chartInstance) return;
+        const light = (ev && ev.detail && ev.detail.theme === 'light');
+        const gCol = light ? 'rgba(15,23,42,0.08)' : 'rgba(255,255,255,0.05)';
+        if (chartInstance.options?.scales?.x?.grid) chartInstance.options.scales.x.grid.color = gCol;
+        if (chartInstance.options?.scales?.x?.ticks) chartInstance.options.scales.x.ticks.color = light ? '#475569' : '#8b8d9c';
+        if (chartInstance.options?.scales?.y?.grid) chartInstance.options.scales.y.grid.color = gCol;
+        chartInstance.update('none');
+    });
 
     window.addEventListener('emg:live-update', actualizarGraficoEnVivoJSON);
     document.addEventListener('visibilitychange', function() {

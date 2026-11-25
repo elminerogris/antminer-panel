@@ -25,7 +25,7 @@
                 </span>
                 <span style="font-size:0.72em; font-family:monospace; color:#64748b; margin-top:2px;">
                     {% if g.device_code %}{{ g.device_code }} · {% endif %}{{ g.device_type }} ·
-                    <span style="color:{{ '#00e676' if g.agent_online else '#ff5252' }}; font-weight:bold;">
+                    <span class="{{ 'agent-status-on' if g.agent_online else 'agent-status-off' }}" style="font-weight:bold;">
                         {{ '● Online' if g.agent_online else '○ Offline' }}
                     </span>
                 </span>
@@ -33,19 +33,19 @@
         </div>
         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
             {% if g.tunel_activo %}
-                <span class="agent-mode-badge" style="background:rgba(0,230,118,0.12); border-color:rgba(0,230,118,0.4); color:#00e676;">⚡ Túnel Activo</span>
+                <span class="agent-mode-badge tunel-on">⚡ Túnel Activo</span>
             {% else %}
-                <span class="agent-mode-badge" style="background:rgba(255,179,0,0.12); border-color:rgba(255,179,0,0.4); color:#ffb300;">⏳ Sin Túnel</span>
+                <span class="agent-mode-badge tunel-off">⏳ Sin Túnel</span>
             {% endif %}
             <span class="agent-mode-badge">{{ g.run_mode }}</span>
 
             {% if es_android %}
                 <!-- Botón Remoto para disparar la actualización en el dispositivo -->
                 <button type="button"
-                   class="agent-mode-badge js-apk-update-btn"
+                   class="agent-mode-badge apk-upd js-apk-update-btn"
                    data-agent-id="{{ g.agent_id }}"
                    data-current-ver="{{ ver_actual }}"
-                   style="display:none; cursor:pointer; background:rgba(245,158,11,0.18); border:1px solid rgba(245,158,11,0.6); color:#fbbf24; font-weight:bold;"
+                   style="display:none; cursor:pointer; font-weight:bold;"
                    onclick="actualizarAgenteRemoto(this)"
                    title="Enviar orden al dispositivo para descargar e instalar la nueva versión">
                 </button>
@@ -133,6 +133,18 @@ if (!window._emgApkUpdateCheckInit) {
         });
     }
 
+    window._emgAplicarBotonesApk = function() {
+        const nubeVer = window._emgApkNubeVer;
+        if (!nubeVer) return;
+        document.querySelectorAll('.js-apk-update-btn').forEach(btn => {
+            const localVer = (btn.getAttribute('data-current-ver') || '').trim();
+            if (!localVer || compararVersion(localVer, nubeVer) > 0) {
+                btn.textContent = `⬆️ Actualizar a v${nubeVer}`;
+                btn.style.display = 'inline-block';
+            }
+        });
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         const btns = document.querySelectorAll('.js-apk-update-btn');
         if (!btns.length) return;
@@ -141,15 +153,8 @@ if (!window._emgApkUpdateCheckInit) {
             .then(r => r.ok ? r.json() : null)
             .then(info => {
                 if (!info || !info.version_name) return;
-                const nubeVer = String(info.version_name).trim();
-
-                btns.forEach(btn => {
-                    const localVer = (btn.getAttribute('data-current-ver') || '').trim();
-                    if (!localVer || compararVersion(localVer, nubeVer) > 0) {
-                        btn.textContent = `⬆️ Actualizar a v${nubeVer}`;
-                        btn.style.display = 'inline-block';
-                    }
-                });
+                window._emgApkNubeVer = String(info.version_name).trim();
+                window._emgAplicarBotonesApk();
             })
             .catch(() => {});
     });

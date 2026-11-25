@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recuperar Contraseña — El Minero Gris</title>
+    <script>try{if(localStorage.getItem('emg_theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
     <style>
         :root {
             --bg-main: #090b12;
             --bg-card: #111420;
+            --bg-input: rgba(10, 12, 18, 0.8);
             --border: rgba(255, 255, 255, 0.1);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
@@ -16,6 +18,25 @@
             --green: #00e676;
             --red: #ff5252;
         }
+        :root[data-theme="light"] {
+            --bg-main: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --border: #cbd5e1;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --blue: #2563eb;
+            --blue-light: #2563eb;
+            --green: #059669;
+            --red: #dc2626;
+        }
+        :root[data-theme="light"] .box { box-shadow: 0 12px 32px rgba(15, 23, 42, 0.10); }
+        :root[data-theme="light"] .msg.err { color: #b91c1c; background: rgba(220, 38, 38, 0.08); }
+        :root[data-theme="light"] .msg.ok { color: #047857; background: rgba(5, 150, 105, 0.10); }
+        :root[data-theme="light"] .btn-save-rec { color: #1d4ed8; background: rgba(37, 99, 235, 0.08); }
+        :root[data-theme="light"] .btn-save-rec:hover { color: #ffffff; background: #2563eb; }
+        :root[data-theme="light"] .rec-tooltip { background: #ffffff; color: #334155; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18); }
+        :root[data-theme="light"] .rec-tt-hdr { color: #0f172a; border-bottom-color: #e2e8f0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
@@ -57,9 +78,9 @@
         }
         input {
             width: 100%;
-            background: rgba(10, 12, 18, 0.8);
+            background: var(--bg-input);
             border: 1px solid var(--border);
-            color: #fff;
+            color: var(--text-main);
             padding: 10px 12px;
             border-radius: 8px;
             font-size: 0.94em;
@@ -124,6 +145,21 @@
 </head>
 <body>
     <div class="box">
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-bottom:12px;">
+            <button type="button" id="btnTemaStandalone" class="emg-theme-btn" title="Cambiar tema claro/oscuro" onclick="toggleTemaStandalone(this)">☀️</button>
+            <select id="langSelectorStandalone" class="emg-mini-lang notranslate" translate="no" aria-label="Idioma" onchange="cambiarIdiomaStandalone(this.value)">
+                <option value="es" translate="no">🇪🇸 Español</option>
+                <option value="en" translate="no">🇺🇸 English</option>
+                <option value="pt" translate="no">🇧🇷 Português</option>
+                <option value="ru" translate="no">🇷🇺 Русский</option>
+                <option value="zh-CN" translate="no">🇨🇳 中文 (简体)</option>
+                <option value="hi" translate="no">🇮🇳 हिन्दी</option>
+                <option value="ar" translate="no">🇸🇦 العربية</option>
+                <option value="bn" translate="no">🇧🇩 বাংলা</option>
+                <option value="fr" translate="no">🇫🇷 Français</option>
+                <option value="de" translate="no">🇩🇪 Deutsch</option>
+            </select>
+        </div>
         <h1>🔑 Recuperar Contraseña</h1>
         <p class="sub">
             {% if paso == 'verificar' %}
@@ -183,5 +219,6 @@
             btn.addEventListener('mouseleave', function() { box.style.display = 'none'; });
         })();
     </script>
+    {% include "_lang_sync.html" %}
 </body>
 </html>
