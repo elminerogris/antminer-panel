@@ -1,2959 +1,378 @@
-<!-- Librerías oficiales para Zoom con 2 dedos (Pinch-to-Zoom) en celular y mouse -->
-<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-<!-- Leaflet para Mapa Interactivo con capas de Google Maps (sin requerir API Key) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+from flask import render_template, render_template_string, redirect, session
+from werkzeug.security import check_password_hash
+from jinja2 import TemplateNotFound
+from functools import wraps
+import json, urllib.request, urllib.parse, time, os, secrets, hashlib, re
+from datetime import datetime
 
-<style>
-    /* Botón de Guía Rápida y selector de Zona Horaria */
-    .btn-help-guide, .btn-tz-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        background: rgba(56, 189, 248, 0.10);
-        border: 1px solid rgba(56, 189, 248, 0.30);
-        color: #7dd3fc;
-        padding: 2px 9px;
-        border-radius: 12px;
-        font-size: 0.72em;
-        font-weight: bold;
-        cursor: pointer;
-        user-select: none;
-        transition: all 0.2s ease;
-    }
-    .btn-help-guide { cursor: help; }
-    .btn-tz-toggle {
-        background: rgba(168, 85, 247, 0.12);
-        border-color: rgba(168, 85, 247, 0.35);
-        color: #d8b4fe;
-    }
-    .btn-help-guide:hover, .btn-help-guide.tt-active {
-        background: rgba(56, 189, 248, 0.24);
-        border-color: #38bdf8;
-        color: #ffffff;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
-    }
-    .btn-tz-toggle:hover, .btn-tz-toggle.tt-active {
-        background: rgba(168, 85, 247, 0.28);
-        border-color: #c084fc;
-        color: #ffffff;
-        box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
-    }
+LIMITE_MINEROS_GRATIS = 3
+APK_VERSION_CODE = 4
+APK_VERSION_NAME = "1.3"
 
-    /* Botón Profesional de Ubicación / GPS */
-    .farm-gps-btn {
-        display: none;
-        align-items: center;
-        gap: 6px;
-        background: rgba(15, 23, 42, 0.75);
-        border: 1px solid rgba(56, 189, 248, 0.40);
-        color: #e2e8f0;
-        padding: 3px 4px 3px 9px;
-        border-radius: 16px;
-        font-size: 0.72em;
-        font-weight: normal;
-        cursor: pointer;
-        user-select: none;
-        transition: all 0.2s ease;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    }
-    .farm-gps-btn:hover {
-        border-color: #38bdf8;
-        background: rgba(56, 189, 248, 0.14);
-        box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
-        transform: translateY(-1px);
-    }
-    .farm-gps-btn:active { transform: translateY(0); }
-    .farm-gps-edit-tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
-        background: rgba(56, 189, 248, 0.20);
-        border: 1px solid rgba(56, 189, 248, 0.45);
-        color: #7dd3fc;
-        padding: 1px 7px;
-        border-radius: 12px;
-        font-size: 0.92em;
-        font-weight: bold;
-        letter-spacing: 0.2px;
-        transition: 0.18s;
-    }
-    .farm-gps-btn:hover .farm-gps-edit-tag {
-        background: #38bdf8;
-        color: #0b0f19;
-        border-color: #38bdf8;
-    }
+cache_geo_granja = {}
+cache_clima_coord = {}
+cache_red = {
+    'datos': {'precio': 64809.0, 'dificultad_t': 134.82, 'recompensa': 3.125, 'red_ehs': 965.11},
+    'ultima_act': 0
+}
 
-    /* Estadísticas rápidas del periodo */
-    .chart-stats-bar {
-        display: flex;
-        gap: 10px 14px;
-        flex-wrap: wrap;
-        margin-bottom: 10px;
-        padding: 8px 10px;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        font-size: 0.75em;
-    }
-    .stat-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        color: var(--text-muted);
-        position: relative;
-        cursor: help;
-        border-bottom: 1px dotted rgba(255, 255, 255, 0.18);
-        padding-bottom: 1px;
-        user-select: none;
-        transition: 0.18s;
-    }
-    .stat-item:hover, .stat-item.tt-active {
-        color: #fff;
-        border-bottom-color: var(--accent-blue);
-        text-shadow: 0 0 8px rgba(51, 102, 255, 0.45);
-    }
-    .stat-item b { color: var(--text-main); font-family: monospace; font-size: 1.06em; }
-    .stat-info-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 13px;
-        height: 13px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.07);
-        color: #8b8d9c;
-        font-size: 9px;
-        font-family: serif;
-        font-style: italic;
-        font-weight: bold;
-        margin-left: 1px;
-        flex-shrink: 0;
-        transition: 0.15s;
-    }
-    .stat-item:hover .stat-info-icon,
-    .stat-item.tt-active .stat-info-icon {
-        background: rgba(51, 102, 255, 0.4);
-        color: #fff;
-    }
+def generar_api_key():
+    return "EMG-" + secrets.token_hex(8).upper()
 
-    /* Barra flotante dentro del gráfico (arriba a la derecha en PC) */
-    .chart-floating-toolbar {
-        position: absolute;
-        top: 6px;
-        right: 16px;
-        z-index: 25;
-        display: flex;
-        justify-content: flex-end;
-        pointer-events: none;
-    }
+def es_hash_seguro(pass_str):
+    s = str(pass_str or "")
+    return s.startswith(("scrypt:", "pbkdf2:"))
 
-    /* Botonera de Rangos de Tiempo */
-    .chart-filters {
-        pointer-events: auto;
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
-        background: rgba(13, 15, 23, 0.78);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        padding: 3px 4px;
-        border-radius: 9px;
-        border: 1px solid rgba(255, 255, 255, 0.10);
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    }
-    .filter-divider {
-        width: 1px;
-        height: 15px;
-        background: rgba(255, 255, 255, 0.12);
-        margin: 0 3px;
-        flex-shrink: 0;
-    }
+def verificar_password(stored_pass, input_pass):
+    if not stored_pass or not input_pass:
+        return False
+    if es_hash_seguro(stored_pass):
+        return check_password_hash(stored_pass, input_pass)
+    return stored_pass == input_pass
 
-    .lod-badge {
-        font-size: 0.72em;
-        color: #93c5fd;
-        background: rgba(59, 130, 246, 0.10);
-        border: 1px solid rgba(59, 130, 246, 0.22);
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-family: monospace;
-        font-weight: bold;
-        cursor: help;
-        white-space: nowrap;
-        transition: all 0.2s ease;
-    }
-    .lod-badge:hover, .lod-badge.tt-active {
-        border-color: rgba(96, 165, 250, 0.7);
-        background: rgba(59, 130, 246, 0.22);
-        color: #fff;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
-    }
+def es_super_admin():
+    return str(session.get('usuario') or '').lower() == 'admin' or str(session.get('admin_real') or '').lower() == 'admin'
 
-    .btn-filter {
-        background: transparent;
-        border: 1px solid transparent;
-        color: var(--text-muted);
-        padding: 4px 9px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.75em;
-        font-weight: bold;
-        letter-spacing: 0.2px;
-        white-space: nowrap;
-        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-        user-select: none;
-        position: relative;
-    }
-    .btn-filter:hover, .btn-filter.tt-active {
-        color: #ffffff;
-        background: rgba(51, 102, 255, 0.18);
-        border-color: rgba(82, 140, 255, 0.55);
-        box-shadow: 0 0 10px rgba(51, 102, 255, 0.35);
-        text-shadow: 0 0 6px rgba(255, 255, 255, 0.45);
-    }
-    .btn-filter.active {
-        background: linear-gradient(135deg, rgba(51, 102, 255, 0.35) 0%, rgba(37, 99, 235, 0.20) 100%);
-        color: #60a5fa;
-        border-color: #3b82f6;
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.18);
-        text-shadow: 0 0 6px rgba(96, 165, 250, 0.55);
-    }
-    .btn-filter:active { transform: scale(0.96); }
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'usuario' not in session:
+            return redirect('/login')
+        return f(*args, **kwargs)
+    return decorated_function
 
-    .btn-reset-zoom {
-        display: none;
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(51, 102, 255, 0.22) 100%);
-        border: 1px solid #38bdf8;
-        color: #38bdf8;
-        padding: 4px 8px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.74em;
-        font-weight: bold;
-        white-space: nowrap;
-        transition: all 0.2s ease;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
-    }
-    .btn-reset-zoom:hover {
-        background: rgba(56, 189, 248, 0.35);
-        color: #fff;
-        box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
-    }
+def a_int_seguro(val, defecto=0):
+    try:
+        if val is None or val == "": return defecto
+        return int(float(val))
+    except:
+        return defecto
 
-    /* Leyendas interactivas compactas */
-    .chart-CustomLegends {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-        margin-bottom: 8px;
-        align-items: center;
-    }
-    .legend-pill {
-        position: relative;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid var(--border-color);
-        color: var(--text-main);
-        padding: 3px 9px;
-        border-radius: 20px;
-        font-size: 0.72em;
-        font-weight: bold;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        transition: all 0.2s ease;
-        user-select: none;
-    }
-    .legend-pill:hover, .legend-pill.tt-active {
-        border-color: var(--accent-blue);
-        background: rgba(51, 102, 255, 0.16);
-        box-shadow: 0 0 12px rgba(51, 102, 255, 0.4);
-    }
-    .legend-pill.off { opacity: 0.35; }
-    .legend-pill.off .legend-label-txt { text-decoration: line-through; }
-    .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+def a_float_seguro(val, defecto=0.0):
+    try:
+        if val is None or val == "": return defecto
+        return float(val)
+    except:
+        return defecto
 
-    .legend-info-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.07);
-        color: #a5a7b5;
-        font-size: 9.5px;
-        font-family: serif;
-        font-style: italic;
-        font-weight: bold;
-        margin-left: 2px;
-        transition: 0.15s;
-        flex-shrink: 0;
-    }
-    .legend-pill:hover .legend-info-icon,
-    .legend-info-icon:hover {
-        background: rgba(51, 102, 255, 0.35);
-        color: #fff;
-    }
+def es_cuenta_pro(username, plan_str, pro_hasta_str=""):
+    if str(username or '').lower() == 'admin':
+        return True
+    ph = str(pro_hasta_str or '').strip()
+    if ph:
+        try:
+            dt_exp = datetime.strptime(ph, "%Y-%m-%d %H:%M:%S")
+            if dt_exp > datetime.utcnow():
+                return True
+            return False
+        except:
+            pass
+    return str(plan_str or '').strip().lower() in ('pro', 'unlimited', 'enterprise')
 
-    /* Portal Global de Tooltip con anti-colisión de bordes */
-    .smart-floating-tooltip {
-        position: fixed;
-        display: none;
-        width: 280px;
-        max-width: calc(100vw - 20px);
-        background: rgba(10, 11, 16, 0.98);
-        border: 1px solid rgba(51, 102, 255, 0.55);
-        border-radius: 7px;
-        padding: 10px 12px;
-        color: #d1d3e0;
-        font-family: sans-serif;
-        font-size: 11.5px;
-        font-weight: normal;
-        line-height: 1.45;
-        white-space: normal;
-        text-align: left;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.85);
-        z-index: 99999;
-        pointer-events: none;
-    }
-    .smart-tt-arrow {
-        position: absolute;
-        width: 10px;
-        height: 10px;
-        background: rgba(10, 11, 16, 0.98);
-        transform: rotate(45deg);
-    }
-    .smart-tt-arrow.bottom {
-        bottom: -6px;
-        border-right: 1px solid rgba(51, 102, 255, 0.55);
-        border-bottom: 1px solid rgba(51, 102, 255, 0.55);
-    }
-    .smart-tt-arrow.top {
-        top: -6px;
-        border-left: 1px solid rgba(51, 102, 255, 0.55);
-        border-top: 1px solid rgba(51, 102, 255, 0.55);
-    }
-    .pill-tt-header {
-        color: #fff;
-        font-weight: bold;
-        font-size: 12px;
-        margin-bottom: 5px;
-        padding-bottom: 4px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    .pill-tt-range {
-        margin-top: 6px;
-        padding: 5px 7px;
-        background: rgba(56, 189, 248, 0.08);
-        border-left: 2px solid #38bdf8;
-        border-radius: 3px;
-        font-family: monospace;
-        font-size: 10.5px;
-        color: #38bdf8;
-    }
-    .pill-tt-action {
-        margin-top: 5px;
-        font-size: 10px;
-        color: #8b8d9c;
-        font-style: italic;
-    }
+def calcular_dias_pro_restantes(pro_hasta_str):
+    ph = str(pro_hasta_str or '').strip()
+    if not ph:
+        return None
+    try:
+        dt_exp = datetime.strptime(ph, "%Y-%m-%d %H:%M:%S")
+        diff = (dt_exp - datetime.utcnow()).total_seconds()
+        if diff <= 0:
+            return 0
+        return max(1, int((diff + 86399) // 86400))
+    except:
+        return None
 
-    /* Modal Profesional con Mapa Interactivo estilo Google Maps */
-    .farm-loc-modal-bg {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.78);
-        backdrop-filter: blur(5px);
-        z-index: 99998;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 14px;
-    }
-    .farm-loc-modal {
-        width: 100%;
-        max-width: 520px;
-        max-height: 92vh;
-        overflow-y: auto;
-        background: #11131c;
-        border: 1px solid rgba(56, 189, 248, 0.45);
-        border-radius: 12px;
-        padding: 16px;
-        color: #e2e8f0;
-        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.9);
-    }
-    .farm-loc-input-row { display: flex; gap: 6px; margin-top: 10px; }
-    .farm-loc-input {
-        flex: 1;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        border-radius: 6px;
-        padding: 8px 10px;
-        color: #fff;
-        font-size: 13px;
-        outline: none;
-    }
-    .farm-loc-input:focus { border-color: #38bdf8; }
-    .farm-loc-results { margin-top: 8px; max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-    .farm-loc-item {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 6px;
-        padding: 7px 10px;
-        cursor: pointer;
-        font-size: 12px;
-        transition: 0.15s;
-    }
-    .farm-loc-item:hover { background: rgba(56, 189, 248, 0.18); border-color: #38bdf8; }
-    .farm-map-container {
-        width: 100%;
-        height: 250px;
-        border-radius: 8px;
-        margin-top: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        overflow: hidden;
-        background: #0b0d14;
-        z-index: 1;
-    }
-    .farm-loc-selected-bar {
-        margin-top: 10px;
-        padding: 8px 10px;
-        border-radius: 7px;
-        background: rgba(56, 189, 248, 0.08);
-        border: 1px solid rgba(56, 189, 248, 0.25);
-        font-size: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-    .farm-loc-actions { margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px; }
+def evaluar_plan_usuario(cur, u_row):
+    """Verifica vencimiento de Pro temporal y devuelve (es_pro, limite_efectivo, dias_restantes)."""
+    if not u_row:
+        return False, LIMITE_MINEROS_GRATIS, None
+    uname = u_row.get('username', '')
+    if str(uname).lower() == 'admin':
+        return True, 0, None
 
-    /* Contenedor Full-Bleed optimizado con aceleración GPU */
-    .chart-edge-container {
-        position: relative;
-        margin-left: -12px;
-        margin-right: -12px;
-        touch-action: pan-y;
-        -webkit-user-select: none;
-        user-select: none;
-    }
-    .chart-canvas-box { height: 312px; position: relative; width: 100%; }
+    plan_str = str(u_row.get('plan') or 'Gratis')
+    pro_hasta = str(u_row.get('pro_hasta') or '').strip()
+    lim_cfg = a_int_seguro(u_row.get('limite_mineros'), 0)
 
-    /* Brillo de tope derecho (En vivo) e izquierdo (Inicio del periodo) + Botón Ir a Ahora */
-    .edge-live-glow {
-        position: absolute;
-        top: 38px;
-        bottom: 24px;
-        right: 12px;
-        width: 26px;
-        border-radius: 0 6px 6px 0;
-        background: linear-gradient(90deg, rgba(0, 230, 118, 0) 0%, rgba(0, 230, 118, 0.34) 100%);
-        border-right: 2px solid rgba(0, 230, 118, 0.85);
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.22s ease;
-        z-index: 30;
-    }
-    .edge-live-glow.show { opacity: 1; }
-    .edge-live-pill {
-        position: absolute;
-        top: 50%;
-        right: 24px;
-        transform: translateY(-50%) translateX(8px);
-        background: rgba(10, 14, 22, 0.92);
-        border: 1px solid rgba(0, 230, 118, 0.6);
-        color: #69f0ae;
-        padding: 5px 11px;
-        border-radius: 20px;
-        font-size: 0.75em;
-        font-weight: bold;
-        font-family: monospace;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.22s ease, transform 0.22s ease;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), 0 0 12px rgba(0, 230, 118, 0.28);
-        z-index: 35;
-    }
-    .edge-live-pill.show { opacity: 1; transform: translateY(-50%) translateX(0); }
+    if pro_hasta:
+        dias_rest = calcular_dias_pro_restantes(pro_hasta)
+        if dias_rest is not None and dias_rest > 0:
+            return True, lim_cfg, dias_rest
+        try:
+            cur.execute("UPDATE usuarios SET plan='Gratis', pro_hasta='', limite_mineros=0 WHERE username=%s", (uname,))
+        except:
+            pass
+        return False, LIMITE_MINEROS_GRATIS, 0
 
-    .edge-start-glow {
-        position: absolute;
-        top: 38px;
-        bottom: 24px;
-        left: 12px;
-        width: 26px;
-        border-radius: 6px 0 0 6px;
-        background: linear-gradient(270deg, rgba(56, 189, 248, 0) 0%, rgba(56, 189, 248, 0.34) 100%);
-        border-left: 2px solid rgba(56, 189, 248, 0.85);
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.22s ease;
-        z-index: 30;
-    }
-    .edge-start-glow.show { opacity: 1; }
-    .edge-start-pill {
-        position: absolute;
-        top: 50%;
-        left: 24px;
-        transform: translateY(-50%) translateX(-8px);
-        background: rgba(10, 14, 22, 0.92);
-        border: 1px solid rgba(56, 189, 248, 0.6);
-        color: #7dd3fc;
-        padding: 5px 11px;
-        border-radius: 20px;
-        font-size: 0.75em;
-        font-weight: bold;
-        font-family: monospace;
-        pointer-events: none;
-        opacity: 0;
-        transition: opacity 0.22s ease, transform 0.22s ease;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), 0 0 12px rgba(56, 189, 248, 0.28);
-        z-index: 35;
-    }
-    .edge-start-pill.show { opacity: 1; transform: translateY(-50%) translateX(0); }
+    if plan_str.strip().lower() in ('pro', 'unlimited', 'enterprise'):
+        return True, lim_cfg, None
+    return False, LIMITE_MINEROS_GRATIS, None
 
-    .btn-ir-ahora {
-        display: none;
-        position: absolute;
-        bottom: 34px;
-        right: 22px;
-        z-index: 35;
-        background: rgba(13, 18, 30, 0.92);
-        border: 1px solid rgba(0, 230, 118, 0.65);
-        color: #00e676;
-        padding: 5px 11px;
-        border-radius: 18px;
-        font-size: 0.75em;
-        font-weight: bold;
-        cursor: pointer;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65), 0 0 10px rgba(0, 230, 118, 0.25);
-        transition: all 0.18s ease;
-    }
-    .btn-ir-ahora:hover { background: rgba(0, 230, 118, 0.22); color: #fff; transform: translateY(-1px); }
+def clave_granja_minero(ip, ciudad):
+    c = str(ciudad or 'Santa Cruz de la Sierra').strip()
+    sub = ".".join(str(ip).split('.')[:3]) + ".x" if '.' in str(ip) else "LAN"
+    return f"{c} ({sub})"
 
-    /* Tooltip flotante en línea 0 debajo del gráfico */
-    .custom-chart-tooltip {
-        --arrow-x: 50%;
-        position: absolute;
-        display: none;
-        pointer-events: none;
-        background: rgba(10, 11, 16, 0.96);
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        border-radius: 6px;
-        padding: 9px 12px;
-        color: #fff;
-        font-family: sans-serif;
-        font-size: 0.78em;
-        line-height: 1.45;
-        z-index: 2200;
-        white-space: nowrap;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
-        transform: translate3d(-50%, 0, 0);
-        will-change: left, top;
-    }
-    .custom-chart-tooltip::before {
-        content: "";
-        position: absolute;
-        top: -6px;
-        left: var(--arrow-x, 50%);
-        transform: translateX(-50%);
-        border-width: 0 6px 6px 6px;
-        border-style: solid;
-        border-color: transparent transparent rgba(10, 11, 16, 0.96) transparent;
-    }
-    .tt-title {
-        font-weight: bold;
-        margin-bottom: 5px;
-        color: #fff;
-        font-size: 1.02em;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding-bottom: 3px;
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-    }
-    .tt-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 2px 5px;
-        margin: 1px -5px;
-        border-radius: 4px;
-        border-left: 2px solid transparent;
-        transition: background 0.12s ease, opacity 0.12s ease;
-    }
-    .tt-row.tt-focus {
-        background: rgba(56, 189, 248, 0.20);
-        border-left: 3px solid #38bdf8;
-        color: #ffffff;
-        font-weight: 600;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
-    }
-    .tt-row.tt-dim { opacity: 0.62; }
-    .tt-focus-arrow {
-        margin-left: auto;
-        padding-left: 8px;
-        color: #38bdf8;
-        font-size: 0.95em;
-        font-weight: bold;
-    }
-    .tt-sub { padding-left: 18px; color: #d1d3e0; font-family: monospace; font-size: 0.95em; }
-    .tt-sub.tt-dim { opacity: 0.58; }
-    .tt-box { width: 9px; height: 9px; display: inline-block; border-radius: 2px; flex-shrink: 0; }
-    .tt-event-box {
-        margin-top: 5px;
-        padding: 4px 7px;
-        border-radius: 4px;
-        background: rgba(56, 189, 248, 0.14);
-        border-left: 3px solid #38bdf8;
-        color: #bae6fd;
-        font-size: 0.90em;
-        white-space: normal;
-        max-width: 290px;
-    }
-    .tt-badge-status {
-        margin-top: 4px;
-        padding: 3px 7px;
-        border-radius: 4px;
-        font-weight: bold;
-        font-size: 0.92em;
-        display: inline-block;
-    }
+def nombre_inteligente_minero(ip, nombres_dict, worker1=""):
+    if ip in nombres_dict and nombres_dict[ip]:
+        return nombres_dict[ip]
+    w = str(worker1 or "").strip()
+    if w and w != "-":
+        return w.split('.')[-1] if '.' in w else w
+    return ip.split('.')[-1]
 
-    @media (max-width: 640px) {
-        .chart-floating-toolbar {
-            position: relative;
-            top: auto;
-            right: auto;
-            padding: 0 12px 6px 12px;
-            justify-content: flex-end;
-            pointer-events: auto;
-        }
-        .chart-filters {
-            max-width: 100%;
-            overflow-x: auto;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            gap: 2px;
-            padding: 3px;
-        }
-        .chart-filters::-webkit-scrollbar { display: none; }
-        .lod-badge { padding: 3px 6px; font-size: 0.68em; }
-        .btn-filter { padding: 4px 7px; font-size: 0.72em; }
-        .btn-reset-zoom { padding: 3px 6px; font-size: 0.70em; }
-        .filter-divider { margin: 0 2px; }
-        .farm-map-container { height: 210px; }
-        .farm-gps-btn { font-size: 0.70em; padding: 3px 4px 3px 8px; }
-        .edge-live-glow, .edge-start-glow { top: 6px; }
-    }
-</style>
+def calcular_segundos_desconectado(ult_str):
+    if not ult_str: return 999999
+    try:
+        segs = (datetime.utcnow() - datetime.strptime(str(ult_str).strip(), "%Y-%m-%d %H:%M:%S")).total_seconds()
+        return max(0, segs)
+    except:
+        return 0
 
-<!-- Portal flotante único en la ventana -->
-<div id="smartFloatingTooltip" class="smart-floating-tooltip"></div>
+def alerta_en_enfriamiento(cur, owner, ip, tipo, segundos=1800):
+    cur.execute(
+        "SELECT fecha FROM registro_alertas WHERE owner=%s AND ip=%s AND tipo=%s ORDER BY id DESC LIMIT 1",
+        (owner, ip, tipo)
+    )
+    row = cur.fetchone()
+    if not row or not row.get('fecha'):
+        return False
+    return calcular_segundos_desconectado(row['fecha']) < segundos
 
-<!-- Selector global con Mapa Interactivo (Google Maps tiles) para ubicar los mineros -->
-<div id="farmLocModalBg" class="farm-loc-modal-bg" onclick="if(event.target===this) cerrarModalUbicacionGranja()">
-    <div class="farm-loc-modal">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <b style="font-size:14.5px;">🗺️ Editar GPS de tus Máquinas</b>
-            <button type="button" onclick="cerrarModalUbicacionGranja()" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:17px;">✕</button>
+def ordenar_ip_key(item):
+    ip_str = str(item.get('ip') or '')
+    partes = ip_str.split('.')
+    if len(partes) == 4 and all(p.isdigit() for p in partes):
+        return tuple(int(p) for p in partes)
+    return (999, 999, 999, 999)
+
+def obtener_ubicacion_ip_agente(ip_publica):
+    global cache_geo_granja
+    ahora = time.time()
+    if ip_publica in cache_geo_granja and (ahora - cache_geo_granja[ip_publica]['ts'] < 86400):
+        return cache_geo_granja[ip_publica]
+
+    if not ip_publica or ip_publica.startswith(("127.", "192.168.", "10.", "172.")):
+        ip_query = ""
+    else:
+        ip_query = ip_publica.strip()
+
+    urls = [
+        f"http://ip-api.com/json/{ip_query}?fields=status,country,regionName,city,lat,lon",
+        f"https://ipwho.is/{ip_query}"
+    ]
+    for u in urls:
+        try:
+            req = urllib.request.Request(u, headers={'User-Agent': 'Mozilla/5.0'})
+            raw = urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8')
+            j = json.loads(raw)
+            if j.get('status') == 'success' or j.get('success') is True:
+                lat = float(j.get('lat') or j.get('latitude'))
+                lon = float(j.get('lon') or j.get('longitude'))
+                ciudad = str(j.get('city') or j.get('regionName') or j.get('region') or 'Granja Local').strip()
+                pais = str(j.get('country') or 'Bolivia').strip()
+                res = {'lat': lat, 'lon': lon, 'ciudad': ciudad, 'pais': pais, 'ts': ahora}
+                cache_geo_granja[ip_publica] = res
+                return res
+        except:
+            pass
+    return {'lat': -17.7833, 'lon': -63.1821, 'ciudad': 'Santa Cruz de la Sierra', 'pais': 'Bolivia', 'ts': ahora}
+
+def obtener_clima_coordenadas(lat, lon):
+    global cache_clima_coord
+    key = f"{round(a_float_seguro(lat, -17.7833), 2)},{round(a_float_seguro(lon, -63.1821), 2)}"
+    ahora = time.time()
+    if key in cache_clima_coord and (ahora - cache_clima_coord[key]['ts'] < 900):
+        return cache_clima_coord[key]['temp']
+    try:
+        lat_v, lon_v = key.split(',')
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat_v}&longitude={lon_v}&current=temperature_2m"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        raw = urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8')
+        j = json.loads(raw)
+        t_ext = j.get('current', {}).get('temperature_2m')
+        if t_ext is not None:
+            temp_c = round(float(t_ext), 1)
+            cache_clima_coord[key] = {'temp': temp_c, 'ts': ahora}
+            return temp_c
+    except:
+        pass
+    return cache_clima_coord.get(key, {}).get('temp')
+
+def ventilador_en_cero(fans_str, modelo_str):
+    ml = str(modelo_str or "").lower()
+    if any(w in ml for w in ("hyd", "hydro", "water", "m33", "m53", "m63")):
+        return False
+    fs = str(fans_str or "").strip()
+    if not fs or "hydro" in fs.lower():
+        return False
+    nums = [int(x) for x in re.findall(r'\d+', fs)]
+    if not nums:
+        return False
+    return all(n == 0 for n in nums)
+
+def enviar_telegram(token, chat_id, texto):
+    if not token or not chat_id: return False
+    try:
+        url = f"https://api.telegram.org/bot{token.strip()}/sendMessage"
+        datos = urllib.parse.urlencode({'chat_id': chat_id.strip(), 'text': texto, 'parse_mode': 'HTML'}).encode('utf-8')
+        req = urllib.request.Request(url, data=datos, headers={'User-Agent': 'Mozilla/5.0'})
+        urllib.request.urlopen(req, timeout=4)
+        return True
+    except Exception as e:
+        print(f"Error Telegram: {e}")
+        return False
+
+def _obtener_precio_btc():
+    """Intenta obtener el precio de BTC con 3 APIs de respaldo."""
+    # 1. Binance
+    try:
+        req = urllib.request.Request(
+            "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        precio = float(json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))['price'])
+        if precio > 1000:
+            return precio
+    except Exception as e:
+        print(f"[Red BTC] Binance falló: {e}")
+
+    # 2. Coinbase
+    try:
+        req = urllib.request.Request(
+            "https://api.coinbase.com/v2/prices/BTC-USD/spot",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        j = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+        precio = float(j['data']['amount'])
+        if precio > 1000:
+            return precio
+    except Exception as e:
+        print(f"[Red BTC] Coinbase falló: {e}")
+
+    # 3. CoinGecko
+    try:
+        req = urllib.request.Request(
+            "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        j = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+        precio = float(j['bitcoin']['usd'])
+        if precio > 1000:
+            return precio
+    except Exception as e:
+        print(f"[Red BTC] CoinGecko falló: {e}")
+
+    return None
+
+def _obtener_dificultad_btc():
+    """Intenta obtener dificultad (T) y hashrate global (EH/s) de la red Bitcoin."""
+    # 1. Mempool.space
+    try:
+        req = urllib.request.Request(
+            "https://mempool.space/api/v1/mining/hashrate/3d",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        j = json.loads(urllib.request.urlopen(req, timeout=5).read().decode('utf-8'))
+        diff = float(j.get('currentDifficulty') or 0)
+        hr_red = float(j.get('currentHashrate') or 0)
+        if diff > 0:
+            dif_t = diff / 1_000_000_000_000
+            ehs = round(hr_red / 1e18, 2) if hr_red > 0 else round(dif_t * 7.1583, 2)
+            return dif_t, ehs
+    except Exception as e:
+        print(f"[Red BTC] Mempool dificultad falló: {e}")
+
+    # 2. Blockchain.info como respaldo
+    try:
+        req = urllib.request.Request(
+            "https://blockchain.info/q/getdifficulty",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        diff = float(urllib.request.urlopen(req, timeout=5).read().decode('utf-8').strip())
+        if diff > 0:
+            dif_t = diff / 1_000_000_000_000
+            return dif_t, round(dif_t * 7.1583, 2)
+    except Exception as e:
+        print(f"[Red BTC] Blockchain.info dificultad falló: {e}")
+
+    return None, None
+
+def _obtener_recompensa_btc():
+    """Calcula la recompensa por bloque según la altura actual (se ajusta sola en futuros Halvings)."""
+    try:
+        req = urllib.request.Request(
+            "https://mempool.space/api/blocks/tip/height",
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        altura = int(urllib.request.urlopen(req, timeout=4).read().decode('utf-8').strip())
+        if altura > 0:
+            halvings = altura // 210000
+            return 50.0 / (2 ** halvings)
+    except Exception:
+        pass
+    return None
+
+def obtener_datos_red():
+    global cache_red
+    ahora = time.time()
+    if ahora - cache_red['ultima_act'] < 60:
+        return cache_red['datos']
+    datos = cache_red['datos'].copy()
+
+    precio = _obtener_precio_btc()
+    if precio is not None:
+        datos['precio'] = precio
+    else:
+        print("[Red BTC] ⚠️ No se pudo obtener precio de ninguna API, usando último valor conocido")
+
+    dif_t, red_ehs = _obtener_dificultad_btc()
+    if dif_t is not None:
+        datos['dificultad_t'] = dif_t
+        datos['red_ehs'] = red_ehs
+    else:
+        print("[Red BTC] ⚠️ No se pudo obtener dificultad de ninguna API, usando último valor conocido")
+
+    recomp = _obtener_recompensa_btc()
+    if recomp is not None:
+        datos['recompensa'] = recomp
+
+    cache_red['datos'] = datos
+    cache_red['ultima_act'] = ahora
+    return datos
+
+def obtener_codigo_agente_configurado(api_k, sub):
+    with open('agente.py', 'r', encoding='utf-8') as f:
+        codigo_base = f.read()
+    version_hash = hashlib.sha256(codigo_base.encode('utf-8')).hexdigest()[:12]
+    codigo = codigo_base.replace('API_KEY = "TU_API_KEY_AQUI"', f'API_KEY = "{api_k}"')
+    codigo = codigo.replace('SUBNET = "192.168.0"', f'SUBNET = "{sub}"')
+    codigo = codigo.replace('SUBNET_DEFECTO = "192.168.0"', f'SUBNET_DEFECTO = "{sub}"')
+    codigo = codigo.replace('VERSION_AGENTE = "LOCAL"', f'VERSION_AGENTE = "{version_hash}"')
+    return codigo, version_hash
+
+def render_seguro(nombre_archivo, **contexto):
+    try:
+        return render_template(nombre_archivo, **contexto)
+    except TemplateNotFound:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        rutas_posibles = [
+            os.path.join(base_dir, 'templates', nombre_archivo),
+            os.path.join(base_dir, nombre_archivo),
+            os.path.join(base_dir, 'templates', 'detalle.html'),
+            os.path.join(base_dir, 'detalle.html')
+        ]
+        for ruta in rutas_posibles:
+            if os.path.exists(ruta):
+                with open(ruta, 'r', encoding='utf-8') as f:
+                    return render_template_string(f.read(), **contexto)
+        html_fallback = """
+        {% extends "layout.html" %}
+        {% block content %}
+        <div style="background:var(--bg-card);padding:30px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+            <h2>{{ titulo | default('Sección activa') }}</h2>
+            <p style="color:var(--text-muted);">El archivo <b>{{ archivo }}</b> no se encontró dentro de la carpeta <code>templates/</code> en GitHub.</p>
         </div>
-        <div style="font-size:11.5px; color:#94a3b8; margin-top:4px;">
-            Busca una ciudad, usa <b>Mi GPS</b> o <b>toca / arrastra el pin en el mapa</b> donde están instalados tus mineros.
-        </div>
-
-        <div class="farm-loc-input-row">
-            <input type="text" id="farmLocSearchInput" class="farm-loc-input" placeholder="Ej: Santa Cruz, Miami, Asunción..." onkeydown="if(event.key==='Enter') buscarCiudadGranja()">
-            <button type="button" class="btn-filter active" onclick="buscarCiudadGranja()">Buscar</button>
-            <button type="button" class="btn-filter" onclick="usarMiGpsActual()" title="Usar GPS de este dispositivo">🎯 Mi GPS</button>
-        </div>
-        <div id="farmLocResults" class="farm-loc-results"></div>
-
-        <!-- Mapa Interactivo -->
-        <div id="farmInteractiveMap" class="farm-map-container"></div>
-
-        <div class="farm-loc-selected-bar">
-            <div>
-                <div style="color:#94a3b8; font-size:10.5px;">Ubicación seleccionada:</div>
-                <b id="farmLocPreviewTxt" style="color:#38bdf8;">--</b>
-            </div>
-            <div style="font-family:monospace; font-size:10.5px; color:#94a3b8;" id="farmLocCoordsTxt">0.000, 0.000</div>
-        </div>
-
-        <div class="farm-loc-actions">
-            <button type="button" class="btn-filter" onclick="cerrarModalUbicacionGranja()">Cancelar</button>
-            <button type="button" class="btn-emg-save" onclick="confirmarUbicacionMapa()"
-                    data-save-title="📍 Guardar Ubicación de la Granja"
-                    data-save-desc="Guarda las coordenadas exactas seleccionadas en el mapa para calcular el clima exterior real de tu sede."
-                    data-save-note="Usado por la Protección Climática y el gráfico térmico">✅ Guardar Ubicación</button>
-        </div>
-    </div>
-</div>
-
-<div class="card" data-no-live-patch="1" style="position: relative; overflow: visible; z-index: 20; padding-left: 16px; padding-right: 16px;">
-    <div class="panel-title" style="margin-bottom: 10px;">
-        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-            <span>📈 Telemetría e Historial</span>
-            <span id="btnGuiaGrafico" class="btn-help-guide">? Cómo leer</span>
-            <span id="btnToggleTimezone" class="btn-tz-toggle" onclick="alternarZonaHorariaGrafico()">🕒 Hora Granja</span>
-            <button type="button" id="climaUbicacionBadge" class="farm-gps-btn" onclick="abrirModalUbicacionGranja()"></button>
-        </div>
-    </div>
-
-    <!-- Barra de métricas dinámicas -->
-    <div class="chart-stats-bar">
-        <div class="stat-item" data-stat-key="prom">
-            Prom: <b id="statProm" style="color:var(--accent-blue);" translate="no">0.00</b>
-            <span class="stat-info-icon">i</span>
-        </div>
-        <div class="stat-item" data-stat-key="max">
-            Máx: <b id="statMax" translate="no">0.00</b>
-            <span class="stat-info-icon">i</span>
-        </div>
-        <div class="stat-item" data-stat-key="min">
-            Mín: <b id="statMin" translate="no">0.00</b>
-            <span class="stat-info-icon">i</span>
-        </div>
-        <div class="stat-item" data-stat-key="temp_pico">
-            <span id="lblStatTempPico">Temp Máx/Mín:</span> <b id="statTempPico" style="color:#ffb300;" translate="no">0°/0°C</b>
-            <span class="stat-info-icon">i</span>
-        </div>
-        <div class="stat-item" data-stat-key="clima_hoy">
-            Clima Granja / Sensación: <b id="statClimaHoy" style="color:#38bdf8;" translate="no">--° / --°C</b>
-            <span class="stat-info-icon">i</span>
-        </div>
-        <div class="stat-item" data-stat-key="uptime">
-            Estabilidad: <b id="statUptime" style="color:var(--accent-green);" translate="no">100%</b>
-            <span class="stat-info-icon">i</span>
-        </div>
-        <div class="stat-item" id="statDeltaAguaItem" data-stat-key="delta_agua" style="display:none;">
-            ΔT Agua: <b id="statDeltaAgua" style="color:#38bdf8;" translate="no">--°C</b>
-            <span class="stat-info-icon">i</span>
-        </div>
-    </div>
-
-    <!-- Píldoras interactivas para encender/apagar curvas -->
-    <div class="chart-CustomLegends" id="customLegendsBar"></div>
-
-    <!-- Gráfico estirado con soporte de Zoom con 2 dedos y Doble Toque para resetear -->
-    <div id="chartWrapper" class="chart-edge-container">
-        <div class="chart-floating-toolbar">
-            <div class="chart-filters">
-                <button class="btn-reset-zoom" id="btnResetZoom" data-filter-key="reset_zoom" onclick="resetearZoomGrafico()">🔍 <span translate="no">100%</span></button>
-                <span id="lodResolutionBadge" class="lod-badge" translate="no">⚡ 3m</span>
-                <span class="filter-divider"></span>
-                <button class="btn-filter" id="btn-6h" data-filter-key="6h" onclick="updateChart('6h')" translate="no">6 h</button>
-                <button class="btn-filter active" id="btn-24h" data-filter-key="24h" onclick="updateChart('24h')" translate="no">24 h</button>
-                <button class="btn-filter" id="btn-7d" data-filter-key="7d" onclick="updateChart('7d')" translate="no">7 d</button>
-                <button class="btn-filter" id="btn-30d" data-filter-key="30d" onclick="updateChart('30d')" translate="no">30 d</button>
-                <span class="filter-divider"></span>
-                <button class="btn-filter" id="btnCamara" data-filter-key="camara" onclick="descargarCapturaGrafico()">📷</button>
-            </div>
-        </div>
-        <div class="chart-canvas-box">
-            <canvas id="hashrateChart"></canvas>
-            <div id="edgeStartGlow" class="edge-start-glow"></div>
-            <div id="edgeStartPill" class="edge-start-pill">⏮️ Inicio del periodo</div>
-            <div id="edgeLiveGlow" class="edge-live-glow"></div>
-            <div id="edgeLivePill" class="edge-live-pill">🟢 En vivo (hora actual)</div>
-            <button type="button" id="btnIrAhora" class="btn-ir-ahora" onclick="irAHoraActualGrafico()">⏭️ Ir a Ahora</button>
-            <div id="customChartTooltip" class="custom-chart-tooltip"></div>
-        </div>
-    </div>
-</div>
-
-<script>
-    const unidadMinero = "{{ ultimo.unidad }}";
-    const algoritmoMinero = "{{ ultimo.algoritmo | default('SHA-256') }}";
-    const modeloMineroStr = "{{ ultimo.modelo | default('') }}";
-    const fansMineroStr = "{{ ultimo.fans | default('') }}";
-    const esMineroHydro = /hyd|hydro|water/i.test(modeloMineroStr + " " + fansMineroStr);
-    const UMBRAL_ALERTA_TEMP = esMineroHydro ? 62 : 75;
-    const UMBRAL_CRIT_TEMP = esMineroHydro ? 70 : 85;
-    const MAX_TEMP_SENSOR_VALIDA = 130;
-
-    function esTempValida(t) {
-        return t !== null && t !== undefined && !isNaN(t) && t > 5 && t < MAX_TEMP_SENSOR_VALIDA;
-    }
-
-    const rawFechas = {{ graf_fechas_raw | safe }};
-    const rawHr = {{ graf_hashrate | safe }};
-    const rawTemp = {{ graf_temps | safe }};
-    const rawAmb = {{ graf_temp_amb | default('[]') | safe }};
-    const rawErr = {{ graf_errores | default('[]') | safe }};
-    const rawCadHist = {{ graf_cadenas_hist | default('[]') | safe }};
-    const cadenasActuales = {{ cadenas_json | default('[]') | safe }};
-    const eventosGrafico = {{ eventos_graf_json | default('[]') | safe }};
-    const tempAmbActual = {{ ultimo.temp_amb | default(0) }};
-
-    const TIENE_GRANJA_SERVIDOR = {{ 'true' if ultimo.farm_city is defined and ultimo.farm_city else 'false' }};
-    let GRANJA_LAT = {{ ultimo.farm_lat | default(-17.7833) }};
-    let GRANJA_LON = {{ ultimo.farm_lon | default(-63.1821) }};
-    let GRANJA_CIUDAD = "{{ ultimo.farm_city | default('Santa Cruz de la Sierra') }}";
-    let GRANJA_PAIS = "{{ ultimo.farm_country | default('Bolivia') }}";
-    let GRANJA_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-    const BROWSER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-    let usarHoraGranja = true;
-
-    const STORAGE_KEY_LOC = 'emg_farm_loc_{{ ultimo.granja_id | default(ip) }}';
-    let fmtFechaHoraCache = null;
-    let fmtSoloHoraCache = null;
-    let fmtDiaMesCache = null;
-
-    let farmMap = null;
-    let farmMarker = null;
-    let tempLocSeleccionada = null;
-
-    let chartInstance = null;
-    let rangoActual = '24h';
-    let cursorDentroArea = false;
-    let cursorCanvasY = null;
-    let ultimoContextoTooltip = null;
-    let mapaMetaPuntos = {};
-    let cacheClimaExterior = [];
-    let visibilidadCurvas = {};
-    let elementoTooltipActivo = null;
-    let tooltipsInicializados = false;
-    let cargandoLiveGrafico = false;
-
-    let ultimoScrollPaginaTs = 0;
-    let zoomRuedaHabilitado = false;
-    let timerDesbloqueoZoom = null;
-    let mouseEntradaX = null;
-    let mouseEntradaY = null;
-    let timerTopeEnVivo = null;
-    let timerTopeInicio = null;
-
-    let crudosPorMinutoCache = [];
-    let pasoAgrupacionActualSeg = 180;
-    let limiteDatosIzqGlobal = 0;
-    let limiteDatosDerGlobal = 0;
-    let primerTsGrabadoGlobal = 0;
-    let promedioHrOperativoGlobal = 0;
-    let diasRealesGrabados = 0;
-    let horasRealesGrabadas = 0;
-    let ultimoKeyTooltipRenderizado = null;
-    let ultimoAnchoTooltipCache = 235;
-    let rectCanvasCache = null;
-
-    function estaGraficoConZoom(chart) {
-        if (!chart || !chart.scales || !chart.scales.x) return false;
-        const spanVis = chart.scales.x.max - chart.scales.x.min;
-        const spanTot = limiteDatosDerGlobal - limiteDatosIzqGlobal;
-        return spanTot > 0 && spanVis < (spanTot - 60);
-    }
-
-    function mostrarTopeEnVivo() {
-        const glow = document.getElementById('edgeLiveGlow');
-        const pill = document.getElementById('edgeLivePill');
-        if (glow) glow.classList.add('show');
-        if (pill) pill.classList.add('show');
-        clearTimeout(timerTopeEnVivo);
-        timerTopeEnVivo = setTimeout(() => {
-            if (glow) glow.classList.remove('show');
-            if (pill) pill.classList.remove('show');
-        }, 1100);
-    }
-
-    function mostrarTopeInicio() {
-        const glow = document.getElementById('edgeStartGlow');
-        const pill = document.getElementById('edgeStartPill');
-        if (glow) glow.classList.add('show');
-        if (pill) pill.classList.add('show');
-        clearTimeout(timerTopeInicio);
-        timerTopeInicio = setTimeout(() => {
-            if (glow) glow.classList.remove('show');
-            if (pill) pill.classList.remove('show');
-        }, 1100);
-    }
-
-    function actualizarControlesZoomYScroll(chart) {
-        if (!chart || !chart.scales || !chart.scales.x) return;
-        const estaConZoom = estaGraficoConZoom(chart);
-
-        const btnReset = document.getElementById('btnResetZoom');
-        if (btnReset) btnReset.style.display = estaConZoom ? 'inline-block' : 'none';
-
-        const btnAhora = document.getElementById('btnIrAhora');
-        const lejosDeAhora = estaConZoom && (limiteDatosDerGlobal - chart.scales.x.max) > 180;
-        if (btnAhora) btnAhora.style.display = lejosDeAhora ? 'inline-flex' : 'none';
-
-        const wrapper = document.getElementById('chartWrapper');
-        if (wrapper) {
-            wrapper.style.touchAction = estaConZoom ? 'none' : 'pan-y';
-        }
-    }
-
-    function irAHoraActualGrafico() {
-        if (!chartInstance || !chartInstance.scales || !chartInstance.scales.x) return;
-        const span = chartInstance.scales.x.max - chartInstance.scales.x.min;
-        const nuevoMin = Math.max(limiteDatosIzqGlobal, limiteDatosDerGlobal - span);
-        fijarEscalaExactaEnChart(chartInstance, nuevoMin, limiteDatosDerGlobal);
-        actualizarPuntosYResolucionSegunZoom(chartInstance);
-        chartInstance.update('none');
-        actualizarControlesZoomYScroll(chartInstance);
-        mostrarTopeEnVivo();
-    }
-
-    function resaltarCurvaDesdeLeyenda(dsId) {
-        if (!chartInstance) return;
-        chartInstance.data.datasets.forEach((ds, idx) => {
-            if (!chartInstance.isDatasetVisible(idx)) return;
-            if (ds.id === dsId) {
-                ds.borderColor = ds._origBorderColor;
-                ds.backgroundColor = ds._origBgColor;
-                ds.borderWidth = ds.type === 'bar' ? 2 : Math.max(3.2, (ds._origBorderWidth || 1.8) + 1.4);
-            } else {
-                ds.borderColor = 'rgba(148, 163, 184, 0.16)';
-                ds.backgroundColor = ds.type === 'bar' ? 'rgba(148, 163, 184, 0.10)' : 'rgba(148, 163, 184, 0.02)';
-                ds.borderWidth = 1;
-            }
-        });
-        chartInstance.update('none');
-    }
-
-    function restaurarCurvasLeyenda() {
-        if (!chartInstance) return;
-        chartInstance.data.datasets.forEach(ds => {
-            if (ds._origBorderColor !== undefined) ds.borderColor = ds._origBorderColor;
-            if (ds._origBgColor !== undefined) ds.backgroundColor = ds._origBgColor;
-            if (ds._origBorderWidth !== undefined) ds.borderWidth = ds._origBorderWidth;
-        });
-        chartInstance.update('none');
-    }
-
-    function reconstruirFormateadoresTiempo() {
-        const tz = usarHoraGranja ? GRANJA_TIMEZONE : BROWSER_TIMEZONE;
-        try {
-            fmtFechaHoraCache = new Intl.DateTimeFormat('es-ES', {
-                timeZone: tz, day: '2-digit', month: '2-digit', year: '2-digit',
-                hour: '2-digit', minute: '2-digit', hour12: false
-            });
-            fmtSoloHoraCache = new Intl.DateTimeFormat('es-ES', {
-                timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false
-            });
-            fmtDiaMesCache = new Intl.DateTimeFormat('es-ES', {
-                timeZone: tz, day: '2-digit', month: '2-digit'
-            });
-        } catch (e) {
-            fmtFechaHoraCache = null;
-            fmtSoloHoraCache = null;
-            fmtDiaMesCache = null;
-        }
-        const btnTz = document.getElementById('btnToggleTimezone');
-        if (btnTz) {
-            btnTz.innerText = usarHoraGranja ? `🕒 Hora Granja` : `🕒 Mi Hora`;
-        }
-    }
-
-    function alternarZonaHorariaGrafico() {
-        usarHoraGranja = !usarHoraGranja;
-        reconstruirFormateadoresTiempo();
-        ultimoKeyTooltipRenderizado = null;
-        if (chartInstance) chartInstance.update('none');
-    }
-
-    function obtenerCorteTempActual() {
-        const inp = document.getElementById('corteTempInput');
-        const sw = document.getElementById('corteActivoSwitch');
-        const defCorte = esMineroHydro ? 70 : 85;
-        const valRaw = inp ? parseInt(inp.value, 10) : {{ ultimo.corte_temp | default(0) | int }};
-        const temp = (!isNaN(valRaw) && valRaw >= 55 && valRaw <= 105) ? (esMineroHydro && valRaw === 85 ? 70 : valRaw) : defCorte;
-        const activo = sw ? !!sw.checked : {{ 'true' if ultimo.corte_activo else 'false' }};
-        return { temp, activo };
-    }
-
-    function obtenerInfoTooltipCurva(id, isHidden) {
-        const estadoTxt = isHidden ? 'Haz clic o toca para volver a mostrar esta línea' : 'Haz clic o toca para ocultar esta línea';
-        const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD} (${GRANJA_PAIS})` : GRANJA_CIUDAD;
-        const corteCfg = obtenerCorteTempActual();
-        const dic = {
-            'hr': {
-                titulo: '⚡ Hashrate (Potencia de Minado)',
-                desc: `Es la fuerza con la que trabaja tu minero (${algoritmoMinero}). Mientras más alta y pareja sea la línea azul, más estable está produciendo.`,
-                rango: 'Bueno: línea recta cerca del promedio | Malo: caídas a 0',
-                accion: estadoTxt
-            },
-            'tmax': {
-                titulo: '🌡️ Temperatura Máxima (Chips)',
-                desc: 'Muestra qué tan calientes están los chips internos del equipo. Es el dato más importante para cuidar su vida útil.',
-                rango: esMineroHydro
-                    ? `🟢 < 62°C Normal | 🟠 62–69°C Calor | 🔴 Corte Hydro: ~${corteCfg.temp}°C`
-                    : `🟢 < 75°C Normal | 🟠 75–${corteCfg.temp - 1}°C Calor | 🔴 Corte: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`,
-                accion: estadoTxt
-            },
-            'tmin': esMineroHydro ? {
-                titulo: '🔥 Agua Salida (Outlet)',
-                desc: 'Temperatura del refrigerante al salir de las placas hash. Si supera los 70°C el firmware Hydro detiene el minado por seguridad.',
-                rango: 'Ideal: < 60°C | ΔT sano vs Entrada: 5°C a 10°C',
-                accion: estadoTxt
-            } : {
-                titulo: '❄️ Temperatura Mínima (Entrada de Placa)',
-                desc: 'Temperatura en la parte más fresca de la placa. Compararla con la máxima te dice si el aire está circulando bien por dentro.',
-                rango: 'Ideal: entre 10°C y 18°C por debajo de la Temp Máx',
-                accion: estadoTxt
-            },
-            'tamb': esMineroHydro ? {
-                titulo: '💧 Agua Entrada (Inlet)',
-                desc: 'Temperatura del agua que entra al minero desde el radiador o intercambiador. Si baja de 20°C el equipo no arranca para evitar condensación.',
-                rango: 'Rango seguro Hydro: 20°C a 40°C (Ideal: 25°C–35°C)',
-                accion: estadoTxt
-            } : {
-                titulo: '🍃 Aire de Entrada (Ambiente)',
-                desc: 'Temperatura del aire que absorbe el minero por los ventiladores frontales.',
-                rango: 'Recomendado en la sala: 15°C a 35°C',
-                accion: estadoTxt
-            },
-            'clima': {
-                titulo: '🌤️ Clima Exterior de la Granja',
-                desc: `Temperatura real afuera en ${ubicacionCompleta}. Te ayuda a ver si el equipo se calentó por el calor del día o por un fallo propio.`,
-                rango: 'Usa el botón "Editar GPS" arriba si quieres cambiar la ubicación',
-                accion: estadoTxt
-            },
-            'sensacion': {
-                titulo: '🥵 Sensación Térmica Exterior',
-                desc: `Combina calor, viento y humedad en ${GRANJA_CIUDAD}. Cuando hay mucha humedad, al aire le cuesta más enfriar los equipos.`,
-                rango: 'Cuidado en días muy húmedos: ≥ 36°C',
-                accion: estadoTxt
-            },
-            'err': {
-                titulo: '⚠️ Errores de Hardware (Barras Rojas)',
-                desc: 'Pequeños fallos de cálculo que descarta el equipo. Tener unos pocos es normal; muchas barras altas seguidas indican calor excesivo o placa por revisar.',
-                rango: 'Normal: 0 a 5 /min | Revisar equipo: > 30 /min',
-                accion: estadoTxt
-            }
-        };
-        return dic[id];
-    }
-
-    function obtenerInfoTooltipStat(key) {
-        const ubicacionCompleta = GRANJA_PAIS ? `${GRANJA_CIUDAD}, ${GRANJA_PAIS}` : GRANJA_CIUDAD;
-        const txtDias = diasRealesGrabados >= 1 ? ` (${diasRealesGrabados}d guardados)` : (horasRealesGrabadas > 0 ? ` (${horasRealesGrabadas}h guardadas)` : '');
-        const corteCfg = obtenerCorteTempActual();
-        const dicStats = {
-            'guia_rapida': {
-                titulo: '📖 Cómo leer este gráfico en 10 segundos',
-                desc: esMineroHydro
-                    ? '• <b>Línea Azul:</b> Potencia del minero.<br>• <b>Línea Amarilla:</b> Calor de los chips.<br>• <b>Naranja / Verde:</b> Agua Salida vs. Agua Entrada.<br>• <b>ΔT Agua:</b> Diferencia Salida − Entrada. Si supera 12°C, revisa bomba o aire en el circuito.<br>• <b>Zoom:</b> Rueda del mouse o 2 dedos en celular.'
-                    : '• <b>Línea Azul (Izquierda):</b> Potencia del minero.<br>• <b>Línea Amarilla (Derecha):</b> Calor de los chips.<br>• <b>Barras Rojas:</b> Errores del equipo.<br>• <b>Íconos arriba (🔄/🛡️/⚡):</b> Eventos automáticos.<br>• <b>Zoom:</b> Rueda del mouse o 2 dedos en celular.',
-                rango: 'Pasa el mouse sobre cualquier punto para resaltar su dato'
-            },
-            'tz_toggle': {
-                titulo: '🕒 Zona Horaria del Gráfico',
-                desc: `Cambia el reloj del eje X entre la <b>hora local donde están tus máquinas</b> (${GRANJA_TIMEZONE}) y <b>tu hora local actual</b> (${BROWSER_TIMEZONE}). Se ajusta solo a cambios de horario de verano.`,
-                rango: 'Útil si vives en un país distinto al de tu granja'
-            },
-            'gps_btn': {
-                titulo: '📍 Ubicación GPS de la Granja',
-                desc: `Ubicación configurada actualmente: <b>${ubicacionCompleta}</b> (${GRANJA_TIMEZONE}).`,
-                rango: 'Haz clic para abrir el mapa y ajustar el punto GPS exacto'
-            },
-            'prom': {
-                titulo: '⚡ Promedio de Potencia',
-                desc: 'Velocidad media real a la que trabajó el minero en el periodo elegido (sin contar momentos apagados). Se marca con la línea azul punteada.',
-                rango: 'Ideal: mantenerse cerca de la potencia de fábrica del equipo'
-            },
-            'max': {
-                titulo: '🚀 Potencia Máxima Alcanzada',
-                desc: 'El punto más alto de rendimiento que logró el minero en este periodo.',
-                rango: 'Sirve para comprobar que todas las placas llegan a su tope'
-            },
-            'min': {
-                titulo: '📉 Potencia Mínima en Marcha',
-                desc: 'El punto más bajo registrado mientras el equipo estaba minando normalmente (ignora los primeros segundos al encender).',
-                rango: 'Revisar si baja más de un 15% respecto al promedio'
-            },
-            'temp_pico': {
-                titulo: esMineroHydro ? '💧 Calor Máximo y Agua Salida' : '🌡️ Calor Máximo y Mínimo',
-                desc: esMineroHydro
-                    ? 'Muestra el pico de temperatura en chips y el máximo de agua de salida registrado en el periodo.'
-                    : 'Muestra la temperatura más caliente que alcanzaron los chips y la más fresca registrada en las placas durante este periodo.',
-                rango: esMineroHydro
-                    ? `Saludable Hydro: < 62°C | Protección térmica: ~${corteCfg.temp}°C`
-                    : `Saludable: 60°C a 75°C | Corte automático: ${corteCfg.temp}°C (${corteCfg.activo ? 'ON' : 'OFF'})`
-            },
-            'clima_hoy': {
-                titulo: '🌤️ Clima Exterior y Sensación Térmica',
-                desc: `Temperatura ambiente exterior y sensación térmica por humedad actuales en <b>${ubicacionCompleta}</b>.`,
-                rango: 'Se actualiza según la ubicación elegida en "Editar GPS" arriba'
-            },
-            'uptime': {
-                titulo: '🟢 Estabilidad (Tiempo Activo)',
-                desc: 'Porcentaje del tiempo que el minero estuvo trabajando sin cortes ni caídas.',
-                rango: 'Excelente: > 99% | Si baja, revisa luz o internet'
-            },
-            'delta_agua': {
-                titulo: '💧 ΔT Agua (Diferencia Salida − Entrada)',
-                desc: 'Mide cuántos grados se calienta el agua al cruzar las placas. Es el mejor indicador de salud de la bomba y caudal.',
-                rango: '🟢 5°C–11°C Flujo sano | 🟠 ≥ 12°C Revisar bomba o purgar aire'
-            },
-            'lod_info': {
-                titulo: '⚡ Nivel de Detalle del Gráfico',
-                desc: 'Indica cada cuántos minutos se agrupa cada punto para que el gráfico sea rápido y limpio. Al hacer zoom se acerca automáticamente hasta mostrar minuto a minuto (1m).',
-                rango: 'Haz zoom (rueda o 2 dedos) para ver cada 1m' + txtDias
-            }
-        };
-        return dicStats[key];
-    }
-
-    function obtenerInfoTooltipFiltro(key) {
-        const txtHist = diasRealesGrabados >= 1 ? `Historial guardado: ${diasRealesGrabados} días.` : `Historial guardado: ${horasRealesGrabadas} horas.`;
-        const dicFiltros = {
-            '6h': { titulo: '⏱️ Últimas 6 Horas', desc: 'Ideal para revisar cambios recientes, reinicios o ajustes que acabas de hacer.', rango: `Detalle cada 3 min (con zoom llega a 1 min) | ${txtHist}` },
-            '24h': { titulo: '🕒 Últimas 24 Horas (Día Completo)', desc: 'Vista recomendada para comparar cómo trabaja tu minero con el calor del día frente a la noche.', rango: `Detalle cada 3 min (con zoom llega a 1 min) | ${txtHist}` },
-            '7d': { titulo: '📅 Últimos 7 Días (Semana)', desc: 'Muestra la estabilidad de toda la semana con hora y fecha. Los días previos a conectar el equipo aparecen vacíos a la izquierda.', rango: `Detalle cada 15 min | ${txtHist}` },
-            '30d': { titulo: '🗓️ Últimos 30 Días (Mes)', desc: 'Resumen mensual completo para detectar desgaste gradual, suciedad o tendencias de calor.', rango: `Detalle cada 30 min | ${txtHist}` },
-            'reset_zoom': { titulo: '🔍 Volver al Tamaño Normal (100%)', desc: 'Quita el acercamiento actual y vuelve a mostrar todo el periodo seleccionado.', rango: 'Atajo rápido: doble clic o doble toque sobre el gráfico' },
-            'camara': { titulo: '📷 Guardar Foto del Gráfico', desc: 'Descarga una imagen limpia (PNG) lista para compartir por WhatsApp o enviar a soporte técnico.', rango: 'Se guarda automáticamente en tus descargas' }
-        };
-        return dicFiltros[key];
-    }
-
-    function asegurarPortalTooltipEnBody() {
-        const box = document.getElementById('smartFloatingTooltip');
-        if (box && box.parentNode !== document.body) {
-            document.body.appendChild(box);
-        }
-        return box;
-    }
-
-    function mostrarSmartTooltip(targetEl, infoObj) {
-        const box = asegurarPortalTooltipEnBody();
-        if (!box || !targetEl || !infoObj) return;
-
-        elementoTooltipActivo = targetEl;
-        document.querySelectorAll('.tt-active').forEach(el => el.classList.remove('tt-active'));
-        targetEl.classList.add('tt-active');
-
-        let html = `<div class="pill-tt-header"><span>${infoObj.titulo}</span></div>`;
-        html += `<div>${infoObj.desc}</div>`;
-        if (infoObj.rango) html += `<div class="pill-tt-range" translate="no">${infoObj.rango}</div>`;
-        if (infoObj.accion) html += `<div class="pill-tt-action">💡 ${infoObj.accion}</div>`;
-        html += `<div id="smartTtArrow" class="smart-tt-arrow bottom"></div>`;
-
-        box.innerHTML = html;
-        box.style.display = 'block';
-
-        const rect = targetEl.getBoundingClientRect();
-        const boxW = box.offsetWidth || 280;
-        const boxH = box.offsetHeight || 110;
-        const margenPantalla = 10;
-        const vw = window.innerWidth;
-
-        const centroTargetX = rect.left + (rect.width / 2);
-        let leftPos = centroTargetX - (boxW / 2);
-        if (leftPos < margenPantalla) leftPos = margenPantalla;
-        if (leftPos + boxW > vw - margenPantalla) leftPos = vw - boxW - margenPantalla;
-
-        let topPos = rect.top - boxH - 10;
-        const arrowEl = document.getElementById('smartTtArrow');
-        if (topPos < margenPantalla) {
-            topPos = rect.bottom + 10;
-            if (arrowEl) arrowEl.className = 'smart-tt-arrow top';
-        } else {
-            if (arrowEl) arrowEl.className = 'smart-tt-arrow bottom';
-        }
-
-        if (arrowEl) {
-            let arrowLeft = centroTargetX - leftPos - 5;
-            arrowLeft = Math.max(12, Math.min(boxW - 22, arrowLeft));
-            arrowEl.style.left = arrowLeft + 'px';
-        }
-
-        box.style.left = leftPos + 'px';
-        box.style.top = topPos + 'px';
-    }
-
-    function ocultarSmartTooltip() {
-        const box = document.getElementById('smartFloatingTooltip');
-        if (box) box.style.display = 'none';
-        document.querySelectorAll('.tt-active').forEach(el => el.classList.remove('tt-active'));
-        elementoTooltipActivo = null;
-    }
-
-    function inicializarEventosTooltips() {
-        if (tooltipsInicializados) return;
-        tooltipsInicializados = true;
-        asegurarPortalTooltipEnBody();
-
-        const btnGuia = document.getElementById('btnGuiaGrafico');
-        if (btnGuia) {
-            btnGuia.addEventListener('mouseenter', function() { mostrarSmartTooltip(btnGuia, obtenerInfoTooltipStat('guia_rapida')); });
-            btnGuia.addEventListener('mouseleave', ocultarSmartTooltip);
-            btnGuia.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (elementoTooltipActivo === btnGuia) ocultarSmartTooltip();
-                else mostrarSmartTooltip(btnGuia, obtenerInfoTooltipStat('guia_rapida'));
-            });
-        }
-
-        const btnTz = document.getElementById('btnToggleTimezone');
-        if (btnTz) {
-            btnTz.addEventListener('mouseenter', function() { mostrarSmartTooltip(btnTz, obtenerInfoTooltipStat('tz_toggle')); });
-            btnTz.addEventListener('mouseleave', ocultarSmartTooltip);
-        }
-
-        document.querySelectorAll('.stat-item[data-stat-key]').forEach(item => {
-            const key = item.getAttribute('data-stat-key');
-            item.addEventListener('mouseenter', function() { mostrarSmartTooltip(item, obtenerInfoTooltipStat(key)); });
-            item.addEventListener('mouseleave', ocultarSmartTooltip);
-            item.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (elementoTooltipActivo === item) ocultarSmartTooltip();
-                else mostrarSmartTooltip(item, obtenerInfoTooltipStat(key));
-            });
-        });
-
-        document.querySelectorAll('[data-filter-key]').forEach(btn => {
-            const key = btn.getAttribute('data-filter-key');
-            btn.addEventListener('mouseenter', function() { mostrarSmartTooltip(btn, obtenerInfoTooltipFiltro(key)); });
-            btn.addEventListener('mouseleave', ocultarSmartTooltip);
-        });
-
-        const badgeClima = document.getElementById('climaUbicacionBadge');
-        if (badgeClima) {
-            badgeClima.addEventListener('mouseenter', function() { mostrarSmartTooltip(badgeClima, obtenerInfoTooltipStat('gps_btn')); });
-            badgeClima.addEventListener('mouseleave', ocultarSmartTooltip);
-        }
-
-        const badgeLod = document.getElementById('lodResolutionBadge');
-        if (badgeLod) {
-            badgeLod.addEventListener('mouseenter', function() { mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info')); });
-            badgeLod.addEventListener('mouseleave', ocultarSmartTooltip);
-            badgeLod.addEventListener('click', function(e) {
-                e.stopPropagation();
-                if (elementoTooltipActivo === badgeLod) ocultarSmartTooltip();
-                else mostrarSmartTooltip(badgeLod, obtenerInfoTooltipStat('lod_info'));
-            });
-        }
-
-        const inpCorte = document.getElementById('corteTempInput');
-        const swCorte = document.getElementById('corteActivoSwitch');
-        if (inpCorte) inpCorte.addEventListener('change', () => { if (chartInstance) chartInstance.update('none'); });
-        if (swCorte) swCorte.addEventListener('change', () => { if (chartInstance) chartInstance.update('none'); });
-
-        document.addEventListener('click', function(e) {
-            ocultarSmartTooltip();
-            const canvas = document.getElementById('hashrateChart');
-            if (canvas && e.target !== canvas) {
-                ocultarTooltipGris();
-            }
-        });
-
-        function registrarScrollPagina() {
-            ultimoScrollPaginaTs = Date.now();
-            zoomRuedaHabilitado = false;
-            clearTimeout(timerDesbloqueoZoom);
-            rectCanvasCache = null;
-            ocultarSmartTooltip();
-        }
-        window.addEventListener('scroll', registrarScrollPagina, { passive: true });
-        const mainScroll = document.getElementById('mainScrollArea');
-        if (mainScroll) mainScroll.addEventListener('scroll', registrarScrollPagina, { passive: true });
-
-        window.addEventListener('resize', function() {
-            rectCanvasCache = null;
-            if (chartInstance && chartInstance.options && chartInstance.options.layout && chartInstance.options.layout.padding) {
-                const nuevoPadTop = window.innerWidth <= 640 ? 6 : 40;
-                if (chartInstance.options.layout.padding.top !== nuevoPadTop) {
-                    chartInstance.options.layout.padding.top = nuevoPadTop;
-                    chartInstance.update('none');
-                }
-            }
-        }, { passive: true });
-    }
-
-    function formatearFechaTooltip(d) {
-        if (fmtFechaHoraCache) return fmtFechaHoraCache.format(d).replace(',', '');
-        let dia = String(d.getDate()).padStart(2, '0');
-        let mes = String(d.getMonth() + 1).padStart(2, '0');
-        let anio = String(d.getFullYear()).slice(-2);
-        let horas = String(d.getHours()).padStart(2, '0');
-        let mins = String(d.getMinutes()).padStart(2, '0');
-        return `${dia}/${mes}/${anio} ${horas}:${mins}`;
-    }
-
-    function formatearEtiquetaEjeX(d, rango, spanVisibleSeg) {
-        let horaStr = fmtSoloHoraCache
-            ? fmtSoloHoraCache.format(d)
-            : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-        if (rango === '7d' || rango === '30d' || (spanVisibleSeg && spanVisibleSeg > 86400)) {
-            let dmStr = fmtDiaMesCache
-                ? fmtDiaMesCache.format(d)
-                : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-            return [horaStr, dmStr];
-        }
-        return horaStr;
-    }
-
-    function obtenerPasoExactoMinutos(spanSegundos, maxTicksDeseados) {
-        const pasosPermitidos = [
-            60, 120, 180, 300, 600, 900, 1800, 3600, 7200, 10800,
-            14400, 21600, 43200, 86400, 172800, 259200, 345600, 432000
-        ];
-        const pasoIdeal = spanSegundos / Math.max(2, maxTicksDeseados);
-        for (let i = 0; i < pasosPermitidos.length; i++) {
-            if (pasosPermitidos[i] >= pasoIdeal) return pasosPermitidos[i];
-        }
-        return 432000;
-    }
-
-    function calcularPasoAgrupacionLOD(spanSegundos) {
-        if (spanSegundos <= 5400) return 60;
-        if (spanSegundos <= 18000) return 120;
-        if (spanSegundos <= 90000) return 180;
-        if (spanSegundos <= 650000) return 900;
-        return 1800;
-    }
-
-    function actualizarBadgeLOD(pasoSeg) {
-        const el = document.getElementById('lodResolutionBadge');
-        if (!el) return;
-        const mins = Math.round(pasoSeg / 60);
-        let txtRes = mins >= 60 ? `⚡ ${Math.round(mins / 60)}h` : `⚡ ${mins}m`;
-        if (rangoActual === '7d' || rangoActual === '30d') {
-            const diasMeta = rangoActual === '30d' ? 30 : 7;
-            if (diasRealesGrabados < diasMeta) txtRes += ` (${diasRealesGrabados}d/${diasMeta}d)`;
-        } else if (rangoActual === '6h' || rangoActual === '24h') {
-            const horasMeta = rangoActual === '24h' ? 24 : 6;
-            if (horasRealesGrabadas > 0 && horasRealesGrabadas < horasMeta - 0.3) txtRes += ` (${horasRealesGrabadas}h/${horasMeta}h)`;
-        }
-        el.innerText = txtRes;
-    }
-
-    function fijarEscalaExactaEnChart(chart, minX, maxX) {
-        if (!chart) return;
-        chart.options.scales.x.min = minX;
-        chart.options.scales.x.max = maxX;
-        if (chart.options.plugins && chart.options.plugins.zoom && chart.options.plugins.zoom.limits) {
-            chart.options.plugins.zoom.limits.x.min = limiteDatosIzqGlobal;
-            chart.options.plugins.zoom.limits.x.max = limiteDatosDerGlobal;
-        }
-        if (chart.scales && chart.scales.x) {
-            chart.scales.x.options.min = minX;
-            chart.scales.x.options.max = maxX;
-            chart.scales.x.min = minX;
-            chart.scales.x.max = maxX;
-        }
-        if (chart.$zoom && chart.$zoom._originalScaleLimits && chart.$zoom._originalScaleLimits.x) {
-            chart.$zoom._originalScaleLimits.x.min = limiteDatosIzqGlobal;
-            chart.$zoom._originalScaleLimits.x.max = limiteDatosDerGlobal;
-        }
-    }
-
-    function forzarLimitesSinEspacioVacio(chart, desdePan = false) {
-        if (!chart || !chart.scales || !chart.scales.x) return;
-        const xAxis = chart.scales.x;
-        let curMin = xAxis.min;
-        let curMax = xAxis.max;
-        let span = curMax - curMin;
-        const maxSpanTotal = limiteDatosDerGlobal - limiteDatosIzqGlobal;
-        if (maxSpanTotal <= 0) return;
-
-        let chocoDerecha = false;
-        let chocoIzquierda = false;
-        if (span >= maxSpanTotal) {
-            curMin = limiteDatosIzqGlobal;
-            curMax = limiteDatosDerGlobal;
-        } else {
-            if (curMax >= limiteDatosDerGlobal - 2) {
-                chocoDerecha = true;
-                curMax = limiteDatosDerGlobal;
-                curMin = Math.max(limiteDatosIzqGlobal, curMax - span);
-            }
-            if (curMin <= limiteDatosIzqGlobal + 2) {
-                chocoIzquierda = true;
-                curMin = limiteDatosIzqGlobal;
-                curMax = Math.min(limiteDatosDerGlobal, curMin + span);
-            }
-        }
-        chart.options.scales.x.min = curMin;
-        chart.options.scales.x.max = curMax;
-        chart.scales.x.options.min = curMin;
-        chart.scales.x.options.max = curMax;
-
-        if (desdePan && span < maxSpanTotal - 60) {
-            if (chocoDerecha) mostrarTopeEnVivo();
-            else if (chocoIzquierda) mostrarTopeInicio();
-        }
-    }
-
-    function actualizarPuntosYResolucionSegunZoom(chart) {
-        if (!chart || !chart.scales || !chart.scales.x) return;
-        forzarLimitesSinEspacioVacio(chart, false);
-
-        const span = chart.scales.x.max - chart.scales.x.min;
-        const nuevoPaso = calcularPasoAgrupacionLOD(span);
-
-        if (nuevoPaso !== pasoAgrupacionActualSeg && crudosPorMinutoCache.length > 0) {
-            pasoAgrupacionActualSeg = nuevoPaso;
-            actualizarBadgeLOD(nuevoPaso);
-            const g = construirSeriesConPaso(crudosPorMinutoCache, nuevoPaso, limiteDatosIzqGlobal, limiteDatosDerGlobal);
-            chart.data.datasets.forEach(ds => {
-                if (ds.id === 'hr') ds.data = g.ptsH;
-                else if (ds.id === 'tmax') ds.data = g.ptsT;
-                else if (ds.id === 'tmin') ds.data = g.ptsTMin;
-                else if (ds.id === 'tamb') ds.data = g.ptsA;
-                else if (ds.id === 'clima') ds.data = g.ptsClima;
-                else if (ds.id === 'sensacion') ds.data = g.ptsSens;
-                else if (ds.id === 'err') ds.data = g.ptsE;
-            });
-            chart.options.scales.y2.max = Math.max(20, g.maxErrPeriodo * 4);
-        }
-
-        chart.data.datasets.forEach(ds => {
-            if (ds.type === 'line') ds.pointRadius = 0;
-        });
-    }
-
-    function calcularSensacionTermicaNOAA(tempC, humedadPct, apparentFallback) {
-        if (tempC >= 26.5 && humedadPct >= 40) {
-            let T = (tempC * 9 / 5) + 32;
-            let R = humedadPct;
-            let HI = -42.379
-                + 2.04901523 * T
-                + 10.14333127 * R
-                - 0.22475541 * T * R
-                - 0.00683783 * T * T
-                - 0.05481717 * R * R
-                + 0.00122874 * T * T * R
-                + 0.00085282 * T * R * R
-                - 0.00000199 * T * T * R * R;
-            let hiC = (HI - 32) * 5 / 9;
-            return Math.round(Math.max(tempC, hiC));
-        }
-        if (apparentFallback !== null && apparentFallback !== undefined && !isNaN(apparentFallback)) {
-            return Math.round(Number(apparentFallback));
-        }
-        return Math.round(tempC);
-    }
-
-    function cargarUbicacionGuardadaLocal() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY_LOC);
-            if (!raw) return false;
-            const loc = JSON.parse(raw);
-            if (loc && loc.lat !== undefined && loc.lon !== undefined && loc.city) {
-                GRANJA_LAT = Number(loc.lat);
-                GRANJA_LON = Number(loc.lon);
-                GRANJA_CIUDAD = loc.city;
-                GRANJA_PAIS = loc.country || '';
-                if (loc.tz) GRANJA_TIMEZONE = loc.tz;
-                return true;
-            }
-        } catch (e) {}
-        return false;
-    }
-
-    function actualizarPreviewModalMapa(lat, lon, city, country) {
-        tempLocSeleccionada = { lat: Number(lat), lon: Number(lon), city: city || 'Ubicación personalizada', country: country || '' };
-        const txt = document.getElementById('farmLocPreviewTxt');
-        const coords = document.getElementById('farmLocCoordsTxt');
-        if (txt) txt.innerText = country ? `${tempLocSeleccionada.city}, ${country}` : tempLocSeleccionada.city;
-        if (coords) coords.innerText = `${tempLocSeleccionada.lat.toFixed(4)}, ${tempLocSeleccionada.lon.toFixed(4)}`;
-    }
-
-    async function resolverNombrePorCoordenadas(lat, lon) {
-        actualizarPreviewModalMapa(lat, lon, 'Detectando ciudad...', '');
-        try {
-            const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=es`);
-            if (r.ok) {
-                const j = await r.json();
-                const city = j.city || j.locality || j.principalSubdivision || 'Ubicación en Mapa';
-                const country = j.countryName || '';
-                actualizarPreviewModalMapa(lat, lon, city, country);
-                return;
-            }
-        } catch (e) {}
-        actualizarPreviewModalMapa(lat, lon, 'Ubicación en Mapa', '');
-    }
-
-    function usarMiGpsActual() {
-        if (!navigator.geolocation) {
-            alert('Tu navegador no soporta GPS directo. Busca tu ciudad o mueve el pin en el mapa.');
-            return;
-        }
-        actualizarPreviewModalMapa(GRANJA_LAT, GRANJA_LON, 'Obteniendo GPS...', '');
-        navigator.geolocation.getCurrentPosition(
-            function(pos) {
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-                if (farmMap && farmMarker) {
-                    farmMap.setView([lat, lon], 13);
-                    farmMarker.setLatLng([lat, lon]);
-                }
-                resolverNombrePorCoordenadas(lat, lon);
-            },
-            function() {
-                alert('No se pudo obtener el GPS (permiso denegado). Puedes buscar la ciudad o tocar el mapa.');
-                actualizarPreviewModalMapa(GRANJA_LAT, GRANJA_LON, GRANJA_CIUDAD, GRANJA_PAIS);
-            },
-            { enableHighAccuracy: true, timeout: 8000 }
-        );
-    }
-
-    function inicializarMapaUbicacion(lat, lon) {
-        if (typeof L === 'undefined') return;
-        const mapEl = document.getElementById('farmInteractiveMap');
-        if (!mapEl) return;
-
-        if (!farmMap) {
-            farmMap = L.map('farmInteractiveMap', { zoomControl: true }).setView([lat, lon], 11);
-            L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-                maxZoom: 19,
-                attribution: '&copy; Google Maps'
-            }).addTo(farmMap);
-
-            farmMarker = L.marker([lat, lon], { draggable: true }).addTo(farmMap);
-            farmMarker.on('dragend', function(e) {
-                const pos = e.target.getLatLng();
-                resolverNombrePorCoordenadas(pos.lat, pos.lng);
-            });
-            farmMap.on('click', function(e) {
-                farmMarker.setLatLng(e.latlng);
-                resolverNombrePorCoordenadas(e.latlng.lat, e.latlng.lng);
-            });
-        } else {
-            farmMap.setView([lat, lon], 11);
-            farmMarker.setLatLng([lat, lon]);
-        }
-
-        setTimeout(() => { if (farmMap) farmMap.invalidateSize(); }, 160);
-    }
-
-    function abrirModalUbicacionGranja() {
-        ocultarSmartTooltip();
-        const bg = document.getElementById('farmLocModalBg');
-        const inp = document.getElementById('farmLocSearchInput');
-        const resBox = document.getElementById('farmLocResults');
-        if (bg) bg.style.display = 'flex';
-        if (resBox) resBox.innerHTML = '';
-        if (inp) inp.value = GRANJA_CIUDAD || '';
-
-        actualizarPreviewModalMapa(GRANJA_LAT, GRANJA_LON, GRANJA_CIUDAD, GRANJA_PAIS);
-        inicializarMapaUbicacion(GRANJA_LAT, GRANJA_LON);
-    }
-
-    function cerrarModalUbicacionGranja() {
-        const bg = document.getElementById('farmLocModalBg');
-        if (bg) bg.style.display = 'none';
-    }
-
-    async function buscarCiudadGranja() {
-        const inp = document.getElementById('farmLocSearchInput');
-        const resBox = document.getElementById('farmLocResults');
-        const q = (inp ? inp.value : '').trim();
-        if (q.length < 2 || !resBox) return;
-
-        resBox.innerHTML = '<div style="font-size:12px; color:#94a3b8;">Buscando ciudades...</div>';
-        try {
-            const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=es&format=json`);
-            const data = await r.json();
-            if (!data.results || data.results.length === 0) {
-                resBox.innerHTML = '<div style="font-size:12px; color:#ff5252;">No se encontraron resultados. Prueba otro nombre o toca el mapa.</div>';
-                return;
-            }
-            resBox.innerHTML = '';
-            data.results.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'farm-loc-item';
-                const region = item.admin1 ? `, ${item.admin1}` : '';
-                div.innerHTML = `<b>${item.name}</b>${region} <span style="color:#94a3b8;">(${item.country || ''})</span>`;
-                div.onclick = function() {
-                    actualizarPreviewModalMapa(item.latitude, item.longitude, item.name, item.country || '');
-                    if (farmMap && farmMarker) {
-                        farmMap.setView([item.latitude, item.longitude], 11);
-                        farmMarker.setLatLng([item.latitude, item.longitude]);
-                    }
-                    resBox.innerHTML = '';
-                };
-                resBox.appendChild(div);
-            });
-        } catch (e) {
-            resBox.innerHTML = '<div style="font-size:12px; color:#ff5252;">Error al buscar. Revisa tu conexión.</div>';
-        }
-    }
-
-    function confirmarUbicacionMapa() {
-        if (!tempLocSeleccionada) { cerrarModalUbicacionGranja(); return; }
-        GRANJA_LAT = tempLocSeleccionada.lat;
-        GRANJA_LON = tempLocSeleccionada.lon;
-        GRANJA_CIUDAD = tempLocSeleccionada.city;
-        GRANJA_PAIS = tempLocSeleccionada.country;
-        try {
-            localStorage.setItem(STORAGE_KEY_LOC, JSON.stringify({
-                lat: GRANJA_LAT, lon: GRANJA_LON, city: GRANJA_CIUDAD, country: GRANJA_PAIS, tz: GRANJA_TIMEZONE
-            }));
-        } catch (e) {}
-
-        fetch('/api/guardar_gps', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lat: GRANJA_LAT, lon: GRANJA_LON, ciudad: GRANJA_CIUDAD, pais: GRANJA_PAIS })
-        }).catch(() => {});
-
-        cerrarModalUbicacionGranja();
-        cargarClimaDeLaGranja();
-    }
-
-    async function autodetectarUbicacionClienteSiFalta() {
-        if (cargarUbicacionGuardadaLocal()) return;
-        if (TIENE_GRANJA_SERVIDOR) return;
-        try {
-            const rGeo = await fetch('https://ipapi.co/json/');
-            if (rGeo.ok) {
-                const jGeo = await rGeo.json();
-                if (jGeo && jGeo.latitude && jGeo.longitude && jGeo.city) {
-                    GRANJA_LAT = Number(jGeo.latitude);
-                    GRANJA_LON = Number(jGeo.longitude);
-                    GRANJA_CIUDAD = jGeo.city;
-                    GRANJA_PAIS = jGeo.country_name || '';
-                    if (jGeo.timezone) GRANJA_TIMEZONE = jGeo.timezone;
-                }
-            }
-        } catch (e) {}
-    }
-
-    async function cargarClimaDeLaGranja() {
-        try {
-            await autodetectarUbicacionClienteSiFalta();
-
-            const lat = GRANJA_LAT;
-            const lon = GRANJA_LON;
-            const ciudad = GRANJA_CIUDAD;
-            const ahoraTs = Math.floor(Date.now() / 1000);
-
-            const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m,apparent_temperature,relative_humidity_2m&past_days=30&forecast_days=2&timeformat=unixtime&timezone=auto`;
-
-            const rMet = await fetch(urlMeteo, { cache: 'no-store' });
-            if (!rMet || !rMet.ok) return;
-            const jMet = await rMet.json();
-
-            if (jMet.timezone) {
-                GRANJA_TIMEZONE = jMet.timezone;
-                reconstruirFormateadoresTiempo();
-                try {
-                    const raw = localStorage.getItem(STORAGE_KEY_LOC);
-                    if (raw) {
-                        const obj = JSON.parse(raw);
-                        obj.tz = GRANJA_TIMEZONE;
-                        localStorage.setItem(STORAGE_KEY_LOC, JSON.stringify(obj));
-                    }
-                } catch (e) {}
-            }
-
-            if (jMet.hourly && jMet.hourly.time && jMet.hourly.temperature_2m) {
-                cacheClimaExterior = [];
-                const times = jMet.hourly.time;
-                const temps = jMet.hourly.temperature_2m;
-                const appTemps = jMet.hourly.apparent_temperature || [];
-                const hums = jMet.hourly.relative_humidity_2m || [];
-
-                for (let i = 0; i < times.length; i++) {
-                    const tsHora = Number(times[i]);
-                    if (tsHora <= ahoraTs + 1800 && temps[i] !== null && temps[i] !== undefined) {
-                        let tReal = Math.round(Number(temps[i]));
-                        let hum = (hums[i] !== undefined && hums[i] !== null) ? Number(hums[i]) : 60;
-                        let stCalc = calcularSensacionTermicaNOAA(tReal, hum, appTemps[i]);
-                        cacheClimaExterior.push({ ts: tsHora, temp: tReal, sensacion: stCalc });
-                    }
-                }
-
-                let tempRealHoy = null;
-                let sensRealHoy = null;
-                if (jMet.current && jMet.current.temperature_2m !== undefined) {
-                    tempRealHoy = Math.round(Number(jMet.current.temperature_2m));
-                    let humCur = (jMet.current.relative_humidity_2m !== undefined) ? Number(jMet.current.relative_humidity_2m) : 60;
-                    let appCur = (jMet.current.apparent_temperature !== undefined) ? Number(jMet.current.apparent_temperature) : tempRealHoy;
-                    sensRealHoy = calcularSensacionTermicaNOAA(tempRealHoy, humCur, appCur);
-
-                    cacheClimaExterior.push({
-                        ts: Math.floor(ahoraTs / 60) * 60,
-                        temp: tempRealHoy,
-                        sensacion: sensRealHoy
-                    });
-                }
-
-                cacheClimaExterior.sort((a, b) => a.ts - b.ts);
-
-                const badge = document.getElementById('climaUbicacionBadge');
-                if (badge && cacheClimaExterior.length > 0) {
-                    const ultimoClima = cacheClimaExterior[cacheClimaExterior.length - 1];
-                    const tMostrar = tempRealHoy !== null ? tempRealHoy : ultimoClima.temp;
-                    const sMostrar = sensRealHoy !== null ? sensRealHoy : ultimoClima.sensacion;
-                    badge.innerHTML = `
-                        <span>📍 <span translate="no">${ciudad}</span>: <b style="color:#38bdf8;" translate="no">${tMostrar}°C</b> <span style="color:#c084fc;" translate="no">(${sMostrar}°C)</span></span>
-                        <span class="farm-gps-edit-tag">Editar GPS ✎</span>
-                    `;
-                    badge.style.display = 'inline-flex';
-                    document.getElementById('statClimaHoy').innerHTML = `${tMostrar}°C / <span style="color:#c084fc;">${sMostrar}°C</span>`;
-                }
-                updateChart(rangoActual, true);
-            }
-        } catch (err) {
-            console.log("Clima de la granja no disponible:", err);
-        }
-    }
-
-    function obtenerClimaParaTimestamp(ts) {
-        if (!cacheClimaExterior || cacheClimaExterior.length === 0) return null;
-        let n = cacheClimaExterior.length;
-        if (ts <= cacheClimaExterior[0].ts) return cacheClimaExterior[0];
-        if (ts >= cacheClimaExterior[n - 1].ts) return cacheClimaExterior[n - 1];
-
-        let izq = 0, der = n - 1;
-        while (izq <= der) {
-            let mid = (izq + der) >> 1;
-            let midTs = cacheClimaExterior[mid].ts;
-            if (midTs === ts) return cacheClimaExterior[mid];
-            if (midTs < ts) izq = mid + 1;
-            else der = mid - 1;
-        }
-
-        let pPrev = cacheClimaExterior[Math.max(0, der)];
-        let pNext = cacheClimaExterior[Math.min(n - 1, izq)];
-        let span = pNext.ts - pPrev.ts;
-        if (span <= 0 || span > 7200) return pPrev;
-        let ratio = (ts - pPrev.ts) / span;
-        return {
-            temp: Math.round(pPrev.temp + ratio * (pNext.temp - pPrev.temp)),
-            sensacion: Math.round(pPrev.sensacion + ratio * (pNext.sensacion - pPrev.sensacion))
-        };
-    }
-
-    function iconoEvento(tipo) {
-        if (tipo === 'WATCHDOG_REBOOT') return { ic: '🔄', col: 'rgba(96, 165, 250, 0.75)' };
-        if (tipo === 'WATCHDOG_CUARENTENA') return { ic: '🔒', col: 'rgba(192, 132, 252, 0.80)' };
-        if (tipo === 'CORTE_TERMICO') return { ic: '🛡️', col: 'rgba(255, 82, 82, 0.80)' };
-        if (tipo === 'HORARIO_PICO') return { ic: '⚡', col: 'rgba(255, 179, 0, 0.80)' };
-        if (tipo === 'HORARIO_NORMAL') return { ic: '🟢', col: 'rgba(0, 230, 118, 0.75)' };
-        return { ic: '•', col: 'rgba(148, 163, 184, 0.6)' };
-    }
-
-    function buscarEventoCercano(tsSegundos) {
-        if (!eventosGrafico || eventosGrafico.length === 0) return null;
-        const tolerancia = Math.max(180, pasoAgrupacionActualSeg);
-        let mejor = null;
-        let menorD = tolerancia;
-        for (let i = 0; i < eventosGrafico.length; i++) {
-            const ev = eventosGrafico[i];
-            const d = Math.abs(ev.ts - tsSegundos);
-            if (d <= menorD) {
-                menorD = d;
-                mejor = ev;
-            }
-        }
-        return mejor;
-    }
-
-    const pluginNumerosDentroGrafico = {
-        id: 'numerosDentroGrafico',
-        beforeDatasetsDraw: function(chart) {
-            const xAxis = chart.scales.x;
-            const ca = chart.chartArea;
-            if (!xAxis || !ca) return;
-            const ctx = chart.ctx;
-
-            if (primerTsGrabadoGlobal > xAxis.min + 180) {
-                const xInicioDatos = Math.min(ca.right, Math.max(ca.left, xAxis.getPixelForValue(primerTsGrabadoGlobal)));
-                if (xInicioDatos > ca.left + 12) {
-                    ctx.save();
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
-                    ctx.fillRect(ca.left, ca.top, xInicioDatos - ca.left, ca.bottom - ca.top);
-                    ctx.restore();
-                }
-            }
-
-            const span = xAxis.max - xAxis.min;
-            if (span <= 5400) {
-                ctx.save();
-                ctx.beginPath();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
-                ctx.lineWidth = 1;
-                const pasoGuia = span <= 3600 ? 60 : 120;
-                const primerMin = Math.ceil(xAxis.min / pasoGuia) * pasoGuia;
-                for (let m = primerMin; m <= xAxis.max; m += pasoGuia) {
-                    const xPos = xAxis.getPixelForValue(m);
-                    if (xPos >= ca.left && xPos <= ca.right) {
-                        ctx.moveTo(xPos, ca.top);
-                        ctx.lineTo(xPos, ca.bottom);
-                    }
-                }
-                ctx.stroke();
-                ctx.restore();
-            }
-        },
-        afterDraw: function(chart) {
-            const ctx = chart.ctx;
-            const ca = chart.chartArea;
-            const yAxis = chart.scales.y;
-            const y1Axis = chart.scales.y1;
-            const xAxis = chart.scales.x;
-            if (!ca) return;
-
-            ctx.save();
-
-            if (xAxis && eventosGrafico && eventosGrafico.length > 0) {
-                let ultimoXIcono = -999;
-                const visibles = eventosGrafico
-                    .filter(ev => ev.ts >= xAxis.min && ev.ts <= xAxis.max)
-                    .sort((a, b) => a.ts - b.ts);
-                visibles.forEach(ev => {
-                    const xEv = xAxis.getPixelForValue(ev.ts);
-                    if (xEv < ca.left + 10 || xEv > ca.right - 10) return;
-                    const infoEv = iconoEvento(ev.tipo);
-                    ctx.beginPath();
-                    ctx.setLineDash([2, 4]);
-                    ctx.moveTo(xEv, ca.top + 14);
-                    ctx.lineTo(xEv, ca.bottom);
-                    ctx.lineWidth = 1;
-                    ctx.strokeStyle = infoEv.col;
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    if (xEv - ultimoXIcono >= 18) {
-                        ctx.font = '11px sans-serif';
-                        ctx.textAlign = 'center';
-                        ctx.fillText(infoEv.ic, xEv, ca.top + 11);
-                        ultimoXIcono = xEv;
-                    }
-                });
-            }
-
-            if (xAxis && primerTsGrabadoGlobal > xAxis.min + 180) {
-                const xInicioDatos = xAxis.getPixelForValue(primerTsGrabadoGlobal);
-                if (xInicioDatos > ca.left + 45 && xInicioDatos < ca.right - 15) {
-                    ctx.beginPath();
-                    ctx.setLineDash([4, 4]);
-                    ctx.moveTo(xInicioDatos, ca.top);
-                    ctx.lineTo(xInicioDatos, ca.bottom);
-                    ctx.lineWidth = 1.2;
-                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    const fechaIniStr = formatearFechaTooltip(new Date(primerTsGrabadoGlobal * 1000));
-                    const duracionTxt = diasRealesGrabados >= 1 ? `${diasRealesGrabados}d` : `${horasRealesGrabadas}h`;
-                    ctx.font = 'bold 10px sans-serif';
-                    ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
-                    if (xInicioDatos - ca.left > 145) {
-                        ctx.textAlign = 'right';
-                        ctx.fillText(`◀ Sin registro previo`, xInicioDatos - 8, ca.top + 18);
-                        ctx.font = '9.5px monospace';
-                        ctx.fillStyle = 'rgba(165, 167, 181, 0.78)';
-                        ctx.fillText(`Inicio: ${fechaIniStr} (${duracionTxt})`, xInicioDatos - 8, ca.top + 32);
-                    } else {
-                        ctx.textAlign = 'left';
-                        ctx.fillText(`▶ Inicio: ${fechaIniStr} (${duracionTxt})`, xInicioDatos + 6, ca.top + 18);
-                    }
-                }
-            }
-
-            if (yAxis && promedioHrOperativoGlobal > 0 && visibilidadCurvas['hr'] !== false) {
-                const yProm = yAxis.getPixelForValue(promedioHrOperativoGlobal);
-                if (yProm >= ca.top + 8 && yProm <= ca.bottom - 8) {
-                    ctx.beginPath();
-                    ctx.setLineDash([2, 5]);
-                    ctx.moveTo(ca.left, yProm);
-                    ctx.lineTo(ca.right, yProm);
-                    ctx.lineWidth = 1;
-                    ctx.strokeStyle = 'rgba(96, 165, 250, 0.42)';
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    ctx.font = 'bold 9.5px sans-serif';
-                    ctx.lineWidth = 3;
-                    ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
-                    ctx.textAlign = 'left';
-                    ctx.fillStyle = 'rgba(96, 165, 250, 0.90)';
-                    const lblProm = `Prom ${promedioHrOperativoGlobal.toFixed(1)} ${unidadMinero}`;
-                    ctx.strokeText(lblProm, ca.left + 44, yProm - 4);
-                    ctx.fillText(lblProm, ca.left + 44, yProm - 4);
-                }
-            }
-
-            if (y1Axis) {
-                const corteCfg = obtenerCorteTempActual();
-                const yCorte = y1Axis.getPixelForValue(corteCfg.temp);
-                if (yCorte >= ca.top && yCorte <= ca.bottom) {
-                    ctx.beginPath();
-                    ctx.setLineDash([4, 6]);
-                    ctx.moveTo(ca.left, yCorte);
-                    ctx.lineTo(ca.right, yCorte);
-                    ctx.lineWidth = (corteCfg.activo || esMineroHydro) ? 1.3 : 1;
-                    ctx.strokeStyle = (corteCfg.activo || esMineroHydro) ? 'rgba(255, 82, 82, 0.58)' : 'rgba(255, 82, 82, 0.24)';
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    ctx.font = 'bold 9.5px sans-serif';
-                    ctx.lineWidth = 3;
-                    ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
-                    ctx.textAlign = 'right';
-                    ctx.fillStyle = (corteCfg.activo || esMineroHydro) ? 'rgba(255, 110, 110, 0.92)' : 'rgba(255, 110, 110, 0.50)';
-                    const lblCorte = esMineroHydro
-                        ? `Límite Hydro ${corteCfg.temp}°C`
-                        : `Corte ${corteCfg.temp}°C${corteCfg.activo ? '' : ' (OFF)'}`;
-                    ctx.strokeText(lblCorte, ca.right - 34, yCorte - 4);
-                    ctx.fillText(lblCorte, ca.right - 34, yCorte - 4);
-                }
-            }
-
-            ctx.font = 'bold 10.5px sans-serif';
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = 'rgba(13, 15, 23, 0.85)';
-
-            if (yAxis && yAxis.ticks) {
-                ctx.textAlign = 'left';
-                ctx.fillStyle = 'rgba(165, 167, 181, 0.88)';
-                yAxis.ticks.forEach((t, idx) => {
-                    const yPos = yAxis.getPixelForTick(idx);
-                    if (yPos >= ca.top - 2 && yPos <= ca.bottom + 2) {
-                        const offsetY = (idx === 0) ? -5 : (idx === yAxis.ticks.length - 1 ? 10 : -4);
-                        const txt = String(t.value);
-                        ctx.strokeText(txt, ca.left + 5, yPos + offsetY);
-                        ctx.fillText(txt, ca.left + 5, yPos + offsetY);
-                    }
-                });
-                if (ca.top >= 18) {
-                    ctx.font = 'bold 9.5px sans-serif';
-                    ctx.fillStyle = 'rgba(96, 165, 250, 0.85)';
-                    ctx.strokeText(`⚡ ${unidadMinero}`, ca.left + 4, ca.top - 7);
-                    ctx.fillText(`⚡ ${unidadMinero}`, ca.left + 4, ca.top - 7);
-                }
-            }
-
-            if (y1Axis && y1Axis.ticks) {
-                ctx.font = 'bold 10.5px sans-serif';
-                ctx.textAlign = 'right';
-                ctx.fillStyle = 'rgba(255, 179, 0, 0.85)';
-                y1Axis.ticks.forEach((t, idx) => {
-                    const yPos = y1Axis.getPixelForTick(idx);
-                    if (yPos >= ca.top - 2 && yPos <= ca.bottom + 2) {
-                        const offsetY = (idx === 0) ? -5 : (idx === y1Axis.ticks.length - 1 ? 10 : -4);
-                        const txt = t.value + '°';
-                        ctx.strokeText(txt, ca.right - 5, yPos + offsetY);
-                        ctx.fillText(txt, ca.right - 5, yPos + offsetY);
-                    }
-                });
-            }
-
-            ctx.restore();
-        }
-    };
-
-    const pluginCrosshairVertical = {
-        id: 'crosshairVertical',
-        afterDraw: function(chart) {
-            if (!cursorDentroArea || !chart.tooltip || !chart.tooltip._active || !chart.tooltip._active.length) return;
-            const activePoint = chart.tooltip._active[0];
-            const dp0 = chart.tooltip.dataPoints && chart.tooltip.dataPoints[0];
-            if (dp0 && mapaMetaPuntos[dp0.parsed.x] && mapaMetaPuntos[dp0.parsed.x].esSeparadorCorte) return;
-
-            const ctx = chart.ctx;
-            const x = activePoint.element.x;
-            const topY = chart.chartArea.top;
-            const bottomY = chart.chartArea.bottom;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.setLineDash([4, 4]);
-            ctx.moveTo(x, topY);
-            ctx.lineTo(x, bottomY);
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)';
-            ctx.stroke();
-            ctx.restore();
-        }
-    };
-
-    function ocultarTooltipGris() {
-        cursorDentroArea = false;
-        cursorCanvasY = null;
-        ultimoContextoTooltip = null;
-        ultimoKeyTooltipRenderizado = null;
-        const ttEl = document.getElementById('customChartTooltip');
-        if (ttEl) ttEl.style.display = 'none';
-        if (chartInstance) {
-            chartInstance.setActiveElements([]);
-            chartInstance.update('none');
-        }
-    }
-
-    function detectarCurvaEnfocada(chart, dataPoints) {
-        if (cursorCanvasY === null || !dataPoints || dataPoints.length === 0 || !chart || !chart.chartArea) return null;
-        const bottomY = chart.chartArea.bottom;
-        let mejorId = null;
-        let menorDist = 16;
-
-        for (let i = 0; i < dataPoints.length; i++) {
-            const dp = dataPoints[i];
-            if (!dp || !dp.dataset || !dp.element || isNaN(dp.element.y)) continue;
-            if (!chart.isDatasetVisible(dp.datasetIndex)) continue;
-            if (dp.parsed && (dp.parsed.y === null || dp.parsed.y === undefined)) continue;
-
-            if (dp.dataset.id === 'err') {
-                if (dp.parsed.y > 0 && cursorCanvasY >= (dp.element.y - 5) && cursorCanvasY <= bottomY) {
-                    return 'err';
-                }
-                continue;
-            }
-
-            const dist = Math.abs(dp.element.y - cursorCanvasY);
-            if (dist <= menorDist) {
-                menorDist = dist;
-                mejorId = dp.dataset.id || null;
-            }
-        }
-        return mejorId;
-    }
-
-    function renderizarTooltipExterno(context) {
-        const { chart, tooltip } = context;
-        const ttEl = document.getElementById('customChartTooltip');
-        if (!ttEl) return;
-
-        if (tooltip.opacity === 0 || !cursorDentroArea || !tooltip.dataPoints || tooltip.dataPoints.length === 0) {
-            ttEl.style.display = 'none';
-            ultimoContextoTooltip = null;
-            ultimoKeyTooltipRenderizado = null;
-            return;
-        }
-
-        const dp0 = tooltip.dataPoints[0];
-        const tsSegundos = dp0.parsed.x;
-        const meta = mapaMetaPuntos[tsSegundos];
-
-        if (!meta || meta.esSeparadorCorte) {
-            ttEl.style.display = 'none';
-            ultimoContextoTooltip = null;
-            ultimoKeyTooltipRenderizado = null;
-            return;
-        }
-
-        ultimoContextoTooltip = { chart, tooltip };
-
-        const focusId = detectarCurvaEnfocada(chart, tooltip.dataPoints);
-        const renderKey = tsSegundos + '|' + (focusId || '');
-
-        function clsRow(ids) {
-            if (!focusId) return 'tt-row';
-            const lista = Array.isArray(ids) ? ids : [ids];
-            return lista.includes(focusId) ? 'tt-row tt-focus' : 'tt-row tt-dim';
-        }
-        function flechaFocus(ids) {
-            if (!focusId) return '';
-            const lista = Array.isArray(ids) ? ids : [ids];
-            return lista.includes(focusId) ? '<span class="tt-focus-arrow">◀</span>' : '';
-        }
-
-        if (ultimoKeyTooltipRenderizado !== renderKey) {
-            ultimoKeyTooltipRenderizado = renderKey;
-
-            const titulo = formatearFechaTooltip(new Date(tsSegundos * 1000));
-            let deltaT = "";
-            if (esMineroHydro && meta.tempMin > 0 && meta.amb > 0) {
-                let dAgua = Math.max(0, meta.tempMin - meta.amb);
-                let colDelta = dAgua >= 12 ? '#ffb300' : '#38bdf8';
-                deltaT = `<span style="color:${colDelta}; font-size:0.88em;" translate="no">💧 ΔT Agua ${dAgua}°C</span>`;
-            } else if (meta.temp > 0 && (meta.amb || meta.clima !== null)) {
-                let refAmb = meta.amb || meta.clima;
-                let diff = meta.temp - refAmb;
-                let signo = diff >= 0 ? '+' : '';
-                deltaT = `<span style="color:#a5a7b5; font-size:0.88em;" translate="no">ΔT ${signo}${diff}°C</span>`;
-            }
-            let html = `<div class="tt-title"><span translate="no">${titulo}</span>${deltaT}</div>`;
-
-            if (meta.estadoPunto === 'SIN_MINAR') {
-                html += `<div class="${clsRow('hr')}"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;" translate="no">0 ${unidadMinero}</b> <span>(Detenido)</span>${flechaFocus('hr')}</div>`;
-                if (esTempValida(meta.temp)) {
-                    html += `<div class="${clsRow('tmax')}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${flechaFocus('tmax')}</div>`;
-                }
-                if (meta.sensacion !== null && meta.sensacion !== undefined) {
-                    html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
-                }
-                if (meta.clima !== null && meta.clima !== undefined) {
-                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
-                }
-                html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Encendido sin minar</div>`;
-            } else {
-                let diffPromTxt = "";
-                if (promedioHrOperativoGlobal > 0) {
-                    let pctVsProm = (((meta.hr - promedioHrOperativoGlobal) / promedioHrOperativoGlobal) * 100).toFixed(1);
-                    let signoP = pctVsProm >= 0 ? '+' : '';
-                    let colP = pctVsProm >= -3 ? '#00e676' : '#ffb300';
-                    diffPromTxt = ` <span style="color:${colP}; font-size:0.88em;" translate="no">(${signoP}${pctVsProm}%)</span>`;
-                }
-                html += `<div class="${clsRow('hr')}"><span class="tt-box" style="background:#3366ff;"></span>⚡ Hashrate: <b translate="no">${meta.hr} ${unidadMinero}</b>${diffPromTxt}${flechaFocus('hr')}</div>`;
-
-                if (esTempValida(meta.temp)) {
-                    const corteCfg = obtenerCorteTempActual();
-                    let estadoT = meta.temp >= corteCfg.temp ? 'Crítica' : (meta.temp >= UMBRAL_ALERTA_TEMP ? 'Alerta' : 'Normal');
-                    html += `<div class="${clsRow('tmax')}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx (Chips): <b translate="no">${meta.temp}°C</b> (${estadoT})${flechaFocus('tmax')}</div>`;
-
-                    if (!esMineroHydro && esTempValida(meta.tempMin)) {
-                        html += `<div class="${clsRow('tmin')}"><span class="tt-box" style="background:#fb923c;"></span>❄️ Temp Mín (PCB): <b translate="no">${meta.tempMin}°C</b>${flechaFocus('tmin')}</div>`;
-                    }
-
-                    let cads = meta.cadenas || cadenasActuales;
-                    const subDim = (focusId && focusId !== 'tmax' && focusId !== 'tmin') ? ' tt-dim' : '';
-                    if (cads && cads.length > 0) {
-                        for (let c = 0; c < cads.length; c++) {
-                            let tc = Number(cads[c].temp_c || 0);
-                            let tp = Number(cads[c].temp_p || 0);
-                            if (esTempValida(tc) || esTempValida(tp)) {
-                                const lblPlacaSec = esMineroHydro ? 'Salida' : 'PCB';
-                                const tcTxt = esTempValida(tc) ? `${tc}°C` : '--';
-                                const tpTxt = esTempValida(tp) ? `${tp}°C` : '--';
-                                html += `<div class="tt-sub${subDim}" translate="no">Placa #${cads[c].id} -> Chip: ${tcTxt} | ${lblPlacaSec}: ${tpTxt}</div>`;
-                            }
-                        }
-                    }
-                }
-
-                // En Hydro, Agua Salida queda justo arriba de Agua Entrada
-                if (esMineroHydro && esTempValida(meta.tempMin)) {
-                    html += `<div class="${clsRow('tmin')}"><span class="tt-box" style="background:#fb923c;"></span>🔥 Agua Salida: <b translate="no">${meta.tempMin}°C</b>${flechaFocus('tmin')}</div>`;
-                }
-
-                if (esTempValida(meta.amb)) {
-                    const lblAmb = esMineroHydro ? '💧 Agua Entrada' : '🍃 Entrada/Amb';
-                    let extraHydro = '';
-                    if (esMineroHydro && esTempValida(meta.tempMin)) {
-                        const dA = Math.max(0, meta.tempMin - meta.amb);
-                        extraHydro = dA >= 12
-                            ? ` <span style="color:#ffb300;">(ΔT ${dA}°C · Revisar flujo)</span>`
-                            : ` <span style="color:#00e676;">(ΔT ${dA}°C · Flujo OK)</span>`;
-                    }
-                    html += `<div class="${clsRow('tamb')}"><span class="tt-box" style="background:#00e676;"></span>${lblAmb}: <b translate="no">${meta.amb}°C</b>${extraHydro}${flechaFocus('tamb')}</div>`;
-                }
-                if (meta.sensacion !== null && meta.sensacion !== undefined) {
-                    html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
-                }
-                if (meta.clima !== null && meta.clima !== undefined) {
-                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima (<span translate="no">${GRANJA_CIUDAD}</span>): <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
-                }
-                let errNuevos = meta.err || 0;
-                let ds = meta.deltaS || pasoAgrupacionActualSeg;
-                let porSeg = (errNuevos / ds).toFixed(2);
-                html += `<div class="${clsRow('err')}"><span class="tt-box" style="background:#ff5252;"></span>⚠️ Errores HW: <b translate="no">${errNuevos}</b> (<span translate="no">${porSeg}/s</span>)${flechaFocus('err')}</div>`;
-            }
-
-            const evCercano = buscarEventoCercano(tsSegundos);
-            if (evCercano) {
-                html += `<div class="tt-event-box">${evCercano.msg}</div>`;
-            }
-
-            ttEl.innerHTML = html;
-            ttEl.style.display = 'block';
-            ultimoAnchoTooltipCache = ttEl.offsetWidth || 235;
-        } else if (ttEl.style.display === 'none') {
-            ttEl.style.display = 'block';
-        }
-
-        const chartArea = chart.chartArea;
-        const wrapperW = chart.canvas.clientWidth || chart.width;
-        const ttW = ultimoAnchoTooltipCache;
-
-        let posX = tooltip.caretX;
-        const minX = (ttW / 2) + 6;
-        const maxX = wrapperW - (ttW / 2) - 6;
-        if (posX < minX) posX = minX;
-        if (posX > maxX) posX = maxX;
-
-        let arrowOffsetPx = (ttW / 2) + (tooltip.caretX - posX);
-        arrowOffsetPx = Math.max(14, Math.min(ttW - 14, arrowOffsetPx));
-        ttEl.style.setProperty('--arrow-x', arrowOffsetPx + 'px');
-
-        ttEl.style.left = posX + 'px';
-        ttEl.style.top = (chartArea.bottom + 2) + 'px';
-    }
-
-    function construirLeyendasPildora() {
-        const cont = document.getElementById('customLegendsBar');
-        if (!cont || !chartInstance) return;
-        cont.innerHTML = '';
-        chartInstance.data.datasets.forEach((ds, index) => {
-            const btn = document.createElement('div');
-            const isHidden = !chartInstance.isDatasetVisible(index);
-            btn.className = 'legend-pill' + (isHidden ? ' off' : '');
-
-            btn.innerHTML = `
-                <span class="legend-dot" style="background:${ds._origBorderColor || ds.borderColor};"></span>
-                <span class="legend-label-txt">${ds.label}</span>
-                <span class="legend-info-icon" data-info-btn="1">i</span>
-            `;
-
-            btn.addEventListener('mouseenter', function() {
-                const info = obtenerInfoTooltipCurva(ds.id, !chartInstance.isDatasetVisible(index));
-                mostrarSmartTooltip(btn, info);
-                if (chartInstance.isDatasetVisible(index)) {
-                    resaltarCurvaDesdeLeyenda(ds.id);
-                }
-            });
-            btn.addEventListener('mouseleave', function() {
-                ocultarSmartTooltip();
-                restaurarCurvasLeyenda();
-            });
-
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                restaurarCurvasLeyenda();
-                const tocoIconoInfo = e.target && e.target.getAttribute('data-info-btn') === '1';
-                const esPantallaTactil = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-
-                if (tocoIconoInfo && esPantallaTactil) {
-                    if (elementoTooltipActivo === btn) ocultarSmartTooltip();
-                    else {
-                        const info = obtenerInfoTooltipCurva(ds.id, !chartInstance.isDatasetVisible(index));
-                        mostrarSmartTooltip(btn, info);
-                    }
-                    return;
-                }
-
-                const vis = chartInstance.isDatasetVisible(index);
-                chartInstance.setDatasetVisibility(index, !vis);
-                visibilidadCurvas[ds.id] = !vis;
-                chartInstance.update('none');
-                construirLeyendasPildora();
-
-                if (esPantallaTactil) {
-                    const nuevasPildoras = cont.querySelectorAll('.legend-pill');
-                    if (nuevasPildoras[index]) {
-                        const info = obtenerInfoTooltipCurva(ds.id, vis);
-                        mostrarSmartTooltip(nuevasPildoras[index], info);
-                    }
-                }
-            });
-
-            cont.appendChild(btn);
-        });
-    }
-
-    function resetearZoomGrafico() {
-        if (!chartInstance) return;
-        fijarEscalaExactaEnChart(chartInstance, limiteDatosIzqGlobal, limiteDatosDerGlobal);
-        actualizarPuntosYResolucionSegunZoom(chartInstance);
-        chartInstance.update('none');
-        actualizarControlesZoomYScroll(chartInstance);
-    }
-
-    function descargarCapturaGrafico() {
-        if (!chartInstance) return;
-        const srcCanvas = chartInstance.canvas;
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = srcCanvas.width;
-        tempCanvas.height = srcCanvas.height;
-        const tCtx = tempCanvas.getContext('2d');
-        tCtx.fillStyle = '#0d0f17';
-        tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-        tCtx.drawImage(srcCanvas, 0, 0);
-
-        const link = document.createElement('a');
-        link.download = `Telemetria_{{ ip }}_${rangoActual}.png`;
-        link.href = tempCanvas.toDataURL('image/png', 1.0);
-        link.click();
-    }
-
-    function configurarEventosLimitesCanvas() {
-        const canvas = document.getElementById('hashrateChart');
-        const wrapper = document.getElementById('chartWrapper');
-        if (!canvas) return;
-
-        function actualizarRectCache() {
-            rectCanvasCache = canvas.getBoundingClientRect();
-        }
-
-        function validarPosicionCursor(clientX, clientY) {
-            if (!chartInstance || !chartInstance.chartArea) return;
-            if (!rectCanvasCache) actualizarRectCache();
-            const x = clientX - rectCanvasCache.left;
-            const y = clientY - rectCanvasCache.top;
-            const ca = chartInstance.chartArea;
-
-            if (y > ca.bottom || y < ca.top || x < ca.left || x > ca.right) {
-                if (cursorDentroArea) ocultarTooltipGris();
-            } else {
-                cursorDentroArea = true;
-                cursorCanvasY = y;
-                if (ultimoContextoTooltip) {
-                    renderizarTooltipExterno(ultimoContextoTooltip);
-                }
-            }
-        }
-
-        if (wrapper) {
-            wrapper.addEventListener('wheel', function(e) {
-                const enInerciaScroll = (Date.now() - ultimoScrollPaginaTs) <= 450;
-                if (!zoomRuedaHabilitado || enInerciaScroll) {
-                    ultimoScrollPaginaTs = Date.now();
-                    zoomRuedaHabilitado = false;
-                    clearTimeout(timerDesbloqueoZoom);
-                    e.stopPropagation();
-                }
-            }, { capture: true, passive: true });
-        }
-
-        canvas.addEventListener('mouseenter', function(e) {
-            actualizarRectCache();
-            zoomRuedaHabilitado = false;
-            mouseEntradaX = e.clientX;
-            mouseEntradaY = e.clientY;
-            clearTimeout(timerDesbloqueoZoom);
-            if ((Date.now() - ultimoScrollPaginaTs) > 450) {
-                timerDesbloqueoZoom = setTimeout(() => {
-                    if ((Date.now() - ultimoScrollPaginaTs) > 450) {
-                        zoomRuedaHabilitado = true;
-                    }
-                }, 700);
-            }
-        }, { passive: true });
-
-        canvas.addEventListener('mousemove', function(e) {
-            validarPosicionCursor(e.clientX, e.clientY);
-            if (!zoomRuedaHabilitado && (Date.now() - ultimoScrollPaginaTs) > 450) {
-                if (mouseEntradaX === null || mouseEntradaY === null) {
-                    mouseEntradaX = e.clientX;
-                    mouseEntradaY = e.clientY;
-                } else {
-                    const dist = Math.hypot(e.clientX - mouseEntradaX, e.clientY - mouseEntradaY);
-                    if (dist >= 12) {
-                        zoomRuedaHabilitado = true;
-                        clearTimeout(timerDesbloqueoZoom);
-                    }
-                }
-            }
-        }, { passive: true });
-
-        canvas.addEventListener('mouseleave', function() {
-            zoomRuedaHabilitado = false;
-            mouseEntradaX = null;
-            mouseEntradaY = null;
-            clearTimeout(timerDesbloqueoZoom);
-            ocultarTooltipGris();
-        }, { passive: true });
-
-        canvas.addEventListener('dblclick', function() { resetearZoomGrafico(); });
-
-        let ultimoToqueTs = 0;
-        let rafTouchId = null;
-
-        canvas.addEventListener('touchstart', function(e) {
-            ocultarSmartTooltip();
-            actualizarRectCache();
-            if (e.touches && e.touches.length === 1) {
-                let ahora = Date.now();
-                if (ahora - ultimoToqueTs < 280) resetearZoomGrafico();
-                ultimoToqueTs = ahora;
-                validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
-            } else {
-                ocultarTooltipGris();
-            }
-        }, { passive: true });
-
-        canvas.addEventListener('touchmove', function(e) {
-            if (e.touches && e.touches.length === 1) {
-                const tx = e.touches[0].clientX;
-                const ty = e.touches[0].clientY;
-                if (!rafTouchId) {
-                    rafTouchId = requestAnimationFrame(function() {
-                        rafTouchId = null;
-                        validarPosicionCursor(tx, ty);
-                    });
-                }
-            } else {
-                ocultarTooltipGris();
-            }
-        }, { passive: true });
-    }
-
-    function extraerTempSecundariaPlaca(cads, tempMaxFallback) {
-        if (!cads || !Array.isArray(cads) || cads.length === 0) {
-            return esTempValida(tempMaxFallback) ? Math.max(15, tempMaxFallback - 8) : null;
-        }
-        let vals = [];
-        for (let i = 0; i < cads.length; i++) {
-            let tp = Number(cads[i].temp_p || 0);
-            let tc = Number(cads[i].temp_c || 0);
-            if (esTempValida(tp) && tp >= 10) vals.push(tp);
-            else if (esTempValida(tc) && tc >= 10) vals.push(Math.max(15, tc - 6));
-        }
-        if (vals.length === 0) return null;
-        return esMineroHydro ? Math.max(...vals) : Math.min(...vals);
-    }
-
-    function recolectarBasePorMinuto(minTs) {
-        let porMinuto = new Map();
-
-        for (let i = 0; i < rawFechas.length; i++) {
-            let tsOriginal = rawFechas[i];
-            if (tsOriginal < minTs) continue;
-            let hVal = rawHr[i] !== null && rawHr[i] !== undefined ? Number(rawHr[i]) : 0;
-            let tValRaw = rawTemp[i] !== null && rawTemp[i] !== undefined ? Number(rawTemp[i]) : 0;
-            // Descartar lecturas falsas de sensor al arrancar (ej: 255°C)
-            let tVal = esTempValida(tValRaw) ? tValRaw : 0;
-
-            if (hVal === 0 && tVal <= 5) continue;
-
-            let ambRaw = (hVal > 0 && rawAmb.length > i && rawAmb[i] !== null) ? Number(rawAmb[i]) : null;
-            let ambVal = esTempValida(ambRaw) ? ambRaw : null;
-            if (hVal > 0 && ambVal === null && i === rawFechas.length - 1 && esTempValida(tempAmbActual)) ambVal = tempAmbActual;
-
-            let errVal = (rawErr.length > i && rawErr[i] !== null) ? Number(rawErr[i]) : 0;
-            if (hVal === 0 || (i > 0 && Number(rawHr[i - 1] || 0) === 0)) errVal = 0;
-
-            let cads = (rawCadHist.length > i && rawCadHist[i]) ? rawCadHist[i] : cadenasActuales;
-            let tMinVal = hVal > 0 ? extraerTempSecundariaPlaca(cads, tVal) : null;
-            let tsMinuto = Math.floor(tsOriginal / 60) * 60;
-
-            if (!porMinuto.has(tsMinuto)) {
-                let objClima = obtenerClimaParaTimestamp(tsMinuto);
-                porMinuto.set(tsMinuto, {
-                    ts: tsMinuto, hrSum: hVal, hrCount: 1, hr: hVal,
-                    temp: tVal, tempMin: tMinVal, amb: ambVal,
-                    clima: objClima ? objClima.temp : null,
-                    sensacion: objClima ? objClima.sensacion : null,
-                    err: errVal, cads: cads
-                });
-            } else {
-                let item = porMinuto.get(tsMinuto);
-                if (hVal > 0) {
-                    if (item.hr > 0) {
-                        item.hrSum += hVal;
-                        item.hrCount += 1;
-                        item.hr = Number((item.hrSum / item.hrCount).toFixed(2));
-                    } else {
-                        item.hrSum = hVal;
-                        item.hrCount = 1;
-                        item.hr = hVal;
-                    }
-                }
-                if (tVal > item.temp) item.temp = tVal;
-                if (tMinVal !== null) {
-                    if (item.tempMin === null) item.tempMin = tMinVal;
-                    else item.tempMin = esMineroHydro ? Math.max(item.tempMin, tMinVal) : Math.min(item.tempMin, tMinVal);
-                }
-                if (ambVal !== null) item.amb = ambVal;
-                item.err += errVal;
-                item.cads = cads;
-            }
-        }
-
-        let crudos = Array.from(porMinuto.values());
-        crudos.sort((a, b) => a.ts - b.ts);
-
-        let valoresHr = [], valoresTempMax = [], valoresTempMin = [];
-        for (let i = 0; i < crudos.length; i++) {
-            let c = crudos[i];
-            if (c.hr > 0) valoresHr.push(c.hr);
-            if (esTempValida(c.temp)) valoresTempMax.push(c.temp);
-            if (esTempValida(c.tempMin)) valoresTempMin.push(c.tempMin);
-        }
-
-        return { crudos, valoresHr, valoresTempMax, valoresTempMin, totalRegistros: crudos.length };
-    }
-
-    function construirSeriesConPaso(crudosBase, pasoSeg, limiteIzqForzado, limiteDerForzado) {
-        let agrupados = [];
-
-        if (pasoSeg <= 60 || crudosBase.length <= 2) {
-            agrupados = crudosBase;
-        } else {
-            let mapaBuckets = new Map();
-            const ultimoIdx = crudosBase.length - 1;
-
-            for (let i = 0; i < crudosBase.length; i++) {
-                let c = crudosBase[i];
-                let bTs = (i === ultimoIdx) ? c.ts : (Math.floor(c.ts / pasoSeg) * pasoSeg);
-
-                if (!mapaBuckets.has(bTs)) {
-                    mapaBuckets.set(bTs, {
-                        ts: bTs, hrSum: c.hr > 0 ? c.hr : 0, hrCount: c.hr > 0 ? 1 : 0, hr: c.hr,
-                        temp: c.temp, tempMin: c.tempMin, amb: c.amb,
-                        clima: c.clima, sensacion: c.sensacion, err: c.err, cads: c.cads
-                    });
-                } else {
-                    let b = mapaBuckets.get(bTs);
-                    if (c.hr > 0) {
-                        b.hrSum += c.hr;
-                        b.hrCount += 1;
-                        b.hr = Number((b.hrSum / b.hrCount).toFixed(2));
-                    }
-                    if (c.temp > b.temp) b.temp = c.temp;
-                    if (c.tempMin !== null) {
-                        if (b.tempMin === null) b.tempMin = c.tempMin;
-                        else b.tempMin = esMineroHydro ? Math.max(b.tempMin, c.tempMin) : Math.min(b.tempMin, c.tempMin);
-                    }
-                    if (c.amb !== null) b.amb = c.amb;
-                    if (c.clima !== null) b.clima = c.clima;
-                    if (c.sensacion !== null) b.sensacion = c.sensacion;
-                    b.err += c.err;
-                    b.cads = c.cads;
-                }
-            }
-            agrupados = Array.from(mapaBuckets.values());
-            agrupados.sort((a, b) => a.ts - b.ts);
-        }
-
-        let ptsH = [], ptsT = [], ptsTMin = [], ptsA = [], ptsClima = [], ptsSens = [], ptsE = [];
-        let maxErrPeriodo = 0;
-        mapaMetaPuntos = {};
-        ultimoKeyTooltipRenderizado = null;
-
-        if (limiteIzqForzado && (agrupados.length === 0 || agrupados[0].ts > limiteIzqForzado + 60)) {
-            ptsH.push({ x: limiteIzqForzado, y: null });
-            ptsT.push({ x: limiteIzqForzado, y: null });
-            ptsTMin.push({ x: limiteIzqForzado, y: null });
-            ptsA.push({ x: limiteIzqForzado, y: null });
-            ptsClima.push({ x: limiteIzqForzado, y: null });
-            ptsSens.push({ x: limiteIzqForzado, y: null });
-            ptsE.push({ x: limiteIzqForzado, y: null });
-            mapaMetaPuntos[limiteIzqForzado] = { esSeparadorCorte: true };
-        }
-
-        const UMBRAL_CORTE_SEG = Math.max(240, pasoSeg * 2.5);
-
-        for (let i = 0; i < agrupados.length; i++) {
-            let actual = agrupados[i];
-            let deltaS = pasoSeg;
-
-            if (i > 0) {
-                let brecha = actual.ts - agrupados[i - 1].ts;
-                if (brecha <= 0) continue;
-                deltaS = brecha <= UMBRAL_CORTE_SEG ? brecha : pasoSeg;
-
-                if (brecha > UMBRAL_CORTE_SEG) {
-                    let tsCorte = agrupados[i - 1].ts + 1;
-                    ptsH.push({ x: tsCorte, y: null });
-                    ptsT.push({ x: tsCorte, y: null });
-                    ptsTMin.push({ x: tsCorte, y: null });
-                    ptsA.push({ x: tsCorte, y: null });
-                    ptsClima.push({ x: tsCorte, y: null });
-                    ptsSens.push({ x: tsCorte, y: null });
-                    ptsE.push({ x: tsCorte, y: null });
-                    mapaMetaPuntos[tsCorte] = { esSeparadorCorte: true };
-                }
-            }
-
-            if (actual.err > maxErrPeriodo) maxErrPeriodo = actual.err;
-
-            let tempValida = esTempValida(actual.temp) ? actual.temp : null;
-            if (actual.hr === 0 && tempValida !== null) {
-                ptsH.push({ x: actual.ts, y: 0 });
-                ptsT.push({ x: actual.ts, y: tempValida });
-                ptsTMin.push({ x: actual.ts, y: null });
-                ptsA.push({ x: actual.ts, y: null });
-                ptsClima.push({ x: actual.ts, y: actual.clima });
-                ptsSens.push({ x: actual.ts, y: actual.sensacion });
-                ptsE.push({ x: actual.ts, y: 0 });
-                mapaMetaPuntos[actual.ts] = {
-                    estadoPunto: 'SIN_MINAR',
-                    hr: 0, temp: tempValida, tempMin: null, amb: null, clima: actual.clima, sensacion: actual.sensacion, err: 0, deltaS: deltaS, cadenas: actual.cads
-                };
-            } else {
-                ptsH.push({ x: actual.ts, y: actual.hr });
-                ptsT.push({ x: actual.ts, y: tempValida });
-                ptsTMin.push({ x: actual.ts, y: actual.tempMin });
-                ptsA.push({ x: actual.ts, y: actual.amb });
-                ptsClima.push({ x: actual.ts, y: actual.clima });
-                ptsSens.push({ x: actual.ts, y: actual.sensacion });
-                ptsE.push({ x: actual.ts, y: actual.err });
-
-                mapaMetaPuntos[actual.ts] = {
-                    estadoPunto: 'NORMAL',
-                    hr: actual.hr, temp: tempValida || 0, tempMin: actual.tempMin, amb: actual.amb, clima: actual.clima, sensacion: actual.sensacion, err: actual.err, deltaS: deltaS, cadenas: actual.cads
-                };
-            }
-        }
-
-        const primerTsReal = agrupados.length > 0 ? agrupados[0].ts : (limiteIzqForzado || Math.floor(Date.now() / 60000) * 60 - 3600);
-        const ultimoTsReal = agrupados.length > 0 ? agrupados[agrupados.length - 1].ts : (limiteDerForzado || Math.floor(Date.now() / 60000) * 60);
-
-        return { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, maxErrPeriodo, primerTsReal, ultimoTsReal };
-    }
-
-    function guardarEstilosOriginalesDatasets(lista) {
-        lista.forEach(ds => {
-            ds._origBorderColor = ds.borderColor;
-            ds._origBgColor = ds.backgroundColor;
-            ds._origBorderWidth = ds.borderWidth;
-        });
-        return lista;
-    }
-
-    function updateChart(rango, esActualizacionEnVivo = false) {
-        rangoActual = rango;
-        if (!esActualizacionEnVivo) {
-            document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
-            let btnR = document.getElementById('btn-' + rango);
-            if (btnR) btnR.classList.add('active');
-            document.getElementById('btnResetZoom').style.display = 'none';
-            const btnAhora = document.getElementById('btnIrAhora');
-            if (btnAhora) btnAhora.style.display = 'none';
-            ocultarTooltipGris();
-            ocultarSmartTooltip();
-        }
-
-        let estabaConZoom = false;
-        let estabaEnBordeDerecho = true;
-        let prevMinZoom = 0;
-        let prevMaxZoom = 0;
-        if (esActualizacionEnVivo && chartInstance && chartInstance.scales && chartInstance.scales.x) {
-            const spanVis = chartInstance.scales.x.max - chartInstance.scales.x.min;
-            const spanTot = limiteDatosDerGlobal - limiteDatosIzqGlobal;
-            if (spanTot > 0 && spanVis < spanTot - 60) {
-                estabaConZoom = true;
-                prevMinZoom = chartInstance.scales.x.min;
-                prevMaxZoom = chartInstance.scales.x.max;
-                estabaEnBordeDerecho = (limiteDatosDerGlobal - prevMaxZoom) <= 180;
-            }
-        }
-
-        let maxTsValido = 0;
-        let minTsValidoGlobal = Infinity;
-        for (let i = 0; i < rawFechas.length; i++) {
-            let hV = Number(rawHr[i] || 0);
-            let tV = Number(rawTemp[i] || 0);
-            if (hV > 0 || esTempValida(tV)) {
-                if (rawFechas[i] > maxTsValido) maxTsValido = rawFechas[i];
-                if (rawFechas[i] < minTsValidoGlobal) minTsValidoGlobal = rawFechas[i];
-            }
-        }
-        const nowTs = maxTsValido > 0 ? Math.floor(maxTsValido / 60) * 60 : Math.floor(Date.now() / 60000) * 60;
-        if (maxTsValido > 0 && minTsValidoGlobal < Infinity) {
-            primerTsGrabadoGlobal = Math.floor(minTsValidoGlobal / 60) * 60;
-            const spanGrabadoSeg = Math.max(60, maxTsValido - minTsValidoGlobal);
-            diasRealesGrabados = Number((spanGrabadoSeg / 86400).toFixed(1));
-            horasRealesGrabadas = Number((spanGrabadoSeg / 3600).toFixed(1));
-        } else {
-            primerTsGrabadoGlobal = nowTs;
-            diasRealesGrabados = 0;
-            horasRealesGrabadas = 0;
-        }
-
-        let segundosRango = 24 * 3600;
-        if (rango === '6h') segundosRango = 6 * 3600;
-        if (rango === '24h') segundosRango = 24 * 3600;
-        if (rango === '7d') segundosRango = 7 * 86400;
-        if (rango === '30d') segundosRango = 30 * 86400;
-
-        const minTs = nowTs - segundosRango;
-        const base = recolectarBasePorMinuto(minTs);
-        crudosPorMinutoCache = base.crudos;
-
-        const primerTsEnRango = crudosPorMinutoCache.length > 0 ? crudosPorMinutoCache[0].ts : minTs;
-        const ultimoTsEnRango = crudosPorMinutoCache.length > 0 ? crudosPorMinutoCache[crudosPorMinutoCache.length - 1].ts : nowTs;
-
-        const limiteIzq = minTs;
-        const limiteDer = ultimoTsEnRango;
-        limiteDatosIzqGlobal = limiteIzq;
-        limiteDatosDerGlobal = limiteDer;
-
-        pasoAgrupacionActualSeg = calcularPasoAgrupacionLOD(estabaConZoom ? (prevMaxZoom - prevMinZoom) : segundosRango);
-        actualizarBadgeLOD(pasoAgrupacionActualSeg);
-
-        const { ptsH, ptsT, ptsTMin, ptsA, ptsClima, ptsSens, ptsE, maxErrPeriodo } = construirSeriesConPaso(crudosPorMinutoCache, pasoAgrupacionActualSeg, limiteIzq, limiteDer);
-
-        let valoresHr = base.valoresHr;
-        let valoresTempMax = base.valoresTempMax;
-        let valoresTempMin = base.valoresTempMin;
-
-        let avgBruto = valoresHr.length > 0 ? (valoresHr.reduce((a,b)=>a+b,0) / valoresHr.length) : 0;
-        let valoresHrOperativos = valoresHr.filter(v => v >= avgBruto * 0.60);
-        if (valoresHrOperativos.length === 0) valoresHrOperativos = valoresHr;
-
-        let avgHrNum = valoresHrOperativos.length > 0 ? (valoresHrOperativos.reduce((a,b)=>a+b,0) / valoresHrOperativos.length) : 0;
-        promedioHrOperativoGlobal = avgHrNum;
-
-        let avgHr = avgHrNum.toFixed(2);
-        let maxHr = valoresHrOperativos.length > 0 ? Math.max(...valoresHrOperativos).toFixed(2) : "0.00";
-        let minHr = valoresHrOperativos.length > 0 ? Math.min(...valoresHrOperativos).toFixed(2) : "0.00";
-        let maxT = valoresTempMax.length > 0 ? Math.max(...valoresTempMax) : 0;
-        let secT = valoresTempMin.length > 0 ? (esMineroHydro ? Math.max(...valoresTempMin) : Math.min(...valoresTempMin)) : 0;
-
-        let spanActivoDesdeInicioMin = Math.max(1, Math.round((limiteDer - Math.max(minTs, primerTsEnRango)) / 60) + 1);
-        let pctEstab = valoresHr.length > 0 ? Math.min(100, Math.round((valoresHr.length / spanActivoDesdeInicioMin) * 100)) : 100;
-
-        document.getElementById('statProm').innerText = `${avgHr} ${unidadMinero}`;
-        document.getElementById('statMax').innerText = `${maxHr} ${unidadMinero}`;
-        document.getElementById('statMin').innerText = `${minHr} ${unidadMinero}`;
-        let elTp = document.getElementById('statTempPico');
-        elTp.innerText = `${maxT}° / ${secT}°C`;
-        elTp.style.color = maxT >= UMBRAL_CRIT_TEMP ? '#ff5252' : (maxT >= UMBRAL_ALERTA_TEMP ? '#ffb300' : '#00e676');
-        document.getElementById('statUptime').innerText = `${pctEstab}%`;
-
-        // Actualizar ΔT Agua actual en la barra superior (solo Hydro)
-        if (esMineroHydro) {
-            let elDa = document.getElementById('statDeltaAgua');
-            if (elDa) {
-                let dAguaActual = null;
-                for (let i = crudosPorMinutoCache.length - 1; i >= 0; i--) {
-                    const p = crudosPorMinutoCache[i];
-                    if (esTempValida(p.tempMin) && esTempValida(p.amb)) {
-                        dAguaActual = Math.max(0, Math.round(p.tempMin - p.amb));
-                        break;
-                    }
-                }
-                if (dAguaActual !== null) {
-                    elDa.innerText = `${dAguaActual}°C`;
-                    elDa.style.color = dAguaActual >= 15 ? '#ff5252' : (dAguaActual >= 12 ? '#ffb300' : '#00e676');
-                } else {
-                    elDa.innerText = '--°C';
-                    elDa.style.color = '#38bdf8';
-                }
-            }
-        }
-
-        const ctx = document.getElementById('hashrateChart').getContext('2d');
-        const gradBlue = ctx.createLinearGradient(0, 0, 0, 275);
-        gradBlue.addColorStop(0, 'rgba(51, 102, 255, 0.30)');
-        gradBlue.addColorStop(1, 'rgba(51, 102, 255, 0.0)');
-
-        let tieneTempAmbiente = ptsA.some(p => p.y !== null && p.y > 0);
-        let tieneClimaExt = ptsClima.some(p => p.y !== null && p.y !== undefined);
-
-        let datasetsList = [
-            {
-                id: 'hr', type: 'line', label: '⚡ Hashrate (' + unidadMinero + ')', data: ptsH,
-                borderColor: '#3366ff', backgroundColor: gradBlue, fill: true,
-                tension: 0.15, pointRadius: 0, pointHoverRadius: 5, pointBackgroundColor: '#3366ff', pointHoverBackgroundColor: '#3366ff',
-                borderWidth: 2, spanGaps: false,
-                hidden: visibilidadCurvas['hr'] === false
-            },
-            {
-                id: 'tmax', type: 'line', label: '🌡️ Temp Máx °C', data: ptsT,
-                borderColor: '#ffb300',
-                tension: 0.15, pointRadius: 0, pointHoverRadius: 5, pointBackgroundColor: '#ffb300', pointHoverBackgroundColor: '#ffb300',
-                borderWidth: 1.8, yAxisID: 'y1', spanGaps: false,
-                hidden: visibilidadCurvas['tmax'] === false
-            },
-            {
-                id: 'tmin', type: 'line', label: esMineroHydro ? '🔥 Agua Salida °C' : '❄️ Temp Mín (PCB) °C', data: ptsTMin,
-                borderColor: 'rgba(251, 146, 60, 0.85)',
-                backgroundColor: 'rgba(255, 179, 0, 0.07)', fill: '-1',
-                tension: 0.15, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#fb923c', pointHoverBackgroundColor: '#fb923c',
-                borderWidth: esMineroHydro ? 1.6 : 1.2, yAxisID: 'y1', spanGaps: false,
-                hidden: visibilidadCurvas['tmin'] === false
-            }
-        ];
-
-        if (tieneTempAmbiente) {
-            datasetsList.push({
-                id: 'tamb', type: 'line', label: esMineroHydro ? '💧 Agua Entrada °C' : '🍃 Entrada/Amb °C', data: ptsA,
-                borderColor: '#00e676',
-                tension: 0.15, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#00e676', pointHoverBackgroundColor: '#00e676',
-                borderWidth: 1.6, yAxisID: 'y1', spanGaps: false,
-                hidden: visibilidadCurvas['tamb'] === false
-            });
-        }
-
-        if (tieneClimaExt) {
-            datasetsList.push({
-                id: 'clima', type: 'line', label: '🌤️ Clima Granja °C', data: ptsClima,
-                borderColor: '#38bdf8',
-                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#38bdf8', pointHoverBackgroundColor: '#38bdf8',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
-                hidden: visibilidadCurvas['clima'] === false
-            });
-            datasetsList.push({
-                id: 'sensacion', type: 'line', label: '🥵 Sensación Térmica °C', data: ptsSens,
-                borderColor: '#c084fc',
-                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#c084fc', pointHoverBackgroundColor: '#c084fc',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
-                hidden: visibilidadCurvas['sensacion'] === false
-            });
-        }
-
-        datasetsList.push({
-            id: 'err', type: 'bar', label: '⚠️ Errores HW', data: ptsE,
-            borderColor: '#ff5252', backgroundColor: 'rgba(255, 82, 82, 0.5)',
-            maxBarThickness: 5, categoryPercentage: 0.85, barPercentage: 0.9, yAxisID: 'y2',
-            hidden: visibilidadCurvas['err'] === false
-        });
-
-        guardarEstilosOriginalesDatasets(datasetsList);
-
-        const topeEjeErrores = Math.max(20, maxErrPeriodo * 4);
-
-        if (chartInstance) {
-            const prevDsCount = chartInstance.data.datasets.length;
-            chartInstance.data.datasets = datasetsList;
-            chartInstance.options.scales.y2.max = topeEjeErrores;
-            if (estabaConZoom) {
-                if (estabaEnBordeDerecho) {
-                    const spanZoom = prevMaxZoom - prevMinZoom;
-                    fijarEscalaExactaEnChart(chartInstance, Math.max(limiteIzq, limiteDer - spanZoom), limiteDer);
-                } else {
-                    fijarEscalaExactaEnChart(chartInstance, prevMinZoom, prevMaxZoom);
-                }
-            } else {
-                fijarEscalaExactaEnChart(chartInstance, limiteIzq, limiteDer);
-            }
-            actualizarPuntosYResolucionSegunZoom(chartInstance);
-            chartInstance.update('none');
-            actualizarControlesZoomYScroll(chartInstance);
-            if (!esActualizacionEnVivo || datasetsList.length !== prevDsCount) construirLeyendasPildora();
-        } else {
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: { datasets: datasetsList },
-                plugins: [pluginNumerosDentroGrafico, pluginCrosshairVertical],
-                options: {
-                    animation: false,
-                    normalized: true,
-                    parsed: false,
-                    responsive: true, maintainAspectRatio: false,
-                    layout: { padding: { left: 14, right: 14, top: window.innerWidth <= 640 ? 6 : 40, bottom: 2 } },
-                    interaction: { mode: 'index', axis: 'x', intersect: false },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            enabled: false,
-                            external: renderizarTooltipExterno
-                        },
-                        zoom: {
-                            limits: { x: { min: limiteIzq, max: limiteDer, minRange: 300 } },
-                            pan: {
-                                enabled: true, mode: 'x',
-                                onPanStart: function({chart}) {
-                                    return estaGraficoConZoom(chart);
-                                },
-                                onPan: function({chart}) { forzarLimitesSinEspacioVacio(chart, true); },
-                                onPanComplete: function({chart}) {
-                                    actualizarPuntosYResolucionSegunZoom(chart);
-                                    chart.update('none');
-                                    actualizarControlesZoomYScroll(chart);
-                                }
-                            },
-                            zoom: {
-                                wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x',
-                                onZoom: function({chart}) { forzarLimitesSinEspacioVacio(chart, false); },
-                                onZoomComplete: function({chart}) {
-                                    actualizarPuntosYResolucionSegunZoom(chart);
-                                    chart.update('none');
-                                    actualizarControlesZoomYScroll(chart);
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            type: 'linear', bounds: 'ticks', offset: false, min: limiteIzq, max: limiteDer,
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            afterBuildTicks: function(axis) {
-                                const start = axis.min;
-                                const end = axis.max;
-                                const span = end - start;
-                                if (span <= 0) return;
-
-                                const anchoPx = axis.width || (window.innerWidth - 40);
-                                const pxPorEtiqueta = (rangoActual === '7d' || rangoActual === '30d' || span > 86400) ? 72 : 64;
-                                const maxTicks = Math.max(4, Math.min(18, Math.floor(anchoPx / pxPorEtiqueta)));
-
-                                const pasoSeg = obtenerPasoExactoMinutos(span, maxTicks);
-                                const margenBordeSeg = pasoSeg * 0.42;
-                                const nuevosTicks = [{ value: start }];
-
-                                const primerTickIntermedio = Math.ceil(start / pasoSeg) * pasoSeg;
-                                for (let t = primerTickIntermedio; t <= end; t += pasoSeg) {
-                                    if ((t - start) >= margenBordeSeg && (end - t) >= margenBordeSeg) {
-                                        nuevosTicks.push({ value: t });
-                                    }
-                                }
-                                nuevosTicks.push({ value: end });
-                                axis.ticks = nuevosTicks;
-                            },
-                            ticks: {
-                                minRotation: 0, maxRotation: 0, autoSkip: false, align: 'inner',
-                                color: '#8b8d9c', font: { size: 10.5 },
-                                callback: function(value, index, ticksArr) {
-                                    const spanVis = (ticksArr && ticksArr.length > 1) ? (ticksArr[ticksArr.length - 1].value - ticksArr[0].value) : 86400;
-                                    return formatearEtiquetaEjeX(new Date(value * 1000), rangoActual, spanVis);
-                                }
-                            }
-                        },
-                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, min: 0, ticks: { display: false } },
-                        y1: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100, ticks: { display: false, stepSize: 20 } },
-                        y2: { display: false, min: 0, max: topeEjeErrores }
-                    }
-                }
-            });
-            configurarEventosLimitesCanvas();
-            construirLeyendasPildora();
-            actualizarControlesZoomYScroll(chartInstance);
-        }
-    }
-
-    async function actualizarGraficoEnVivoJSON() {
-        if (cargandoLiveGrafico) return;
-        cargandoLiveGrafico = true;
-        try {
-            const r = await fetch('/api/live/minero/{{ ip }}', { cache: 'no-store' });
-            if (!r.ok) return;
-            const data = await r.json();
-            if (!data.ok || !data.puntos || data.puntos.length === 0) return;
-
-            let huboCambio = false;
-            data.puntos.forEach(p => {
-                const idx = rawFechas.lastIndexOf(p.ts);
-                if (idx !== -1) {
-                    if (rawHr[idx] !== p.hr || rawTemp[idx] !== p.temp || rawAmb[idx] !== p.amb || rawErr[idx] !== p.err) {
-                        rawHr[idx] = p.hr;
-                        rawTemp[idx] = p.temp;
-                        rawAmb[idx] = p.amb;
-                        rawErr[idx] = p.err;
-                        rawCadHist[idx] = p.cadenas;
-                        huboCambio = true;
-                    }
-                } else if (rawFechas.length === 0 || p.ts > rawFechas[rawFechas.length - 1]) {
-                    rawFechas.push(p.ts);
-                    rawHr.push(p.hr);
-                    rawTemp.push(p.temp);
-                    rawAmb.push(p.amb);
-                    rawErr.push(p.err);
-                    rawCadHist.push(p.cadenas);
-                    huboCambio = true;
-                }
-            });
-
-            if (huboCambio && chartInstance) updateChart(rangoActual, true);
-        } catch (e) {
-        } finally {
-            cargandoLiveGrafico = false;
-        }
-    }
-
-    window.addEventListener('emg:live-update', actualizarGraficoEnVivoJSON);
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) actualizarGraficoEnVivoJSON();
-    });
-
-    function iniciarModuloGrafico() {
-        if (esMineroHydro) {
-            const lblTp = document.getElementById('lblStatTempPico');
-            if (lblTp) lblTp.innerText = 'Chips / Agua Salida:';
-            const elDaItem = document.getElementById('statDeltaAguaItem');
-            if (elDaItem) elDaItem.style.display = 'flex';
-        }
-        reconstruirFormateadoresTiempo();
-        inicializarEventosTooltips();
-        updateChart('24h');
-        cargarClimaDeLaGranja();
-        setInterval(function() {
-            if (!document.hidden) actualizarGraficoEnVivoJSON();
-        }, 30000);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', iniciarModuloGrafico);
-    } else {
-        iniciarModuloGrafico();
-    }
-</script>
+        {% endblock %}
+        """
+        return render_template_string(html_fallback, archivo=nombre_archivo, **contexto)
