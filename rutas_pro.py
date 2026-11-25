@@ -104,11 +104,27 @@ def vista_racks():
                 break
         mod_corto = mod_corto[:10].strip() or 'ASIC'
 
+        # Determinar familia del ASIC para ilustración SVG precisa
+        mod_l = mod_raw.lower()
+        if 's21' in mod_l or 't21' in mod_l:
+            tipo_familia = 's21'
+        elif 'whatsminer' in mod_l or 'm30' in mod_l or 'm50' in mod_l or 'm20' in mod_l or 'm31' in mod_l or 'm60' in mod_l:
+            tipo_familia = 'whatsminer'
+        elif 'l7' in mod_l or 'd7' in mod_l or 'ka3' in mod_l or 'k7' in mod_l or 'e9' in mod_l:
+            tipo_familia = 'l7'
+        elif 'avalon' in mod_l or 'a12' in mod_l or 'a13' in mod_l or 'a11' in mod_l or 'a14' in mod_l:
+            tipo_familia = 'avalon'
+        elif 's19' in mod_l or 't19' in mod_l or 'antminer' in mod_l or 's17' in mod_l or 't17' in mod_l:
+            tipo_familia = 's19'
+        else:
+            tipo_familia = 'generic'
+
         item = {
             'ip': ip,
             'nombre': nombre_inteligente_minero(ip, nombres_dict, m.get('worker1')),
             'modelo': mod_raw,
             'modelo_corto': mod_corto,
+            'tipo_familia': tipo_familia,
             'online': es_on,
             'hashrate': hr,
             'unidad': m.get('unidad') or 'TH/s',
@@ -199,6 +215,51 @@ def api_racks_crear():
         VALUES (%s, %s, %s, %s)
         ON CONFLICT (owner, nombre) DO UPDATE SET filas=EXCLUDED.filas, columnas=EXCLUDED.columnas
     """, (usr_actual, nombre, filas, columnas))
+    return jsonify({"status": "ok"})
+
+@pro_bp.route('/api/racks/editar', methods=['POST'])
+@login_required
+def api_racks_editar():
+    usr_actual = session.get('usuario', 'Admin')
+    data = request.get_json(silent=True) or {}
+    rack_id = a_int_seguro(data.get('id'), 0)
+    nuevo_nombre = str(data.get('nombre') or '').strip()[:40]
+    filas = max(1, min(12, a_int_seguro(data.get('filas'), 4)))
+    columnas = max(1, min(16, a_int_seguro(data.get('columnas'), 6)))
+
+    if not nuevo_nombre or rack_id <= 0:
+        return jsonify({"status": "error", "msg": "Datos inválidos para editar estante"}), 400
+
+    con = get_db(); con.autocommit = True; cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT nombre FROM racks_sedes WHERE owner=%s AND id=%s", (usr_actual, rack_id))
+    row = cur.fetchone()
+    if not row:
+        return jsonify({"status": "error", "msg": "Estante no encontrado"}), 404
+
+    nombre_ant = row['nombre']
+
+    # Actualizar estante
+    cur.execute("""
+        UPDATE racks_sedes
+        SET nombre=%s, filas=%s, columnas=%s
+        WHERE owner=%s AND id=%s
+    """, (nuevo_nombre, filas, columnas, usr_actual, rack_id))
+
+    # Si cambió de nombre, sincronizar los mineros ya asignados
+    if nuevo_nombre != nombre_ant:
+        cur.execute("""
+            UPDATE mineros_activos
+            SET rack_nombre=%s
+            WHERE owner=%s AND rack_nombre=%s
+        """, (nuevo_nombre, usr_actual, nombre_ant))
+
+    # Si se redujeron filas o columnas, liberar celdas que queden por fuera
+    cur.execute("""
+        UPDATE mineros_activos
+        SET rack_nombre='', rack_fila=0, rack_col=0
+        WHERE owner=%s AND rack_nombre=%s AND (rack_fila > %s OR rack_col > %s)
+    """, (usr_actual, nuevo_nombre, filas, columnas))
+
     return jsonify({"status": "ok"})
 
 @pro_bp.route('/api/racks/eliminar', methods=['POST'])
