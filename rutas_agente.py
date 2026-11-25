@@ -154,8 +154,9 @@ def api_agente_apk_version():
 
 @agente_bp.route('/api/agente/login', methods=['POST'])
 def api_agente_login():
+    cf = request.headers.get('CF-Connecting-IP', '')
     xff = request.headers.get('X-Forwarded-For', '')
-    ip_cli = xff.split(',')[0].strip() if xff else (request.remote_addr or 'unknown')
+    ip_cli = cf.strip() if cf else (xff.split(',')[0].strip() if xff else (request.remote_addr or 'unknown'))
     if _verificar_rate_limit_agente(f"ag_login:{ip_cli}", max_intentos=10, ventana_seg=300):
         return jsonify({"ok": False, "msg": "Demasiados intentos. Espera 5 minutos."}), 429
 
@@ -385,8 +386,9 @@ def recibir_datos():
 
     agent_id = str(datos.get('agent_id') or 'default').strip()[:40] or 'default'
 
+    cf = request.headers.get('CF-Connecting-IP', '')
     xff = request.headers.get('X-Forwarded-For', '')
-    ip_publica_agente = xff.split(',')[0].strip() if xff else (request.remote_addr or '')
+    ip_publica_agente = cf.strip() if cf else (xff.split(',')[0].strip() if xff else (request.remote_addr or ''))
     geo_granja = obtener_ubicacion_ip_agente(ip_publica_agente)
 
     lat_agente = a_float_seguro(datos.get('lat') if datos.get('lat') is not None else datos.get('farm_lat'), 0.0)

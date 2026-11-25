@@ -21,6 +21,9 @@ _rate_buckets = {}
 _reset_codes = {}
 
 def _ip_cliente():
+    cf = request.headers.get('CF-Connecting-IP', '')
+    if cf:
+        return cf.strip()
     xff = request.headers.get('X-Forwarded-For', '')
     return xff.split(',')[0].strip() if xff else (request.remote_addr or 'unknown')
 
