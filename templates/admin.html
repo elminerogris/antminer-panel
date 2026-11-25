@@ -438,6 +438,37 @@
 </div>
 {% endif %}
 
+<!-- BANNER DE BLINDAJE 2FA (SUPER ADMIN) -->
+<div style="background:var(--bg-card); border:1px solid {{ 'rgba(0, 230, 118, 0.45)' if admin_totp_activo else 'rgba(255, 179, 0, 0.45)' }}; border-radius:10px; padding:12px 18px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size:1.6em;">{{ '🛡️' if admin_totp_activo else '⚠️' }}</span>
+        <div>
+            <div style="font-weight:bold; font-size:0.92em; display:flex; align-items:center; gap:8px;">
+                <span>Seguridad Super Admin</span>
+                {% if admin_totp_activo %}
+                    <span style="background:rgba(0, 230, 118, 0.15); color:var(--accent-green); border:1px solid rgba(0, 230, 118, 0.4); border-radius:12px; font-size:0.75em; padding:2px 8px; font-weight:bold;">2FA ACTIVADO (Google Authenticator)</span>
+                {% else %}
+                    <span style="background:rgba(255, 179, 0, 0.15); color:var(--accent-gold); border:1px solid rgba(255, 179, 0, 0.4); border-radius:12px; font-size:0.75em; padding:2px 8px; font-weight:bold;">2FA DESACTIVADO (Recomendado Activar)</span>
+                {% endif %}
+            </div>
+            <div style="font-size:0.76em; color:var(--text-muted); margin-top:2px;">
+                {% if admin_totp_activo %}
+                    Tu cuenta administrativa está blindada contra accesos no autorizados mediante códigos temporales de 6 dígitos.
+                {% else %}
+                    Protege tu cuenta exigiendo un código temporal de Google Authenticator o Authy al iniciar sesión.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div>
+        {% if admin_totp_activo %}
+            <button type="button" class="btn-adm red" onclick="abrirModalDesactivar2FA()" style="padding:6px 12px; font-size:0.80em;">🔓 Desactivar 2FA</button>
+        {% else %}
+            <button type="button" class="btn-adm green" onclick="iniciarConfiguracion2FA()" style="padding:7px 14px; font-size:0.82em; font-weight:bold;">🔐 Activar 2FA Ahora</button>
+        {% endif %}
+    </div>
+</div>
+
 {% set db_color = '#ff5252' if stats.db_pct >= 85 else ('#ffb300' if stats.db_pct >= 70 else '#00e676') %}
 
 <!-- 1. KPIs GLOBALES DE LA PLATAFORMA -->
@@ -797,7 +828,121 @@
     </div>
 </div>
 
+<!-- MODAL: CONFIGURAR 2FA GOOGLE AUTHENTICATOR -->
+<div id="modalConfig2FA" class="adm-modal-bg" onclick="if(event.target===this) this.style.display='none'">
+    <div class="adm-modal" style="max-width:440px; text-align:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <b style="font-size:1.1em;">🔐 Vincular Google Authenticator</b>
+            <button type="button" onclick="document.getElementById('modalConfig2FA').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">✕</button>
+        </div>
+        <div style="font-size:0.82em; color:var(--text-muted); margin-bottom:14px; text-align:left; line-height:1.4;">
+            1. Abre <b>Google Authenticator</b> o <b>Authy</b> en tu teléfono móvil.<br>
+            2. Escanea este código QR o introduce la clave secreta.<br>
+            3. Escribe el código de 6 dígitos para validar.
+        </div>
+        <div id="qr2FAContainer" style="margin:10px auto; background:#fff; padding:12px; border-radius:8px; display:inline-block; box-shadow:0 4px 14px rgba(0,0,0,0.25);">
+            <img id="imgQr2FA" src="" alt="Código QR 2FA" style="width:160px; height:160px; display:block;">
+        </div>
+        <div style="margin:10px 0; font-family:monospace; background:var(--bg-well); padding:8px 12px; border-radius:6px; border:1px solid var(--border-color); font-size:0.88em; word-break:break-all; user-select:all;" id="txtSecret2FA">
+            ...
+        </div>
+        <form onsubmit="confirmarActivacion2FA(event)">
+            <div class="adm-field" style="margin-top:14px;">
+                <label style="text-align:center;">Código de 6 dígitos</label>
+                <input type="text" id="inputCodigo2FAConfirm" class="adm-input" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required style="text-align:center; font-size:1.3em; letter-spacing:4px; font-weight:bold; font-family:monospace;">
+            </div>
+            <button type="submit" id="btnConfirm2FA" class="btn-adm green" style="width:100%; justify-content:center; padding:10px; margin-top:8px;">✅ Confirmar y Activar 2FA</button>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: DESACTIVAR 2FA -->
+<div id="modalDesactivar2FA" class="adm-modal-bg" onclick="if(event.target===this) this.style.display='none'">
+    <div class="adm-modal" style="max-width:390px; text-align:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <b style="font-size:1.05em; color:var(--accent-red);">🔓 Desactivar 2FA</b>
+            <button type="button" onclick="document.getElementById('modalDesactivar2FA').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px;">✕</button>
+        </div>
+        <div style="font-size:0.80em; color:var(--text-muted); margin-bottom:14px;">
+            Ingresa tu código actual de 6 dígitos de Google Authenticator para confirmar la desactivación.
+        </div>
+        <form onsubmit="ejecutarDesactivar2FA(event)">
+            <div class="adm-field">
+                <input type="text" id="inputCodigo2FADesact" class="adm-input" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required style="text-align:center; font-size:1.3em; letter-spacing:4px; font-weight:bold; font-family:monospace;">
+            </div>
+            <button type="submit" class="btn-adm red" style="width:100%; justify-content:center; padding:10px;">Desactivar 2FA</button>
+        </form>
+    </div>
+</div>
+
 <script>
+    async function iniciarConfiguracion2FA() {
+        try {
+            const res = await fetch('/admin/2fa/iniciar', { credentials: 'same-origin', method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                document.getElementById('txtSecret2FA').innerText = data.secret;
+                document.getElementById('imgQr2FA').src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(data.uri);
+                document.getElementById('inputCodigo2FAConfirm').value = '';
+                document.getElementById('modalConfig2FA').style.display = 'flex';
+            } else {
+                alert(data.msg || 'Error al iniciar 2FA');
+            }
+        } catch(e) {
+            alert('Error de conexión: ' + e);
+        }
+    }
+
+    async function confirmarActivacion2FA(e) {
+        e.preventDefault();
+        const codigo = document.getElementById('inputCodigo2FAConfirm').value.trim();
+        if (!codigo || codigo.length !== 6) return;
+        try {
+            const res = await fetch('/admin/2fa/confirmar', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                alert('¡2FA activado con éxito! A partir de ahora se te solicitará el código al iniciar sesión.');
+                window.location.reload();
+            } else {
+                alert('⚠️ ' + (data.msg || 'Código inválido'));
+            }
+        } catch(e) {
+            alert('Error al confirmar: ' + e);
+        }
+    }
+
+    function abrirModalDesactivar2FA() {
+        document.getElementById('inputCodigo2FADesact').value = '';
+        document.getElementById('modalDesactivar2FA').style.display = 'flex';
+    }
+
+    async function ejecutarDesactivar2FA(e) {
+        e.preventDefault();
+        const codigo = document.getElementById('inputCodigo2FADesact').value.trim();
+        if (!codigo || codigo.length !== 6) return;
+        try {
+            const res = await fetch('/admin/2fa/desactivar', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                alert('2FA desactivado.');
+                window.location.reload();
+            } else {
+                alert('⚠️ ' + (data.msg || 'Código inválido'));
+            }
+        } catch(e) {
+            alert('Error: ' + e);
+        }
+    }
     const GRANJAS_DATA = {{ mapa_granjas | tojson if mapa_granjas is defined else (mapa_granjas_json | default('[]')) }};
     const USERS_ID_MAP = {
         {% for u in usuarios %}{{ u.username|tojson }}: {{ u.id }}{% if not loop.last %},{% endif %}{% endfor %}

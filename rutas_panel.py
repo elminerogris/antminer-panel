@@ -10,7 +10,8 @@ from utils import (
     login_required, es_super_admin, es_cuenta_pro, generar_api_key,
     es_hash_seguro, verificar_password, a_int_seguro, a_float_seguro,
     clave_granja_minero, nombre_inteligente_minero, calcular_segundos_desconectado,
-    ordenar_ip_key, obtener_datos_red, enviar_telegram, render_seguro
+    ordenar_ip_key, obtener_datos_red, enviar_telegram, render_seguro,
+    generar_totp_secret, verificar_totp, notificar_alerta_seguridad
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
@@ -42,10 +43,12 @@ def _validar_origen_csrf():
     if orig:
         clean_orig = orig.split('://')[-1].split('/')[0]
         if clean_orig != host:
+            notificar_alerta_seguridad("Violación Anti-CSRF", f"Origin '{orig}' no coincide con host '{host}' en ruta {request.path}", _ip_cliente())
             return False
     elif ref:
         clean_ref = ref.split('://')[-1].split('/')[0]
         if clean_ref != host:
+            notificar_alerta_seguridad("Violación Anti-CSRF", f"Referer '{ref}' no coincide con host '{host}' en ruta {request.path}", _ip_cliente())
             return False
     return True
 
@@ -1490,11 +1493,40 @@ def plan():
 @panel_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        if verificar_rate_limit(f"login:{_ip_cliente()}", max_intentos=10, ventana_seg=300):
+        # 1. Paso 2: Verificación de Código 2FA (Google Authenticator / Authy)
+        cod_2fa = (request.form.get('codigo_2fa') or '').strip()
+        pending_user = session.get('2fa_pending_user')
+        if pending_user and cod_2fa:
+            con = get_db(); con.autocommit = True
+            cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("SELECT * FROM usuarios WHERE LOWER(username)=LOWER(%s)", (pending_user,))
+            usr = cur.fetchone()
+            if not usr or not verificar_totp(usr.get('totp_secret'), cod_2fa):
+                notificar_alerta_seguridad("Fallo de Código 2FA", f"Código 2FA incorrecto para usuario: {pending_user}", _ip_cliente())
+                return render_seguro('login.html', error='Código 2FA incorrecto o expirado. Intenta nuevamente.', mode='2fa')
+
+            # 2FA aprobado -> Sesión limpia y autenticada
+            session.clear()
+            session.permanent = True
+            session['usuario'] = usr['username']
+            session['plan'] = usr.get('plan', 'Gratis')
+            session['saldo'] = usr.get('saldo', 0.0)
+            session['last_seen_ts'] = time.time()
+            return redirect('/resumen')
+
+        # 2. Paso 1: Verificación de Usuario y Contraseña
+        ip_c = _ip_cliente()
+        if verificar_rate_limit(f"login:{ip_c}", max_intentos=8, ventana_seg=300):
+            notificar_alerta_seguridad("Rate Limit Superado en Login", f"IP bloqueada temporalmente: {ip_c}", ip_c)
             return render_seguro('login.html', error='Demasiados intentos fallidos. Espera 5 minutos.', mode='login'), 429
 
         u = (request.form.get('username') or '').strip()
         p = request.form.get('password') or ''
+
+        if u and verificar_rate_limit(f"login_acc:{u.lower()}", max_intentos=5, ventana_seg=300):
+            notificar_alerta_seguridad("Ataque de Fuerza Bruta a Cuenta", f"Múltiples intentos fallidos hacia la cuenta: {u}", ip_c)
+            return render_seguro('login.html', error='Demasiados intentos hacia esta cuenta. Espera 5 minutos.', mode='login'), 429
+
         con = get_db(); con.autocommit = True
         cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute("SELECT * FROM usuarios WHERE LOWER(username)=LOWER(%s) OR (email != '' AND LOWER(email)=LOWER(%s))", (u, u))
@@ -1502,18 +1534,31 @@ def login():
         if usr and verificar_password(usr.get('password'), p):
             if a_int_seguro(usr.get('suspendido'), 0) == 1:
                 return render_seguro('login.html', error='Tu cuenta se encuentra suspendida. Contacta soporte.', mode='login')
+
             ahora_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             if not es_hash_seguro(usr.get('password')):
                 cur.execute("UPDATE usuarios SET password=%s, ultima_conexion=%s WHERE id=%s", (generate_password_hash(p), ahora_str, usr['id']))
             else:
                 cur.execute("UPDATE usuarios SET ultima_conexion=%s WHERE id=%s", (ahora_str, usr['id']))
-            session.pop('admin_real', None)
+
+            # Si el usuario tiene 2FA activado, solicitar el segundo factor
+            if a_int_seguro(usr.get('totp_activo'), 0) == 1 and usr.get('totp_secret'):
+                session.clear()
+                session['2fa_pending_user'] = usr['username']
+                return render_seguro('login.html', mode='2fa')
+
+            # Anti-Session Fixation: limpiar identificador anterior antes de poblar la sesión
+            session.clear()
             session.permanent = True
             session['usuario'] = usr['username']
             session['plan'] = usr.get('plan', 'Gratis')
             session['saldo'] = usr.get('saldo', 0.0)
             session['last_seen_ts'] = time.time()
             return redirect('/resumen')
+
+        if u.lower() in ('admin', 'administrator', 'root', 'soporte'):
+            notificar_alerta_seguridad("Intento Fallido de Acceso Admin", f"Contraseña inválida intentada para usuario: {u}", ip_c)
+
         return render_seguro('login.html', error='Credenciales incorrectas', mode='login')
     return render_seguro('login.html', mode='login')
 

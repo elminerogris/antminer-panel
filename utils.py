@@ -2,7 +2,7 @@ from flask import render_template, render_template_string, redirect, session
 from werkzeug.security import check_password_hash
 from jinja2 import TemplateNotFound
 from functools import wraps
-import json, urllib.request, urllib.parse, time, os, secrets, hashlib, re, threading
+import json, urllib.request, urllib.parse, time, os, secrets, hashlib, re, threading, base64, struct, hmac
 from datetime import datetime
 
 LIMITE_MINEROS_GRATIS = 3
@@ -223,6 +223,64 @@ def enviar_telegram(token, chat_id, texto):
     except Exception as e:
         print(f"Error Telegram: {e}")
         return False
+
+def generar_totp_secret(length=32):
+    """Genera una clave secreta base32 para 2FA compatible con Google Authenticator y Authy."""
+    chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+    return "".join(secrets.choice(chars) for _ in range(length))
+
+def verificar_totp(secret, codigo, ventana=1):
+    """Valida un código TOTP RFC 6238 de 6 dígitos con ventana de tolerancia."""
+    if not secret or not codigo:
+        return False
+    codigo_str = str(codigo).strip()
+    if not codigo_str.isdigit() or len(codigo_str) != 6:
+        return False
+    try:
+        secret_clean = secret.upper().replace(" ", "").replace("=", "")
+        pad = (8 - len(secret_clean) % 8) % 8
+        key = base64.b32decode(secret_clean + "=" * pad)
+        ahora = int(time.time() // 30)
+        for offset in range(-ventana, ventana + 1):
+            counter = ahora + offset
+            msg = struct.pack('!Q', counter)
+            h = hmac.new(key, msg, hashlib.sha1).digest()
+            o = h[19] & 15
+            calc = (struct.unpack('!I', h[o:o+4])[0] & 0x7fffffff) % 1000000
+            if f"{calc:06d}" == codigo_str:
+                return True
+    except Exception:
+        pass
+    return False
+
+def notificar_alerta_seguridad(titulo, detalle, ip=""):
+    """Envía una alerta de seguridad silenciosa e inmediata a Telegram sin bloquear peticiones."""
+    def _enviar():
+        try:
+            from db import get_db
+            tg_tok = os.environ.get("TELEGRAM_ADMIN_TOKEN")
+            tg_cid = os.environ.get("TELEGRAM_ADMIN_CHAT_ID")
+            if not tg_tok or not tg_cid:
+                con = get_db()
+                cur = con.cursor()
+                cur.execute("SELECT tg_token, tg_chat_id FROM usuarios WHERE LOWER(username)='admin' LIMIT 1")
+                row = cur.fetchone()
+                if row and row[0] and row[1]:
+                    tg_tok, tg_cid = row[0], row[1]
+            if tg_tok and tg_cid:
+                ahora_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                msg = (
+                    f"🚨 <b>ALERTA DE SEGURIDAD — El Minero Gris</b>\n"
+                    f"<b>Evento:</b> {titulo}\n"
+                    f"<b>Detalle:</b> {detalle}\n"
+                    f"<b>IP:</b> <code>{ip or 'Desconocida'}</code>\n"
+                    f"<b>Fecha UTC:</b> {ahora_str}"
+                )
+                enviar_telegram(tg_tok, tg_cid, msg)
+        except Exception:
+            pass
+    t = threading.Thread(target=_enviar, daemon=True)
+    t.start()
 
 def _obtener_precio_btc():
     """Intenta obtener el precio de BTC con 3 APIs de respaldo."""

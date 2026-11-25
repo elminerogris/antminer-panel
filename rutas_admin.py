@@ -7,7 +7,7 @@ from db import get_db
 from utils import (
     login_required, es_super_admin, a_int_seguro, a_float_seguro,
     evaluar_plan_usuario, obtener_datos_red, calcular_segundos_desconectado,
-    ordenar_ip_key, render_seguro
+    ordenar_ip_key, render_seguro, generar_totp_secret, verificar_totp, notificar_alerta_seguridad
 )
 
 admin_bp = Blueprint('admin_bp', __name__)
@@ -120,6 +120,54 @@ def admin_salir_soporte():
     session['plan'] = adm.get('plan', 'Pro')
     session['saldo'] = adm.get('saldo', 0.0)
     return redirect('/admin')
+
+@admin_bp.route('/admin/2fa/iniciar', methods=['POST'])
+@login_required
+def admin_2fa_iniciar():
+    if not es_super_admin():
+        return jsonify({"status": "error", "msg": "No autorizado"}), 403
+    secret = generar_totp_secret(32)
+    session['temp_totp_secret'] = secret
+    uri = f"otpauth://totp/ElMineroGris:admin?secret={secret}&issuer=ElMineroGris"
+    return jsonify({"status": "ok", "secret": secret, "uri": uri})
+
+@admin_bp.route('/admin/2fa/confirmar', methods=['POST'])
+@login_required
+def admin_2fa_confirmar():
+    if not es_super_admin():
+        return jsonify({"status": "error", "msg": "No autorizado"}), 403
+    data = request.get_json(silent=True) or {}
+    codigo = str(data.get('codigo') or '').strip()
+    secret = session.get('temp_totp_secret')
+    if not secret:
+        return jsonify({"status": "error", "msg": "Sesión de configuración 2FA expirada. Vuelve a iniciar."}), 400
+    if not verificar_totp(secret, codigo):
+        return jsonify({"status": "error", "msg": "Código 2FA incorrecto. Revisa que la hora de tu celular sea automática e intenta de nuevo."}), 400
+
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    cur.execute("UPDATE usuarios SET totp_secret=%s, totp_activo=1 WHERE LOWER(username)='admin'", (secret,))
+    session.pop('temp_totp_secret', None)
+    notificar_alerta_seguridad("2FA Activado para Super Admin", "Se vinculó exitosamente Google Authenticator a la cuenta admin.", request.remote_addr or "")
+    return jsonify({"status": "ok", "msg": "¡Autenticación 2FA activada con éxito!"})
+
+@admin_bp.route('/admin/2fa/desactivar', methods=['POST'])
+@login_required
+def admin_2fa_desactivar():
+    if not es_super_admin():
+        return jsonify({"status": "error", "msg": "No autorizado"}), 403
+    data = request.get_json(silent=True) or {}
+    codigo = str(data.get('codigo') or '').strip()
+    con = get_db(); con.autocommit = True; cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT totp_secret, totp_activo FROM usuarios WHERE LOWER(username)='admin'")
+    adm = cur.fetchone()
+    if not adm or a_int_seguro(adm.get('totp_activo'), 0) != 1:
+        return jsonify({"status": "error", "msg": "El 2FA no está activo"}), 400
+    if not verificar_totp(adm.get('totp_secret'), codigo):
+        return jsonify({"status": "error", "msg": "Código 2FA incorrecto para desactivar."}), 400
+
+    cur.execute("UPDATE usuarios SET totp_activo=0, totp_secret='' WHERE LOWER(username)='admin'")
+    notificar_alerta_seguridad("2FA Desactivado para Super Admin", "Se desactivó la protección 2FA de la cuenta admin.", request.remote_addr or "")
+    return jsonify({"status": "ok", "msg": "2FA desactivado correctamente."})
 
 @admin_bp.route('/admin', methods=['GET', 'POST'])
 @login_required
@@ -463,8 +511,13 @@ def admin_panel():
         'db_pct': min(100.0, round((db_mb / 1024.0) * 100.0, 1)),
         'hist_filas': hist_filas
     }
+    cur.execute("SELECT totp_activo FROM usuarios WHERE LOWER(username)='admin' LIMIT 1")
+    row_totp = cur.fetchone()
+    admin_totp_activo = bool(a_int_seguro((row_totp or {}).get('totp_activo'), 0) == 1)
+
     return render_seguro(
         'admin.html', active_page='admin', usuarios=usuarios, stats=stats,
         movimientos=movimientos, mapa_granjas=mapa_granjas, mapa_granjas_json=json.dumps(mapa_granjas),
-        anuncio_actual=anuncio_actual, por_vencer=por_vencer, msg=msg
+        anuncio_actual=anuncio_actual, por_vencer=por_vencer, msg=msg,
+        admin_totp_activo=admin_totp_activo
     )

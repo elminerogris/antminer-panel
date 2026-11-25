@@ -22,8 +22,13 @@ app.config.update(
     SESSION_REFRESH_EACH_REQUEST=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SECURE=bool(os.environ.get("RENDER") or os.environ.get("DATABASE_URL")),
-    SESSION_COOKIE_SAMESITE='Lax'
+    SESSION_COOKIE_SAMESITE='Lax',
+    MAX_CONTENT_LENGTH=10 * 1024 * 1024  # Máximo 10 MB de payload (Anti-DoS / Buffer Exhaustion)
 )
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return "Payload demasiado grande (máximo 10 MB permitido)", 413
 
 # Cabeceras de Seguridad HTTP (Anti-Clickjacking, Anti-MIME sniffing y HTTPS forzado)
 @app.after_request

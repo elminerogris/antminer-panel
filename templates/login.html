@@ -344,6 +344,33 @@
         </div>
         <div class="login-subtitle">Plataforma de Telemetría y Control ASIC</div>
 
+        {% if mode == '2fa' %}
+            <div style="text-align:center; margin: 10px 0 20px 0;">
+                <div style="font-size:2.4em; margin-bottom:6px;">📱</div>
+                <b style="font-size:1.15em; color:var(--text-main);">Verificación en Dos Pasos (2FA)</b>
+                <div style="font-size:0.80em; color:var(--text-muted); margin-top:5px; line-height:1.4;">
+                    Ingresa el código temporal de 6 dígitos generado en tu aplicación <b>Google Authenticator</b> o <b>Authy</b>.
+                </div>
+            </div>
+
+            {% if error %}
+                <div class="alert-box alert-error"><span>⚠️</span><span>{{ error }}</span></div>
+            {% endif %}
+
+            <form method="POST" action="/login">
+                <div class="form-group">
+                    <label for="codigo_2fa" style="text-align:center;">Código de Seguridad</label>
+                    <div class="input-wrap">
+                        <span class="input-icon" style="left:14px;">🔑</span>
+                        <input type="text" id="codigo_2fa" name="codigo_2fa" placeholder="••••••" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" required autofocus style="text-align:center; font-size:1.45em; letter-spacing:6px; font-weight:bold; font-family:monospace; padding-left:36px; padding-right:12px;">
+                    </div>
+                </div>
+                <button type="submit" class="btn-login" style="margin-top:14px;">🔓 Verificar e Ingresar</button>
+                <div style="text-align:center; margin-top:16px;">
+                    <a href="/login" style="font-size:0.80em; color:var(--text-muted); text-decoration:none;">← Cancelar y volver al inicio</a>
+                </div>
+            </form>
+        {% else %}
         <!-- Pestañas de navegación -->
         <div class="tabs">
             <a href="/login" class="tab {{ 'active' if mode == 'login' else '' }}">Iniciar Sesión</a>
@@ -395,6 +422,7 @@
                 <button type="submit" id="btnSubmitAuth" class="btn-login">⚡ Ingresar al Panel</button>
             {% endif %}
         </form>
+        {% endif %}
 
         <div class="login-footer">
             <span class="dot-live"></span>
