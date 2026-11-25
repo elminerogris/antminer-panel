@@ -12,12 +12,14 @@
         background: rgba(16, 20, 32, 0.9);
         color: #e2e8f0;
         border: 1px solid rgba(59, 130, 246, 0.4);
-        border-radius: 7px;
+        border-radius: 8px;
         padding: 5px 9px;
-        font-size: 0.78em;
-        font-weight: 700;
+        font-size: 0.82em;
+        font-weight: 600;
         cursor: pointer;
         outline: none;
+        height: 34px;
+        transition: all 0.2s ease;
     }
     :root[data-theme="light"] .emg-mini-lang {
         background: #ffffff;
@@ -28,10 +30,11 @@
         background: rgba(16, 20, 32, 0.9);
         color: #e2e8f0;
         border: 1px solid rgba(59, 130, 246, 0.4);
-        border-radius: 7px;
+        border-radius: 8px;
         padding: 4px 9px;
-        font-size: 0.84em;
+        font-size: 0.88em;
         cursor: pointer;
+        height: 34px;
         line-height: 1.25;
         transition: border-color 0.2s, background 0.2s;
     }
@@ -41,8 +44,9 @@
         color: #0f172a;
         border-color: #cbd5e1;
     }
-    @media (max-width: 600px) {
-        .emg-mini-lang { max-width: 118px; padding: 4px 6px; font-size: 0.74em; }
+    @media (max-width: 680px) {
+        .emg-mini-lang { max-width: 68px; padding: 0 6px; font-size: 0.80em; height: 32px; text-align: center; }
+        .emg-theme-btn { height: 32px; padding: 0 8px; }
     }
 </style>
 <script>
@@ -126,7 +130,21 @@
         }
     }
 
+    function ajustarEtiquetasStandalone() {
+        const esMovil = window.innerWidth <= 680;
+        const sel = document.getElementById('langSelectorStandalone');
+        if (!sel) return;
+        Array.from(sel.options).forEach(opt => {
+            const s = opt.getAttribute('data-short');
+            const f = opt.getAttribute('data-full');
+            if (esMovil && s) opt.textContent = s;
+            else if (!esMovil && f) opt.textContent = f;
+        });
+    }
+    window.addEventListener('resize', ajustarEtiquetasStandalone);
+
     window.addEventListener('DOMContentLoaded', function() {
+        ajustarEtiquetasStandalone();
         let lang = 'es';
         try {
             const saved = localStorage.getItem('emg_lang');

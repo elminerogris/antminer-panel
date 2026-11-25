@@ -411,11 +411,11 @@
             border: 1px solid var(--border-color);
             color: var(--text-main);
             height: 36px;
-            border-radius: 7px;
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s ease;
             font-size: 0.83em;
-            font-weight: bold;
+            font-weight: 600;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -433,7 +433,7 @@
         .top-lang-select { padding: 0 10px; outline: none; }
 
         @media (max-width: 768px) {
-            .top-lang-select { padding: 0 4px; font-size: 0.78em; max-width: 52px; }
+            .top-lang-select { padding: 0 6px; font-size: 0.80em; max-width: 66px; height: 32px; text-align: center; }
         }
 
         .top-status {
@@ -794,16 +794,16 @@
 
         <div class="sidebar-mobile-lang notranslate" translate="no">
             <select class="top-lang-select notranslate" translate="no" id="langSelectorMobile" style="width:100%; display:flex;" onchange="cambiarIdioma(this.value)">
-                <option value="es" translate="no">🇪🇸 Español</option>
-                <option value="en" translate="no">🇺🇸 English</option>
-                <option value="pt" translate="no">🇧🇷 Português</option>
-                <option value="ru" translate="no">🇷🇺 Русский</option>
-                <option value="zh-CN" translate="no">🇨🇳 中文 (简体)</option>
-                <option value="hi" translate="no">🇮🇳 हिन्दी</option>
-                <option value="ar" translate="no">🇸🇦 العربية</option>
-                <option value="bn" translate="no">🇧🇩 বাংলা</option>
-                <option value="fr" translate="no">🇫🇷 Français</option>
-                <option value="de" translate="no">🇩🇪 Deutsch</option>
+                <option value="es" translate="no">🌐 Español</option>
+                <option value="en" translate="no">🌐 English</option>
+                <option value="pt" translate="no">🌐 Português</option>
+                <option value="ru" translate="no">🌐 Русский</option>
+                <option value="zh-CN" translate="no">🌐 中文 (简体)</option>
+                <option value="hi" translate="no">🌐 हिन्दी</option>
+                <option value="ar" translate="no">🌐 العربية</option>
+                <option value="bn" translate="no">🌐 বাংলা</option>
+                <option value="fr" translate="no">🌐 Français</option>
+                <option value="de" translate="no">🌐 Deutsch</option>
             </select>
         </div>
 
@@ -906,16 +906,16 @@
                 <button type="button" class="top-btn" onclick="toggleTheme()" id="themeIcon" title="Cambiar tema claro/oscuro">☀️</button>
                 <div class="notranslate" translate="no" style="display:inline-flex;">
                     <select class="top-lang-select notranslate" translate="no" id="langSelector" onchange="cambiarIdioma(this.value)" title="Idioma / Language">
-                        <option value="es" translate="no">🇪🇸 Español</option>
-                        <option value="en" translate="no">🇺🇸 English</option>
-                        <option value="pt" translate="no">🇧🇷 Português</option>
-                        <option value="ru" translate="no">🇷🇺 Русский</option>
-                        <option value="zh-CN" translate="no">🇨🇳 中文 (简体)</option>
-                        <option value="hi" translate="no">🇮🇳 हिन्दी</option>
-                        <option value="ar" translate="no">🇸🇦 العربية</option>
-                        <option value="bn" translate="no">🇧🇩 বাংলা</option>
-                        <option value="fr" translate="no">🇫🇷 Français</option>
-                        <option value="de" translate="no">🇩🇪 Deutsch</option>
+                        <option value="es" translate="no" data-short="🌐 ES" data-full="🌐 Español">🌐 Español</option>
+                        <option value="en" translate="no" data-short="🌐 EN" data-full="🌐 English">🌐 English</option>
+                        <option value="pt" translate="no" data-short="🌐 PT" data-full="🌐 Português">🌐 Português</option>
+                        <option value="ru" translate="no" data-short="🌐 RU" data-full="🌐 Русский">🌐 Русский</option>
+                        <option value="zh-CN" translate="no" data-short="🌐 ZH" data-full="🌐 中文">🌐 中文</option>
+                        <option value="hi" translate="no" data-short="🌐 HI" data-full="🌐 हिन्दी">🌐 हिन्दी</option>
+                        <option value="ar" translate="no" data-short="🌐 AR" data-full="🌐 العربية">🌐 العربية</option>
+                        <option value="bn" translate="no" data-short="🌐 BN" data-full="🌐 বাংলা">🌐 বাংলা</option>
+                        <option value="fr" translate="no" data-short="🌐 FR" data-full="🌐 Français">🌐 Français</option>
+                        <option value="de" translate="no" data-short="🌐 DE" data-full="🌐 Deutsch">🌐 Deutsch</option>
                     </select>
                 </div>
                 <div class="top-status" id="liveStatusPill" onclick="toggleAutoLive()" title="Toca para pausar o reanudar la actualización automática">
@@ -1155,7 +1155,21 @@
             return mapeo[prefijo] || null;
         }
 
+        function ajustarEtiquetasIdioma() {
+            const esMovil = window.innerWidth <= 768;
+            const sel = document.getElementById('langSelector');
+            if (!sel) return;
+            Array.from(sel.options).forEach(opt => {
+                const s = opt.getAttribute('data-short');
+                const f = opt.getAttribute('data-full');
+                if (esMovil && s) opt.textContent = s;
+                else if (!esMovil && f) opt.textContent = f;
+            });
+        }
+        window.addEventListener('resize', ajustarEtiquetasIdioma);
+
         function aplicarIdiomaInicial() {
+            ajustarEtiquetasIdioma();
             const activo = detectarIdiomaAutomatico() || 'es';
             _sincronizarSelectoresIdioma(activo);
             _setGoogTransCookie(activo);
