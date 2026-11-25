@@ -2,7 +2,7 @@ from flask import render_template, render_template_string, redirect, session
 from werkzeug.security import check_password_hash
 from jinja2 import TemplateNotFound
 from functools import wraps
-import json, urllib.request, urllib.parse, time, os, secrets, hashlib, re, threading, base64, struct, hmac
+import json, urllib.request, urllib.parse, time, os, secrets, hashlib, re, threading, base64, struct, hmac, math, html
 from datetime import datetime
 
 LIMITE_MINEROS_GRATIS = 3
@@ -45,16 +45,81 @@ def login_required(f):
 def a_int_seguro(val, defecto=0):
     try:
         if val is None or val == "": return defecto
-        return int(float(val))
+        f = float(val)
+        if math.isnan(f) or math.isinf(f): return defecto
+        return int(f)
     except:
         return defecto
 
 def a_float_seguro(val, defecto=0.0):
     try:
         if val is None or val == "": return defecto
-        return float(val)
+        f = float(val)
+        if math.isnan(f) or math.isinf(f): return defecto
+        return f
     except:
         return defecto
+
+def sanitizar_nombre_minero(val, ip_defecto=""):
+    """
+    Sanitiza nombres de minero para evitar desbordes de UI, XSS, colisiones de delimitadores (|)
+    e inyecciones. Límite estricto: 40 caracteres.
+    """
+    if val is None:
+        s = ""
+    else:
+        s = str(val).strip()
+    # Eliminar bytes nulos y caracteres de control no imprimibles
+    s = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', s)
+    # Reemplazar delimitador pipe (|) que rompería comandos de socket o protocolos
+    s = s.replace('|', '-')
+    # Quitar cualquier etiqueta HTML inyectada
+    s = re.sub(r'<[^>]*>', '', s)
+    # Conservar caracteres válidos: alfanuméricos, espacios, guiones, puntos, #, (), /
+    s = re.sub(r'[^\w\s\-\.\#\(\)\/]', '', s, flags=re.UNICODE)
+    # Colapsar espacios consecutivos
+    s = re.sub(r'\s+', ' ', s).strip()
+    if len(s) > 40:
+        s = s[:40].strip()
+    if not s:
+        if ip_defecto:
+            ultimo = str(ip_defecto).split('.')[-1]
+            return f"Minero {ultimo}" if ultimo.isdigit() else f"Minero {ip_defecto}"
+        return "Minero"
+    return s
+
+def sanitizar_nombre_granja(val, defecto="Granja 001"):
+    """
+    Sanitiza nombres de granja / sede. Límite estricto: 50 caracteres.
+    """
+    if val is None:
+        s = ""
+    else:
+        s = str(val).strip()
+    s = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', s)
+    s = s.replace('|', '-')
+    s = re.sub(r'<[^>]*>', '', s)
+    s = re.sub(r'[^\w\s\-\.\#\(\)\,\/]', '', s, flags=re.UNICODE)
+    s = re.sub(r'\s+', ' ', s).strip()
+    if len(s) > 50:
+        s = s[:50].strip()
+    return s if s else defecto
+
+def sanitizar_texto_seguro(val, max_len=250, defecto=""):
+    """
+    Sanitiza notas, descripciones y campos libres para evitar XSS o bytes nulos.
+    """
+    if val is None:
+        s = ""
+    else:
+        s = str(val).strip()
+    s = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', s)
+    s = s.replace('|', '-')
+    s = re.sub(r'<[^>]*>', '', s)
+    s = re.sub(r'\s+', ' ', s).strip()
+    if len(s) > max_len:
+        s = s[:max_len].strip()
+    return s if s else defecto
 
 def es_cuenta_pro(username, plan_str, pro_hasta_str=""):
     if str(username or '').lower() == 'admin':
@@ -291,16 +356,30 @@ def determinar_credenciales_defecto(marca="", modelo=""):
     }
 
 def enviar_telegram(token, chat_id, texto):
-    if not token or not chat_id: return False
+    if not token or not chat_id or not texto: return False
+    txt = str(texto)
+    # Límite de mensaje en Telegram: 4096 caracteres. Truncamos a 4000 para evitar rechazos HTTP 400
+    if len(txt) > 4000:
+        txt = txt[:3985] + "\n...(cortado por longitud)"
+    url = f"https://api.telegram.org/bot{token.strip()}/sendMessage"
+
+    # Intento 1: Envío formateado en HTML
     try:
-        url = f"https://api.telegram.org/bot{token.strip()}/sendMessage"
-        datos = urllib.parse.urlencode({'chat_id': chat_id.strip(), 'text': texto, 'parse_mode': 'HTML'}).encode('utf-8')
+        datos = urllib.parse.urlencode({'chat_id': str(chat_id).strip(), 'text': txt, 'parse_mode': 'HTML'}).encode('utf-8')
         req = urllib.request.Request(url, data=datos, headers={'User-Agent': 'Mozilla/5.0'})
         urllib.request.urlopen(req, timeout=4)
         return True
-    except Exception as e:
-        print(f"Error Telegram: {e}")
-        return False
+    except Exception as e_html:
+        # Si Telegram rechaza el HTML (ej: entidades no balanceadas), enviar texto plano sin formato
+        try:
+            txt_plano = re.sub(r'<[^>]*>', '', txt)
+            datos_plano = urllib.parse.urlencode({'chat_id': str(chat_id).strip(), 'text': txt_plano}).encode('utf-8')
+            req_plano = urllib.request.Request(url, data=datos_plano, headers={'User-Agent': 'Mozilla/5.0'})
+            urllib.request.urlopen(req_plano, timeout=4)
+            return True
+        except Exception as e_plano:
+            print(f"Error Telegram fallback plano: {e_plano} (original: {e_html})")
+            return False
 
 def generar_totp_secret(length=32):
     """Genera una clave secreta base32 para 2FA compatible con Google Authenticator y Authy."""

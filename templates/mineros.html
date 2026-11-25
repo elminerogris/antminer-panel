@@ -1151,7 +1151,7 @@
                             ${credHtml}
                         </td>
                         <td>
-                            <input type="text" class="scan-inp-name" value="${nomVal}" placeholder="Nombre" oninput="scanState.nombres['${d.ip}']=this.value">
+                            <input type="text" class="scan-inp-name" maxlength="40" value="${nomVal}" placeholder="Nombre" oninput="scanState.nombres['${d.ip}']=this.value">
                         </td>
                         <td>
                             <select class="scan-sel-farm" onchange="scanState.granjaPorIp['${d.ip}']=this.value">
@@ -1402,6 +1402,16 @@
         document.getElementById('compareMinersModal').style.display = 'none';
     }
 
+    function escapeHTML(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function renderizarComparacionMineros() {
         const ipA = document.getElementById('cmpSelectA').value;
         const ipB = document.getElementById('cmpSelectB').value;
@@ -1429,23 +1439,23 @@
                 <thead>
                     <tr>
                         <th>Métrica</th>
-                        <th><a href="/minero/${a.ip}" class="miner-link">${a.nombre}</a><div class="sub-txt">${a.ip}</div></th>
-                        <th><a href="/minero/${b.ip}" class="miner-link">${b.nombre}</a><div class="sub-txt">${b.ip}</div></th>
+                        <th><a href="/minero/${encodeURIComponent(a.ip)}" class="miner-link">${escapeHTML(a.nombre)}</a><div class="sub-txt">${escapeHTML(a.ip)}</div></th>
+                        <th><a href="/minero/${encodeURIComponent(b.ip)}" class="miner-link">${escapeHTML(b.nombre)}</a><div class="sub-txt">${escapeHTML(b.ip)}</div></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr><td>Estado</td><td style="color:${a.online ? '#00e676' : '#ff5252'}; font-weight:bold;">${a.online ? '● Online' : '● Offline'}</td><td style="color:${b.online ? '#00e676' : '#ff5252'}; font-weight:bold;">${b.online ? '● Online' : '● Offline'}</td></tr>
-                    <tr><td>Modelo</td><td>${a.modelo}</td><td>${b.modelo}</td></tr>
-                    <tr><td>Hashrate (5s / 30m)</td><td class="${cHrA}">${a.hr} / ${a.hr30} ${a.unidad}</td><td class="${cHrB}">${b.hr} / ${b.hr30} ${b.unidad}</td></tr>
+                    <tr><td>Modelo</td><td>${escapeHTML(a.modelo)}</td><td>${escapeHTML(b.modelo)}</td></tr>
+                    <tr><td>Hashrate (5s / 30m)</td><td class="${cHrA}">${a.hr} / ${a.hr30} ${escapeHTML(a.unidad)}</td><td class="${cHrB}">${b.hr} / ${b.hr30} ${escapeHTML(b.unidad)}</td></tr>
                     <tr><td>Temp. Máx Chips</td><td class="${a.temp >= 85 ? 'cmp-warn' : cTA}">${a.temp}°C</td><td class="${b.temp >= 85 ? 'cmp-warn' : cTB}">${b.temp}°C</td></tr>
                     <tr><td>Temp. Ambiente</td><td>${a.tamb > 0 ? a.tamb + '°C' : '-'}</td><td>${b.tamb > 0 ? b.tamb + '°C' : '-'}</td></tr>
                     <tr><td>Consumo</td><td>${a.kw} kW</td><td>${b.kw} kW</td></tr>
-                    <tr><td>Eficiencia</td><td class="${cEfiA}">${a.efi} ${a.uefi}</td><td class="${cEfiB}">${b.efi} ${b.uefi}</td></tr>
+                    <tr><td>Eficiencia</td><td class="${cEfiA}">${a.efi} ${escapeHTML(a.uefi)}</td><td class="${cEfiB}">${b.efi} ${escapeHTML(b.uefi)}</td></tr>
                     <tr><td>Placas / Chips</td><td>${a.placas} pl. · ${a.chips} ch.</td><td>${b.placas} pl. · ${b.chips} ch.</td></tr>
                     <tr><td>Errores HW</td><td class="${a.err > 50 ? 'cmp-warn' : cErrA}">${a.err}</td><td class="${b.err > 50 ? 'cmp-warn' : cErrB}">${b.err}</td></tr>
                     <tr><td>Rechazos (%)</td><td class="${a.rej > 1.5 ? 'cmp-warn' : cRejA}">${a.rej.toFixed(2)}%</td><td class="${b.rej > 1.5 ? 'cmp-warn' : cRejB}">${b.rej.toFixed(2)}%</td></tr>
-                    <tr><td>Refrigeración</td><td style="font-size:0.88em;">${a.fans}</td><td style="font-size:0.88em;">${b.fans}</td></tr>
-                    <tr><td>Tiempo Activo</td><td>${a.uptime}</td><td>${b.uptime}</td></tr>
+                    <tr><td>Refrigeración</td><td style="font-size:0.88em;">${escapeHTML(a.fans)}</td><td style="font-size:0.88em;">${escapeHTML(b.fans)}</td></tr>
+                    <tr><td>Tiempo Activo</td><td>${escapeHTML(a.uptime)}</td><td>${escapeHTML(b.uptime)}</td></tr>
                 </tbody>
             </table>
         `;
@@ -1456,11 +1466,11 @@
             const diffT = Math.abs(a.temp - b.temp);
             if (diffT >= 5) {
                 const masCaliente = a.temp > b.temp ? a : b;
-                tips.push(`🌡️ <b>${masCaliente.nombre}</b> está <b>${diffT}°C más caliente</b> — revisa limpieza de disipadores, ventilación o pasta térmica.`);
+                tips.push(`🌡️ <b>${escapeHTML(masCaliente.nombre)}</b> está <b>${diffT}°C más caliente</b> — revisa limpieza de disipadores, ventilación o pasta térmica.`);
             }
             if (a.err > 50 || b.err > 50) {
                 const masErr = a.err >= b.err ? a : b;
-                tips.push(`⚠️ <b>${masErr.nombre}</b> acumula <b>${masErr.err} errores HW</b> — conviene vigilar sus placas hash.`);
+                tips.push(`⚠️ <b>${escapeHTML(masErr.nombre)}</b> acumula <b>${masErr.err} errores HW</b> — conviene vigilar sus placas hash.`);
             }
         }
         const diagBox = document.getElementById('cmpDiagBox');

@@ -53,11 +53,11 @@
         <input type="hidden" id="fm_id">
         <div class="fm-group">
             <label>Nombre de la Granja / Galpón</label>
-            <input type="text" id="fm_nombre" class="fm-input" placeholder="Ej: Galpón Norte - Santa Cruz">
+            <input type="text" id="fm_nombre" maxlength="50" class="fm-input" placeholder="Ej: Galpón Norte - Santa Cruz">
         </div>
         <div class="fm-group">
             <label>Ciudad / Ubicación</label>
-            <input type="text" id="fm_ciudad" class="fm-input" placeholder="Ej: Santa Cruz de la Sierra">
+            <input type="text" id="fm_ciudad" maxlength="60" class="fm-input" placeholder="Ej: Santa Cruz de la Sierra">
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
             <div class="fm-group">
@@ -71,11 +71,11 @@
         </div>
         <div class="fm-group">
             <label>IP del Router / Gateway</label>
-            <input type="text" id="fm_gateway" class="fm-input" placeholder="Ej: 192.168.0.1 o 192.168.0.125">
+            <input type="text" id="fm_gateway" maxlength="60" class="fm-input" placeholder="Ej: 192.168.0.1 o 192.168.0.125">
         </div>
         <div class="fm-group">
             <label>Notas del Técnico</label>
-            <input type="text" id="fm_notas" class="fm-input" placeholder="Ej: Transformador 75 kVA · Rack A">
+            <input type="text" id="fm_notas" maxlength="200" class="fm-input" placeholder="Ej: Transformador 75 kVA · Rack A">
         </div>
         <div style="display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:18px;">
             <button type="button" id="btnEliminarGranja" class="btn-farm-cmd reboot" style="flex:0 0 auto; padding:8px 12px; display:none;" onclick="eliminarGranjaActual()">🗑️ Eliminar</button>
@@ -104,7 +104,7 @@
         </div>
         <div class="fm-group">
             <label>Nombre del ASIC</label>
-            <input type="text" id="mm_nombre" class="fm-input" placeholder="Ej: Rack-01-S21">
+            <input type="text" id="mm_nombre" maxlength="40" class="fm-input" placeholder="Ej: Rack-01-S21">
         </div>
         <div class="fm-group">
             <label>Granja / Sede Asignada</label>

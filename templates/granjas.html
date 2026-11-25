@@ -997,7 +997,7 @@
                             <div style="font-size:0.82em; color:var(--accent-blue-light); font-family:monospace;">${d.ip}</div>
                         </td>
                         <td>
-                            <input type="text" class="scan-inp-name" value="${nomVal}" placeholder="Nombre" oninput="scanState.nombres['${d.ip}']=this.value">
+                            <input type="text" class="scan-inp-name" maxlength="40" value="${nomVal}" placeholder="Nombre" oninput="scanState.nombres['${d.ip}']=this.value">
                         </td>
                         <td>
                             <select class="scan-sel-farm" onchange="scanState.granjaPorIp['${d.ip}']=this.value">

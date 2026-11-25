@@ -9,7 +9,8 @@ from utils import (
     verificar_password, a_int_seguro, a_float_seguro, evaluar_plan_usuario,
     clave_granja_minero, calcular_segundos_desconectado, alerta_en_enfriamiento,
     obtener_ubicacion_ip_agente, obtener_clima_coordenadas, ventilador_en_cero,
-    enviar_telegram, obtener_codigo_agente_configurado, determinar_credenciales_defecto
+    enviar_telegram, obtener_codigo_agente_configurado, determinar_credenciales_defecto,
+    sanitizar_nombre_minero
 )
 
 agente_bp = Blueprint('agente_bp', __name__)
@@ -1503,7 +1504,7 @@ def api_escaner_agregar():
         ip_c = str(it.get('ip') or '').strip()
         if not ip_c:
             continue
-        nombre_custom = str(it.get('nombre') or '').strip()[:50]
+        nombre_custom = sanitizar_nombre_minero(it.get('nombre'), ip_defecto=ip_c)
         farm_dest = str(it.get('farm_id') or '').strip()
 
         ya_existe = ip_c in ips_existentes

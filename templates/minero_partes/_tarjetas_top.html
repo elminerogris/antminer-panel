@@ -354,7 +354,7 @@
 
         <form id="formNombrePro" class="form-edit-name-inline" action="/guardar_nombre" method="POST">
             <input type="hidden" name="ip" value="{{ ip }}">
-            <input type="text" name="nombre" value="{{ nombre }}" class="input-name-pro" placeholder="Alias del minero..." required>
+            <input type="text" name="nombre" maxlength="40" value="{{ nombre }}" class="input-name-pro" placeholder="Alias del minero..." required>
             <button type="submit" class="btn-emg-save" style="padding:6px 12px; font-size:0.78em;"
                     data-save-title="💾 Guardar Alias del Minero"
                     data-save-desc="Asigna un nombre personalizado a esta máquina (ej. Rack-A1) para identificarla rápido en todo el panel."

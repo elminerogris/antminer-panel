@@ -12,7 +12,8 @@ from utils import (
     clave_granja_minero, nombre_inteligente_minero, calcular_segundos_desconectado,
     ordenar_ip_key, obtener_datos_red, enviar_telegram, render_seguro,
     generar_totp_secret, verificar_totp, notificar_alerta_seguridad,
-    parsear_dispositivo, fijar_cookie_dispositivo, determinar_credenciales_defecto
+    parsear_dispositivo, fijar_cookie_dispositivo, determinar_credenciales_defecto,
+    sanitizar_nombre_minero, sanitizar_nombre_granja, sanitizar_texto_seguro
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
@@ -232,7 +233,7 @@ def api_importar_backup():
             if not isinstance(item, dict):
                 continue
             ip = str(item.get("ip") or "").strip()
-            nom = str(item.get("nombre") or "").strip()
+            nom = sanitizar_nombre_minero(item.get("nombre"), ip_defecto=ip)
             if ip and nom:
                 cur.execute(
                     "INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s) ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre",
@@ -246,14 +247,14 @@ def api_importar_backup():
             if not isinstance(g, dict):
                 continue
             fid = str(g.get("farm_id") or "").strip()
-            nom = str(g.get("nombre") or "").strip()
+            nom = sanitizar_nombre_granja(g.get("nombre"), defecto="Granja 001")
             if not fid or not nom:
                 continue
-            ciudad = str(g.get("ciudad") or "Santa Cruz de la Sierra").strip()
+            ciudad = sanitizar_texto_seguro(g.get("ciudad"), max_len=60, defecto="Santa Cruz de la Sierra")
             gw = str(g.get("gateway") or "").strip()
             cap_kw = max(1.0, a_float_seguro(g.get("cap_kw"), 50.0))
             tarifa_kwh = max(0.0, a_float_seguro(g.get("tarifa_kwh"), 0.06))
-            notas = str(g.get("notas") or "").strip()
+            notas = sanitizar_texto_seguro(g.get("notas"), max_len=200)
             cur.execute("""
                 INSERT INTO granjas_sedes (owner, farm_id, nombre, ciudad, gateway, cap_kw, tarifa_kwh, notas)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -358,12 +359,12 @@ def api_granjas_guardar():
     usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     farm_id = str(data.get('farm_id') or '').strip()
-    nombre = str(data.get('nombre') or '').strip()
-    ciudad = str(data.get('ciudad') or '').strip() or 'Santa Cruz de la Sierra'
+    nombre = sanitizar_nombre_granja(data.get('nombre'), defecto="")
+    ciudad = sanitizar_texto_seguro(data.get('ciudad'), max_len=60, defecto='Santa Cruz de la Sierra')
     cap_kw = max(1.0, a_float_seguro(data.get('cap_kw'), 50.0))
     tarifa_kwh = max(0.0, a_float_seguro(data.get('tarifa_kwh'), 0.06))
-    gateway = str(data.get('gateway') or '').strip()
-    notas = str(data.get('notas') or '').strip()
+    gateway = str(data.get('gateway') or '').strip()[:60]
+    notas = sanitizar_texto_seguro(data.get('notas'), max_len=200)
 
     if not nombre:
         return jsonify({"status": "error", "msg": "El nombre de la granja es obligatorio"}), 400
@@ -466,7 +467,8 @@ def api_granjas_editar_minero():
     usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     ip = str(data.get('ip') or '').strip()
-    nuevo_nombre = str(data.get('nombre') or '').strip()
+    raw_nombre = data.get('nombre')
+    nuevo_nombre = sanitizar_nombre_minero(raw_nombre, ip_defecto=ip) if raw_nombre is not None else ''
     nuevo_farm_id = str(data.get('farm_id') or '').strip()
 
     if not ip:
@@ -1883,8 +1885,9 @@ def logout():
 @login_required
 def guardar_nombre():
     usr_actual = session.get('usuario', 'Admin')
-    ip = request.form.get('ip')
-    nombre = request.form.get('nombre')
+    ip = str(request.form.get('ip') or '').strip()
+    raw_nombre = request.form.get('nombre')
+    nombre = sanitizar_nombre_minero(raw_nombre, ip_defecto=ip) if raw_nombre is not None else ''
     if ip and nombre:
         con = get_db(); con.autocommit = True; cur = con.cursor()
         cur.execute("INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s) ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre", (usr_actual, ip, nombre))
