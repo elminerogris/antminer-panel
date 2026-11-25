@@ -12,6 +12,16 @@ from utils import (
 
 admin_bp = Blueprint('admin_bp', __name__)
 
+@admin_bp.before_request
+def _proteger_admin_bp():
+    """Blindaje centralizado: solo la cuenta super admin puede acceder a cualquier endpoint de administración."""
+    if 'usuario' not in session:
+        return redirect('/login')
+    if not es_super_admin():
+        if request.is_json or request.path.endswith(('.json', '_granja')):
+            return jsonify({"status": "error", "msg": "Acceso denegado: permisos de administrador requeridos"}), 403
+        return redirect('/')
+
 
 def _distancia_km(lat1, lon1, lat2, lon2):
     if not (lat1 and lon1 and lat2 and lon2):
@@ -455,6 +465,6 @@ def admin_panel():
     }
     return render_seguro(
         'admin.html', active_page='admin', usuarios=usuarios, stats=stats,
-        movimientos=movimientos, mapa_granjas_json=json.dumps(mapa_granjas),
+        movimientos=movimientos, mapa_granjas=mapa_granjas, mapa_granjas_json=json.dumps(mapa_granjas),
         anuncio_actual=anuncio_actual, por_vencer=por_vencer, msg=msg
     )

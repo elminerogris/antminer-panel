@@ -798,7 +798,7 @@
 </div>
 
 <script>
-    const GRANJAS_DATA = {{ mapa_granjas_json | safe }};
+    const GRANJAS_DATA = {{ mapa_granjas | tojson if mapa_granjas is defined else (mapa_granjas_json | default('[]')) }};
     const USERS_ID_MAP = {
         {% for u in usuarios %}{{ u.username|tojson }}: {{ u.id }}{% if not loop.last %},{% endif %}{% endfor %}
     };

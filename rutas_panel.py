@@ -34,6 +34,21 @@ def verificar_rate_limit(clave, max_intentos=8, ventana_seg=300):
         _rate_buckets[clave] = hist
         return False
 
+def _validar_origen_csrf():
+    """Valida que peticiones críticas de control provengan del mismo host (Anti-CSRF)."""
+    host = request.host
+    ref = request.headers.get('Referer', '')
+    orig = request.headers.get('Origin', '')
+    if orig:
+        clean_orig = orig.split('://')[-1].split('/')[0]
+        if clean_orig != host:
+            return False
+    elif ref:
+        clean_ref = ref.split('://')[-1].split('/')[0]
+        if clean_ref != host:
+            return False
+    return True
+
 def despachar_comando(cur, owner, ip, comando, fecha=None):
     ahora = fecha or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     agent_id = 'default'
@@ -1515,6 +1530,9 @@ def register():
             return render_seguro('login.html', error='Completa usuario y contraseña', mode='register')
         if len(u) < 3 or len(u) > 30 or ' ' in u:
             return render_seguro('login.html', error='El usuario debe tener entre 3 y 30 caracteres sin espacios', mode='register')
+        RESERVADOS = {'admin', 'administrator', 'root', 'soporte', 'system', 'elminerogris', 'moderador', 'staff', 'owner', 'miner'}
+        if u.lower() in RESERVADOS:
+            return render_seguro('login.html', error='Nombre de usuario reservado o no permitido', mode='register')
         if len(p) < 6:
             return render_seguro('login.html', error='La contraseña debe tener al menos 6 caracteres', mode='register')
         try:
@@ -1615,6 +1633,8 @@ def guardar_nombre():
 @panel_bp.route('/cmd_bulk', methods=['POST'])
 @login_required
 def cmd_bulk():
+    if not _validar_origen_csrf():
+        return jsonify({"status": "error", "msg": "Origen no permitido (CSRF)"}), 403
     usr_actual = session.get('usuario', 'Admin')
     plan_actual = session.get('plan', 'Gratis')
     data = request.get_json(silent=True) or {}
@@ -1636,29 +1656,44 @@ def cmd_bulk():
             despachar_comando(cur, usr_actual, ip, accion, ahora)
     return jsonify({"status": "ok"})
 
-@panel_bp.route('/cmd/<ip>/<accion>')
+@panel_bp.route('/cmd/<ip>/<accion>', methods=['GET', 'POST'])
 @login_required
 def comando_minero(ip, accion):
+    if not _validar_origen_csrf():
+        return jsonify({"status": "error", "msg": "Origen no permitido (CSRF)"}), 403
+
     usr_actual = session.get('usuario', 'Admin')
+
+    # Mitigación IDOR: Verificar que el minero pertenezca al usuario en sesión
+    con = get_db(); con.autocommit = True; cur = con.cursor()
+    cur.execute("SELECT id FROM mineros_activos WHERE owner=%s AND ip=%s LIMIT 1", (usr_actual, ip))
+    if not cur.fetchone() and not es_super_admin():
+        return jsonify({"status": "error", "msg": "Minero no autorizado"}), 403
+
     cmd_str = ""
     if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'):
         cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
     elif accion == 'set_network':
-        host = request.args.get('host', 'Antminer')
-        proto = request.args.get('proto', '2')
-        nip = request.args.get('nip', ip)
-        mask = request.args.get('mask', '255.255.255.0')
-        gw = request.args.get('gw', '192.168.0.1')
-        dns = request.args.get('dns', '8.8.8.8')
+        host = str(request.args.get('host', 'Antminer')).replace('|', '').strip()
+        proto = str(request.args.get('proto', '2')).replace('|', '').strip()
+        nip = str(request.args.get('nip', ip)).replace('|', '').strip()
+        mask = str(request.args.get('mask', '255.255.255.0')).replace('|', '').strip()
+        gw = str(request.args.get('gw', '192.168.0.1')).replace('|', '').strip()
+        dns = str(request.args.get('dns', '8.8.8.8')).replace('|', '').strip()
         cmd_str = f"set_network|{host}|{proto}|{nip}|{mask}|{gw}|{dns}"
     elif accion == 'guardar_pools':
-        u1 = request.args.get('u1', ''); w1 = request.args.get('w1', ''); p1 = request.args.get('p1', '123')
-        u2 = request.args.get('u2', ''); w2 = request.args.get('w2', ''); p2 = request.args.get('p2', '123')
-        u3 = request.args.get('u3', ''); w3 = request.args.get('w3', ''); p3 = request.args.get('p3', '123')
+        u1 = str(request.args.get('u1', '')).replace('|', '').strip()
+        w1 = str(request.args.get('w1', '')).replace('|', '').strip()
+        p1 = str(request.args.get('p1', '123')).replace('|', '').strip()
+        u2 = str(request.args.get('u2', '')).replace('|', '').strip()
+        w2 = str(request.args.get('w2', '')).replace('|', '').strip()
+        p2 = str(request.args.get('p2', '123')).replace('|', '').strip()
+        u3 = str(request.args.get('u3', '')).replace('|', '').strip()
+        w3 = str(request.args.get('w3', '')).replace('|', '').strip()
+        p3 = str(request.args.get('p3', '123')).replace('|', '').strip()
         cmd_str = f"guardar_pools|{u1}|{w1}|{p1}|{u2}|{w2}|{p2}|{u3}|{w3}|{p3}"
 
     if cmd_str:
-        con = get_db(); con.autocommit = True; cur = con.cursor()
         despachar_comando(cur, usr_actual, ip, cmd_str)
     return "OK"
 

@@ -1,5 +1,5 @@
 from flask import Flask, request, session
-import psycopg2.extras, os, time, traceback
+import psycopg2.extras, os, time, traceback, secrets
 from datetime import datetime, timedelta
 
 from db import DB_URL, get_db, cerrar_conexion_bd, init_db, asegurar_bd_inicializada
@@ -13,9 +13,10 @@ from tunel import init_tunel
 from monitor_offline import iniciar_monitor_offline
 
 app = Flask(__name__, template_folder='templates')
-app.secret_key = os.environ.get("SECRET_KEY", "super_secreta_antminer_tools")
+# Blindar SECRET_KEY: usa variable de entorno de Render o genera clave criptográfica aleatoria en memoria
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
-# Sesiones persistentes por 30 días (se renuevan automáticamente al usar el panel)
+# Sesiones persistentes por 30 días con cookies blindadas contra XSS y CSRF
 app.permanent_session_lifetime = timedelta(days=30)
 app.config.update(
     SESSION_REFRESH_EACH_REQUEST=True,
@@ -23,6 +24,17 @@ app.config.update(
     SESSION_COOKIE_SECURE=bool(os.environ.get("RENDER") or os.environ.get("DATABASE_URL")),
     SESSION_COOKIE_SAMESITE='Lax'
 )
+
+# Cabeceras de Seguridad HTTP (Anti-Clickjacking, Anti-MIME sniffing y HTTPS forzado)
+@app.after_request
+def agregar_cabeceras_seguridad(response):
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    if os.environ.get("RENDER") or os.environ.get("DATABASE_URL"):
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
 
 try:
     from flask_compress import Compress
