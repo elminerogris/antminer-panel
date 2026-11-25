@@ -465,3 +465,21 @@ def parsear_dispositivo(ua_string):
     elif "opera/" in ua or "opr/" in ua: browser = "Opera"
 
     return f"{browser} en {os_name}"
+
+def fijar_cookie_dispositivo(resp, raw_token):
+    """Establece la cookie persistente para Dispositivos de Confianza con alcance de dominio seguro."""
+    from flask import request
+    import os
+    host_c = (request.host or '').split(':')[0].lower()
+    cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
+    resp.set_cookie(
+        'emg_trusted_device', raw_token,
+        max_age=30 * 86400,
+        httponly=True,
+        secure=bool(os.environ.get("RENDER") or os.environ.get("DATABASE_URL")),
+        samesite='Lax',
+        path='/',
+        domain=cookie_domain
+    )
+    return resp
+

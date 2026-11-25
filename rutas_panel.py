@@ -12,7 +12,7 @@ from utils import (
     clave_granja_minero, nombre_inteligente_minero, calcular_segundos_desconectado,
     ordenar_ip_key, obtener_datos_red, enviar_telegram, render_seguro,
     generar_totp_secret, verificar_totp, notificar_alerta_seguridad,
-    parsear_dispositivo
+    parsear_dispositivo, fijar_cookie_dispositivo
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
@@ -1527,15 +1527,17 @@ def login():
                 return render_seguro('login.html', error='Código 2FA incorrecto o expirado. Intenta nuevamente.', mode='2fa')
 
             # 2FA aprobado -> Sesión limpia y autenticada
+            rec_pref = (request.form.get('recordar_dispositivo') == '1') or (session.get('recordar_dispositivo_pref') == '1')
             session.clear()
             session.permanent = True
             session['usuario'] = usr['username']
             session['plan'] = usr.get('plan', 'Gratis')
             session['saldo'] = usr.get('saldo', 0.0)
             session['last_seen_ts'] = time.time()
+            session['admin_last_activity'] = time.time()
 
             resp = redirect('/resumen')
-            if request.form.get('recordar_dispositivo') == '1':
+            if rec_pref:
                 raw_token = secrets.token_hex(32)
                 tok_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
                 ahora_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -1545,12 +1547,7 @@ def login():
                     "INSERT INTO dispositivos_confianza (username, token_hash, dispositivo, ip, fecha_creacion, expira_en) VALUES (%s, %s, %s, %s, %s, %s)",
                     (usr['username'], tok_hash, ua_str, _ip_cliente(), ahora_str, exp_dt)
                 )
-                resp.set_cookie(
-                    'emg_trusted_device', raw_token,
-                    max_age=30 * 86400, httponly=True,
-                    secure=bool(os.environ.get("RENDER") or os.environ.get("DATABASE_URL")),
-                    samesite='Lax'
-                )
+                fijar_cookie_dispositivo(resp, raw_token)
             return resp
 
         # 2. Paso 1: Verificación de Usuario y Contraseña
@@ -1561,6 +1558,7 @@ def login():
 
         u = (request.form.get('username') or '').strip()
         p = request.form.get('password') or ''
+        rec_disp = (request.form.get('recordar_dispositivo') == '1')
 
         if u and verificar_rate_limit(f"login_acc:{u.lower()}", max_intentos=5, ventana_seg=300):
             notificar_alerta_seguridad("Ataque de Fuerza Bruta a Cuenta", f"Múltiples intentos fallidos hacia la cuenta: {u}", ip_c)
@@ -1581,9 +1579,9 @@ def login():
                 cur.execute("UPDATE usuarios SET ultima_conexion=%s WHERE id=%s", (ahora_str, usr['id']))
 
             # Si el usuario tiene 2FA activado, comprobar si este dispositivo ya fue recordado (Dispositivo de Confianza)
+            disp_valido = False
             if a_int_seguro(usr.get('totp_activo'), 0) == 1 and usr.get('totp_secret'):
                 disp_token = request.cookies.get('emg_trusted_device')
-                disp_valido = False
                 if disp_token:
                     tok_hash = hashlib.sha256(disp_token.encode('utf-8')).hexdigest()
                     cur.execute(
@@ -1596,6 +1594,8 @@ def login():
                 if not disp_valido:
                     session.clear()
                     session['2fa_pending_user'] = usr['username']
+                    if rec_disp:
+                        session['recordar_dispositivo_pref'] = '1'
                     return render_seguro('login.html', mode='2fa')
 
             # Anti-Session Fixation: limpiar identificador anterior antes de poblar la sesión
@@ -1605,7 +1605,20 @@ def login():
             session['plan'] = usr.get('plan', 'Gratis')
             session['saldo'] = usr.get('saldo', 0.0)
             session['last_seen_ts'] = time.time()
-            return redirect('/resumen')
+            session['admin_last_activity'] = time.time()
+
+            resp = redirect('/resumen')
+            if rec_disp:
+                raw_token = secrets.token_hex(32)
+                tok_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+                exp_dt = (datetime.utcnow() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                ua_str = parsear_dispositivo(request.headers.get('User-Agent', ''))
+                cur.execute(
+                    "INSERT INTO dispositivos_confianza (username, token_hash, dispositivo, ip, fecha_creacion, expira_en) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (usr['username'], tok_hash, ua_str, _ip_cliente(), ahora_str, exp_dt)
+                )
+                fijar_cookie_dispositivo(resp, raw_token)
+            return resp
 
         if u.lower() in ('admin', 'administrator', 'root', 'soporte'):
             notificar_alerta_seguridad("Intento Fallido de Acceso Admin", f"Contraseña inválida intentada para usuario: {u}", ip_c)

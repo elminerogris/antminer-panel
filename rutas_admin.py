@@ -193,7 +193,10 @@ def admin_2fa_revocar_dispositivos():
     cur.execute("DELETE FROM dispositivos_confianza WHERE LOWER(username)='admin'")
     notificar_alerta_seguridad("Dispositivos de Confianza Revocados", "El administrador revocó todos los dispositivos de confianza guardados.", request.remote_addr or "")
     resp = jsonify({"status": "ok", "msg": "Se revocaron todos los dispositivos de confianza. En el próximo acceso se solicitará el código 2FA."})
-    resp.delete_cookie('emg_trusted_device')
+    host_c = (request.host or '').split(':')[0].lower()
+    cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
+    resp.delete_cookie('emg_trusted_device', path='/', domain=cookie_domain)
+    resp.delete_cookie('emg_trusted_device', path='/')
     return resp
 
 @admin_bp.route('/admin', methods=['GET', 'POST'])

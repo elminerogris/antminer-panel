@@ -425,6 +425,10 @@
             {% if mode == 'register' %}
                 <button type="submit" id="btnSubmitAuth" class="btn-login btn-register">🚀 Registrar Nueva Cuenta</button>
             {% else %}
+                <label style="display:flex; align-items:center; justify-content:center; gap:8px; font-size:0.82em; color:var(--text-muted); margin:12px 0 16px 0; cursor:pointer; user-select:none;">
+                    <input type="checkbox" name="recordar_dispositivo" value="1" checked style="accent-color:#3366ff; width:16px; height:16px; cursor:pointer;">
+                    <span>🛡️ Recordar este dispositivo por 30 días</span>
+                </label>
                 <button type="submit" id="btnSubmitAuth" class="btn-login">⚡ Ingresar al Panel</button>
             {% endif %}
         </form>
