@@ -1,189 +1,679 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
+    /* Cabecera Principal */
     .racks-header {
         display: flex; align-items: center; justify-content: space-between;
-        flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+        flex-wrap: wrap; gap: 14px; margin-bottom: 20px;
         background: var(--bg-card); border: 1px solid var(--border-color);
-        border-radius: 10px; padding: 16px 20px;
+        border-radius: 10px; padding: 18px 22px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
     }
-    .racks-header h1 { margin: 0; font-size: 1.35em; }
-    .racks-header p { margin: 4px 0 0 0; font-size: 0.84em; color: var(--text-muted); }
+    .racks-header h1 {
+        margin: 0; font-size: 1.45em; display: flex; align-items: center; gap: 10px;
+    }
+    .racks-header p { margin: 4px 0 0 0; font-size: 0.85em; color: var(--text-muted); }
 
     .btn-rk-primary {
         background: linear-gradient(135deg, #3366ff, #2563eb);
         color: #fff; border: 1px solid #60a5fa;
-        padding: 9px 15px; border-radius: 7px; font-weight: bold; font-size: 0.85em;
-        cursor: pointer;
+        padding: 9px 16px; border-radius: 7px; font-weight: bold; font-size: 0.86em;
+        cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+        transition: all 0.2s ease;
     }
+    .btn-rk-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.45);
+        transform: translateY(-1px);
+    }
+
     .btn-rk-danger {
         background: rgba(255, 82, 82, 0.12); color: var(--accent-red);
         border: 1px solid rgba(255, 82, 82, 0.4);
-        padding: 6px 11px; border-radius: 6px; font-weight: bold; font-size: 0.78em;
-        cursor: pointer;
+        padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 0.78em;
+        cursor: pointer; transition: 0.15s;
     }
+    .btn-rk-danger:hover { background: #dc2626; color: #fff; }
 
-    .rack-card {
-        background: var(--bg-card); border: 1px solid var(--border-color);
-        border-radius: 10px; padding: 18px; margin-bottom: 20px;
+    /* Bandeja de Mineros sin Asignar */
+    .unassigned-tray {
+        background: var(--bg-card); border: 1px solid rgba(59, 130, 246, 0.35);
+        border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
     }
-    .rack-top {
+    .unassigned-tray-top {
         display: flex; align-items: center; justify-content: space-between;
-        flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
-        padding-bottom: 10px; border-bottom: 1px solid var(--border-color);
+        flex-wrap: wrap; gap: 10px; margin-bottom: 10px;
     }
-    .rack-title { font-size: 1.1em; font-weight: bold; }
-    .rack-meta { font-size: 0.8em; color: var(--text-muted); font-family: monospace; }
+    .unassigned-chips-wrap {
+        display: flex; flex-wrap: wrap; gap: 8px; max-height: 140px; overflow-y: auto; padding-top: 4px;
+    }
+    .unassigned-chip {
+        background: var(--bg-well); border: 1px solid var(--border-color);
+        padding: 6px 12px; border-radius: 6px; font-size: 0.80em;
+        display: flex; align-items: center; gap: 8px; font-family: monospace;
+        cursor: pointer; transition: all 0.15s ease;
+    }
+    .unassigned-chip:hover {
+        border-color: #3b82f6; background: rgba(59, 130, 246, 0.12);
+        transform: translateY(-1px);
+    }
 
-    .rack-grid-wrap { overflow-x: auto; padding-bottom: 6px; }
-    .rack-row {
-        display: flex; gap: 8px; margin-bottom: 8px;
+    /* Estructura Física del Estante / Rack */
+    .rack-cabinet {
+        background: linear-gradient(180deg, #161922 0%, #0d1017 100%);
+        border: 2px solid #2d3748;
+        border-radius: 12px;
+        padding: 20px 18px;
+        margin-bottom: 26px;
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        position: relative;
     }
-    .rack-slot {
-        flex: 1; min-width: 118px; min-height: 76px;
-        border-radius: 8px; padding: 8px 10px;
-        border: 1px dashed var(--border-color);
+    :root[data-theme="light"] .rack-cabinet {
+        background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+        border-color: #cbd5e1;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Cabecera del Rack */
+    .rack-top-banner {
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
+        padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    :root[data-theme="light"] .rack-top-banner {
+        border-bottom-color: rgba(0, 0, 0, 0.1);
+    }
+    .rack-name-badge {
+        font-size: 1.25em; font-weight: bold; color: var(--text-main);
+        display: flex; align-items: center; gap: 10px;
+    }
+    .rack-kpis-strip {
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .rack-kpi-pill {
+        background: var(--bg-well); border: 1px solid var(--border-color);
+        padding: 4px 10px; border-radius: 6px; font-size: 0.78em; font-family: monospace;
+        display: inline-flex; align-items: center; gap: 6px;
+    }
+
+    /* Contenedor del Estante con Postes Laterales */
+    .shelf-container {
+        display: flex;
+        position: relative;
+        overflow-x: auto;
+        padding-bottom: 10px;
+    }
+
+    /* Postes Metálicos Verticales (EIA-310 Style) */
+    .rack-post {
+        width: 22px;
+        background: linear-gradient(90deg, #1e2430 0%, #2d3748 50%, #1a202c 100%);
+        border: 1px solid #374151;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        align-items: center;
+        padding: 10px 0;
+        flex-shrink: 0;
+        box-shadow: inset 0 0 6px rgba(0,0,0,0.7);
+    }
+    .rack-post.left { border-radius: 8px 0 0 8px; border-right: none; }
+    .rack-post.right { border-radius: 0 8px 8px 0; border-left: none; }
+    .post-screw-hole {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: #0b0e14; border: 1px solid #475569;
+        margin: 6px 0;
+    }
+
+    /* Área de Estantes Central */
+    .shelves-area {
+        flex: 1;
+        min-width: 640px;
+        background: #0a0d14;
+        border-top: 1px solid #374151;
+        border-bottom: 1px solid #374151;
+        padding: 10px 14px;
+    }
+    :root[data-theme="light"] .shelves-area {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    /* Fila Individual de Estantería */
+    .shelf-level-row {
+        margin-bottom: 18px;
+        position: relative;
+    }
+    .shelf-level-header {
+        display: flex; align-items: center; justify-content: space-between;
+        font-size: 0.72em; font-weight: bold; color: var(--text-muted);
+        text-transform: uppercase; letter-spacing: 0.5px;
+        margin-bottom: 6px; padding: 0 4px;
+    }
+
+    .shelf-bays-grid {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(138px, 1fr);
+        gap: 10px;
+        align-items: end;
+    }
+
+    /* Viga / Travesaño Metálico del Estante (Donde apoyan los ASICs) */
+    .shelf-beam {
+        height: 12px;
+        width: 100%;
+        background: linear-gradient(180deg, #475569 0%, #334155 45%, #1e293b 100%);
+        border: 1px solid #4b5563;
+        border-radius: 2px;
+        margin-top: 4px;
+        box-shadow: 0 5px 12px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+    :root[data-theme="light"] .shelf-beam {
+        background: linear-gradient(180deg, #94a3b8 0%, #64748b 50%, #475569 100%);
+        border-color: #64748b;
+    }
+
+    /* Celda / Bahía del ASIC */
+    .asic-bay {
+        min-height: 132px;
         background: var(--bg-well);
-        cursor: pointer; transition: 0.18s;
-        display: flex; flex-direction: column; justify-content: space-between;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 8px 6px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        user-select: none;
     }
-    .rack-slot:hover { border-color: #3b82f6; transform: translateY(-1px); }
-    .slot-coord { font-size: 0.68em; color: var(--text-muted); font-family: monospace; }
+    .asic-bay:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+        border-color: #3b82f6;
+    }
 
-    .slot-ok { border: 1px solid rgba(0, 230, 118, 0.5); background: rgba(0, 230, 118, 0.10); }
-    .slot-warn { border: 1px solid rgba(255, 179, 0, 0.55); background: rgba(255, 179, 0, 0.12); }
-    .slot-crit { border: 1px solid rgba(255, 82, 82, 0.65); background: rgba(255, 82, 82, 0.16); }
-    .slot-off { border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(148, 163, 184, 0.10); }
+    /* Estados de la Bahía */
+    .asic-bay.status-ok {
+        border-color: rgba(0, 230, 118, 0.5);
+        background: linear-gradient(180deg, rgba(0, 230, 118, 0.08) 0%, rgba(10, 12, 18, 0.85) 100%);
+    }
+    .asic-bay.status-warn {
+        border-color: rgba(255, 179, 0, 0.6);
+        background: linear-gradient(180deg, rgba(255, 179, 0, 0.10) 0%, rgba(10, 12, 18, 0.85) 100%);
+    }
+    .asic-bay.status-crit {
+        border-color: rgba(255, 82, 82, 0.7);
+        background: linear-gradient(180deg, rgba(255, 82, 82, 0.14) 0%, rgba(10, 12, 18, 0.85) 100%);
+        box-shadow: 0 0 14px rgba(255, 82, 82, 0.25);
+    }
+    .asic-bay.status-off {
+        border-color: var(--border-color);
+        background: var(--bg-well-soft);
+        opacity: 0.78;
+    }
+    .asic-bay.empty-bay {
+        border: 1px dashed var(--border-color);
+        background: rgba(10, 12, 18, 0.4);
+        justify-content: center;
+        gap: 6px;
+    }
+    .asic-bay.empty-bay:hover {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.08);
+    }
 
-    .slot-name { font-weight: bold; font-size: 0.84em; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .slot-stats { font-size: 0.75em; font-family: monospace; color: var(--text-secondary); margin-top: 3px; }
+    /* Gráfico Ilustrado Frontal del ASIC (SVG) */
+    .asic-svg-wrap {
+        width: 100%;
+        max-width: 130px;
+        height: 62px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .asic-svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+    }
 
-    /* Modales */
-    .rk-modal-bg {
-        display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72);
-        z-index: 9999; align-items: center; justify-content: center; padding: 16px;
+    /* Animación de ventiladores girando cuando está online */
+    .fan-spin {
+        transform-origin: center;
+        animation: spinFan 0.8s linear infinite;
     }
-    .rk-modal-bg.open { display: flex; }
-    .rk-modal {
-        width: 100%; max-width: 420px; background: var(--bg-card);
-        border: 1px solid var(--border-color); border-radius: 12px; padding: 20px;
+    @keyframes spinFan {
+        100% { transform: rotate(360deg); }
     }
-    .rk-modal h3 { margin: 0 0 12px 0; font-size: 1.08em; }
-    .rk-input, .rk-select {
-        width: 100%; background: var(--bg-input); border: 1px solid var(--border-color);
-        color: var(--text-main); padding: 9px 11px; border-radius: 7px;
-        margin-bottom: 12px; font-size: 0.9em; outline: none;
+
+    .led-pulse-green {
+        animation: ledPulseG 1.5s infinite;
     }
-    .rk-lbl { display: block; font-size: 0.74em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
+    @keyframes ledPulseG {
+        0% { fill: #00e676; filter: drop-shadow(0 0 1px #00e676); }
+        50% { fill: #b9f6ca; filter: drop-shadow(0 0 5px #00e676); }
+        100% { fill: #00e676; filter: drop-shadow(0 0 1px #00e676); }
+    }
+
+    .led-pulse-red {
+        animation: ledPulseR 1s infinite;
+    }
+    @keyframes ledPulseR {
+        0% { fill: #ff5252; filter: drop-shadow(0 0 2px #ff5252); }
+        50% { fill: #ff8a80; filter: drop-shadow(0 0 8px #ff5252); }
+        100% { fill: #ff5252; filter: drop-shadow(0 0 2px #ff5252); }
+    }
+
+    /* Placa / Chapa de Identificación del ASIC */
+    .asic-id-plate {
+        width: 100%;
+        text-align: center;
+        margin-top: 5px;
+        background: rgba(0, 0, 0, 0.35);
+        border-radius: 4px;
+        padding: 4px 5px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    :root[data-theme="light"] .asic-id-plate {
+        background: rgba(255, 255, 255, 0.8);
+        border-color: rgba(0, 0, 0, 0.08);
+    }
+    .asic-name-txt {
+        font-size: 0.78em; font-weight: bold; color: var(--text-main);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        display: block; line-height: 1.2;
+    }
+    .asic-metrics-txt {
+        font-size: 0.70em; font-family: monospace; color: var(--text-secondary);
+        display: flex; justify-content: space-between; align-items: center; gap: 4px;
+        margin-top: 3px;
+    }
+    .metric-hr { color: #60a5fa; font-weight: bold; }
+    .metric-temp-ok { color: var(--accent-green); }
+    .metric-temp-warn { color: #ffb300; font-weight: bold; }
+    .metric-temp-crit { color: var(--accent-red); font-weight: bold; }
+
+    /* Barra de Acción Hover del ASIC */
+    .asic-hover-actions {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 13, 20, 0.90);
+        border-radius: 7px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease;
+        padding: 8px;
+        backdrop-filter: blur(2px);
+    }
+    .asic-bay:hover .asic-hover-actions {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .btn-act-quick {
+        width: 100%;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        color: var(--text-main);
+        padding: 5px 8px;
+        border-radius: 5px;
+        font-size: 0.72em;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        text-decoration: none;
+        transition: 0.15s;
+    }
+    .btn-act-quick:hover {
+        background: #3b82f6;
+        color: #fff;
+        border-color: #60a5fa;
+    }
+    .btn-act-quick.blink:hover {
+        background: #f59e0b;
+        color: #fff;
+        border-color: #fbbf24;
+    }
+
+    /* Vista Previa en Modal */
+    .modal-asic-preview-card {
+        background: var(--bg-well);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 14px;
+        margin: 12px 0;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
 </style>
 
+<!-- CABECERA -->
 <div class="racks-header">
     <div>
-        <h1>🗂️ Mapa Visual de Racks</h1>
-        <p>Ubica tus equipos por estante, fila y posición. Verde = Óptimo · Amarillo = ≥75°C · Rojo = ≥85°C o 0 TH/s · Gris = Offline.</p>
+        <h1>🗂️ Mapa de Estantes &amp; Racks</h1>
+        <p>Visualización física e interactiva de tus ASICs en estantes de minería. Supervisa posición exacta, temperatura y estado de cada máquina.</p>
     </div>
-    <button type="button" class="btn-rk-primary" onclick="document.getElementById('modalCrearRack').classList.add('open')">+ Nuevo Estante / Rack</button>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <button type="button" class="btn-rk-primary" onclick="document.getElementById('modalCrearRack').classList.add('open')">
+            <span>➕</span> <span>Nuevo Estante / Rack</span>
+        </button>
+    </div>
 </div>
 
-{% if racks|length == 0 %}
-<div class="rack-card" style="text-align:center; padding:36px 20px;">
-    <h3 style="margin-bottom:8px;">Aún no has creado ningún Estante / Rack</h3>
-    <p style="color:var(--text-muted); font-size:0.88em; margin-bottom:16px;">Crea tu primer estante (ej. "Estante A", 4 filas × 6 columnas) y asigna tus mineros tocando cada espacio.</p>
-    <button type="button" class="btn-rk-primary" onclick="document.getElementById('modalCrearRack').classList.add('open')">+ Crear Primer Rack</button>
-</div>
-{% endif %}
-
-{% for rk in racks %}
-<div class="rack-card">
-    <div class="rack-top">
-        <div>
-            <div class="rack-title">🗄️ {{ rk.nombre }}</div>
-            <div class="rack-meta">{{ rk.ocupados }} / {{ rk.capacidad }} espacios ocupados · {{ rk.filas }} filas × {{ rk.columnas }} columnas</div>
+<!-- BANDEJA DE MINEROS SIN ASIGNAR -->
+{% if sin_asignar|length > 0 %}
+<div class="unassigned-tray">
+    <div class="unassigned-tray-top">
+        <div style="font-weight:bold; font-size:0.92em; display:flex; align-items:center; gap:8px;">
+            <span>📦 Mineros en Espera (Sin Posición Asignada):</span>
+            <span style="background:rgba(59, 130, 246, 0.18); color:var(--accent-blue-light); border:1px solid rgba(59, 130, 246, 0.4); padding:2px 8px; border-radius:12px; font-size:0.75em; font-family:monospace;">{{ sin_asignar|length }}</span>
         </div>
-        <button type="button" class="btn-rk-danger" onclick="eliminarRack('{{ rk.nombre }}')">🗑️ Eliminar Rack</button>
+        <div style="font-size:0.78em; color:var(--text-muted);">
+            Haz clic en cualquier espacio vacío del estante abajo para ubicar una de estas máquinas.
+        </div>
     </div>
-
-    <div class="rack-grid-wrap">
-        {% for fila in rk.matriz %}
-        <div class="rack-row">
-            {% for celda in fila %}
-                {% if celda.minero %}
-                <div class="rack-slot {{ celda.minero.color_cls }}" onclick="abrirAsignar('{{ rk.nombre }}', {{ celda.fila }}, {{ celda.col }}, '{{ celda.minero.ip }}')">
-                    <div class="slot-coord">F{{ celda.fila }}-P{{ celda.col }}</div>
-                    <div class="slot-name" translate="no">{{ celda.minero.nombre }}</div>
-                    <div class="slot-stats" translate="no">
-                        {% if celda.minero.online %}
-                            {{ celda.minero.hashrate }} {{ celda.minero.unidad }} · {{ celda.minero.temp }}°C
-                        {% else %}
-                            Offline
-                        {% endif %}
-                    </div>
-                </div>
-                {% else %}
-                <div class="rack-slot" onclick="abrirAsignar('{{ rk.nombre }}', {{ celda.fila }}, {{ celda.col }}, '')">
-                    <div class="slot-coord">F{{ celda.fila }}-P{{ celda.col }}</div>
-                    <div style="font-size:0.76em; color:var(--text-muted); text-align:center;">+ Asignar</div>
-                </div>
-                {% endif %}
-            {% endfor %}
+    <div class="unassigned-chips-wrap">
+        {% for m in sin_asignar %}
+        <div class="unassigned-chip" onclick="asignarRapidoSugerido('{{ m.ip }}')" title="Toca para asignar a la primera celda libre">
+            <span style="font-size:1.1em;">⛏️</span>
+            <div>
+                <b>{{ m.nombre }}</b>
+                <div style="font-size:0.85em; color:var(--text-muted);">{{ m.modelo }} · {{ m.hashrate }} {{ m.unidad }}</div>
+            </div>
+            <span style="color:var(--accent-blue-light); font-weight:bold; margin-left:4px;">+ Colocar</span>
         </div>
         {% endfor %}
     </div>
 </div>
+{% endif %}
+
+<!-- CASO: NO HAY RACKS -->
+{% if racks|length == 0 %}
+<div class="rack-cabinet" style="text-align:center; padding:44px 20px;">
+    <div style="font-size:3em; margin-bottom:10px;">🏭</div>
+    <h3 style="margin-bottom:8px;">Aún no has creado ningún Estante o Rack</h3>
+    <p style="color:var(--text-muted); font-size:0.9em; max-width:480px; margin:0 auto 20px auto;">
+        Organiza tus equipos tal como están en tu granja física. Crea tu primer estante (ejemplo: "Estante 01", 4 niveles × 6 máquinas por nivel) y colócalos visualmente.
+    </p>
+    <button type="button" class="btn-rk-primary" onclick="document.getElementById('modalCrearRack').classList.add('open')">
+        ➕ Crear Primer Estante
+    </button>
+</div>
+{% endif %}
+
+<!-- LISTA DE RACKS / ESTANTES FÍSICOS -->
+{% for rk in racks %}
+<div class="rack-cabinet" id="rack-box-{{ rk.id }}">
+    <!-- Cabecera / Placa del Rack -->
+    <div class="rack-top-banner">
+        <div>
+            <div class="rack-name-badge">
+                <span>🗄️</span> <span>{{ rk.nombre }}</span>
+                <span style="font-size:0.62em; color:var(--text-muted); font-weight:normal; font-family:monospace;">
+                    ({{ rk.filas }} Pisos × {{ rk.columnas }} Posiciones)
+                </span>
+            </div>
+        </div>
+
+        <div class="rack-kpis-strip">
+            <div class="rack-kpi-pill" title="Capacidad ocupada en este estante">
+                <span>📊 Ocupación:</span>
+                <b style="color:var(--accent-blue-light);">{{ rk.ocupados }}/{{ rk.capacidad }} ({{ rk.pct_ocupado }}%)</b>
+            </div>
+            <div class="rack-kpi-pill" title="Hashrate sumado de las máquinas en este rack">
+                <span>⚡ Hashrate:</span>
+                <b style="color:var(--accent-green);">{{ rk.hr_rack }} TH/s</b>
+            </div>
+            <div class="rack-kpi-pill" title="Temperatura promedio del rack">
+                <span>🌡️ Temp Prom:</span>
+                <b style="color:{{ '#ff5252' if rk.temp_prom >= 80 else ('#ffb300' if rk.temp_prom >= 72 else '#00e676') }};">{{ rk.temp_prom }}°C</b>
+            </div>
+            {% if rk.consumo_kw > 0 %}
+            <div class="rack-kpi-pill" title="Consumo eléctrico estimado del rack">
+                <span>🔌 Consumo:</span>
+                <b>{{ rk.consumo_kw }} kW</b>
+            </div>
+            {% endif %}
+            <button type="button" class="btn-rk-danger" onclick="eliminarRack('{{ rk.nombre }}')" title="Eliminar este estante">
+                🗑️
+            </button>
+        </div>
+    </div>
+
+    <!-- Estructura del Estante (Poste Izquierdo, Bandejas y Poste Derecho) -->
+    <div class="shelf-container">
+        <!-- Poste Vertical Izquierdo -->
+        <div class="rack-post left">
+            {% for f in range(1, rk.filas * 3 + 1) %}
+            <div class="post-screw-hole"></div>
+            {% endfor %}
+        </div>
+
+        <!-- Área Central de Estantes -->
+        <div class="shelves-area">
+            {% for fila in rk.matriz %}
+            {% set nro_piso = rk.filas - loop.index + 1 %}
+            <div class="shelf-level-row">
+                <div class="shelf-level-header">
+                    <span>Estante / Nivel {{ fila[0].fila }}</span>
+                    <span style="font-family:monospace;">{{ rk.columnas }} bahías de ventilación</span>
+                </div>
+
+                <!-- Grilla de Bahías / Posiciones -->
+                <div class="shelf-bays-grid" style="grid-template-columns: repeat({{ rk.columnas }}, minmax(138px, 1fr));">
+                    {% for celda in fila %}
+                        {% if celda.minero %}
+                            {% set m = celda.minero %}
+                            <div class="asic-bay status-{{ m.color_cls.replace('slot-', '') }}" id="bay-{{ rk.nombre }}-{{ celda.fila }}-{{ celda.col }}"
+                                 onclick="abrirAsignar('{{ rk.nombre }}', {{ celda.fila }}, {{ celda.col }}, '{{ m.ip }}')">
+
+                                <!-- Ilustración Frontal del ASIC -->
+                                <div class="asic-svg-wrap">
+                                    <svg viewBox="0 0 160 100" class="asic-svg">
+                                        <!-- Chasis metálico -->
+                                        <rect x="2" y="2" width="156" height="96" rx="5" fill="#1b202c" stroke="#374151" stroke-width="2"/>
+                                        <!-- Unidad de control superior -->
+                                        <rect x="20" y="5" width="120" height="20" rx="3" fill="#0f131c" stroke="#252d3d" stroke-width="1"/>
+                                        <!-- Puerto Ethernet -->
+                                        <rect x="26" y="10" width="10" height="10" rx="1.5" fill="#05070a" stroke="#475569" stroke-width="0.8"/>
+                                        <!-- LEDs de Estado -->
+                                        <circle cx="44" cy="15" r="3" fill="{{ '#00e676' if m.online else '#334155' }}" class="{{ 'led-pulse-green' if m.online else '' }}"/>
+                                        <circle cx="53" cy="15" r="3" fill="{{ '#ff5252' if m.color_cls == 'slot-crit' else ('#ffb300' if m.color_cls == 'slot-warn' else '#334155') }}" class="{{ 'led-pulse-red' if m.color_cls == 'slot-crit' else '' }}"/>
+                                        <!-- Chapa con modelo corto -->
+                                        <text x="134" y="19" fill="#94a3b8" font-size="8.5" font-family="monospace" font-weight="bold" text-anchor="end">{{ m.modelo_corto }}</text>
+
+                                        <!-- Turbina Izquierda -->
+                                        <g transform="translate(42, 60)">
+                                            <circle cx="0" cy="0" r="26" fill="#0b0e14" stroke="#2b3547" stroke-width="2"/>
+                                            <circle cx="0" cy="0" r="18" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="2,2"/>
+                                            <circle cx="0" cy="0" r="9" fill="none" stroke="#334155" stroke-width="1"/>
+                                            <g class="{{ 'fan-spin' if m.online else '' }}">
+                                                <path d="M-4 -20 C-1 -10, 1 -10, 4 -20 Z" fill="#4b5563"/>
+                                                <path d="M-4 20 C-1 10, 1 10, 4 20 Z" fill="#4b5563"/>
+                                                <path d="M-20 -4 C-10 -1, -10 1, -20 4 Z" fill="#4b5563"/>
+                                                <path d="M20 -4 C10 -1, 10 1, 20 4 Z" fill="#4b5563"/>
+                                            </g>
+                                            <circle cx="0" cy="0" r="5" fill="#1f2937"/>
+                                        </g>
+
+                                        <!-- Turbina Derecha -->
+                                        <g transform="translate(118, 60)">
+                                            <circle cx="0" cy="0" r="26" fill="#0b0e14" stroke="#2b3547" stroke-width="2"/>
+                                            <circle cx="0" cy="0" r="18" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="2,2"/>
+                                            <circle cx="0" cy="0" r="9" fill="none" stroke="#334155" stroke-width="1"/>
+                                            <g class="{{ 'fan-spin' if m.online else '' }}">
+                                                <path d="M-4 -20 C-1 -10, 1 -10, 4 -20 Z" fill="#4b5563"/>
+                                                <path d="M-4 20 C-1 10, 1 10, 4 20 Z" fill="#4b5563"/>
+                                                <path d="M-20 -4 C-10 -1, -10 1, -20 4 Z" fill="#4b5563"/>
+                                                <path d="M20 -4 C10 -1, 10 1, 20 4 Z" fill="#4b5563"/>
+                                            </g>
+                                            <circle cx="0" cy="0" r="5" fill="#1f2937"/>
+                                        </g>
+                                    </svg>
+                                </div>
+
+                                <!-- Chapa de Identificación y Métricas -->
+                                <div class="asic-id-plate">
+                                    <span class="asic-name-txt" translate="no">{{ m.nombre }}</span>
+                                    <div class="asic-metrics-txt" translate="no">
+                                        {% if m.online %}
+                                            <span class="metric-hr">{{ m.hashrate }} {{ m.unidad }}</span>
+                                            <span class="{{ 'metric-temp-crit' if m.temp >= 85 else ('metric-temp-warn' if m.temp >= 75 else 'metric-temp-ok') }}">{{ m.temp }}°C</span>
+                                        {% else %}
+                                            <span style="color:var(--text-muted);">Desconectado</span>
+                                            <span>OFF</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Overlay con Acciones Rápidas en Hover -->
+                                <div class="asic-hover-actions" onclick="event.stopPropagation()">
+                                    <a href="/minero/{{ m.ip }}" class="btn-act-quick">🔍 Abrir Minero</a>
+                                    <button type="button" class="btn-act-quick blink" onclick="hacerBlinkMinero('{{ m.ip }}', '{{ m.nombre }}')">💡 Parpadear LED</button>
+                                    <button type="button" class="btn-act-quick" onclick="abrirAsignar('{{ rk.nombre }}', {{ celda.fila }}, {{ celda.col }}, '{{ m.ip }}')">✏️ Cambiar Posición</button>
+                                </div>
+                            </div>
+                        {% else %}
+                            <!-- Espacio Vacío del Estante -->
+                            <div class="asic-bay empty-bay" onclick="abrirAsignar('{{ rk.nombre }}', {{ celda.fila }}, {{ celda.col }}, '')">
+                                <div style="font-size:1.4em; opacity:0.4;">➕</div>
+                                <div style="font-size:0.75em; color:var(--text-muted); font-weight:bold;">P{{ celda.col }} Vacío</div>
+                                <div style="font-size:0.65em; color:var(--accent-blue-light);">+ Colocar ASIC</div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <!-- Travesaño Metálico del Estante -->
+                <div class="shelf-beam"></div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Poste Vertical Derecho -->
+        <div class="rack-post right">
+            {% for f in range(1, rk.filas * 3 + 1) %}
+            <div class="post-screw-hole"></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
 {% endfor %}
 
-<!-- Modal Crear Rack -->
+<!-- MODAL CREAR RACK -->
 <div class="rk-modal-bg" id="modalCrearRack" onclick="if(event.target===this) this.classList.remove('open')">
     <div class="rk-modal">
-        <h3>➕ Crear Estante / Rack</h3>
+        <h3>🏭 Crear Nuevo Estante / Rack</h3>
         <label class="rk-lbl">Nombre del Estante</label>
-        <input type="text" id="rkNombre" class="rk-input" placeholder="Ej: Estante A">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <input type="text" id="rkNombre" class="rk-input" placeholder="Ej: Estante A (Pasillo 1)" autofocus>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
             <div>
-                <label class="rk-lbl">Filas (1–12)</label>
+                <label class="rk-lbl">Niveles / Pisos (1–12)</label>
                 <input type="number" id="rkFilas" class="rk-input" value="4" min="1" max="12">
             </div>
             <div>
-                <label class="rk-lbl">Posiciones por fila (1–16)</label>
+                <label class="rk-lbl">ASICs por Nivel (1–16)</label>
                 <input type="number" id="rkCols" class="rk-input" value="6" min="1" max="16">
             </div>
         </div>
-        <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:6px;">
             <button type="button" class="btn-rk-danger" onclick="document.getElementById('modalCrearRack').classList.remove('open')">Cancelar</button>
             <button type="button" class="btn-emg-save" onclick="crearRack()"
-                    data-save-title="💾 Guardar Estante / Rack"
-                    data-save-desc="Crea el estante con el nombre, filas y columnas elegidas para organizar visualmente tus equipos."
-                    data-save-note="Hasta 12 filas × 16 columnas por rack">💾 Guardar Rack</button>
+                    data-save-title="💾 Guardar Estante"
+                    data-save-desc="Crea la estantería física para organizar visualmente tus equipos."
+                    data-save-note="Aplica de inmediato al guardar">💾 Guardar Estante</button>
         </div>
     </div>
 </div>
 
-<!-- Modal Asignar / Ver Posición -->
+<!-- MODAL ASIGNAR / COLOCAR MINERO EN EL ESTANTE -->
 <div class="rk-modal-bg" id="modalAsignar" onclick="if(event.target===this) this.classList.remove('open')">
-    <div class="rk-modal">
-        <h3 id="asigTitulo">Asignar Minero</h3>
-        <label class="rk-lbl">Seleccionar Minero</label>
-        <select id="asigSelectIp" class="rk-select">
-            <option value="">-- Dejar espacio vacío --</option>
+    <div class="rk-modal" style="max-width:460px;">
+        <h3 id="asigTitulo" style="display:flex; align-items:center; gap:8px;">
+            <span>📍</span> <span>Asignar Máquina a Posición</span>
+        </h3>
+
+        <label class="rk-lbl">Seleccionar Minero ASIC</label>
+        <select id="asigSelectIp" class="rk-select" onchange="actualizarPrevisualizacionModal(this.value)">
+            <option value="">-- Dejar espacio vacío (Desasignar) --</option>
             {% for m in mineros %}
-            <option value="{{ m.ip }}">{{ m.nombre }} ({{ m.ip }}) — {{ m.modelo }}</option>
+            <option value="{{ m.ip }}">
+                {{ m.nombre }} ({{ m.ip }}) — {{ m.modelo }} [{{ m.hashrate }} {{ m.unidad }}]
+            </option>
             {% endfor %}
         </select>
-        <div id="asigLinkWrap" style="margin-bottom:12px; display:none;">
-            <a id="asigLinkMinero" href="#" class="btn-rk-primary" style="display:block; text-align:center;">🔍 Abrir Detalle del Minero</a>
+
+        <!-- Previsualización Dinámica del ASIC -->
+        <div id="modalAsicPreview" class="modal-asic-preview-card" style="display:none;">
+            <div style="width:70px; height:50px; flex-shrink:0;">
+                <svg viewBox="0 0 160 100" style="width:100%; height:100%;">
+                    <rect x="2" y="2" width="156" height="96" rx="5" fill="#1b202c" stroke="#374151" stroke-width="2"/>
+                    <rect x="20" y="5" width="120" height="20" rx="3" fill="#0f131c"/>
+                    <circle cx="42" cy="60" r="24" fill="#0b0e14" stroke="#374151" stroke-width="2"/>
+                    <circle cx="118" cy="60" r="24" fill="#0b0e14" stroke="#374151" stroke-width="2"/>
+                    <circle id="prevLed" cx="44" cy="15" r="3" fill="#00e676"/>
+                </svg>
+            </div>
+            <div style="flex:1; overflow:hidden;">
+                <b id="prevNombre" style="display:block; font-size:0.95em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></b>
+                <div style="font-size:0.78em; color:var(--text-muted); font-family:monospace; margin-top:2px;">
+                    <span id="prevModelo"></span> · <span id="prevIp"></span>
+                </div>
+                <div style="font-size:0.80em; font-family:monospace; margin-top:4px; display:flex; gap:10px;">
+                    <span id="prevHr" style="color:#60a5fa; font-weight:bold;"></span>
+                    <span id="prevTemp"></span>
+                </div>
+            </div>
         </div>
-        <div style="display:flex; gap:8px; justify-content:flex-end;">
+
+        <div id="asigLinkWrap" style="margin: 12px 0; display:none;">
+            <a id="asigLinkMinero" href="#" class="btn-rk-primary" style="display:block; text-align:center; padding:9px;">
+                🔍 Abrir Panel de Control del Minero
+            </a>
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
             <button type="button" class="btn-rk-danger" onclick="document.getElementById('modalAsignar').classList.remove('open')">Cerrar</button>
             <button type="button" class="btn-emg-save" onclick="guardarAsignacion()"
-                    data-save-title="💾 Guardar Posición en el Rack"
-                    data-save-desc="Asigna el minero seleccionado a esta celda física del estante (o libera el espacio si eliges vacío)."
-                    data-save-note="Actualiza el mapa térmico del estante">💾 Guardar Posición</button>
+                    data-save-title="💾 Guardar Posición"
+                    data-save-desc="Fija el minero en este estante y nivel, actualizando la telemetría térmica."
+                    data-save-note="Guarda en tiempo real">💾 Fijar en Estante</button>
         </div>
     </div>
 </div>
 
 <script>
     let selRack = '', selFila = 0, selCol = 0;
+
+    // Catálogo de mineros para vista previa instantánea
+    const MINEROS_DICT = {
+        {% for m in mineros %}
+        {{ m.ip|tojson }}: {
+            nombre: {{ m.nombre|tojson }},
+            modelo: {{ m.modelo|tojson }},
+            ip: {{ m.ip|tojson }},
+            hashrate: {{ m.hashrate|tojson }},
+            unidad: {{ m.unidad|tojson }},
+            temp: {{ m.temp|tojson }},
+            online: {{ m.online|tojson }},
+            color_cls: {{ m.color_cls|tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    };
 
     function crearRack() {
         const nombre = document.getElementById('rkNombre').value.trim();
@@ -201,7 +691,7 @@
     }
 
     function eliminarRack(nombre) {
-        if (!confirm(`¿Eliminar el estante "${nombre}"? Tus mineros no se borrarán, solo quedarán sin posición.`)) return;
+        if (!confirm(`¿Eliminar el estante "${nombre}"? Tus mineros no se borrarán, solo quedarán sin posición física.`)) return;
         fetch('/api/racks/eliminar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -211,8 +701,11 @@
 
     function abrirAsignar(rack, fila, col, ipActual) {
         selRack = rack; selFila = fila; selCol = col;
-        document.getElementById('asigTitulo').innerText = `📍 ${rack} · Fila ${fila}, Posición ${col}`;
-        document.getElementById('asigSelectIp').value = ipActual || '';
+        document.getElementById('asigTitulo').innerHTML = `<span>📍</span> <span>${rack} · Nivel ${fila}, Bahía ${col}</span>`;
+        const select = document.getElementById('asigSelectIp');
+        select.value = ipActual || '';
+        actualizarPrevisualizacionModal(select.value);
+
         const linkWrap = document.getElementById('asigLinkWrap');
         const linkEl = document.getElementById('asigLinkMinero');
         if (ipActual) {
@@ -222,6 +715,23 @@
             linkWrap.style.display = 'none';
         }
         document.getElementById('modalAsignar').classList.add('open');
+    }
+
+    function actualizarPrevisualizacionModal(ip) {
+        const previewBox = document.getElementById('modalAsicPreview');
+        if (!ip || !MINEROS_DICT[ip]) {
+            previewBox.style.display = 'none';
+            return;
+        }
+        const m = MINEROS_DICT[ip];
+        document.getElementById('prevNombre').innerText = m.nombre;
+        document.getElementById('prevModelo').innerText = m.modelo;
+        document.getElementById('prevIp').innerText = m.ip;
+        document.getElementById('prevHr').innerText = m.online ? `${m.hashrate} ${m.unidad}` : '0 TH/s (Offline)';
+        document.getElementById('prevTemp').innerText = m.online ? `${m.temp}°C` : '--';
+        document.getElementById('prevTemp').style.color = m.temp >= 85 ? 'var(--accent-red)' : (m.temp >= 75 ? '#ffb300' : 'var(--accent-green)');
+        document.getElementById('prevLed').style.fill = m.online ? '#00e676' : '#475569';
+        previewBox.style.display = 'flex';
     }
 
     function guardarAsignacion() {
@@ -236,6 +746,33 @@
                 col: ip ? selCol : 0
             })
         }).then(() => window.location.reload());
+    }
+
+    // Asignar rápidamente desde la bandeja superior
+    function asignarRapidoSugerido(ip) {
+        // Buscar la primera celda vacía en cualquier rack
+        const emptySlot = document.querySelector('.asic-bay.empty-bay');
+        if (emptySlot) {
+            emptySlot.click();
+            document.getElementById('asigSelectIp').value = ip;
+            actualizarPrevisualizacionModal(ip);
+        } else {
+            alert('Todos tus estantes están llenos. Crea un nuevo estante o amplía sus columnas para colocar más mineros.');
+        }
+    }
+
+    // Función Blink LED para localizar el ASIC físicamente en la granja
+    function hacerBlinkMinero(ip, nombre) {
+        if (typeof mostrarLayoutToast === 'function') {
+            mostrarLayoutToast(`💡 Haciendo parpadear LEDs de ${nombre} (${ip})...`);
+        }
+        fetch(`/cmd/${encodeURIComponent(ip)}/blink`)
+            .then(() => {
+                if (typeof mostrarLayoutToast === 'function') {
+                    mostrarLayoutToast(`✅ LEDs físicos de ${nombre} parpadeando.`);
+                }
+            })
+            .catch(e => console.log('Error blink:', e));
     }
 </script>
 {% endblock %}

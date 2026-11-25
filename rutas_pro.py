@@ -95,14 +95,25 @@ def vista_racks():
         else:
             color_cls = 'slot-ok'
 
+        mod_raw = str(m.get('modelo') or 'Antminer').strip()
+        # Generar modelo corto legible para la chapa frontal del ASIC
+        mod_corto = mod_raw
+        for pref in ('Antminer ', 'WhatsMiner ', 'Innosilicon ', 'Avalon '):
+            if mod_corto.lower().startswith(pref.lower()):
+                mod_corto = mod_corto[len(pref):]
+                break
+        mod_corto = mod_corto[:10].strip() or 'ASIC'
+
         item = {
             'ip': ip,
             'nombre': nombre_inteligente_minero(ip, nombres_dict, m.get('worker1')),
-            'modelo': m.get('modelo') or 'Antminer',
+            'modelo': mod_raw,
+            'modelo_corto': mod_corto,
             'online': es_on,
             'hashrate': hr,
             'unidad': m.get('unidad') or 'TH/s',
             'temp': tm,
+            'consumo_w': a_float_seguro(m.get('consumo_w'), 0.0),
             'color_cls': color_cls,
             'rack_nombre': rack_n,
             'rack_fila': rack_f,
@@ -113,34 +124,62 @@ def vista_racks():
             mapa_celdas[(rack_n, rack_f, rack_c)] = item
 
     racks_render = []
+    total_hr_global_racks = 0.0
     for rk in racks_db:
         r_nom = rk['nombre']
         n_filas = max(1, min(12, a_int_seguro(rk.get('filas'), 4)))
         n_cols = max(1, min(16, a_int_seguro(rk.get('columnas'), 6)))
         matriz = []
         ocupados = 0
+        online_cnt = 0
+        offline_cnt = 0
+        hr_rack = 0.0
+        temps_rack = []
+        consumo_rack = 0.0
+
         for f in range(1, n_filas + 1):
             fila_celdas = []
             for c in range(1, n_cols + 1):
                 m_cell = mapa_celdas.get((r_nom, f, c))
                 if m_cell:
                     ocupados += 1
+                    if m_cell['online']:
+                        online_cnt += 1
+                        hr_rack += m_cell['hashrate']
+                        consumo_rack += m_cell.get('consumo_w', 0.0)
+                        if m_cell['temp'] > 0:
+                            temps_rack.append(m_cell['temp'])
+                    else:
+                        offline_cnt += 1
                 fila_celdas.append({'fila': f, 'col': c, 'minero': m_cell})
             matriz.append(fila_celdas)
+
+        temp_prom = round(sum(temps_rack) / len(temps_rack), 1) if temps_rack else 0
+        total_hr_global_racks += hr_rack
+        capacidad = n_filas * n_cols
+        pct_ocupado = round((ocupados / capacidad) * 100, 1) if capacidad > 0 else 0
+
         racks_render.append({
             'id': rk['id'],
             'nombre': r_nom,
             'filas': n_filas,
             'columnas': n_cols,
             'ocupados': ocupados,
-            'capacidad': n_filas * n_cols,
+            'capacidad': capacidad,
+            'pct_ocupado': pct_ocupado,
+            'online_cnt': online_cnt,
+            'offline_cnt': offline_cnt,
+            'hr_rack': round(hr_rack, 1),
+            'temp_prom': temp_prom,
+            'consumo_kw': round(consumo_rack / 1000.0, 2),
             'matriz': matriz
         })
 
     sin_asignar = [m for m in mineros_info if not m['rack_nombre']]
     return render_seguro(
         'racks.html', active_page='racks',
-        racks=racks_render, mineros=mineros_info, sin_asignar=sin_asignar
+        racks=racks_render, mineros=mineros_info, sin_asignar=sin_asignar,
+        total_hr_global_racks=round(total_hr_global_racks, 1)
     )
 
 @pro_bp.route('/api/racks/crear', methods=['POST'])
