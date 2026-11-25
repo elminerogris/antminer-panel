@@ -921,6 +921,7 @@ def mineros():
         for row in (cur.fetchall() or [])
         if str(row.get('farm_id') or '').strip()
     }
+    granjas_dict = {k: str(v.get('nombre') or '').strip() for k, v in sedes_dict.items() if v.get('nombre')}
 
     datos_red = obtener_datos_red()
     lista_mineros = []
@@ -970,9 +971,6 @@ def mineros():
         rej1 = a_int_seguro(m.get('rej1'), 0)
         tot_shares = acc1 + rej1
         pct_rej = round((rej1 / tot_shares) * 100, 2) if tot_shares > 0 else 0.0
-
-        fid = str(m.get('farm_id') or m.get('agent_id') or '').strip()
-        granja_nombre = granjas_dict.get(fid) or m.get('farm_city') or fid or 'Granja 001'
 
         gan_usd = 0.0
         gan_cripto = 0.0
