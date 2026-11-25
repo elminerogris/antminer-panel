@@ -46,7 +46,12 @@ def admin_eliminar_granja():
         return jsonify({"status": "error", "msg": "owner y farm_id requeridos"}), 400
 
     con = get_db()
-    con.autocommit = True
+    try:
+        if not con.autocommit:
+            con.rollback()
+            con.autocommit = True
+    except:
+        pass
     cur = con.cursor()
     from rutas_panel import _borrar_granja_completa
     eliminados_m, _ = _borrar_granja_completa(cur, owner, farm_id, eliminar_mineros=True)
@@ -206,7 +211,12 @@ def admin_panel():
         return redirect('/')
     msg = None
     con = get_db()
-    con.autocommit = True
+    try:
+        if not con.autocommit:
+            con.rollback()
+            con.autocommit = True
+    except:
+        pass
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     ahora_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 

@@ -11,7 +11,16 @@ def get_db():
     if not DB_URL:
         raise Exception("Falta DATABASE_URL en Render")
     if 'db_con' not in g or g.db_con.closed != 0:
-        g.db_con = psycopg2.connect(DB_URL, connect_timeout=8)
+        con = psycopg2.connect(DB_URL, connect_timeout=8)
+        con.autocommit = True
+        g.db_con = con
+    else:
+        try:
+            if not g.db_con.autocommit:
+                g.db_con.rollback()
+                g.db_con.autocommit = True
+        except:
+            pass
     return g.db_con
 
 def cerrar_conexion_bd(exception=None):

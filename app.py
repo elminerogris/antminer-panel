@@ -214,7 +214,9 @@ def asegurar_bd():
                 session['last_seen_ts'] = ahora_ts
                 try:
                     con = get_db()
-                    con.autocommit = True
+                    if not con.autocommit:
+                        con.rollback()
+                        con.autocommit = True
                     cur = con.cursor()
                     usr_real = session.get('admin_real') or session.get('usuario_real') or session.get('usuario')
                     cur.execute(
@@ -236,7 +238,9 @@ def inyectar_globales():
     try:
         if 'usuario' in session and DB_URL:
             con = get_db()
-            con.autocommit = True
+            if not con.autocommit:
+                con.rollback()
+                con.autocommit = True
             cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cur.execute("SELECT valor FROM config_global WHERE clave='anuncio_global'")
             row = cur.fetchone()
