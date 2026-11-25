@@ -622,7 +622,9 @@ def recibir_datos():
         SELECT agent_id, farm_id, ip, miner_uid, mac, serial, corte_activo, corte_temp, watchdog_activo,
                wd_fallo_desde, wd_motivo_fallo, wd_ultimo_reinicio, wd_reinicios_seguidos,
                wd_cuarentena, placas_normales, prot_sleep_desde, prot_motivo,
-               farm_lat, farm_lon, farm_city, gps_manual, ultima_act
+               farm_lat, farm_lon, farm_city, gps_manual, ultima_act,
+               COALESCE(alerta_hr_disparada, 0) AS alerta_hr_disparada,
+               COALESCE(alerta_temp_disparada, 0) AS alerta_temp_disparada
         FROM mineros_activos WHERE owner=%s
     """, (owner_user,))
     rows_exist = cur.fetchall()
@@ -1043,18 +1045,56 @@ def recibir_datos():
                                 if alertas_on:
                                     enviar_telegram(tg_tok, tg_cid, f"🔄 <b>WATCHDOG: AUTO-REINICIO</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nMotivo: <b>{fallo_wd}</b>\nIntento: {nuevos_reb} de {wd_max_reinicios}")
 
-            if alertas_on:
-                if temp_m >= umbral_t:
-                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP', 1800):
-                        msg_al = f"El equipo {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
-                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_al, ahora))
-                        enviar_telegram(tg_tok, tg_cid, f"🔥 <b>ALERTA DE TEMPERATURA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b>\nHashrate: {hr_m} {unid}")
+            # --- Gestión Inteligente de Alertas (Sin Spam: Notificación Única + Detección de Recuperación) ---
+            prev_alerta_hr = a_int_seguro(prev_m.get('alerta_hr_disparada'), 0)
+            prev_alerta_temp = a_int_seguro(prev_m.get('alerta_temp_disparada'), 0)
 
-                if umbral_h > 0 and hr_m < umbral_h and temp_m > 5:
-                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'HASHRATE', 1800):
-                        msg_hr = f"El equipo {mod_m} ({ip_m}) cayó a {hr_m} {unid} (Mínimo configurado: {umbral_h} {unid})."
-                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE', %s, %s)", (owner_user, ip_m, msg_hr, ahora))
-                        enviar_telegram(tg_tok, tg_cid, f"⚠️ <b>CAÍDA DE HASHRATE</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nHashrate actual: <b>{hr_m} {unid}</b> (Umbral: {umbral_h} {unid})\nTemperatura: {temp_m}°C")
+            # 1. Alerta por Caída de Hashrate
+            if umbral_h > 0 and hr_m < umbral_h and temp_m > 5:
+                # El minero rinde por debajo del umbral configurado
+                if prev_alerta_hr == 0:
+                    cur.execute(
+                        "UPDATE mineros_activos SET alerta_hr_disparada=1 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                        (owner_user, agent_id, ip_m)
+                    )
+                    msg_hr = f"El equipo {mod_m} ({ip_m}) cayó a {hr_m} {unid} (Mínimo: {umbral_h} {unid})."
+                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE', %s, %s)", (owner_user, ip_m, msg_hr, ahora))
+                    if alertas_on and tg_tok and tg_cid:
+                        enviar_telegram(tg_tok, tg_cid, f"⚠️ <b>CAÍDA DE HASHRATE</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nHashrate actual: <b>{hr_m} {unid}</b> (Mínimo: {umbral_h} {unid})\nTemperatura: {temp_m}°C")
+            elif umbral_h > 0 and hr_m >= umbral_h:
+                # El minero está minando con normalidad
+                if prev_alerta_hr == 1:
+                    cur.execute(
+                        "UPDATE mineros_activos SET alerta_hr_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                        (owner_user, agent_id, ip_m)
+                    )
+                    msg_ok = f"El equipo {mod_m} ({ip_m}) recuperó su hashrate: {hr_m} {unid}."
+                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE_OK', %s, %s)", (owner_user, ip_m, msg_ok, ahora))
+                    if alertas_on and tg_tok and tg_cid:
+                        enviar_telegram(tg_tok, tg_cid, f"🟢 <b>HASHRATE RECUPERADO</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nHashrate: <b>{hr_m} {unid}</b> (Normalizado)\nTemperatura: {temp_m}°C")
+
+            # 2. Alerta por Exceso de Temperatura
+            if temp_m >= umbral_t:
+                if prev_alerta_temp == 0:
+                    cur.execute(
+                        "UPDATE mineros_activos SET alerta_temp_disparada=1 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                        (owner_user, agent_id, ip_m)
+                    )
+                    msg_al = f"El equipo {mod_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
+                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)", (owner_user, ip_m, msg_al, ahora))
+                    if alertas_on and tg_tok and tg_cid:
+                        enviar_telegram(tg_tok, tg_cid, f"🔥 <b>ALERTA DE TEMPERATURA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b> (Límite: {umbral_t}°C)\nHashrate: {hr_m} {unid}")
+            elif temp_m > 0 and temp_m <= (umbral_t - 5):
+                # Histéresis de 5°C para evitar ráfagas de avisos por fluctuación leve
+                if prev_alerta_temp == 1:
+                    cur.execute(
+                        "UPDATE mineros_activos SET alerta_temp_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                        (owner_user, agent_id, ip_m)
+                    )
+                    msg_temp_ok = f"El equipo {mod_m} ({ip_m}) estabilizó su temperatura a {temp_m}°C."
+                    cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP_OK', %s, %s)", (owner_user, ip_m, msg_temp_ok, ahora))
+                    if alertas_on and tg_tok and tg_cid:
+                        enviar_telegram(tg_tok, tg_cid, f"🟢 <b>TEMPERATURA NORMALIZADA</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nTemperatura: <b>{temp_m}°C</b> (Enfriado)\nHashrate: {hr_m} {unid}")
         except Exception as err_m:
             print(f"Error guardando minero {m.get('ip')}: {err_m}")
 
@@ -1066,15 +1106,21 @@ def recibir_datos():
     if ahora_ts - ultima_limpieza_bd > 3600:
         ultima_limpieza_bd = ahora_ts
         try:
+            # Retención optimizada para alta escala (500 clientes, 5,000+ ASICs):
+            # - Incidentes / Auditoría (registro_alertas): 30 días (~10 MB, muy liviano)
+            # - Telemetría continua (historial_nube): 7 días de resolución completa
+            # - Arrays pesados de cadenas/chips en telemetría: limpiar tras 24h
+            # - Cola de órdenes ejecutadas: 2 días
             fecha_limite_30d = (ahora_dt - timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-            fecha_limite_48h = (ahora_dt - timedelta(hours=48)).strftime("%Y-%m-%d %H:%M:%S")
-            fecha_limite_cmd = (ahora_dt - timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S")
-            cur.execute("DELETE FROM historial_nube WHERE fecha < %s", (fecha_limite_30d,))
-            cur.execute("UPDATE historial_nube SET cadenas=NULL WHERE fecha < %s AND cadenas IS NOT NULL", (fecha_limite_48h,))
+            fecha_limite_7d = (ahora_dt - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+            fecha_limite_24h = (ahora_dt - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+            fecha_limite_cmd = (ahora_dt - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+            cur.execute("DELETE FROM historial_nube WHERE fecha < %s", (fecha_limite_7d,))
+            cur.execute("UPDATE historial_nube SET cadenas=NULL WHERE fecha < %s AND cadenas IS NOT NULL", (fecha_limite_24h,))
             cur.execute("DELETE FROM registro_alertas WHERE fecha < %s", (fecha_limite_30d,))
             cur.execute("DELETE FROM cola_comandos WHERE estado='enviado' AND fecha < %s", (fecha_limite_cmd,))
         except Exception as err_clean:
-            print(f"Error en limpieza automática 30d: {err_clean}")
+            print(f"Error en limpieza automática BD: {err_clean}")
 
     return jsonify({
         "status": "ok",
