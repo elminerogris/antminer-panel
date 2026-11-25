@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificar Correo Electrónico — El Minero Gris</title>
+    <script>try{if(localStorage.getItem('emg_theme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
+    <style>
+        :root {
+            --bg-main: #090b12;
+            --bg-card: #111420;
+            --bg-input: rgba(10, 12, 18, 0.85);
+            --border: rgba(255, 255, 255, 0.12);
+            --border-focus: #3366ff;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --blue: #3366ff;
+            --blue-hover: #2563eb;
+            --green: #00e676;
+            --red: #ff5252;
+            --cyan: #38bdf8;
+        }
+        :root[data-theme="light"] {
+            --bg-main: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --border: #cbd5e1;
+            --border-focus: #2563eb;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --blue: #2563eb;
+            --blue-hover: #1d4ed8;
+            --green: #059669;
+            --red: #dc2626;
+            --cyan: #0284c7;
+        }
+        :root[data-theme="light"] .box { box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12); }
+        :root[data-theme="light"] .msg.err { color: #b91c1c; background: rgba(220, 38, 38, 0.08); }
+        :root[data-theme="light"] .msg.ok { color: #047857; background: rgba(5, 150, 105, 0.10); }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+            background: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.16), transparent 50%), var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .box {
+            width: 100%;
+            max-width: 430px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 28px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+            text-align: center;
+        }
+        .icon-badge {
+            width: 64px;
+            height: 64px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 18px;
+        }
+        h1 { font-size: 1.4rem; margin-bottom: 8px; font-weight: 700; }
+        .sub { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5; }
+        .user-tag { color: var(--cyan); font-weight: 600; }
+        .email-tag { color: var(--text-main); font-weight: 600; word-break: break-all; }
+
+        .msg {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            line-height: 1.45;
+            text-align: left;
+        }
+        .msg.err { background: rgba(255, 82, 82, 0.14); border: 1px solid rgba(255, 82, 82, 0.45); color: #ff8a80; }
+        .msg.ok { background: rgba(0, 230, 118, 0.12); border: 1px solid rgba(0, 230, 118, 0.4); color: #a7f3d0; }
+
+        .otp-group {
+            margin-bottom: 24px;
+        }
+        .otp-label {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        .otp-input {
+            width: 100%;
+            max-width: 260px;
+            text-align: center;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 10px;
+            padding: 12px 14px;
+            background: var(--bg-input);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-main);
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .otp-input:focus {
+            border-color: var(--cyan);
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.3);
+        }
+        .otp-input::placeholder {
+            color: rgba(148, 163, 184, 0.35);
+            letter-spacing: 6px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 14px 18px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+        }
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45);
+        }
+        .btn-submit:active { transform: translateY(0); }
+
+        .resend-box {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .btn-resend {
+            background: transparent;
+            border: none;
+            color: var(--cyan);
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: underline;
+            padding: 4px;
+            font-size: 0.85rem;
+        }
+        .btn-resend:disabled {
+            color: var(--text-muted);
+            cursor: not-allowed;
+            text-decoration: none;
+            opacity: 0.6;
+        }
+
+        .logout-link {
+            display: inline-block;
+            margin-top: 16px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .logout-link:hover { color: var(--text-main); }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <div class="icon-badge">📬</div>
+        <h1>Verifica tu Correo</h1>
+        <p class="sub">
+            Hemos enviado un código de 6 dígitos a <br>
+            <span class="email-tag">{{ email_masked }}</span><br>
+            para activar la cuenta de <span class="user-tag">{{ username }}</span>.
+        </p>
+
+        {% if error %}
+            <div class="msg err">⚠️ {{ error }}</div>
+        {% endif %}
+        {% if success %}
+            <div class="msg ok">✅ {{ success }}</div>
+        {% endif %}
+        <div id="ajaxMsg" class="msg" style="display:none;"></div>
+
+        <form method="POST" action="/verificar_email" id="verifyForm">
+            <div class="otp-group">
+                <label class="otp-label" for="codigo">Código de 6 Dígitos</label>
+                <input type="text"
+                       id="codigo"
+                       name="codigo"
+                       class="otp-input"
+                       maxlength="6"
+                       pattern="[0-9]{6}"
+                       inputmode="numeric"
+                       autocomplete="one-time-code"
+                       placeholder="••••••"
+                       required
+                       autofocus>
+            </div>
+
+            <button type="submit" class="btn-submit" id="btnSubmit">
+                ⚡ Activar y Continuar
+            </button>
+        </form>
+
+        <div class="resend-box">
+            ¿No recibiste el código?
+            <button type="button" class="btn-resend" id="btnResend" onclick="reenviarCodigo()">
+                Reenviar código
+            </button>
+            <span id="countdownText" style="display:none; margin-left: 4px;"></span>
+        </div>
+
+        <div>
+            <a href="/logout" class="logout-link">← Cancelar y salir</a>
+        </div>
+    </div>
+
+    <script>
+        let countdownSecs = 0;
+        let timerInterval = null;
+
+        function iniciarTimer(segundos) {
+            countdownSecs = segundos;
+            const btn = document.getElementById('btnResend');
+            const txt = document.getElementById('countdownText');
+            btn.disabled = true;
+            txt.style.display = 'inline';
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                countdownSecs--;
+                if (countdownSecs <= 0) {
+                    clearInterval(timerInterval);
+                    btn.disabled = false;
+                    txt.style.display = 'none';
+                    txt.textContent = '';
+                } else {
+                    txt.textContent = `(espera ${countdownSecs}s)`;
+                }
+            }, 1000);
+        }
+
+        async function reenviarCodigo() {
+            const btn = document.getElementById('btnResend');
+            const ajaxMsg = document.getElementById('ajaxMsg');
+            btn.disabled = true;
+            ajaxMsg.style.display = 'none';
+
+            try {
+                const res = await fetch('/reenviar_codigo_email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                ajaxMsg.style.display = 'block';
+                if (data.status === 'ok') {
+                    ajaxMsg.className = 'msg ok';
+                    ajaxMsg.innerHTML = '✅ ' + data.msg;
+                    iniciarTimer(60);
+                } else {
+                    ajaxMsg.className = 'msg err';
+                    ajaxMsg.innerHTML = '⚠️ ' + (data.msg || 'Error al reenviar el código.');
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                ajaxMsg.style.display = 'block';
+                ajaxMsg.className = 'msg err';
+                ajaxMsg.innerHTML = '⚠️ Error de conexión con el servidor.';
+                btn.disabled = false;
+            }
+        }
+
+        // Auto-submit cuando se completan los 6 dígitos
+        const codInput = document.getElementById('codigo');
+        codInput.addEventListener('input', (e) => {
+            const val = e.target.value.replace(/\D/g, '');
+            e.target.value = val;
+            if (val.length === 6) {
+                document.getElementById('verifyForm').submit();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -391,6 +391,11 @@
         {% endif %}
 
         <form method="POST" id="authForm" onsubmit="alEnviarFormulario()">
+            <!-- Anti-Bot Honeypot: Campo señuelo invisible para humanos, pero completado por bots automatizados -->
+            <div style="position:absolute; left:-9999px; top:-9999px; opacity:0; pointer-events:none; width:0; height:0;" aria-hidden="true">
+                <input type="text" name="b_website" tabindex="-1" autocomplete="off" value="">
+            </div>
+
             <div class="form-group">
                 <label for="username">{{ 'Nombre de Usuario' if mode == 'register' else 'Usuario o Correo Electrónico' }}</label>
                 <div class="input-wrap">

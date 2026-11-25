@@ -2,7 +2,9 @@ from flask import render_template, render_template_string, redirect, session
 from werkzeug.security import check_password_hash
 from jinja2 import TemplateNotFound
 from functools import wraps
-import json, urllib.request, urllib.parse, time, os, secrets, hashlib, re, threading, base64, struct, hmac, math, html
+import json, urllib.request, urllib.parse, time, os, secrets, hashlib, re, threading, base64, struct, hmac, math, html, smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 
 LIMITE_MINEROS_GRATIS = 3
@@ -639,4 +641,97 @@ def fijar_cookie_dispositivo(resp, raw_token):
         domain=cookie_domain
     )
     return resp
+
+def enmascarar_email(email_str):
+    """Enmascara un correo para visualización segura (ej: c***o@gmail.com)."""
+    s = str(email_str or "").strip()
+    if "@" not in s:
+        return s
+    usuario, dominio = s.split("@", 1)
+    if len(usuario) <= 2:
+        u_mask = usuario[0] + "*"
+    else:
+        u_mask = usuario[0] + "*" * (len(usuario) - 2) + usuario[-1]
+    return f"{u_mask}@{dominio}"
+
+def enviar_email_codigo(email_dest, codigo, username=""):
+    """
+    Envía un código OTP de 6 dígitos por correo usando SMTP configurado
+    (Gmail, Brevo, SendGrid, Amazon SES o SMTP personalizado).
+    Si no hay credenciales SMTP configuradas en variables de entorno, registra el código
+    en los logs para permitir pruebas en desarrollo sin bloquear al usuario.
+    """
+    if not email_dest or not codigo:
+        return False
+
+    smtp_host = os.environ.get("SMTP_HOST", "").strip()
+    smtp_port = a_int_seguro(os.environ.get("SMTP_PORT", "587"), 587)
+    smtp_user = os.environ.get("SMTP_USER", "").strip()
+    smtp_pass = os.environ.get("SMTP_PASS", "").strip()
+    smtp_from = os.environ.get("SMTP_FROM", "").strip() or f"El Minero Gris <{smtp_user or 'no-reply@elminerogris.com'}>"
+
+    asunto = f"🔐 Código de Verificación: {codigo} — El Minero Gris"
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head><meta charset="UTF-8"></head>
+    <body style="margin:0; padding:20px; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color:#0b1320; color:#e2e8f0;">
+      <div style="max-width:520px; margin:0 auto; background:#111b2b; border-radius:12px; border:1px solid #1e293b; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+        <div style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding:25px; text-align:center; border-bottom:1px solid #334155;">
+          <h1 style="margin:0; font-size:22px; color:#38bdf8; letter-spacing:1px;">⚡ EL MINERO GRIS</h1>
+          <p style="margin:6px 0 0 0; font-size:13px; color:#94a3b8;">Monitoreo Profesional de Minería ASIC</p>
+        </div>
+        <div style="padding:30px 25px;">
+          <p style="margin-top:0; font-size:15px; color:#f1f5f9;">¡Hola, <b>{username or 'Minero'}</b>!</p>
+          <p style="font-size:14px; line-height:1.6; color:#cbd5e1;">Gracias por registrarte en <b>El Minero Gris</b>. Para activar tu cuenta y proteger el acceso a tus mineros, ingresa el siguiente código de verificación:</p>
+          <div style="text-align:center; margin:30px 0;">
+            <div style="display:inline-block; background:#0f172a; border:2px solid #38bdf8; border-radius:10px; padding:15px 35px; font-size:32px; font-weight:bold; letter-spacing:8px; color:#38bdf8; font-family:monospace; box-shadow:0 0 20px rgba(56,189,248,0.25);">
+              {codigo}
+            </div>
+            <p style="margin:10px 0 0 0; font-size:12px; color:#94a3b8;">⏱️ Válido durante 15 minutos</p>
+          </div>
+          <p style="font-size:13px; color:#94a3b8; line-height:1.5;">Si tú no solicitaste este registro, puedes ignorar este mensaje de forma segura; la cuenta no podrá activarse sin este código.</p>
+        </div>
+        <div style="background:#0b1320; padding:15px 25px; text-align:center; border-top:1px solid #1e293b; font-size:11px; color:#64748b;">
+          El Minero Gris · Plataforma de Control & Telemetría ASIC · Santa Cruz, Bolivia
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+
+    texto_plano = (
+        f"El Minero Gris — Código de Verificación\n\n"
+        f"Hola {username or 'Minero'},\n\n"
+        f"Tu código de verificación para activar tu cuenta es: {codigo}\n\n"
+        f"Este código expira en 15 minutos.\n\n"
+        f"Si no solicitaste este código, ignora este mensaje."
+    )
+
+    if not smtp_host or not smtp_user or not smtp_pass:
+        print(f"⚠️ [DEV MODE - SMTP NO CONFIGURADO] Código para '{username}' ({email_dest}): {codigo}")
+        return True
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = asunto
+        msg["From"] = smtp_from
+        msg["To"] = email_dest
+        msg.attach(MIMEText(texto_plano, "plain", "utf-8"))
+        msg.attach(MIMEText(html_content, "html", "utf-8"))
+
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=8) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [email_dest], msg.as_string())
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=8) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [email_dest], msg.as_string())
+        return True
+    except Exception as e:
+        print(f"❌ Error enviando email a {email_dest}: {e}")
+        return False
 
