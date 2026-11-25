@@ -471,7 +471,55 @@
         </div>
     </div>
 
-    <!-- TARJETA 2: SEGURIDAD Y GUÍA DE INSTALACIÓN -->
+    <!-- TARJETA 2: ALERTAS Y NOTIFICACIONES DE TELEGRAM -->
+    <div class="card-pro">
+        <div class="card-pro-header">
+            <span>📲 Alertas y Notificaciones de Telegram</span>
+            <span style="font-size:0.74em; color:{{ '#00e676' if user.tg_token and user.tg_chat_id else 'var(--text-muted)' }}; font-family:monospace;">
+                {{ '● Vinculado' if user.tg_token and user.tg_chat_id else '○ No configurado' }}
+            </span>
+        </div>
+        <div class="card-pro-body">
+            <div class="panel-sub">
+                Recibe alertas críticas de seguridad (intentos de hackeo, bloqueos de IP), avisos de corte de luz / internet y notificaciones de Watchdog directamente a tu celular.
+            </div>
+
+            <form action="/ajustes" method="POST" style="margin-bottom: 14px;">
+                <input type="hidden" name="accion" value="guardar_telegram">
+                <div class="form-group">
+                    <label class="form-label">Token del Bot (creado con @BotFather)</label>
+                    <div class="input-wrap">
+                        <input type="password" id="tgTokenInput" name="tg_token" class="form-input with-eye" value="{{ user.tg_token }}" placeholder="Ej: 7294850183:AAHk1_d..." autocomplete="off">
+                        <button type="button" class="btn-eye" onclick="togglePassField('tgTokenInput', this)">👁️</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Chat ID Personal (obtenido de @userinfobot)</label>
+                    <input type="text" name="tg_chat_id" class="form-input" value="{{ user.tg_chat_id }}" placeholder="Ej: 123456789" autocomplete="off">
+                </div>
+
+                <div class="btn-row" style="margin-top: 14px;">
+                    <button type="submit" class="btn-emg-save" style="width:100%; padding:10px 14px;"
+                            data-save-title="💾 Guardar Configuración de Telegram"
+                            data-save-desc="Guarda las credenciales de tu bot para recibir alertas en tiempo real en tu teléfono."
+                            data-save-note="Aplica de inmediato al guardar">💾 Guardar Telegram</button>
+                </div>
+            </form>
+
+            <form action="/ajustes" method="POST" style="border-top:1px solid var(--border-subtle); padding-top:14px;">
+                <input type="hidden" name="accion" value="probar_telegram">
+                <button type="submit" class="btn-outline-pro" style="width:100%;">📨 Enviar Mensaje de Prueba a Telegram</button>
+            </form>
+
+            <div style="background:var(--bg-well); border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-top:14px; font-size:0.78em; color:var(--text-muted); line-height:1.45;">
+                <b>💡 Guía rápida de 2 pasos:</b><br>
+                1. Busca <b>@BotFather</b> en Telegram, escribe <code>/newbot</code> y copia el <b>Token</b>.<br>
+                2. Busca <b>@userinfobot</b> en Telegram, dale a Iniciar y copia tu número de <b>Id</b>.
+            </div>
+        </div>
+    </div>
+
+    <!-- TARJETA 3: SEGURIDAD Y GUÍA DE INSTALACIÓN -->
     <div class="card-pro">
         <div class="card-pro-header">
             <span>🔒 Seguridad de la Cuenta</span>

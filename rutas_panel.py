@@ -1457,6 +1457,21 @@ def ajustes():
                 msg = "Contraseña actualizada y cifrada correctamente."
             else:
                 msg = "Las contraseñas no coinciden."
+        elif accion == 'guardar_telegram':
+            tg_tok = (request.form.get('tg_token') or '').strip()
+            tg_cid = (request.form.get('tg_chat_id') or '').strip()
+            cur.execute("UPDATE usuarios SET tg_token=%s, tg_chat_id=%s WHERE username=%s", (tg_tok, tg_cid, usr_actual))
+            msg = "Configuración de Telegram guardada correctamente."
+        elif accion == 'probar_telegram':
+            cur.execute("SELECT tg_token, tg_chat_id FROM usuarios WHERE username=%s", (usr_actual,))
+            cfg_tg = cur.fetchone() or {}
+            tok = cfg_tg.get('tg_token') or ''
+            cid = cfg_tg.get('tg_chat_id') or ''
+            if tok and cid:
+                ok = enviar_telegram(tok, cid, f"🟢 <b>El Minero Gris — Prueba Exitosa</b>\n¡Bot de Telegram vinculado correctamente a la cuenta <b>{usr_actual}</b>!")
+                msg = "Mensaje de prueba enviado con éxito a tu Telegram." if ok else "No se pudo enviar. Revisa el Token, Chat ID y asegúrate de haber pulsado 'Iniciar' en tu bot de Telegram."
+            else:
+                msg = "Primero debes ingresar y guardar tu Token y Chat ID de Telegram."
 
     cur.execute("SELECT * FROM usuarios WHERE username=%s", (usr_actual,))
     u_data = cur.fetchone() or {}
@@ -1470,7 +1485,9 @@ def ajustes():
         'api_key': u_data.get('api_key', ''), 'subnet': u_data.get('subnet') or '192.168.0',
         'tarifa_kwh': u_data.get('tarifa_kwh') or 0.0,
         'miner_user': u_data.get('miner_user') or 'root',
-        'miner_pass': u_data.get('miner_pass') or ''
+        'miner_pass': u_data.get('miner_pass') or '',
+        'tg_token': u_data.get('tg_token') or '',
+        'tg_chat_id': u_data.get('tg_chat_id') or '',
     }
     return render_seguro('ajustes.html', active_page='ajustes', user=user_info, msg=msg)
 
