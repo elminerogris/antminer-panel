@@ -666,19 +666,22 @@
                 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(290px, 1fr)); gap:12px;">
                     {% for d in user.dispositivos %}
                     <div style="background:var(--bg-well); border:1px solid {{ 'rgba(0,230,118,0.45)' if d.es_actual else 'var(--border-color)' }}; border-radius:8px; padding:12px 14px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-                        <div style="display:flex; gap:12px; align-items:center;">
-                            <span style="font-size:1.8em; line-height:1;">{{ d.icono }}</span>
+                        <div style="display:flex; gap:12px; align-items:flex-start;">
+                            <span style="font-size:1.8em; line-height:1; margin-top:2px;">{{ d.icono }}</span>
                             <div>
-                                <div style="font-weight:bold; font-size:0.86em; color:var(--text-main); display:flex; align-items:center; gap:6px;">
-                                    <span>{{ d.dispositivo }}</span>
+                                <div style="font-weight:bold; font-size:0.88em; color:var(--text-main); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <span id="{{ 'dispActualNombre' if d.es_actual else '' }}">{{ d.dispositivo }}</span>
                                     {% if d.es_actual %}
-                                    <span style="background:rgba(0,230,118,0.18); color:var(--accent-green); border:1px solid rgba(0,230,118,0.4); font-size:0.68em; padding:1px 6px; border-radius:10px; font-family:monospace;">📍 Actual</span>
+                                    <span style="background:rgba(0,230,118,0.18); color:var(--accent-green); border:1px solid rgba(0,230,118,0.4); font-size:0.68em; padding:1px 6px; border-radius:10px; font-family:monospace;">📍 Sesión Actual</span>
                                     {% endif %}
                                 </div>
-                                <div style="font-size:0.75em; color:var(--text-muted); font-family:monospace; margin-top:3px;">
+                                <div style="font-size:0.76em; color:var(--accent-cyan, #38bdf8); font-weight:600; margin-top:3px; display:flex; align-items:center; gap:4px;">
+                                    <span>📍</span> <span id="{{ 'dispActualUbicacion' if d.es_actual else '' }}">{{ d.ubicacion }}</span>
+                                </div>
+                                <div style="font-size:0.74em; color:var(--text-muted); font-family:monospace; margin-top:2px;">
                                     🌐 IP: {{ d.ip }}
                                 </div>
-                                <div style="font-size:0.72em; color:var(--text-secondary); margin-top:2px;">
+                                <div style="font-size:0.70em; color:var(--text-secondary); margin-top:2px;">
                                     📅 Guardado: {{ d.fecha_creacion[:10] }} · Expira: {{ d.expira_en[:10] }}
                                 </div>
                             </div>
@@ -1073,5 +1076,70 @@
             alert('Error: ' + e);
         }
     }
+
+    // Detección precisa de modelo de hardware y sincronización en vivo
+    function detectarModeloHardware() {
+        try {
+            const ua = navigator.userAgent || '';
+            const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            if (isIOS) {
+                const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                const w = Math.min(window.screen.width, window.screen.height);
+                const h = Math.max(window.screen.width, window.screen.height);
+                const r = Math.round(window.devicePixelRatio || 1);
+
+                if (isIPad) {
+                    if (w >= 1024 && h >= 1366) return 'iPad Pro 12.9"';
+                    if (w >= 834 && h >= 1194) return 'iPad Pro 11"';
+                    if (w >= 820 && h >= 1180) return 'iPad Air / iPad 10ª Gen';
+                    if (w >= 810 && h >= 1080) return 'iPad 10.2"';
+                    if (w >= 744 && h >= 1133) return 'iPad mini';
+                    return 'iPad';
+                } else {
+                    if (w === 440 && h === 956) return 'iPhone 16 Pro Max';
+                    if (w === 402 && h === 874) return 'iPhone 16 Pro';
+                    if (w === 430 && h === 932) return 'iPhone (16 Plus / 15 Pro Max)';
+                    if (w === 393 && h === 852) return 'iPhone (16 / 15 Pro / 14 Pro)';
+                    if (w === 428 && h === 926) return 'iPhone 14 Plus / 13 Pro Max';
+                    if (w === 390 && h === 844) return 'iPhone (14 / 13 / 12)';
+                    if (w === 375 && h === 812 && r >= 3) return 'iPhone (13 mini / 12 mini / 11 Pro)';
+                    if (w === 414 && h === 896 && r >= 3) return 'iPhone 11 Pro Max / XS Max';
+                    if (w === 414 && h === 896 && r === 2) return 'iPhone 11 / XR';
+                    if (w === 375 && h === 667 && r === 2) return 'iPhone SE';
+                    return 'iPhone';
+                }
+            }
+            if (/Android/i.test(ua)) {
+                const match = ua.match(/Android\s+[\d\.]+;\s*([^;\)]+)/i);
+                if (match && match[1]) {
+                    let modelo = match[1].replace(/Build\/.*/i, '').trim();
+                    return 'Android (' + modelo + ')';
+                }
+                return 'Android';
+            }
+        } catch(e) {}
+        return '';
+    }
+
+    (function() {
+        try {
+            const hint = detectarModeloHardware();
+            if (hint) {
+                fetch('/api/dispositivos/actualizar_actual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ client_hint: hint })
+                }).then(r => r.json()).then(data => {
+                    if (data && data.status === 'ok' && data.dispositivo) {
+                        const el = document.getElementById('dispActualNombre');
+                        if (el) el.innerText = data.dispositivo;
+                        const locEl = document.getElementById('dispActualUbicacion');
+                        if (locEl && data.ubicacion) locEl.innerText = data.ubicacion;
+                    }
+                }).catch(() => {});
+            }
+        } catch(e) {}
+    })();
 </script>
 {% endblock %}

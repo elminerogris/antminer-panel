@@ -93,7 +93,8 @@ def init_db():
             dispositivo TEXT DEFAULT '',
             ip TEXT DEFAULT '',
             fecha_creacion TEXT DEFAULT '',
-            expira_en TEXT DEFAULT ''
+            expira_en TEXT DEFAULT '',
+            ubicacion TEXT DEFAULT ''
         )''')
 
         # --- Tablas Pro: Racks, Enlaces de Hosting (Solo Lectura) y Pagos Automáticos USDT ---
@@ -355,7 +356,8 @@ def init_db():
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS totp_activo INTEGER DEFAULT 0",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email_verificado INTEGER DEFAULT 1",
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email_token TEXT DEFAULT ''",
-            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email_token_exp TEXT DEFAULT ''"
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email_token_exp TEXT DEFAULT ''",
+            "ALTER TABLE dispositivos_confianza ADD COLUMN IF NOT EXISTS ubicacion TEXT DEFAULT ''"
         ]
         for col_sql in columnas_nuevas:
             try: c.execute(col_sql)

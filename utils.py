@@ -604,22 +604,108 @@ def render_seguro(nombre_archivo, **contexto):
         """
         return render_template_string(html_fallback, archivo=nombre_archivo, **contexto)
 
-def parsear_dispositivo(ua_string):
-    """Genera un nombre amigable de navegador/sistema a partir del User-Agent."""
-    ua = str(ua_string or "").lower()
-    os_name = "Dispositivo"
-    if "windows" in ua: os_name = "Windows"
-    elif "android" in ua: os_name = "Android"
-    elif "iphone" in ua or "ipad" in ua: os_name = "iPhone/iPad"
-    elif "macintosh" in ua or "mac os" in ua: os_name = "macOS"
-    elif "linux" in ua: os_name = "Linux"
+_geo_cache = {}
 
+def obtener_ubicacion_ip(ip_str, req=None):
+    """Retorna 'Ciudad, País' a partir de Cloudflare o consulta IP Geolocation rápida con caché."""
+    if not ip_str or ip_str in ('127.0.0.1', 'localhost', '::1', 'unknown'):
+        return 'Red Local / Privada'
+    
+    # 1. Cabeceras directas de Cloudflare
+    if req:
+        cf_city = (req.headers.get('CF-IPCity') or '').strip()
+        cf_country = (req.headers.get('CF-IPCountry') or '').strip()
+        if cf_city and cf_country:
+            return f"{cf_city}, {cf_country}"
+        elif cf_country:
+            return cf_country
+
+    # 2. Caché en memoria
+    if ip_str in _geo_cache:
+        return _geo_cache[ip_str]
+        
+    # 3. Consulta de geolocalización IP (ip-api.com) con timeout estricto de 1.5s
+    try:
+        url = f"http://ip-api.com/json/{ip_str}?fields=status,country,city,countryCode"
+        req_obj = urllib.request.Request(url, headers={'User-Agent': 'ElMineroGris/2.0'})
+        with urllib.request.urlopen(req_obj, timeout=1.5) as r:
+            data = json.loads(r.read().decode('utf-8'))
+            if data.get('status') == 'success':
+                ciudad = (data.get('city') or '').strip()
+                pais = (data.get('country') or data.get('countryCode') or '').strip()
+                loc = f"{ciudad}, {pais}".strip(', ') if (ciudad or pais) else 'Ubicación Desconocida'
+                _geo_cache[ip_str] = loc
+                return loc
+    except Exception:
+        pass
+        
+    return 'Ubicación Desconocida'
+
+def parsear_dispositivo(ua_string, client_hint=None):
+    """
+    Genera un nombre detallado de dispositivo, navegador y sistema operativo.
+    Soporta discriminación exacta de iPhone (ej: iPhone 16 Pro Max), iPad, Android,
+    Chrome, Safari, Firefox, Edge, Telegram y Apps embebidas.
+    """
+    ua = str(ua_string or "")
+    ua_l = ua.lower()
+    
+    # 1. Si el cliente envió un indicio de hardware específico (detectado vía JS)
+    hint_clean = str(client_hint or "").strip()
+    
+    # 2. Detección de Sistema y Dispositivo
+    os_name = "Dispositivo"
+    
+    if hint_clean and ("iphone" in hint_clean.lower() or "ipad" in hint_clean.lower() or "galaxy" in hint_clean.lower() or "pixel" in hint_clean.lower()):
+        os_name = hint_clean
+    elif "ipad" in ua_l or ("macintosh" in ua_l and "mobile" in ua_l):
+        os_name = "iPad"
+    elif "iphone" in ua_l:
+        os_name = "iPhone"
+    elif "android" in ua_l:
+        m = re.search(r'android\s+[\d\.]+;\s*([^;\)]+)', ua, re.IGNORECASE)
+        if m and m.group(1):
+            modelo_raw = m.group(1).strip()
+            if "build" in modelo_raw.lower():
+                modelo_raw = modelo_raw.split("Build")[0].strip()
+            os_name = f"Android ({modelo_raw})"
+        else:
+            os_name = "Android"
+    elif "windows nt 10.0" in ua_l or "windows 11" in ua_l:
+        os_name = "Windows 10/11"
+    elif "windows" in ua_l:
+        os_name = "Windows"
+    elif "macintosh" in ua_l or "mac os x" in ua_l:
+        os_name = "Mac (macOS)"
+    elif "linux" in ua_l:
+        os_name = "Linux"
+
+    # 3. Detección precisa de Navegador o App
     browser = "Navegador"
-    if "edg/" in ua: browser = "Edge"
-    elif "chrome/" in ua and "safari/" in ua: browser = "Chrome"
-    elif "firefox/" in ua: browser = "Firefox"
-    elif "safari/" in ua and "chrome/" not in ua: browser = "Safari"
-    elif "opera/" in ua or "opr/" in ua: browser = "Opera"
+    if "elminerogris-app" in ua_l:
+        browser = "App El Minero Gris"
+    elif "telegram" in ua_l:
+        browser = "Telegram In-App"
+    elif "instagram" in ua_l:
+        browser = "Instagram In-App"
+    elif "fbav" in ua_l or "fban" in ua_l:
+        browser = "Facebook In-App"
+    elif "crios/" in ua_l:
+        browser = "Google Chrome"
+    elif "fxios/" in ua_l:
+        browser = "Firefox"
+    elif "edgios/" in ua_l or "edg/" in ua_l:
+        browser = "Microsoft Edge"
+    elif "opios/" in ua_l or "opr/" in ua_l or "opera" in ua_l:
+        browser = "Opera"
+    elif "samsungbrowser/" in ua_l:
+        browser = "Samsung Internet"
+    elif "chrome/" in ua_l and "safari/" in ua_l:
+        browser = "Google Chrome"
+    elif "safari/" in ua_l and "chrome" not in ua_l:
+        browser = "Safari"
+    elif "firefox/" in ua_l:
+        browser = "Firefox"
 
     return f"{browser} en {os_name}"
 

@@ -358,6 +358,7 @@
             {% endif %}
 
             <form method="POST" action="/login">
+                <input type="hidden" name="device_client_hint" class="input-device-hint" value="">
                 <div class="form-group">
                     <label for="codigo_2fa" style="text-align:center;">Código de Seguridad</label>
                     <div class="input-wrap">
@@ -391,6 +392,7 @@
         {% endif %}
 
         <form method="POST" id="authForm" action="{{ '/register' if mode == 'register' else '/login' }}" onsubmit="alEnviarFormulario()">
+            <input type="hidden" name="device_client_hint" class="input-device-hint" value="">
             <!-- Anti-Bot Honeypot: Campo señuelo invisible para humanos, pero completado por bots automatizados -->
             <div style="position:absolute; left:-9999px; top:-9999px; opacity:0; pointer-events:none; width:0; height:0;" aria-hidden="true">
                 <input type="text" name="b_website" tabindex="-1" autocomplete="off" value="">
@@ -491,7 +493,62 @@
             }
         }
 
+        function detectarModeloHardware() {
+            try {
+                const ua = navigator.userAgent || '';
+                const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                if (isIOS) {
+                    const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                    const w = Math.min(window.screen.width, window.screen.height);
+                    const h = Math.max(window.screen.width, window.screen.height);
+                    const r = Math.round(window.devicePixelRatio || 1);
+
+                    if (isIPad) {
+                        if (w >= 1024 && h >= 1366) return 'iPad Pro 12.9"';
+                        if (w >= 834 && h >= 1194) return 'iPad Pro 11"';
+                        if (w >= 820 && h >= 1180) return 'iPad Air / iPad 10ª Gen';
+                        if (w >= 810 && h >= 1080) return 'iPad 10.2"';
+                        if (w >= 744 && h >= 1133) return 'iPad mini';
+                        return 'iPad';
+                    } else {
+                        if (w === 440 && h === 956) return 'iPhone 16 Pro Max';
+                        if (w === 402 && h === 874) return 'iPhone 16 Pro';
+                        if (w === 430 && h === 932) return 'iPhone (16 Plus / 15 Pro Max)';
+                        if (w === 393 && h === 852) return 'iPhone (16 / 15 Pro / 14 Pro)';
+                        if (w === 428 && h === 926) return 'iPhone 14 Plus / 13 Pro Max';
+                        if (w === 390 && h === 844) return 'iPhone (14 / 13 / 12)';
+                        if (w === 375 && h === 812 && r >= 3) return 'iPhone (13 mini / 12 mini / 11 Pro)';
+                        if (w === 414 && h === 896 && r >= 3) return 'iPhone 11 Pro Max / XS Max';
+                        if (w === 414 && h === 896 && r === 2) return 'iPhone 11 / XR';
+                        if (w === 375 && h === 667 && r === 2) return 'iPhone SE';
+                        return 'iPhone';
+                    }
+                }
+                if (/Android/i.test(ua)) {
+                    const match = ua.match(/Android\s+[\d\.]+;\s*([^;\)]+)/i);
+                    if (match && match[1]) {
+                        let modelo = match[1].replace(/Build\/.*/i, '').trim();
+                        return 'Android (' + modelo + ')';
+                    }
+                    return 'Android';
+                }
+            } catch(e) {}
+            return '';
+        }
+
+        function aplicarDeviceHint() {
+            try {
+                const hint = detectarModeloHardware();
+                if (hint) {
+                    document.querySelectorAll('.input-device-hint').forEach(el => { el.value = hint; });
+                }
+            } catch(e) {}
+        }
+        document.addEventListener('DOMContentLoaded', aplicarDeviceHint);
+        aplicarDeviceHint();
+
         function alEnviarFormulario() {
+            aplicarDeviceHint();
             const btn = document.getElementById('btnSubmitAuth');
             if (btn) {
                 setTimeout(function() {

@@ -14,7 +14,8 @@ from utils import (
     generar_totp_secret, verificar_totp, notificar_alerta_seguridad,
     parsear_dispositivo, fijar_cookie_dispositivo, determinar_credenciales_defecto,
     sanitizar_nombre_minero, sanitizar_nombre_granja, sanitizar_texto_seguro,
-    enmascarar_email, enviar_email_codigo, calcular_dias_pro_restantes
+    enmascarar_email, enviar_email_codigo, calcular_dias_pro_restantes,
+    obtener_ubicacion_ip
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
@@ -1509,7 +1510,7 @@ def ajustes():
     totp_activo = bool(a_int_seguro(u_data.get('totp_activo'), 0) == 1)
     ahora_dt = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     cur.execute(
-        "SELECT id, dispositivo, ip, fecha_creacion, expira_en, token_hash FROM dispositivos_confianza WHERE LOWER(username)=LOWER(%s) AND expira_en > %s ORDER BY id DESC",
+        "SELECT id, dispositivo, ip, fecha_creacion, expira_en, token_hash, COALESCE(ubicacion, '') as ubicacion FROM dispositivos_confianza WHERE LOWER(username)=LOWER(%s) AND expira_en > %s ORDER BY id DESC",
         (usr_actual, ahora_dt)
     )
     dispositivos_db = cur.fetchall() or []
@@ -1521,7 +1522,9 @@ def ajustes():
         es_act = bool(hash_actual and d.get('token_hash') == hash_actual)
         disp_nom = d.get('dispositivo') or 'Navegador Web'
         dl = disp_nom.lower()
-        if 'android' in dl or 'iphone' in dl or 'ipad' in dl:
+        if 'ipad' in dl:
+            ico = '📟'
+        elif 'iphone' in dl or 'android' in dl:
             ico = '📱'
         elif 'windows' in dl:
             ico = '💻'
@@ -1532,11 +1535,23 @@ def ajustes():
         else:
             ico = '🌐'
 
+        d_ip = d.get('ip') or ''
+        d_loc = (d.get('ubicacion') or '').strip()
+        if (not d_loc or d_loc in ('Ubicación Desconocida', 'Ubicación no registrada')) and d_ip:
+            d_loc_nueva = obtener_ubicacion_ip(d_ip, request if es_act else None)
+            if d_loc_nueva and d_loc_nueva != 'Ubicación Desconocida':
+                d_loc = d_loc_nueva
+                try:
+                    cur.execute("UPDATE dispositivos_confianza SET ubicacion=%s WHERE id=%s", (d_loc, d['id']))
+                except Exception:
+                    pass
+
         lista_dispositivos.append({
             'id': d['id'],
             'dispositivo': disp_nom,
             'icono': ico,
-            'ip': d.get('ip') or 'Desconocida',
+            'ip': d_ip or 'Desconocida',
+            'ubicacion': d_loc or 'Ubicación no registrada',
             'fecha_creacion': d.get('fecha_creacion') or '',
             'expira_en': d.get('expira_en') or '',
             'es_actual': es_act
@@ -1657,6 +1672,39 @@ def api_dispositivos_revocar_todos():
     resp.delete_cookie('emg_trusted_device', path='/')
     return resp
 
+@panel_bp.route('/api/dispositivos/actualizar_actual', methods=['POST'])
+@login_required
+def api_dispositivos_actualizar_actual():
+    """Actualiza en vivo el modelo exacto y ubicación de la sesión actual al abrir ajustes."""
+    token_actual = request.cookies.get('emg_trusted_device')
+    if not token_actual:
+        return jsonify({"status": "ok", "msg": "Sin cookie de dispositivo seguro."})
+    
+    data = request.get_json(silent=True) or {}
+    hint = str(data.get('client_hint') or '').strip()
+    if not hint:
+        return jsonify({"status": "ok"})
+        
+    usr_actual = session.get('usuario')
+    tok_hash = hashlib.sha256(token_actual.encode('utf-8')).hexdigest()
+    ua = request.headers.get('User-Agent', '')
+    disp_nuevo = parsear_dispositivo(ua, hint)
+    ip_c = _ip_cliente()
+    loc_c = obtener_ubicacion_ip(ip_c, request)
+    
+    try:
+        con = get_db(); con.autocommit = True; cur = con.cursor()
+        cur.execute(
+            """UPDATE dispositivos_confianza 
+               SET dispositivo=%s, 
+                   ubicacion=CASE WHEN (ubicacion IS NULL OR ubicacion='' OR ubicacion='Ubicación Desconocida' OR ubicacion='Ubicación no registrada') THEN %s ELSE ubicacion END 
+               WHERE LOWER(username)=LOWER(%s) AND token_hash=%s""",
+            (disp_nuevo, loc_c, usr_actual, tok_hash)
+        )
+        return jsonify({"status": "ok", "dispositivo": disp_nuevo, "ubicacion": loc_c})
+    except Exception as e:
+        return jsonify({"status": "error", "msg": str(e)}), 500
+
 @panel_bp.route('/plan')
 @login_required
 def plan():
@@ -1753,10 +1801,13 @@ def login():
                 tok_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
                 ahora_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                 exp_dt = (datetime.utcnow() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-                ua_str = parsear_dispositivo(request.headers.get('User-Agent', ''))
+                hint_c = (request.form.get('device_client_hint') or '').strip()
+                ua_str = parsear_dispositivo(request.headers.get('User-Agent', ''), hint_c)
+                ip_c = _ip_cliente()
+                loc_c = obtener_ubicacion_ip(ip_c, request)
                 cur.execute(
-                    "INSERT INTO dispositivos_confianza (username, token_hash, dispositivo, ip, fecha_creacion, expira_en) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (usr['username'], tok_hash, ua_str, _ip_cliente(), ahora_str, exp_dt)
+                    "INSERT INTO dispositivos_confianza (username, token_hash, dispositivo, ip, fecha_creacion, expira_en, ubicacion) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (usr['username'], tok_hash, ua_str, ip_c, ahora_str, exp_dt, loc_c)
                 )
                 fijar_cookie_dispositivo(resp, raw_token)
             return resp
@@ -1823,10 +1874,12 @@ def login():
                 raw_token = secrets.token_hex(32)
                 tok_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
                 exp_dt = (datetime.utcnow() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-                ua_str = parsear_dispositivo(request.headers.get('User-Agent', ''))
+                hint_c = (request.form.get('device_client_hint') or '').strip()
+                ua_str = parsear_dispositivo(request.headers.get('User-Agent', ''), hint_c)
+                loc_c = obtener_ubicacion_ip(ip_c, request)
                 cur.execute(
-                    "INSERT INTO dispositivos_confianza (username, token_hash, dispositivo, ip, fecha_creacion, expira_en) VALUES (%s, %s, %s, %s, %s, %s)",
-                    (usr['username'], tok_hash, ua_str, _ip_cliente(), ahora_str, exp_dt)
+                    "INSERT INTO dispositivos_confianza (username, token_hash, dispositivo, ip, fecha_creacion, expira_en, ubicacion) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (usr['username'], tok_hash, ua_str, ip_c, ahora_str, exp_dt, loc_c)
                 )
                 fijar_cookie_dispositivo(resp, raw_token)
             return resp
