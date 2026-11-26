@@ -123,19 +123,10 @@ def sanitizar_texto_seguro(val, max_len=250, defecto=""):
         s = s[:max_len].strip()
     return s if s else defecto
 
-def es_cuenta_pro(username, plan_str, pro_hasta_str=""):
-    if str(username or '').lower() == 'admin':
-        return True
-    ph = str(pro_hasta_str or '').strip()
-    if ph:
-        try:
-            dt_exp = datetime.strptime(ph, "%Y-%m-%d %H:%M:%S")
-            if dt_exp > datetime.utcnow():
-                return True
-            return False
-        except:
-            pass
-    return str(plan_str or '').strip().lower() in ('pro', 'unlimited', 'enterprise')
+def es_cuenta_pro(username, plan_str="", pro_hasta_str=""):
+    """Todas las funciones Pro (racks, hosting, técnicos, acciones masivas, telemetría 30d, reportes CSV)
+    son 100% gratuitas para todos los usuarios. El cobro rige únicamente por capacidad de máquinas."""
+    return True
 
 def calcular_dias_pro_restantes(pro_hasta_str):
     ph = str(pro_hasta_str or '').strip()
@@ -151,30 +142,37 @@ def calcular_dias_pro_restantes(pro_hasta_str):
         return None
 
 def evaluar_plan_usuario(cur, u_row):
-    """Verifica vencimiento de Pro temporal y devuelve (es_pro, limite_efectivo, dias_restantes)."""
+    """Verifica límites de máquinas y cupones promocionales de capacidad.
+    Todas las funciones avanzadas son 100% gratuitas; el límite rige únicamente la cantidad de mineros permitidos.
+    """
     if not u_row:
-        return False, LIMITE_MINEROS_GRATIS, None
+        return True, LIMITE_MINEROS_GRATIS, None
     uname = u_row.get('username', '')
     if str(uname).lower() == 'admin':
-        return True, 0, None
+        return True, 0, None  # 0 = sin límite de máquinas para Admin
 
-    plan_str = str(u_row.get('plan') or 'Gratis')
     pro_hasta = str(u_row.get('pro_hasta') or '').strip()
     lim_cfg = a_int_seguro(u_row.get('limite_mineros'), 0)
 
+    # Si tiene vigencia temporal activa (cupón promocional o suscripción por capacidad)
     if pro_hasta:
         dias_rest = calcular_dias_pro_restantes(pro_hasta)
         if dias_rest is not None and dias_rest > 0:
-            return True, lim_cfg, dias_rest
+            # Si tiene límite fijado (ej: 10 máquinas con cupón), se respeta; si es 0, ilimitado
+            return True, (lim_cfg if lim_cfg > 0 else 0), dias_rest
         try:
-            cur.execute("UPDATE usuarios SET plan='Gratis', pro_hasta='', limite_mineros=0 WHERE username=%s", (uname,))
+            # Al vencer el cupón, vuelve al límite gratuito base de 3 mineros
+            cur.execute("UPDATE usuarios SET pro_hasta='', limite_mineros=0 WHERE username=%s", (uname,))
         except:
             pass
-        return False, LIMITE_MINEROS_GRATIS, 0
+        return True, LIMITE_MINEROS_GRATIS, 0
 
-    if plan_str.strip().lower() in ('pro', 'unlimited', 'enterprise'):
+    # Si tiene límite configurado manualmente (ej. asignado por Admin)
+    if lim_cfg > 0:
         return True, lim_cfg, None
-    return False, LIMITE_MINEROS_GRATIS, None
+
+    # Plan base: hasta 3 mineros gratis con todas las funciones
+    return True, LIMITE_MINEROS_GRATIS, None
 
 def clave_granja_minero(ip, ciudad):
     c = str(ciudad or 'Santa Cruz de la Sierra').strip()

@@ -289,3 +289,80 @@ def api_activar_pro_con_saldo():
         "nuevo_bonus": nuevo_bonus,
         "pro_hasta": nueva_exp[:10]
     }), 200
+
+
+@pagos_bp.route('/api/plan/canjear_cupon', methods=['POST'])
+@login_required
+def api_canjear_cupon():
+    """Canjea un cupón promocional para aumentar el límite de mineros."""
+    if str(session.get('rol') or 'owner').lower() == 'tecnico':
+        return jsonify({"ok": False, "msg": "Permiso denegado para técnicos."}), 403
+
+    username = session.get("usuario", "Admin")
+    data = request.get_json(silent=True) or {}
+    codigo = str(data.get("codigo") or "").strip().upper()
+
+    if not codigo:
+        return jsonify({"ok": False, "msg": "Por favor ingresa un código de cupón."}), 400
+
+    # Cupones definidos:
+    # Cupón especial para ampliar de 3 a 10 máquinas hasta el 1 de febrero del 2027
+    CUPONES_10_MAQUINAS = {"PRO10", "MINERO10", "GRATIS10", "LANZAMIENTO10", "ELMINEROGRIS10", "10MAQUINAS", "CUPON10"}
+
+    if codigo not in CUPONES_10_MAQUINAS:
+        return jsonify({"ok": False, "msg": "El código de cupón no es válido o ha expirado."}), 400
+
+    EXPIRACION_CUPON = "2027-02-01 23:59:59"
+    ahora_dt = datetime.utcnow()
+    exp_dt = datetime.strptime(EXPIRACION_CUPON, "%Y-%m-%d %H:%M:%S")
+
+    if ahora_dt > exp_dt:
+        return jsonify({"ok": False, "msg": "Este cupón promocional expiró el 1 de febrero de 2027."}), 400
+
+    con = get_db(); con.autocommit = True
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT id, limite_mineros, pro_hasta FROM usuarios WHERE username=%s", (username,))
+    u = cur.fetchone()
+    if not u:
+        return jsonify({"ok": False, "msg": "Usuario no encontrado."}), 404
+
+    lim_actual = a_int_seguro(u.get("limite_mineros"), 0)
+    pro_h_actual = str(u.get("pro_hasta") or "").strip()
+
+    # Si ya tiene un límite igual o mayor a 10 vigente hasta 2027-02-01
+    if lim_actual >= 10 and pro_h_actual >= "2027-02-01":
+        return jsonify({
+            "ok": True,
+            "msg": f"Ya tienes activo el beneficio de {lim_actual} máquinas hasta el {pro_h_actual[:10]}."
+        }), 200
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS cupones_canjeados (
+            id SERIAL PRIMARY KEY,
+            username TEXT NOT NULL,
+            codigo TEXT NOT NULL,
+            fecha_canje TEXT DEFAULT '',
+            expira_en TEXT DEFAULT '',
+            nuevo_limite INTEGER DEFAULT 10
+        )
+    """)
+
+    ahora_str = ahora_dt.strftime("%Y-%m-%d %H:%M:%S")
+    cur.execute(
+        "INSERT INTO cupones_canjeados (username, codigo, fecha_canje, expira_en, nuevo_limite) VALUES (%s, %s, %s, %s, 10)",
+        (username, codigo, ahora_str, EXPIRACION_CUPON)
+    )
+
+    cur.execute(
+        "UPDATE usuarios SET limite_mineros=10, pro_hasta=%s WHERE id=%s",
+        (EXPIRACION_CUPON, u["id"])
+    )
+
+    session["plan"] = "Pro"
+
+    return jsonify({
+        "ok": True,
+        "msg": "🎉 ¡Cupón aplicado con éxito! Tu límite fue ampliado de 3 a 10 máquinas hasta el 1 de febrero de 2027 con todas las funciones Pro gratis.",
+        "limite_mineros": 10,
+        "pro_hasta": "2027-02-01"
+    }), 200

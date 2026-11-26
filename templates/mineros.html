@@ -338,11 +338,11 @@
 <div id="fleetToast" class="fleet-toast"></div>
 <div id="planLimitToast" class="plan-limit-toast">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-        <div id="planLimitToastTxt">🔒 Tu plan Gratis permite 3 mineros. Mejora tu plan para añadir más.</div>
+        <div id="planLimitToastTxt">🔒 Tu plan actual permite {{ limite_efectivo }} mineros. Amplía tu capacidad para añadir más.</div>
         <button type="button" onclick="document.getElementById('planLimitToast').style.display='none'" style="background:none; border:none; color:var(--accent-gold); cursor:pointer; font-size:1.1em; line-height:1;">✕</button>
     </div>
     <div style="display:flex; justify-content:flex-end;">
-        <a href="/plan" class="btn-fleet primary" style="text-decoration:none; padding:6px 12px;">🚀 Mejorar a Plan Pro</a>
+        <a href="/plan" class="btn-fleet primary" style="text-decoration:none; padding:6px 12px;">🚀 Ampliar Capacidad de Mineros</a>
     </div>
 </div>
 
@@ -1062,10 +1062,10 @@
             document.getElementById('scanProgFound').innerText = textoEncontrados();
 
             const hdrQ = document.getElementById('scanHeaderQuota');
-            if (scanState.esPro || scanState.limite <= 0) {
-                hdrQ.innerHTML = `<span style="color:#00e676;">⚡ Plan Pro: Mineros ilimitados</span> · ${scanState.activosCount} activos`;
+            if (scanState.limite <= 0) {
+                hdrQ.innerHTML = `<span style="color:#00e676;">⚡ Capacidad: Mineros ilimitados</span> · ${scanState.activosCount} activos`;
             } else {
-                hdrQ.innerHTML = `Plan Gratis: <b style="color:${scanState.activosCount >= scanState.limite ? '#ffb300' : '#00e676'};">${scanState.activosCount} / ${scanState.limite} mineros</b>`;
+                hdrQ.innerHTML = `Capacidad: <b style="color:${scanState.activosCount >= scanState.limite ? '#ffb300' : '#00e676'};">${scanState.activosCount} / ${scanState.limite} mineros</b>`;
             }
 
             scanState.descubiertos.forEach(d => {

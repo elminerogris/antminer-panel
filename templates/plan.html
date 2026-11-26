@@ -92,15 +92,23 @@
 
 <div class="plan-header">
     <div>
-        <h1>💳 Billetera USDT y Planes</h1>
-        <p>Recarga saldo automáticamente con USDT (TRC20, BEP20 o Solana) y activa tu Plan Pro al instante.</p>
+        <h1>💳 Capacidad de Máquinas y Planes</h1>
+        <p>✨ <b>¡Todas las funciones avanzadas son 100% GRATIS!</b> Mapa de Racks, Hosting para Clientes, Técnicos, Acciones Masivas, Historial de 30 días y Exportación CSV están desbloqueados para todos. Solo se cobra por cantidad de máquinas monitoreadas.</p>
     </div>
 </div>
 
 <div class="wallet-kpis">
     <div class="w-kpi">
-        <small>Plan Actual</small>
-        <strong style="color:{{ '#00e676' if current_plan == 'Pro' else '#60a5fa' }};">{{ current_plan }}</strong>
+        <small>Capacidad de Máquinas</small>
+        <strong style="color:#00e676;">{{ (limite_efectivo ~ ' Mineros') if limite_efectivo > 0 else 'Ilimitados' }}</strong>
+    </div>
+    <div class="w-kpi">
+        <small>Funciones Pro</small>
+        <strong style="color:#00e676;">100% Gratis (Todas)</strong>
+    </div>
+    <div class="w-kpi">
+        <small>Vigencia de Cupón / Plan</small>
+        <strong style="color:{{ '#ffd54f' if pro_dias_restantes else '#60a5fa' }};">{{ (pro_dias_restantes ~ ' días restantes') if pro_dias_restantes else 'Permanente (Base: 3 ASICs)' }}</strong>
     </div>
     <div class="w-kpi">
         <small>Saldo Disponible</small>
@@ -113,6 +121,22 @@
 </div>
 
 <div class="plan-grid">
+    <!-- CANJEAR CUPÓN PROMOCIONAL -->
+    <div class="card-box" style="border-color:rgba(0, 230, 118, 0.45); background:linear-gradient(180deg, rgba(0, 230, 118, 0.04) 0%, transparent 100%);">
+        <h2 style="color:#00e676;">🎟️ Canjear Cupón Promocional</h2>
+        <div class="sub">Ingresa tu código de cupón para ampliar tu límite de mineros gratis.</div>
+
+        <div style="background:rgba(0, 230, 118, 0.08); border:1px solid rgba(0, 230, 118, 0.25); border-radius:8px; padding:12px 14px; margin:14px 0; font-size:0.86em; line-height:1.5; color:var(--text-main);">
+            🎁 <b>Cupón Especial:</b> Usa el código <code style="background:#00e676; color:#0f172a; padding:3px 9px; border-radius:5px; font-weight:bold; font-size:1.15em; letter-spacing:1px;">PRO10</code> para subir de <b>3 a 10 máquinas</b> gratis con vigencia hasta el <b>1 de febrero de 2027</b>.
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+            <input type="text" id="cuponCodigo" class="inp" placeholder="Ej: PRO10" style="text-transform:uppercase; font-weight:bold; letter-spacing:1px; flex:1; min-width:180px;" maxlength="30" value="PRO10">
+            <button type="button" id="btnCanjearCupon" class="btn-green" onclick="canjearCupon()" style="margin:0; padding:10px 22px;">⚡ Canjear Cupón</button>
+        </div>
+        <div id="cuponMsg" style="font-size:0.88em; margin-top:10px; font-weight:bold;"></div>
+    </div>
+
     <!-- RECARGA AUTOMÁTICA USDT -->
     <div class="card-box">
         <h2>⚡ Recargar Saldo Automático (USDT)</h2>
@@ -148,26 +172,26 @@
         </div>
     </div>
 
-    <!-- ACTIVAR / RENOVAR PLAN PRO -->
+    <!-- AMPLIACIÓN DE CAPACIDAD -->
     <div class="card-box" style="border-color:rgba(96, 165, 250, 0.45);">
-        <h2 style="color:#60a5fa;">🚀 Plan Pro — $15 USDT / mes</h2>
-        <div class="sub">Desbloquea todo el potencial de El Minero Gris para granjas profesionales.</div>
+        <h2 style="color:#60a5fa;">🚀 Ampliación de Capacidad</h2>
+        <div class="sub">Todas las funciones Pro están incluidas. Si tu flota supera los mineros de tu plan, amplía tu cupo ilimitado.</div>
         <ul class="pro-features">
-            <li>Mineros ASIC y sedes ilimitadas</li>
-            <li>Acciones masivas en 1 clic (Reinicio, Sleep, Cambio de Clave)</li>
-            <li>Mapa visual de Racks, Hosting Solo Lectura y Sub-cuentas Técnico</li>
-            <li>Historial extendido de 30 días y exportación CSV</li>
-            <li>Soporte prioritario por WhatsApp</li>
+            <li><b>✓</b> Todas las funciones Pro activadas gratis</li>
+            <li><b>✓</b> Racks, Hosting para clientes y Técnicos incluidos</li>
+            <li><b>✓</b> Acciones masivas e Historial de 30 días sin costo</li>
+            <li><b>✓</b> Capacidad para flotas ilimitadas de mineros ASIC</li>
+            <li><b>✓</b> Soporte prioritario por WhatsApp</li>
         </ul>
 
-        <label class="lbl">Duración</label>
+        <label class="lbl">Duración de ampliación ilimitada</label>
         <select id="proMeses" class="sel">
             <option value="1">1 Mes (30 días) — $15.00 USDT</option>
             <option value="3">3 Meses (90 días) — $45.00 USDT</option>
             <option value="6">6 Meses (180 días) — $90.00 USDT</option>
         </select>
 
-        <button type="button" id="btnActivarPro" class="btn-green" onclick="activarPlanPro()">⚡ Activar / Renovar Plan Pro con Saldo</button>
+        <button type="button" id="btnActivarPro" class="btn-green" onclick="activarPlanPro()">⚡ Activar / Renovar Capacidad Ilimitada con Saldo</button>
         <div id="proMsg" style="font-size:0.84em; margin-top:10px; font-weight:bold;"></div>
     </div>
 </div>
@@ -270,6 +294,44 @@
             btn.innerText = '✅ Copiada';
             setTimeout(() => { btn.innerText = orig; }, 2000);
         });
+    }
+
+    async function canjearCupon() {
+        const inp = document.getElementById('cuponCodigo');
+        const btn = document.getElementById('btnCanjearCupon');
+        const msg = document.getElementById('cuponMsg');
+        const codigo = (inp.value || '').trim();
+        if (!codigo) {
+            msg.style.color = '#ff8a80';
+            msg.innerText = '⚠️ Por favor ingresa el código del cupón.';
+            inp.focus();
+            return;
+        }
+        btn.disabled = true;
+        btn.innerText = '⏳ Aplicando...';
+        msg.innerText = '';
+        try {
+            const r = await fetch('/api/plan/canjear_cupon', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo })
+            });
+            const j = await r.json();
+            if (j.ok) {
+                msg.style.color = '#00e676';
+                msg.innerText = j.msg;
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                msg.style.color = '#ff8a80';
+                msg.innerText = '⚠️ ' + (j.msg || 'Cupón inválido.');
+            }
+        } catch (e) {
+            msg.style.color = '#ff8a80';
+            msg.innerText = '⚠️ Error de conexión con el servidor.';
+        } finally {
+            btn.disabled = false;
+            btn.innerText = '⚡ Canjear Cupón';
+        }
     }
 
     async function activarPlanPro() {

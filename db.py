@@ -144,6 +144,16 @@ def init_db():
             notas TEXT DEFAULT ''
         )''')
 
+        # --- Tabla de Cupones Promocionales Canjeados ---
+        c.execute('''CREATE TABLE IF NOT EXISTS cupones_canjeados (
+            id SERIAL PRIMARY KEY,
+            username TEXT NOT NULL,
+            codigo TEXT NOT NULL,
+            fecha_canje TEXT DEFAULT '',
+            expira_en TEXT DEFAULT '',
+            nuevo_limite INTEGER DEFAULT 10
+        )''')
+
         # --- Tabla de Firmwares subidos para OTA masivo ---
         c.execute('''CREATE TABLE IF NOT EXISTS firmware_ota (
             id SERIAL PRIMARY KEY,
