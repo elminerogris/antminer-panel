@@ -162,7 +162,7 @@ def gestion_hosting_cuentas():
         for m in filas_m
     ]
 
-    return render_seguro('hosting_cuentas.html', active_page='hosting_cuentas',
+    return render_seguro('hosting_cuentas.html', active_page='hosting_cuentas', active_subnav='hosting_cuentas',
                          cuentas=cuentas, mineros_disp=mineros_disp, msg=msg, msg_tipo=msg_tipo)
 
 

@@ -16,7 +16,8 @@ pro_bp = Blueprint('pro_bp', __name__)
 RUTAS_BLOQUEADAS_TECNICO = (
     '/plan', '/ajustes', '/hosting', '/tecnicos', '/admin',
     '/api/eliminar_mineros', '/api/granjas/eliminar', '/api/guardar_tarifa',
-    '/hosting/cuentas', '/firmware', '/api/firmware'
+    '/hosting/cuentas', '/firmware', '/api/firmware',
+    '/avanzada', '/gestion_avanzada'
 )
 
 @pro_bp.before_app_request
@@ -54,6 +55,42 @@ def controlar_acceso_tecnico():
         return "Permiso denegado para el rol Técnico", 403
 
     return None
+
+
+# ==================== 0. HUB DE GESTIÓN AVANZADA ====================
+@pro_bp.route('/avanzada')
+@pro_bp.route('/gestion_avanzada')
+@login_required
+def gestion_avanzada():
+    usr_actual = session.get('usuario', 'Admin')
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute("SELECT COUNT(*) as total FROM enlaces_hosting WHERE owner=%s", (usr_actual,))
+    r_links = cur.fetchone() or {}
+    total_links = r_links.get('total', 0)
+
+    cur.execute("SELECT COUNT(*) as total FROM hosting_cuentas WHERE owner=%s", (usr_actual,))
+    r_cuentas = cur.fetchone() or {}
+    total_cuentas = r_cuentas.get('total', 0)
+
+    cur.execute("SELECT COUNT(*) as total FROM usuarios WHERE parent_owner=%s AND rol='tecnico'", (usr_actual,))
+    r_tec = cur.fetchone() or {}
+    total_tecnicos = r_tec.get('total', 0)
+
+    cur.execute("SELECT COUNT(*) as total FROM firmware_ota WHERE owner=%s", (usr_actual,))
+    r_fw = cur.fetchone() or {}
+    total_firmwares = r_fw.get('total', 0)
+
+    return render_seguro(
+        'avanzada.html',
+        active_page='avanzada',
+        active_subnav='hub',
+        total_links=total_links,
+        total_cuentas=total_cuentas,
+        total_tecnicos=total_tecnicos,
+        total_firmwares=total_firmwares
+    )
 
 
 # ==================== 1. MAPA VISUAL DE RACKS ====================
@@ -357,7 +394,7 @@ def gestion_hosting():
         for m in filas_m
     ]
 
-    return render_seguro('hosting.html', active_page='hosting', enlaces=enlaces, mineros_disp=mineros_disp, msg=msg)
+    return render_seguro('hosting.html', active_page='hosting', active_subnav='hosting_links', enlaces=enlaces, mineros_disp=mineros_disp, msg=msg)
 
 @pro_bp.route('/h/<token>')
 def vista_publica_hosting(token):
@@ -461,4 +498,4 @@ def gestion_tecnicos():
         (usr_actual,)
     )
     tecnicos = cur.fetchall()
-    return render_seguro('tecnicos.html', active_page='tecnicos', tecnicos=tecnicos, msg=msg)
+    return render_seguro('tecnicos.html', active_page='tecnicos', active_subnav='tecnicos', tecnicos=tecnicos, msg=msg)

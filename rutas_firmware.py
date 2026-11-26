@@ -89,7 +89,7 @@ def vista_firmware():
         if est in stats:
             stats[est] += 1
 
-    return render_seguro('firmware.html', active_page='firmware',
+    return render_seguro('firmware.html', active_page='firmware', active_subnav='firmware',
                          firmwares=firmwares, jobs=jobs, mineros_disp=mineros_disp, stats=stats)
 
 

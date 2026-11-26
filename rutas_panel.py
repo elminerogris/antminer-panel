@@ -703,10 +703,11 @@ def index():
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute("SELECT tarifa_kwh, comision_pool, plan, saldo FROM usuarios WHERE username=%s", (usr_actual,))
+    cur.execute("SELECT tarifa_kwh, comision_pool, plan, saldo, api_key FROM usuarios WHERE username=%s", (usr_actual,))
     u_row = cur.fetchone() or {}
     tarifa_kwh = a_float_seguro(u_row.get('tarifa_kwh'), 0.0)
     comision_pool = min(100.0, max(0.0, a_float_seguro(u_row.get('comision_pool'), 0.0)))
+    api_key_usuario = u_row.get('api_key') or ''
     session['plan'] = u_row.get('plan', session.get('plan', 'Gratis'))
     session['saldo'] = u_row.get('saldo', session.get('saldo', 0.0))
 
@@ -805,7 +806,7 @@ def index():
         'ganancia_mes_raw': round(gan_neta_total * 30.0, 0),
         'ganancia_dia': f"-USD {abs(gan_neta_total):.2f}" if gan_neta_total < 0 else f"USD {gan_neta_total:.2f}"
     }
-    return render_seguro('resumen.html', active_page='resumen', registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota)
+    return render_seguro('resumen.html', active_page='resumen', registros=registros, totales=len(mineros), en_linea=en_linea, offline=offline, flota=flota, api_key=api_key_usuario)
 
 @panel_bp.route('/minero/<ip>')
 @login_required

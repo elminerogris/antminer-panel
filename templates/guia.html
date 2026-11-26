@@ -191,13 +191,32 @@
         </div>
 
         <div class="guide-card">
-            <h2>💻 Opción B: Usar una PC Windows, Laptop o Raspberry Pi</h2>
+            <h2>💻 Opción B: Usar una PC con Windows o Laptop</h2>
             <ol>
-                <li>Inicia sesión en tu cuenta y entra a <b>Ajustes</b> (o desde la pantalla de Primeros Pasos).</li>
-                <li>Haz clic en <b>Descargar Agente PC (.zip)</b>. El archivo ya viene preconfigurado con tu API Key y subred.</li>
-                <li>Descomprime la carpeta en una PC conectada a la red de tus mineros y haz doble clic en <b>START_AGENT.bat</b>.</li>
+                <li>Inicia sesión en tu cuenta y entra a tu panel de inicio o <b>Ajustes</b>.</li>
+                <li>Haz clic en <b>Descargar Agente Windows (.zip)</b>. El archivo ya viene preconfigurado con tu cuenta.</li>
+                <li>Descomprime la carpeta en una PC conectada a la red de tus mineros y haz doble clic en <code>START_AGENT.bat</code>.</li>
                 <li>El instalador configura Python automáticamente y deja el agente listo para arrancar solo si la PC se reinicia.</li>
             </ol>
+        </div>
+
+        <div class="guide-card">
+            <h2>🍓 Opción C: Usar una Raspberry Pi o Linux (24/7 de Bajo Consumo)</h2>
+            <ol>
+                <li>Conecta tu <b>Raspberry Pi</b> (cualquier modelo 3, 4, 5 o Zero 2W con Raspberry Pi OS / Debian / Ubuntu) a la misma red local o router de tus mineros.</li>
+                <li>Abre la <b>Terminal</b> de tu Raspberry Pi (el icono de la pantalla negra) o conéctate mediante <b>SSH</b> desde tu computadora o celular.</li>
+                <li>Copia y pega este comando y presiona <b>Enter</b>:
+                    <div style="margin:10px 0; background:#080a12; border:1px solid var(--border); border-radius:8px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                        <code style="color:var(--green); font-family:monospace; font-size:0.95em;">curl -sSL https://elminerogris.com/instalar_pi | bash</code>
+                        <button type="button" class="btn btn-outline" style="padding:4px 10px; font-size:0.80em; cursor:pointer;" onclick="navigator.clipboard.writeText('curl -sSL https://elminerogris.com/instalar_pi | bash'); this.innerText='✅ Copiado';">📋 Copiar</button>
+                    </div>
+                </li>
+                <li>El instalador instalará las librerías necesarias, descargará el agente y configurará un <b>servicio automático 24/7 (systemd)</b>. Si se corta la luz y la Raspberry se reinicia, el agente arrancará solo.</li>
+                <li>Entra a tu panel en <a href="/resumen" style="color:var(--blue-light); text-decoration:underline;">elminerogris.com/resumen</a>: en menos de 30 segundos verás tus mineros en vivo.</li>
+            </ol>
+            <div class="tip-box">
+                <b>💡 ¿Por qué es la mejor opción para granjas?</b> Una Raspberry Pi consume menos de 3 Watts de electricidad, no hace ruido y puede quedarse enchufada al switch permanentemente como monitor dedicado 24/7.
+            </div>
         </div>
 
         <div class="guide-card">

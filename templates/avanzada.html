@@ -1,0 +1,328 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+    .avanzada-hero {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 22px 24px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    .avanzada-hero-info h1 {
+        margin: 0 0 6px 0;
+        font-size: 1.45em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .avanzada-hero-info p {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 0.88em;
+        max-width: 720px;
+        line-height: 1.5;
+    }
+    .avanzada-hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: rgba(0, 230, 118, 0.12);
+        border: 1px solid rgba(0, 230, 118, 0.35);
+        color: var(--accent-green, #00e676);
+        font-size: 0.78em;
+        font-weight: 700;
+        font-family: monospace;
+        letter-spacing: 0.5px;
+    }
+
+    /* KPI Grid */
+    .avanzada-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+    .avanzada-kpi-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .avanzada-kpi-icon {
+        font-size: 1.8em;
+        line-height: 1;
+    }
+    .avanzada-kpi-data small {
+        display: block;
+        font-size: 0.72em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .avanzada-kpi-data strong {
+        display: block;
+        font-size: 1.35em;
+        font-family: monospace;
+        color: var(--text-main);
+        margin-top: 2px;
+    }
+
+    /* Modulos Grid */
+    .avanzada-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 20px;
+        align-items: stretch;
+    }
+    .avanzada-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .avanzada-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(51, 102, 255, 0.4);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    }
+    .avanzada-card-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+    .avanzada-card-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 10px;
+        background: rgba(51, 102, 255, 0.12);
+        border: 1px solid rgba(96, 165, 250, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35em;
+        flex-shrink: 0;
+    }
+    .avanzada-card-title h2 {
+        margin: 0 0 4px 0;
+        font-size: 1.15em;
+        color: var(--text-main);
+    }
+    .avanzada-card-title span {
+        font-size: 0.76em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    .avanzada-card-body {
+        color: var(--text-secondary, #cbd5e1);
+        font-size: 0.86em;
+        line-height: 1.6;
+        margin-bottom: 18px;
+        flex-grow: 1;
+    }
+    .avanzada-card-features {
+        list-style: none;
+        padding: 0;
+        margin: 12px 0 0 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .avanzada-card-features li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9em;
+        color: var(--text-muted);
+    }
+    .avanzada-card-features li b {
+        color: var(--text-main);
+    }
+    .avanzada-card-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        border-top: 1px solid var(--border-color);
+        padding-top: 16px;
+        margin-top: auto;
+    }
+    .btn-avanzada-primary {
+        flex: 1;
+        min-width: 140px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        background: linear-gradient(135deg, #3366ff, #2563eb);
+        color: #fff;
+        border: 1px solid #60a5fa;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.86em;
+        font-weight: 700;
+        text-decoration: none;
+        transition: opacity 0.2s;
+    }
+    .btn-avanzada-primary:hover {
+        opacity: 0.92;
+        color: #fff;
+    }
+    .btn-avanzada-outline {
+        flex: 1;
+        min-width: 140px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text-main);
+        border: 1px solid var(--border-color);
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.86em;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .btn-avanzada-outline:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(96, 165, 250, 0.5);
+    }
+</style>
+
+{% include "_avanzada_subnav.html" %}
+
+<div class="avanzada-hero">
+    <div class="avanzada-hero-info">
+        <h1><span>⚙️</span> Gestión Avanzada</h1>
+        <p>Centro de control para operaciones a gran escala. Agrupa las herramientas especializadas para hosting de mineros a clientes, personal técnico y actualización remota de firmwares.</p>
+    </div>
+    <div class="avanzada-hero-badge">
+        <span>●</span> Operación Pro Activa
+    </div>
+</div>
+
+<div class="avanzada-kpis">
+    <div class="avanzada-kpi-card">
+        <div class="avanzada-kpi-icon">🔗</div>
+        <div class="avanzada-kpi-data">
+            <small>Enlaces Hosting</small>
+            <strong>{{ total_links }}</strong>
+        </div>
+    </div>
+    <div class="avanzada-kpi-card">
+        <div class="avanzada-kpi-icon">👥</div>
+        <div class="avanzada-kpi-data">
+            <small>Cuentas Hosting</small>
+            <strong>{{ total_cuentas }}</strong>
+        </div>
+    </div>
+    <div class="avanzada-kpi-card">
+        <div class="avanzada-kpi-icon">👷</div>
+        <div class="avanzada-kpi-data">
+            <small>Técnicos Activos</small>
+            <strong>{{ total_tecnicos }}</strong>
+        </div>
+    </div>
+    <div class="avanzada-kpi-card">
+        <div class="avanzada-kpi-icon">📦</div>
+        <div class="avanzada-kpi-data">
+            <small>Firmwares OTA</small>
+            <strong>{{ total_firmwares }}</strong>
+        </div>
+    </div>
+</div>
+
+<div class="avanzada-grid">
+    <!-- 1. MÓDULO HOSTING -->
+    <div class="avanzada-card">
+        <div>
+            <div class="avanzada-card-head">
+                <div class="avanzada-card-icon">🏢</div>
+                <div class="avanzada-card-title">
+                    <h2>Hosting y Clientes</h2>
+                    <span>Monitoreo compartido seguro</span>
+                </div>
+            </div>
+            <div class="avanzada-card-body">
+                Permite a tus inversionistas o clientes ver en vivo únicamente sus propios mineros. Elige entre enlaces públicos sin clave o cuentas con login privado.
+                <ul class="avanzada-card-features">
+                    <li><span>🔒</span> <b>Privacidad total:</b> No ven otros mineros ni tus finanzas.</li>
+                    <li><span>🔗</span> <b>Enlaces rápidos:</b> Comparte un link de solo lectura.</li>
+                    <li><span>👥</span> <b>Cuentas de usuario:</b> Con login propio y permisos finos.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="avanzada-card-actions">
+            <a href="/hosting" class="btn-avanzada-primary">🔗 Enlaces Públicos</a>
+            <a href="/hosting/cuentas" class="btn-avanzada-outline">👥 Cuentas de Hosting</a>
+        </div>
+    </div>
+
+    <!-- 2. MÓDULO TÉCNICOS -->
+    <div class="avanzada-card">
+        <div>
+            <div class="avanzada-card-head">
+                <div class="avanzada-card-icon">👷</div>
+                <div class="avanzada-card-title">
+                    <h2>Técnicos de Granja</h2>
+                    <span>Personal y operadores</span>
+                </div>
+            </div>
+            <div class="avanzada-card-body">
+                Crea sub-cuentas para empleados, electricistas o técnicos en sitio. Tienen acceso a la operación técnica sin comprometer la seguridad de tu negocio.
+                <ul class="avanzada-card-features">
+                    <li><span>⚡</span> <b>Reinicio y diagnóstico:</b> Pueden reiniciar mineros caídos.</li>
+                    <li><span>🛡️</span> <b>Cuentas protegidas:</b> No pueden cambiar pools ni retirar saldo.</li>
+                    <li><span>👁️</span> <b>Monitoreo local:</b> Ven temperaturas, hashrate y logs en vivo.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="avanzada-card-actions">
+            <a href="/tecnicos" class="btn-avanzada-primary" style="width:100%;">👷 Administrar Técnicos</a>
+        </div>
+    </div>
+
+    <!-- 3. MÓDULO FIRMWARE OTA -->
+    <div class="avanzada-card">
+        <div>
+            <div class="avanzada-card-head">
+                <div class="avanzada-card-icon">📦</div>
+                <div class="avanzada-card-title">
+                    <h2>Firmware OTA</h2>
+                    <span>Flasheo masivo por red</span>
+                </div>
+            </div>
+            <div class="avanzada-card-body">
+                Carga paquetes de firmware (.tar.gz) y aplícalos en masa a tus Antminer a través del agente local, sin abrir la web de cada equipo uno por uno.
+                <ul class="avanzada-card-features">
+                    <li><span>🚀</span> <b>Compatible:</b> Braiins OS, Vnish, Hiveon y Stock original.</li>
+                    <li><span>⚡</span> <b>Automatizado:</b> El agente distribuye el archivo en tu LAN.</li>
+                    <li><span>📊</span> <b>Control de estado:</b> Seguimiento en tiempo real de cada job.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="avanzada-card-actions">
+            <a href="/firmware" class="btn-avanzada-primary" style="width:100%;">📦 Administrar Firmwares</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

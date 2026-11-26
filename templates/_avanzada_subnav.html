@@ -1,0 +1,67 @@
+<style>
+    .avanzada-subnav-container {
+        margin-bottom: 20px;
+    }
+    .avanzada-subnav-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 6px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    .avanzada-subnav-bar::-webkit-scrollbar {
+        height: 4px;
+    }
+    .avanzada-subnav-bar::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 4px;
+    }
+    .avanzada-subnav-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 15px;
+        border-radius: 8px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        font-size: 0.86em;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+    .avanzada-subnav-tab:hover {
+        color: var(--text-main);
+        border-color: rgba(51, 102, 255, 0.45);
+        background: rgba(255, 255, 255, 0.03);
+    }
+    .avanzada-subnav-tab.active {
+        background: linear-gradient(135deg, rgba(51, 102, 255, 0.18), rgba(37, 99, 235, 0.12));
+        border-color: var(--accent-blue-light, #60a5fa);
+        color: #fff;
+        box-shadow: 0 0 12px rgba(51, 102, 255, 0.22);
+    }
+</style>
+
+<div class="avanzada-subnav-container">
+    <div class="avanzada-subnav-bar">
+        <a href="/avanzada" class="avanzada-subnav-tab {{ 'active' if active_subnav == 'hub' else '' }}">
+            <span>⚡</span> <span>Panel Avanzado</span>
+        </a>
+        <a href="/hosting" class="avanzada-subnav-tab {{ 'active' if active_subnav == 'hosting_links' else '' }}">
+            <span>🔗</span> <span>Hosting (Enlaces)</span>
+        </a>
+        <a href="/hosting/cuentas" class="avanzada-subnav-tab {{ 'active' if active_subnav == 'hosting_cuentas' else '' }}">
+            <span>👥</span> <span>Hosting (Cuentas)</span>
+        </a>
+        <a href="/tecnicos" class="avanzada-subnav-tab {{ 'active' if active_subnav == 'tecnicos' else '' }}">
+            <span>👷</span> <span>Técnicos</span>
+        </a>
+        <a href="/firmware" class="avanzada-subnav-tab {{ 'active' if active_subnav == 'firmware' else '' }}">
+            <span>📦</span> <span>Firmware OTA</span>
+        </a>
+    </div>
+</div>

@@ -818,11 +818,8 @@
             <a href="/alertas" class="{{ 'active' if active_page == 'alertas' else '' }}">🔔 Alertas</a>
 
             {% if not es_tecnico %}
-            <div class="menu-section-label" style="margin-top:8px;">Gestión Pro</div>
-            <a href="/hosting" class="{{ 'active' if active_page == 'hosting' else '' }}">🔗 Hosting (Enlaces)</a>
-            <a href="/hosting/cuentas" class="{{ 'active' if active_page == 'hosting_cuentas' else '' }}">👥 Hosting (Cuentas)</a>
-            <a href="/tecnicos" class="{{ 'active' if active_page == 'tecnicos' else '' }}">👷 Técnicos</a>
-            <a href="/firmware" class="{{ 'active' if active_page == 'firmware' else '' }}">📦 Firmware OTA</a>
+            <div class="menu-section-label" style="margin-top:8px;">Gestión Avanzada</div>
+            <a href="/avanzada" class="{{ 'active' if active_page in ['avanzada', 'hosting', 'hosting_cuentas', 'tecnicos', 'firmware'] else '' }}">⚙️ Gestión Avanzada</a>
 
             <div class="menu-section-label" style="margin-top:8px;">Cuenta</div>
             <a href="/plan" class="{{ 'active' if active_page == 'plan' else '' }}">💳 Billetera y Planes</a>
@@ -1208,7 +1205,7 @@
         }
 
         const LIVE_INTERVAL_SEC = 20;
-        const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan', '/admin', '/hosting', '/tecnicos'];
+        const RUTAS_SIN_AUTORELOAD = ['/ajustes', '/plan', '/admin', '/hosting', '/tecnicos', '/avanzada', '/firmware'];
         let liveSegundos = LIVE_INTERVAL_SEC;
         let livePausadoUsuario = (localStorage.getItem('emg_live_paused') === '1');
         let ultimaVistaOculta = 0;

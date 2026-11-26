@@ -249,6 +249,133 @@ def api_agente_update():
     except:
         return "Error leyendo agente", 500
 
+@agente_bp.route('/instalar_pi')
+@agente_bp.route('/instalar.sh')
+@agente_bp.route('/install.sh')
+def script_instalador_pi():
+    api_k = (request.args.get('key') or request.args.get('api_key') or '').strip()
+    if not api_k and 'usuario' in session:
+        usr_actual = session.get('usuario')
+        try:
+            con = get_db()
+            cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute("SELECT api_key FROM usuarios WHERE username=%s", (usr_actual,))
+            row = cur.fetchone()
+            if row and row.get('api_key'):
+                api_k = row.get('api_key')
+        except Exception:
+            pass
+
+    base_url = request.url_root.rstrip('/')
+    if base_url.startswith('http://') and not ('localhost' in base_url or '127.0.0.1' in base_url):
+        base_url = 'https://' + base_url[7:]
+
+    script_sh = f"""#!/bin/bash
+# ====================================================================
+#   ⛏️  EL MINERO GRIS - INSTALADOR OFICIAL PARA RASPBERRY PI Y LINUX
+# ====================================================================
+#   Monitoreo y control 24/7 sin abrir puertos ni configurar VPNs.
+# ====================================================================
+
+set -e
+
+VERDE='\\033[0;32m'
+AZUL='\\033[0;34m'
+AMARILLO='\\033[1;33m'
+ROJO='\\033[0;31m'
+NC='\\033[0m'
+
+echo ""
+echo -e "${{AZUL}}==========================================================${{NC}}"
+echo -e "${{VERDE}}   ⛏️   EL MINERO GRIS - AGENTE RASPBERRY PI / LINUX 24/7  ${{NC}}"
+echo -e "${{AZUL}}==========================================================${{NC}}"
+echo ""
+
+if [ "$EUID" -ne 0 ]; then
+    SUDO="sudo"
+else
+    SUDO=""
+fi
+
+API_KEY="{api_k}"
+if [ -z "$API_KEY" ] || [ "$API_KEY" = "TU_API_KEY_AQUI" ]; then
+    echo -e "${{AMARILLO}}🔑 No se detectó API Key en el comando.${{NC}}"
+    read -p "👉 Ingresa tu API Key de El Minero Gris: " API_KEY
+    API_KEY=$(echo "$API_KEY" | tr -d '[:space:]')
+fi
+
+if [ -z "$API_KEY" ]; then
+    echo -e "${{ROJO}}❌ Error: Se requiere una API Key para conectar con tu cuenta.${{NC}}"
+    echo "Puedes verla ingresando en tu panel: {base_url}/resumen"
+    exit 1
+fi
+
+echo -e "[1/4] 📦 Instalando dependencias necesarias (Python 3, requests, curl)..."
+$SUDO apt-get update -y >/dev/null 2>&1 || true
+$SUDO apt-get install -y python3 python3-requests curl >/dev/null 2>&1 || {{
+    $SUDO apt-get install -y python3 python3-pip curl >/dev/null 2>&1 || true
+    python3 -m pip install requests --break-system-packages >/dev/null 2>&1 || python3 -m pip install requests >/dev/null 2>&1 || true
+}}
+
+PYTHON_BIN=$(which python3 || echo "/usr/bin/python3")
+
+echo -e "[2/4] 📥 Descargando agente configurado para tu cuenta..."
+INSTALL_DIR="/opt/elminerogris"
+$SUDO mkdir -p "$INSTALL_DIR"
+
+$SUDO curl -sSL "{base_url}/api/agente/descargar_update?api_key=$API_KEY" -o "$INSTALL_DIR/agente.py"
+
+if [ ! -s "$INSTALL_DIR/agente.py" ]; then
+    echo -e "${{ROJO}}❌ Error al descargar el agente. Verifica tu conexión a internet o tu API Key.${{NC}}"
+    exit 1
+fi
+
+echo -e "[3/4] ⚙️  Configurando servicio automático 24/7 (systemd)..."
+cat << EOF | $SUDO tee /etc/systemd/system/elminerogris.service > /dev/null
+[Unit]
+Description=El Minero Gris - Agente de Mineria 24/7
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$INSTALL_DIR
+ExecStart=$PYTHON_BIN $INSTALL_DIR/agente.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo -e "[4/4] 🚀 Iniciando servicio El Minero Gris..."
+$SUDO systemctl daemon-reload
+$SUDO systemctl enable elminerogris.service
+$SUDO systemctl restart elminerogris.service
+
+echo ""
+echo -e "${{VERDE}}==========================================================${{NC}}"
+echo -e "${{VERDE}}  ✅ ¡INSTALACIÓN COMPLETADA CON ÉXITO!${{NC}}"
+echo -e "${{VERDE}}==========================================================${{NC}}"
+echo -e "  • Tu Raspberry Pi ya está buscando mineros en tu red local."
+echo -e "  • El agente corre 24/7 en segundo plano."
+echo -e "  • Si la Raspberry Pi se reinicia o se corta la luz, arrancará sola."
+echo ""
+echo -e "  Comandos útiles de mantenimiento:"
+echo -e "    ${{AZUL}}Ver estado:${{NC}}   sudo systemctl status elminerogris"
+echo -e "    ${{AZUL}}Ver en vivo:${{NC}}  sudo journalctl -u elminerogris -f"
+echo -e "    ${{AZUL}}Reiniciar:${{NC}}    sudo systemctl restart elminerogris"
+echo ""
+echo -e "  👉 ${{VERDE}}Entra a tu panel para ver tus mineros aparecer en vivo:${{NC}}"
+echo -e "     ${{AZUL}}{base_url}/resumen${{NC}}"
+echo -e "${{VERDE}}==========================================================${{NC}}"
+echo ""
+"""
+    return Response(script_sh, mimetype="text/x-shellscript")
+
 @agente_bp.route('/descargar_agente')
 @login_required
 def descargar_agente():

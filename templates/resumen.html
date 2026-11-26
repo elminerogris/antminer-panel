@@ -480,31 +480,60 @@
     </div>
 
     <div class="onboarding-steps">
+        <!-- PASO 1 -->
         <div class="ob-step">
             <div class="ob-step-num">1</div>
-            <h3>Descarga el Agente</h3>
-            <p>Instala nuestra app oficial en cualquier celular Android conectado al Wi-Fi de tu granja, o descarga el agente para Windows / Linux / Raspberry Pi.</p>
-            <div class="ob-actions">
-                <a href="/descargar_apk" target="_blank" rel="noopener" class="btn-ob-primary">📱 Descargar App Android</a>
-                <a href="/descargar_agente" class="btn-action">💻 Agente PC (.zip)</a>
+            <h3>Elige dónde correr el Agente</h3>
+            <p>El agente se conecta a la red de tus mineros y los detecta automáticamente. Elige el dispositivo que tengas a mano:</p>
+            <div class="ob-actions" style="flex-direction:column; gap:8px;">
+                <a href="/descargar_apk" target="_blank" rel="noopener" class="btn-ob-primary" style="justify-content:center;">📱 App Android (Recomendada)</a>
+                <div style="display:flex; gap:8px; width:100%;">
+                    <a href="/descargar_agente" class="btn-action" style="flex:1; justify-content:center;">💻 Windows (.zip)</a>
+                    <button type="button" class="btn-action" onclick="toggleBoxPi()" style="flex:1; justify-content:center; cursor:pointer;">🍓 Raspberry Pi</button>
+                </div>
+            </div>
+
+            <!-- CUADRO RASPBERRY PI DESPLEGABLE -->
+            <div id="boxRaspberryPi" style="display:none; margin-top:10px; background:rgba(0,0,0,0.3); border:1px solid rgba(51,102,255,0.35); border-radius:8px; padding:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-weight:700; font-size:0.82em; color:var(--accent-blue-light);">🍓 Comando rápido para Raspberry Pi / Linux</span>
+                    <button type="button" onclick="toggleBoxPi()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1em;">✕</button>
+                </div>
+                <p style="font-size:0.78em; color:var(--text-muted); margin-bottom:8px;">Abre la Terminal en tu Raspberry Pi y pega este comando:</p>
+                <div style="display:flex; gap:6px; align-items:center; background:#080a12; border:1px solid var(--border-color); border-radius:6px; padding:6px 8px;">
+                    <code id="cmdPiCopy" style="font-family:monospace; font-size:0.75em; color:#00e676; flex:1; word-break:break-all;">curl -sSL https://elminerogris.com/instalar_pi?key={{ api_key }} | bash</code>
+                    <button type="button" class="btn-action" style="padding:4px 8px; font-size:0.75em; cursor:pointer;" onclick="copiarComandoPi(this)">📋 Copiar</button>
+                </div>
+                <div style="font-size:0.72em; color:#94a3b8; margin-top:6px;">
+                    ✨ Instala Python, configura el agente y crea un servicio 24/7 que arranca solo si se reinicia la Raspberry.
+                </div>
             </div>
         </div>
 
+        <!-- PASO 2 -->
         <div class="ob-step">
             <div class="ob-step-num">2</div>
-            <h3>Inicia sesión con tu cuenta</h3>
-            <p>Abre el APK e inicia sesión con tu mismo usuario y contraseña. Si usas el Agente PC, ya viene preconfigurado con tu API Key lista para ejecutar.</p>
-            <div class="ob-actions">
-                <a href="/ajustes" class="btn-action">⚙️ Ver mi API Key y Subred</a>
+            <h3>Actívalo con 1 toque</h3>
+            <p>
+                <b>• En Celular Android:</b> Abre la app e inicia sesión con tu usuario y contraseña.<br>
+                <b>• En Windows:</b> Descomprime la carpeta y abre <code>START_AGENT.bat</code>.<br>
+                <b>• En Raspberry Pi:</b> El comando lo arranca automáticamente 24/7.
+            </p>
+            <div class="ob-actions" style="margin-top:auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                <span style="font-size:0.80em; color:var(--accent-green); font-weight:600; display:inline-flex; align-items:center; gap:5px;">
+                    <span>✓</span> Todo viene preconfigurado
+                </span>
+                <a href="/guia" target="_blank" rel="noopener" class="btn-action">📖 Ver Guía con Fotos</a>
             </div>
         </div>
 
+        <!-- PASO 3 -->
         <div class="ob-step">
             <div class="ob-step-num">3</div>
             <h3>Espera 30 segundos</h3>
             <p>El agente escaneará automáticamente tu red local y creará tu sede. Esta pantalla cambiará sola en cuanto detecte tu primer equipo en línea.</p>
-            <div class="ob-actions">
-                <a href="/alertas" class="btn-action">🔔 Configurar Telegram</a>
+            <div class="ob-actions" style="margin-top:auto;">
+                <a href="/alertas" class="btn-action">🔔 Configurar Telegram (Opcional)</a>
             </div>
         </div>
     </div>
@@ -1171,5 +1200,25 @@
             if (!document.hidden) sincronizarRedBitcoinEnVivo();
         }, 60000);
     });
+
+    function toggleBoxPi() {
+        const box = document.getElementById('boxRaspberryPi');
+        if (box) {
+            box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
+        }
+    }
+
+    function copiarComandoPi(btn) {
+        const cmd = document.getElementById('cmdPiCopy');
+        if (!cmd) return;
+        const txt = (cmd.textContent || cmd.innerText).trim();
+        navigator.clipboard.writeText(txt).then(() => {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '✅ Copiado';
+            setTimeout(() => { btn.innerHTML = orig; }, 2500);
+        }).catch(() => {
+            prompt('Copia este comando y pégalo en tu Raspberry Pi:', txt);
+        });
+    }
 </script>
 {% endblock %}
