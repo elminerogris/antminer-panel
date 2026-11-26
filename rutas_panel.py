@@ -1799,6 +1799,7 @@ def login():
             if rec_pref:
                 raw_token = secrets.token_hex(32)
                 tok_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+                session['trusted_device_hash'] = tok_hash
                 ahora_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                 exp_dt = (datetime.utcnow() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
                 hint_c = (request.form.get('device_client_hint') or '').strip()
@@ -1873,6 +1874,7 @@ def login():
             if rec_disp:
                 raw_token = secrets.token_hex(32)
                 tok_hash = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+                session['trusted_device_hash'] = tok_hash
                 exp_dt = (datetime.utcnow() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
                 hint_c = (request.form.get('device_client_hint') or '').strip()
                 ua_str = parsear_dispositivo(request.headers.get('User-Agent', ''), hint_c)
@@ -2049,8 +2051,29 @@ def recuperar_password():
 
 @panel_bp.route('/logout')
 def logout():
+    disp_token = request.cookies.get('emg_trusted_device')
+    tok_h = session.get('trusted_device_hash')
+    if disp_token:
+        tok_h = hashlib.sha256(disp_token.encode('utf-8')).hexdigest()
+
+    if tok_h:
+        try:
+            con = get_db(); con.autocommit = True; cur = con.cursor()
+            cur.execute("DELETE FROM dispositivos_confianza WHERE token_hash=%s", (tok_h,))
+        except Exception:
+            pass
+
     session.clear()
-    return redirect('/')
+
+    resp = redirect('/login')
+    host_c = (request.host or '').split(':')[0].lower()
+    cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
+
+    resp.delete_cookie('emg_trusted_device', path='/', domain=cookie_domain)
+    resp.delete_cookie('emg_trusted_device', path='/')
+    resp.delete_cookie('session', path='/', domain=cookie_domain)
+    resp.delete_cookie('session', path='/')
+    return resp
 
 # --- Comandos, Logs, Exportación y Live ---
 @panel_bp.route('/guardar_nombre', methods=['POST'])

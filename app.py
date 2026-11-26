@@ -166,6 +166,7 @@ def asegurar_bd():
                     if usr_obj:
                         session.permanent = True
                         session['usuario'] = usr_obj['username']
+                        session['trusted_device_hash'] = tok_h
                         session['plan'] = usr_obj.get('plan', 'Gratis')
                         session['saldo'] = usr_obj.get('saldo', 0.0)
                         session['last_seen_ts'] = time.time()
@@ -173,8 +174,37 @@ def asegurar_bd():
             except Exception as e_disp:
                 print(f"[TRUSTED DEVICE AUTO-LOGIN]: {e_disp}")
 
-    # 2. Manejo de sesión activa
+    # 2. Manejo de sesión activa y verificación de revocación remota
     if 'usuario' in session:
+        # VALIDACIÓN DE REVOCACIÓN REMOTA:
+        # Si la petición trae cookie de dispositivo o la sesión está asociada a un dispositivo de confianza,
+        # verificar en la base de datos que dicho dispositivo no haya sido eliminado (ej. revocado desde otra PC).
+        if DB_URL and not request.path.startswith('/static/') and request.path != '/logout':
+            disp_token_act = request.cookies.get('emg_trusted_device')
+            tok_check = hashlib.sha256(disp_token_act.encode('utf-8')).hexdigest() if disp_token_act else session.get('trusted_device_hash')
+            if tok_check:
+                try:
+                    con_chk_rev = get_db()
+                    cur_chk_rev = con_chk_rev.cursor()
+                    ahora_s_rev = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                    cur_chk_rev.execute(
+                        "SELECT id FROM dispositivos_confianza WHERE LOWER(username)=LOWER(%s) AND token_hash=%s AND expira_en > %s LIMIT 1",
+                        (session['usuario'], tok_check, ahora_s_rev)
+                    )
+                    if not cur_chk_rev.fetchone():
+                        # ¡Dispositivo eliminado/revocado! Destruir sesión y cookies de inmediato
+                        session.clear()
+                        resp = redirect('/login')
+                        host_c = (request.host or '').split(':')[0].lower()
+                        cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
+                        resp.delete_cookie('emg_trusted_device', path='/', domain=cookie_domain)
+                        resp.delete_cookie('emg_trusted_device', path='/')
+                        resp.delete_cookie('session', path='/', domain=cookie_domain)
+                        resp.delete_cookie('session', path='/')
+                        return resp
+                except Exception as e_rev:
+                    print(f"[REVOKE CHECK ERROR]: {e_rev}")
+
         session.permanent = True
 
         # Para el Super Admin: verificar si el dispositivo actual es de confianza
