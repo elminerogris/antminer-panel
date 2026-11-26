@@ -1168,46 +1168,46 @@
                                     <div class="mk-kpis">
                                         <div class="mk-kpi">
                                             <small>Hashrate Flota</small>
-                                            <strong style="color:var(--blue-light);">1,403.5 TH/s</strong>
+                                            <strong style="color:var(--blue-light);">1,477.2 TH/s</strong>
                                         </div>
                                         <div class="mk-kpi">
                                             <small>Consumo Total</small>
-                                            <strong style="color:var(--purple);">28.9 kW</strong>
+                                            <strong style="color:var(--purple);">20.96 kW</strong>
                                         </div>
                                         <div class="mk-kpi">
                                             <small>Temp. Máxima</small>
-                                            <strong style="color:var(--green);">68 °C</strong>
+                                            <strong style="color:var(--green);">63 °C</strong>
                                         </div>
                                     </div>
                                     <div class="mk-row">
-                                        <span><b style="color:var(--text-main);">001</b> · Antminer S21+</span>
-                                        <span style="color:var(--blue-light); font-weight:700;">227.4 TH/s</span>
-                                        <span class="mk-tag mk-tag-green">66°C · 3.39 kW · $5.72/d</span>
+                                        <span><b style="color:var(--text-main);">001</b> · Antminer S23 Hyd</span>
+                                        <span style="color:var(--blue-light); font-weight:700;">568.4 TH/s</span>
+                                        <span class="mk-tag mk-tag-green" id="showcaseAsic1">54°C · 7.88 kW · $16.18/d</span>
                                     </div>
                                     <div class="mk-row">
-                                        <span><b style="color:var(--text-main);">002</b> · Antminer S19k Pro</span>
-                                        <span style="color:var(--blue-light); font-weight:700;">121.8 TH/s</span>
-                                        <span class="mk-tag mk-tag-green">68°C · 2.79 kW · $3.37/d</span>
+                                        <span><b style="color:var(--text-main);">002</b> · Antminer S21+ Hyd</span>
+                                        <span style="color:var(--blue-light); font-weight:700;">398.2 TH/s</span>
+                                        <span class="mk-tag mk-tag-green" id="showcaseAsic2">58°C · 5.92 kW · $11.33/d</span>
                                     </div>
                                     <div class="mk-row">
-                                        <span><b style="color:var(--text-main);">003</b> · WhatsMiner M50</span>
-                                        <span style="color:var(--blue-light); font-weight:700;">118.2 TH/s</span>
-                                        <span class="mk-tag mk-tag-green">72°C · 3.28 kW · $3.15/d</span>
+                                        <span><b style="color:var(--text-main);">003</b> · Antminer S21 XP</span>
+                                        <span style="color:var(--blue-light); font-weight:700;">274.5 TH/s</span>
+                                        <span class="mk-tag mk-tag-green" id="showcaseAsic3">63°C · 3.65 kW · $7.81/d</span>
                                     </div>
                                     <div class="mk-row">
-                                        <span><b style="color:var(--text-main);">011</b> · S19 Pro Hydro</span>
-                                        <span style="color:var(--blue-light); font-weight:700;">218.6 TH/s</span>
-                                        <span class="mk-tag mk-tag-green">70°C · 5.55 kW · $6.09/d</span>
+                                        <span><b style="color:var(--text-main);">004</b> · Antminer S21 Pro</span>
+                                        <span style="color:var(--blue-light); font-weight:700;">236.1 TH/s</span>
+                                        <span class="mk-tag mk-tag-green" id="showcaseAsic4">64°C · 3.51 kW · $6.72/d</span>
                                     </div>
                                 </div>
 
                                 <!-- SLIDE 1: GRÁFICO 24H & TELEMETRÍA REAL -->
                                 <div class="mk-slide">
                                     <div class="mk-chart-box">
-                                        <!-- Header con modelo y filtros de tiempo reales (idéntico a _grafico.html) -->
+                                        <!-- Header con modelo de alta potencia y filtros reales -->
                                         <div class="mk-chart-head">
                                             <div style="display:flex; align-items:center; gap:6px;">
-                                                <span><strong>Antminer S21+</strong> (216 TH/s)</span>
+                                                <span><strong>Antminer S23 Hyd</strong> (563 TH/s · Hydro)</span>
                                                 <span class="mk-badge-status">● En línea</span>
                                             </div>
                                             <div class="mk-chart-filters">
@@ -1218,15 +1218,15 @@
                                             </div>
                                         </div>
 
-                                        <!-- Barra de Estadísticas del Periodo (Promedio, Min, Temp, Fans) -->
+                                        <!-- Barra de Estadísticas del Periodo (Promedio, Min, Temp, Bomba) -->
                                         <div class="mk-chart-stats">
-                                            <span>Prom: <b>221.8 TH/s</b></span>
-                                            <span>Min: <b>216.5 TH/s</b></span>
-                                            <span>Temp: <b style="color:var(--amber);">64 °C</b></span>
-                                            <span>Fans: <b style="color:var(--purple);">5,820 RPM</b></span>
+                                            <span>Prom: <b>567.8 TH/s</b></span>
+                                            <span>Min: <b>558.4 TH/s</b></span>
+                                            <span>Temp: <b style="color:var(--green);">54 °C (Hydro)</b></span>
+                                            <span>Bomba: <b style="color:var(--purple);">8.6 L/min</b></span>
                                         </div>
 
-                                        <!-- SVG Telemetry Curve (Gráfico idéntico a Chart.js del panel) -->
+                                        <!-- SVG Telemetry Curve (Gráfico de telemetría de alta resolución) -->
                                         <svg class="mk-chart-svg" viewBox="0 0 460 150" preserveAspectRatio="xMidYMid meet">
                                             <defs>
                                                 <linearGradient id="hrGradReal" x1="0" y1="0" x2="0" y2="1">
@@ -1240,15 +1240,15 @@
                                             <line x1="32" y1="105" x2="430" y2="105" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
                                             <line x1="32" y1="130" x2="430" y2="130" stroke="rgba(255,255,255,0.08)"/>
 
-                                            <!-- Etiquetas Eje Y Izquierdo (TH/s) -->
-                                            <text x="26" y="28" font-family="monospace" font-size="8" fill="#38bdf8" text-anchor="end">235T</text>
-                                            <text x="26" y="68" font-family="monospace" font-size="8" fill="#38bdf8" text-anchor="end">220T</text>
-                                            <text x="26" y="108" font-family="monospace" font-size="8" fill="#38bdf8" text-anchor="end">205T</text>
+                                            <!-- Etiquetas Eje Y Izquierdo (TH/s para S23 Hyd) -->
+                                            <text x="26" y="28" font-family="monospace" font-size="8" fill="#38bdf8" text-anchor="end">585T</text>
+                                            <text x="26" y="68" font-family="monospace" font-size="8" fill="#38bdf8" text-anchor="end">565T</text>
+                                            <text x="26" y="108" font-family="monospace" font-size="8" fill="#38bdf8" text-anchor="end">545T</text>
 
-                                            <!-- Etiquetas Eje Y Derecho (Temp °C) -->
-                                            <text x="436" y="28" font-family="monospace" font-size="8" fill="#f59e0b" text-anchor="start">75°C</text>
-                                            <text x="436" y="68" font-family="monospace" font-size="8" fill="#f59e0b" text-anchor="start">65°C</text>
-                                            <text x="436" y="108" font-family="monospace" font-size="8" fill="#f59e0b" text-anchor="start">55°C</text>
+                                            <!-- Etiquetas Eje Y Derecho (Temp Hydro °C) -->
+                                            <text x="436" y="28" font-family="monospace" font-size="8" fill="#10b981" text-anchor="start">65°C</text>
+                                            <text x="436" y="68" font-family="monospace" font-size="8" fill="#10b981" text-anchor="start">55°C</text>
+                                            <text x="436" y="108" font-family="monospace" font-size="8" fill="#10b981" text-anchor="start">45°C</text>
 
                                             <!-- Hashrate Promedio 24h (Línea Azul punteada de referencia) -->
                                             <line x1="32" y1="62" x2="430" y2="62" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.8"/>
@@ -1257,10 +1257,10 @@
                                             <polygon points="32,130 32,68 65,60 100,64 135,55 170,58 205,52 240,56 275,50 310,54 345,46 380,48 415,44 430,42 430,130" fill="url(#hrGradReal)" />
                                             <path d="M 32,68 Q 65,60 100,64 T 170,58 T 240,56 T 310,54 T 380,48 T 430,42" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round"/>
 
-                                            <!-- Temperatura Chips (Línea Naranja suave) -->
-                                            <path d="M 32,92 Q 65,90 100,91 T 170,89 T 240,88 T 310,90 T 380,88 T 430,87" fill="none" stroke="#f59e0b" stroke-width="1.6" stroke-linecap="round"/>
+                                            <!-- Temperatura Chips/Agua Hydro (Línea Verde suave) -->
+                                            <path d="M 32,92 Q 65,90 100,91 T 170,89 T 240,88 T 310,90 T 380,88 T 430,87" fill="none" stroke="#10b981" stroke-width="1.6" stroke-linecap="round"/>
 
-                                            <!-- Ventiladores RPM (Línea Púrpura) -->
+                                            <!-- Flujo Bomba Hydro L/min (Línea Púrpura) -->
                                             <path d="M 32,112 Q 65,110 100,111 T 170,110 T 240,109 T 310,110 T 380,108 T 430,107" fill="none" stroke="#a855f7" stroke-width="1.3" stroke-linecap="round"/>
 
                                             <!-- Eje X Timestamps -->
@@ -1270,18 +1270,18 @@
                                             <text x="345" y="142" font-family="monospace" font-size="8" fill="rgba(255,255,255,0.4)">18:00</text>
                                             <text x="420" y="142" font-family="monospace" font-size="8" fill="#38bdf8" font-weight="bold">Ahora</text>
 
-                                            <!-- Punto Activo Apex y Tooltip interactivo idéntico al panel -->
+                                            <!-- Punto Activo Apex y Tooltip interactivo -->
                                             <circle cx="380" cy="48" r="4.5" fill="#38bdf8" stroke="#ffffff" stroke-width="2"/>
                                             <rect x="235" y="6" width="190" height="24" rx="5" fill="rgba(15,23,42,0.95)" stroke="rgba(56,189,248,0.5)" stroke-width="1"/>
-                                            <text x="330" y="22" font-family="monospace" font-size="8.5" fill="#38bdf8" text-anchor="middle" font-weight="bold">14:30 · 224.6 TH/s · 64°C · 5,850 RPM</text>
+                                            <text x="330" y="22" font-family="monospace" font-size="8.5" fill="#38bdf8" text-anchor="middle" font-weight="bold">14:30 · 569.2 TH/s · 54°C · 8.6 L/min</text>
                                         </svg>
 
-                                        <!-- Leyendas tipo Píldoras interactivas (idénticas a _grafico.html) -->
+                                        <!-- Leyendas tipo Píldoras interactivas -->
                                         <div class="mk-chart-legend">
                                             <span class="mk-legend-pill"><i class="mk-legend-dot" style="background:#38bdf8;"></i> Hashrate Real</span>
                                             <span class="mk-legend-pill"><i class="mk-legend-dot" style="background:#3b82f6;"></i> Promedio 24h</span>
-                                            <span class="mk-legend-pill"><i class="mk-legend-dot" style="background:#f59e0b;"></i> Chips 64°C</span>
-                                            <span class="mk-legend-pill"><i class="mk-legend-dot" style="background:#a855f7;"></i> Fans 5,820 RPM</span>
+                                            <span class="mk-legend-pill"><i class="mk-legend-dot" style="background:#10b981;"></i> Agua/Chips 54°C</span>
+                                            <span class="mk-legend-pill"><i class="mk-legend-dot" style="background:#a855f7;"></i> Bomba 8.6 L/min</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1558,9 +1558,22 @@
         <section id="calculadora">
             <div class="container">
                 <div class="sec-head">
-                    <div class="pill">Calculadora Rápida</div>
+                    <div class="pill">Calculadora en Tiempo Real</div>
                     <h2>Calcula el rendimiento estimado de tu equipo</h2>
-                    <p>Selecciona tu modelo y tu costo de electricidad para proyectar tus resultados diarios y mensuales.</p>
+                    <p>Selecciona tu modelo y tu costo de electricidad para proyectar tus resultados diarios y mensuales en base al precio y dificultad actual de la red.</p>
+                    
+                    <!-- Insignia en Vivo de la Red Bitcoin -->
+                    <div style="display:inline-flex; align-items:center; justify-content:center; gap:8px; margin-top:12px; font-size:0.80em; color:var(--text-muted); flex-wrap:wrap; background:rgba(255,255,255,0.03); border:1px solid var(--border); padding:6px 14px; border-radius:30px;">
+                        <span style="display:inline-flex; align-items:center; gap:6px; color:var(--green); font-weight:700;">
+                            <span style="width:7px; height:7px; background:var(--green); border-radius:50%; display:inline-block; box-shadow:0 0 8px var(--green);"></span>
+                            <span>Red Bitcoin en Vivo:</span>
+                        </span>
+                        <span>Precio: <strong id="lblBtcPrice" style="color:var(--text-main); font-family:monospace;">${{ "{:,.0f}".format(red_info.precio_btc) if red_info else "65,000" }} USD</strong></span>
+                        <span>·</span>
+                        <span>Dificultad: <strong id="lblBtcDiff" style="color:var(--text-main); font-family:monospace;">{{ "{:.1f}".format(red_info.dificultad_t) if red_info else "134.8" }} T</strong></span>
+                        <span>·</span>
+                        <span>Recompensa: <strong id="lblBtcReward" style="color:var(--text-main); font-family:monospace;">{{ red_info.recompensa if red_info else "3.125" }} BTC</strong></span>
+                    </div>
                 </div>
                 <div class="calc-wrapper">
                     <div class="calc-grid">
@@ -1568,14 +1581,18 @@
                             <div class="form-group">
                                 <label for="calcModel">Modelo de Minero ASIC</label>
                                 <select id="calcModel" class="calc-select" onchange="calcularRentabilidadLanding()">
-                                    <option value="216,3390">Antminer S21+ (216 TH/s · 3,390 W)</option>
-                                    <option value="234,3510">Antminer S21 Pro (234 TH/s · 3,510 W)</option>
-                                    <option value="200,3500">Antminer S21 (200 TH/s · 3,500 W)</option>
-                                    <option value="120,2760" selected>Antminer S19k Pro (120 TH/s · 2,760 W)</option>
-                                    <option value="140,3010">Antminer S19 XP (140 TH/s · 3,010 W)</option>
-                                    <option value="95,3250">Antminer S19 (95 TH/s · 3,250 W)</option>
-                                    <option value="118,3280">WhatsMiner M50 (118 TH/s · 3,280 W)</option>
-                                    <option value="126,3500">WhatsMiner M50S (126 TH/s · 3,500 W)</option>
+                                    <option value="563,7882" selected>⚡ Antminer S23 Hyd (563 TH/s · 7,882 W · Hydro)</option>
+                                    <option value="473,5676">🌊 Antminer S21 XP Hyd (473 TH/s · 5,676 W · Hydro)</option>
+                                    <option value="395,5925">💧 Antminer S21+ Hyd (395 TH/s · 5,925 W · Hydro)</option>
+                                    <option value="335,5360">🌊 Antminer S21 Hyd (335 TH/s · 5,360 W · Hydro)</option>
+                                    <option value="270,3645">🔥 Antminer S21 XP (270 TH/s · 3,645 W · Aire)</option>
+                                    <option value="234,3510">⛏️ Antminer S21 Pro (234 TH/s · 3,510 W · Aire)</option>
+                                    <option value="216,3390">⛏️ Antminer S21+ (216 TH/s · 3,390 W · Aire)</option>
+                                    <option value="200,3500">⛏️ Antminer S21 (200 TH/s · 3,500 W · Aire)</option>
+                                    <option value="186,3441">⚡ WhatsMiner M60S (186 TH/s · 3,441 W · Aire)</option>
+                                    <option value="140,3010">⛏️ Antminer S19 XP (140 TH/s · 3,010 W · Aire)</option>
+                                    <option value="120,2760">⛏️ Antminer S19k Pro (120 TH/s · 2,760 W · Aire)</option>
+                                    <option value="118,3280">⚡ WhatsMiner M50 (118 TH/s · 3,280 W · Aire)</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1583,27 +1600,32 @@
                                 <input type="number" id="calcTarifa" class="calc-input" value="0.05" step="0.005" min="0" max="0.5" oninput="calcularRentabilidadLanding()">
                             </div>
                             <p style="font-size:0.82em; color:var(--text-muted); line-height:1.5;">
-                                💡 <em>Nota: Estimación de referencia basada en dificultad estándar de Bitcoin. Dentro de tu panel de El Minero Gris los cálculos se actualizan automáticamente en tiempo real con datos de tu pool y tarifa configurada.</em>
+                                💡 <em>Nota: Calculado en tiempo real con la dificultad y precio oficial de Bitcoin. Dentro de tu panel de El Minero Gris los cálculos se sincronizan automáticamente con tu pool y tarifa configurada.</em>
                             </p>
                         </div>
 
                         <div class="calc-results">
                             <div class="calc-kpi-row">
                                 <span>Hashrate proyectado:</span>
-                                <strong id="resHashrate">120.0 TH/s</strong>
+                                <strong id="resHashrate">563.0 TH/s</strong>
                             </div>
                             <div class="calc-kpi-row">
-                                <span>Consumo diario:</span>
-                                <strong id="resKwh">66.24 kWh / día</strong>
+                                <span>Producción estimada:</span>
+                                <strong id="resBtcDia" style="color:var(--blue-light); font-family:monospace;">0.000262 BTC / día</strong>
                             </div>
                             <div class="calc-kpi-row">
-                                <span>Costo eléctrico diario:</span>
-                                <strong id="resCostoLuz" style="color:var(--amber);">$3.31 USD</strong>
+                                <span>Consumo eléctrico:</span>
+                                <strong id="resKwh">189.17 kWh / día (7.88 kW)</strong>
+                            </div>
+                            <div class="calc-kpi-row">
+                                <span>Costo de energía:</span>
+                                <strong id="resCostoLuz" style="color:var(--amber);">$9.46 USD / día</strong>
                             </div>
                             <div class="calc-profit-box">
                                 <div class="calc-profit-lbl">Ganancia Neta Estimada</div>
-                                <div class="calc-profit-val" id="resGananciaNeta">$3.89 USD / día</div>
-                                <div style="font-size:0.8em; color:var(--text-muted); margin-top:4px;" id="resGananciaMes">Aprox. $116.70 USD / mes</div>
+                                <div class="calc-profit-val" id="resGananciaNeta">$6.56 USD / día</div>
+                                <div style="font-size:0.82em; color:var(--text-muted); margin-top:4px;" id="resGananciaMes">Aprox. $196.80 USD / mes limpio</div>
+                                <div style="font-size:0.75em; color:rgba(255,255,255,0.45); margin-top:3px;" id="resIngresoBruto">Ingreso bruto: $16.02 USD / día</div>
                             </div>
                         </div>
                     </div>
@@ -1611,7 +1633,7 @@
 
                 <!-- Hardware compatibility logos -->
                 <div class="hardware-brands">
-                    <span class="hw-badge">⛏️ Bitmain Antminer (S19, S21, Hydro, L7, L9)</span>
+                    <span class="hw-badge">⛏️ Bitmain Antminer (S19, S21, S23, Hydro, L7, L9)</span>
                     <span class="hw-badge">⚡ MicroBT WhatsMiner (M30, M50, M60)</span>
                     <span class="hw-badge">🧠 Braiins OS / VNISH / Stock</span>
                     <a href="/compatibilidad" style="color:var(--blue-light); font-weight:700; font-size:0.86em; text-decoration:underline;">Ver los 60+ modelos soportados →</a>
@@ -1807,7 +1829,7 @@
                 <img src="/static/logo.png" alt="Logo El Minero Gris" onerror="this.outerHTML='⛏️'">
                 <span>El Minero Gris</span>
             </div>
-            <p>© 2026 <b>El Minero Gris</b> — Monitoreo, Watchdog y Control Remoto de Mineros ASIC.</p>
+            <p>© <span id="landingYear">2026</span> <b>El Minero Gris</b> — Monitoreo, Watchdog y Control Remoto de Mineros ASIC.</p>
             <div class="footer-links">
                 <a href="#como-funciona">Cómo Funciona</a>
                 <span>·</span>
@@ -1830,21 +1852,56 @@
         <span>Soporte WhatsApp</span>
     </a>
 
-    <!-- Mini Script for Interactive Landing Calculator -->
+    <!-- Mini Script for Interactive Landing Calculator & Live Network Sync -->
     <script>
+    // Métricas en vivo de la red Bitcoin (inicializadas con SSR o fallback automático)
+    let redLiveInfo = {
+        usd_por_th: {{ red_info.usd_por_th_dia if (red_info and red_info.usd_por_th_dia) else 0.0285 }},
+        btc_por_th: {{ red_info.btc_por_th_dia if (red_info and red_info.btc_por_th_dia) else 0.000000466 }},
+        precio_btc: {{ red_info.precio_btc if (red_info and red_info.precio_btc) else 65000 }},
+        dificultad_t: {{ red_info.dificultad_t if (red_info and red_info.dificultad_t) else 134.8 }},
+        recompensa: {{ red_info.recompensa if (red_info and red_info.recompensa) else 3.125 }}
+    };
+
+    function actualizarGananciasShowcase(usdPorTh) {
+        if (!usdPorTh || usdPorTh <= 0) return;
+        // 001: S23 Hyd (568.4 TH/s, 7.88 kW)
+        const g1 = (568.4 * usdPorTh) - (7.88 * 24 * 0.05);
+        const el1 = document.getElementById('showcaseAsic1');
+        if (el1) el1.innerText = `54°C · 7.88 kW · $${Math.max(0, g1).toFixed(2)}/d`;
+
+        // 002: S21+ Hyd (398.2 TH/s, 5.92 kW)
+        const g2 = (398.2 * usdPorTh) - (5.92 * 24 * 0.05);
+        const el2 = document.getElementById('showcaseAsic2');
+        if (el2) el2.innerText = `58°C · 5.92 kW · $${Math.max(0, g2).toFixed(2)}/d`;
+
+        // 003: S21 XP (274.5 TH/s, 3.65 kW)
+        const g3 = (274.5 * usdPorTh) - (3.65 * 24 * 0.05);
+        const el3 = document.getElementById('showcaseAsic3');
+        if (el3) el3.innerText = `63°C · 3.65 kW · $${Math.max(0, g3).toFixed(2)}/d`;
+
+        // 004: S21 Pro (236.1 TH/s, 3.51 kW)
+        const g4 = (236.1 * usdPorTh) - (3.51 * 24 * 0.05);
+        const el4 = document.getElementById('showcaseAsic4');
+        if (el4) el4.innerText = `64°C · 3.51 kW · $${Math.max(0, g4).toFixed(2)}/d`;
+    }
+
     function calcularRentabilidadLanding() {
         const select = document.getElementById('calcModel');
         const tarifaInput = document.getElementById('calcTarifa');
         if (!select || !tarifaInput) return;
 
         const partes = select.value.split(',');
-        const th = parseFloat(partes[0]) || 120;
-        const watts = parseFloat(partes[1]) || 2760;
+        const th = parseFloat(partes[0]) || 563;
+        const watts = parseFloat(partes[1]) || 7882;
         const tarifa = parseFloat(tarifaInput.value) || 0;
 
-        // Estimación estándar BTC aproximada ($0.06 USD por TH/s al día antes de costo eléctrico)
-        const btcPorThDia = 0.060; 
-        const ingresoBrutoDia = th * btcPorThDia;
+        // Producción e ingresos calculados en base a la dificultad y precio real de Bitcoin
+        const usdPorTh = redLiveInfo.usd_por_th || 0.0285;
+        const btcPorTh = redLiveInfo.btc_por_th || 0.000000466;
+
+        const btcDia = th * btcPorTh;
+        const ingresoBrutoDia = th * usdPorTh;
 
         // Consumo kWh diario
         const kwhDia = (watts * 24) / 1000.0;
@@ -1852,25 +1909,76 @@
         const gananciaNetaDia = ingresoBrutoDia - costoLuzDia;
         const gananciaNetaMes = gananciaNetaDia * 30.0;
 
-        document.getElementById('resHashrate').innerText = th.toFixed(1) + ' TH/s';
-        document.getElementById('resKwh').innerText = kwhDia.toFixed(2) + ' kWh / día (' + (watts/1000.0).toFixed(2) + ' kW)';
-        document.getElementById('resCostoLuz').innerText = '$' + costoLuzDia.toFixed(2) + ' USD';
+        const hrEl = document.getElementById('resHashrate');
+        if (hrEl) hrEl.innerText = th.toFixed(1) + ' TH/s';
+        
+        const btcEl = document.getElementById('resBtcDia');
+        if (btcEl) btcEl.innerText = btcDia.toFixed(6) + ' BTC / día';
+
+        const kwhEl = document.getElementById('resKwh');
+        if (kwhEl) kwhEl.innerText = kwhDia.toFixed(2) + ' kWh / día (' + (watts/1000.0).toFixed(2) + ' kW)';
+
+        const costoEl = document.getElementById('resCostoLuz');
+        if (costoEl) costoEl.innerText = '$' + costoLuzDia.toFixed(2) + ' USD / día';
         
         const netEl = document.getElementById('resGananciaNeta');
         const mesEl = document.getElementById('resGananciaMes');
+        const brutoEl = document.getElementById('resIngresoBruto');
 
-        if (gananciaNetaDia >= 0) {
-            netEl.style.color = 'var(--green)';
-            netEl.innerText = '$' + gananciaNetaDia.toFixed(2) + ' USD / día';
-            mesEl.innerText = 'Aprox. $' + gananciaNetaMes.toFixed(2) + ' USD / mes';
-        } else {
-            netEl.style.color = 'var(--red)';
-            netEl.innerText = '-$' + Math.abs(gananciaNetaDia).toFixed(2) + ' USD / día';
-            mesEl.innerText = 'Pérdida por costo eléctrico alto';
+        if (brutoEl) brutoEl.innerText = 'Ingreso bruto: $' + ingresoBrutoDia.toFixed(2) + ' USD / día';
+
+        if (netEl && mesEl) {
+            if (gananciaNetaDia >= 0) {
+                netEl.style.color = 'var(--green, #00e676)';
+                netEl.innerText = '$' + gananciaNetaDia.toFixed(2) + ' USD / día';
+                mesEl.innerText = 'Aprox. $' + gananciaNetaMes.toFixed(2) + ' USD / mes limpio';
+            } else {
+                netEl.style.color = 'var(--red, #ef4444)';
+                netEl.innerText = '-$' + Math.abs(gananciaNetaDia).toFixed(2) + ' USD / día';
+                mesEl.innerText = 'Pérdida por costo eléctrico alto (' + tarifa + ' $/kWh)';
+            }
         }
+
+        // Sincronizar simultáneamente las etiquetas del Showcase interactivo
+        actualizarGananciasShowcase(usdPorTh);
     }
-    // Inicializar cálculo al cargar
-    document.addEventListener('DOMContentLoaded', calcularRentabilidadLanding);
+
+    // Sincronizador automático en segundo plano (para que la página nunca quede desactualizada)
+    async function sincronizarMetricasRedLanding() {
+        try {
+            const res = await fetch('/api/public/metricas_red', { cache: 'no-store' });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && data.status === 'ok') {
+                redLiveInfo.usd_por_th = data.usd_por_th_dia;
+                redLiveInfo.btc_por_th = data.btc_por_th_dia;
+                redLiveInfo.precio_btc = data.precio_btc;
+                redLiveInfo.dificultad_t = data.dificultad_t;
+                redLiveInfo.recompensa = data.recompensa;
+
+                const pEl = document.getElementById('lblBtcPrice');
+                if (pEl) pEl.innerText = '$' + Math.round(data.precio_btc).toLocaleString() + ' USD';
+                const dEl = document.getElementById('lblBtcDiff');
+                if (dEl) dEl.innerText = data.dificultad_t.toFixed(1) + ' T';
+                const rEl = document.getElementById('lblBtcReward');
+                if (rEl) rEl.innerText = data.recompensa + ' BTC';
+
+                calcularRentabilidadLanding();
+            }
+        } catch(e) {}
+    }
+
+    // Inicializar cálculo y sincronización al cargar la página
+    document.addEventListener('DOMContentLoaded', () => {
+        const yEl = document.getElementById('landingYear');
+        if (yEl) yEl.innerText = new Date().getFullYear();
+
+        calcularRentabilidadLanding();
+        sincronizarMetricasRedLanding();
+
+        // Refresco automático cada 3 minutos en segundo plano
+        setInterval(sincronizarMetricasRedLanding, 180000);
+    });
 
     // Controlador del Carrusel de 4 Pantallas en Vivo
     let slideActualShowcase = 0;

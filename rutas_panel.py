@@ -98,7 +98,41 @@ def landing_o_resumen():
         return redirect('/resumen')
     if 'ElMineroGris-AndroidApp' in (request.headers.get('User-Agent') or ''):
         return redirect('/login')
-    return render_seguro('landing.html')
+    datos_red = obtener_datos_red()
+    p = float(datos_red.get('precio') or 65000.0)
+    dif_t = float(datos_red.get('dificultad_t') or 134.8)
+    rec = float(datos_red.get('recompensa') or 3.125)
+    btc_por_th = (86400.0 * rec) / (dif_t * (2**32)) if dif_t > 0 else 0.000000466
+    usd_por_th = btc_por_th * p
+    red_info = {
+        'precio_btc': p,
+        'dificultad_t': dif_t,
+        'recompensa': rec,
+        'red_ehs': float(datos_red.get('red_ehs') or 1050.0),
+        'btc_por_th_dia': btc_por_th,
+        'usd_por_th_dia': round(usd_por_th, 6)
+    }
+    return render_seguro('landing.html', red_info=red_info)
+
+@panel_bp.route('/api/public/metricas_red')
+def api_public_metricas_red():
+    """Retorna métricas de la red Bitcoin en vivo para la calculadora pública y widgets."""
+    datos_red = obtener_datos_red()
+    p = float(datos_red.get('precio') or 65000.0)
+    dif_t = float(datos_red.get('dificultad_t') or 134.8)
+    rec = float(datos_red.get('recompensa') or 3.125)
+    btc_por_th = (86400.0 * rec) / (dif_t * (2**32)) if dif_t > 0 else 0.000000466
+    usd_por_th = btc_por_th * p
+    return jsonify({
+        "status": "ok",
+        "precio_btc": round(p, 2),
+        "dificultad_t": round(dif_t, 2),
+        "recompensa": rec,
+        "red_ehs": round(float(datos_red.get('red_ehs') or 1050.0), 2),
+        "btc_por_th_dia": btc_por_th,
+        "usd_por_th_dia": round(usd_por_th, 6),
+        "ts": int(time.time())
+    })
 
 @panel_bp.route('/descargar_apk')
 @panel_bp.route('/descargar-apk')
