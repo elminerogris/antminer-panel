@@ -1537,7 +1537,7 @@ def ajustes():
 
         d_ip = d.get('ip') or ''
         d_loc = (d.get('ubicacion') or '').strip()
-        if (not d_loc or d_loc in ('Ubicación Desconocida', 'Ubicación no registrada')) and d_ip:
+        if (not d_loc or len(d_loc) <= 3 or d_loc in ('Ubicación Desconocida', 'Ubicación no registrada')) and d_ip:
             d_loc_nueva = obtener_ubicacion_ip(d_ip, request if es_act else None)
             if d_loc_nueva and d_loc_nueva != 'Ubicación Desconocida':
                 d_loc = d_loc_nueva

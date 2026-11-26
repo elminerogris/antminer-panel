@@ -791,40 +791,6 @@
         </div>
     </div>
 </div>
-            Guarda esta clave secreta en un lugar seguro. Con ella podrás sincronizar otro teléfono o recuperar tu cuenta si pierdes tu dispositivo.
-        </p>
-
-        <div style="text-align:center; margin:10px 0;">
-            <img id="imgQr2FAResp" src="" alt="QR Respaldo" style="width:150px; height:150px; display:inline-block; background:#fff; padding:6px; border-radius:8px;">
-        </div>
-
-        <div class="api-box-pro" style="margin:12px 0; font-size:0.88em; padding:8px 12px;">
-            <span id="resp2FAKeyDisplay" class="api-key-val" style="letter-spacing:1px;" translate="no"></span>
-            <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes(document.getElementById('resp2FAKeyDisplay').innerText, 'Clave secreta copiada')">📋 Copiar</button>
-        </div>
-
-        <div style="display:flex; justify-content:flex-end;">
-            <button type="button" class="btn-outline-pro" onclick="document.getElementById('modalVerClave2FA').classList.remove('open')">Cerrar</button>
-        </div>
-    </div>
-</div>
-
-<!-- MODAL 3: DESACTIVAR 2FA -->
-<div id="modalDesactivar2FA" class="ajustes-modal-bg" onclick="if(event.target===this) this.classList.remove('open')">
-    <div class="ajustes-modal" style="max-width:400px;">
-        <h3 style="margin-top:0; margin-bottom:8px; color:var(--accent-red); display:flex; align-items:center; gap:8px;">
-            <span>⚠️</span> <span>Desactivar 2FA</span>
-        </h3>
-        <p style="font-size:0.80em; color:var(--text-muted); margin-bottom:12px; line-height:1.45;">
-            Tu cuenta perderá la capa de doble protección y se accederá únicamente con tu contraseña. Ingresa tu código actual de 6 dígitos para autorizar:
-        </p>
-        <input type="text" id="inputCod2FADesactivar" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="••••••" style="text-align:center; font-size:1.35em; letter-spacing:6px; font-weight:bold; font-family:monospace; margin-bottom:14px; width:100%;" class="form-input">
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
-            <button type="button" class="btn-outline-pro" onclick="document.getElementById('modalDesactivar2FA').classList.remove('open')">Cancelar</button>
-            <button type="button" class="btn-danger-pro" onclick="confirmarDesactivar2FA()" style="width:auto; padding:9px 14px;">🔓 Desactivar</button>
-        </div>
-    </div>
-</div>
 
 <script>
     let apiKeyOculta = false;
@@ -960,7 +926,12 @@
             const res = await fetch('/api/2fa/configurar', { method: 'POST', credentials: 'same-origin' });
             const data = await res.json();
             if (data.status === 'ok') {
-                document.getElementById('imgQr2FA').src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(data.uri);
+                const qrImg = document.getElementById('imgQr2FA');
+                qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(data.uri);
+                qrImg.onerror = function() {
+                    this.onerror = null;
+                    this.src = 'https://quickchart.io/qr?size=160&text=' + encodeURIComponent(data.uri);
+                };
                 document.getElementById('txtSecret2FA').innerText = data.secret;
                 document.getElementById('inputCod2FAConfirmar').value = '';
                 document.getElementById('modalConfig2FA').classList.add('open');
@@ -999,7 +970,12 @@
             const res = await fetch('/api/2fa/ver_clave', { credentials: 'same-origin' });
             const data = await res.json();
             if (data.status === 'ok') {
-                document.getElementById('imgQr2FAResp').src = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(data.uri);
+                const qrImg = document.getElementById('imgQr2FAResp');
+                qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(data.uri);
+                qrImg.onerror = function() {
+                    this.onerror = null;
+                    this.src = 'https://quickchart.io/qr?size=160&text=' + encodeURIComponent(data.uri);
+                };
                 document.getElementById('resp2FAKeyDisplay').innerText = data.secret;
                 document.getElementById('modalVerClave2FA').classList.add('open');
             } else {

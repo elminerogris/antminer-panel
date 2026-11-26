@@ -611,14 +611,12 @@ def obtener_ubicacion_ip(ip_str, req=None):
     if not ip_str or ip_str in ('127.0.0.1', 'localhost', '::1', 'unknown'):
         return 'Red Local / Privada'
     
-    # 1. Cabeceras directas de Cloudflare
+    # 1. Cabeceras directas de Cloudflare (solo si contiene ciudad y país)
     if req:
         cf_city = (req.headers.get('CF-IPCity') or '').strip()
         cf_country = (req.headers.get('CF-IPCountry') or '').strip()
         if cf_city and cf_country:
             return f"{cf_city}, {cf_country}"
-        elif cf_country:
-            return cf_country
 
     # 2. Caché en memoria
     if ip_str in _geo_cache:
@@ -638,6 +636,13 @@ def obtener_ubicacion_ip(ip_str, req=None):
                 return loc
     except Exception:
         pass
+
+    # 4. Fallback si solo tenemos país de Cloudflare
+    if req:
+        cf_country = (req.headers.get('CF-IPCountry') or '').strip()
+        if cf_country:
+            _geo_cache[ip_str] = cf_country
+            return cf_country
         
     return 'Ubicación Desconocida'
 
