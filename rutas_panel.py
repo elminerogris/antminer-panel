@@ -165,6 +165,16 @@ def api_public_metricas_red():
 def descargar_apk():
     return redirect("https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris.apk")
 
+@panel_bp.route('/descargar_apk_beta')
+@panel_bp.route('/descargar-apk-beta')
+@panel_bp.route('/app/android/beta')
+@login_required
+def descargar_apk_beta():
+    usr_actual = session.get('usuario', '')
+    if not es_super_admin(usr_actual):
+        return "Acceso denegado: Esta versión de prueba es exclusiva para el administrador.", 403
+    return redirect("https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris-Beta.apk")
+
 @panel_bp.route('/compatibilidad')
 def pagina_compatibilidad():
     return render_seguro('compatibilidad.html')
