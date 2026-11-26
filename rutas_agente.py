@@ -179,6 +179,46 @@ def api_agente_mi_sesion():
         "miner_pass": usr.get('miner_pass') or ''
     }), 200
 
+@agente_bp.route('/api/agente/mis_mineros')
+def api_agente_mis_mineros():
+    usr_actual = session.get('usuario')
+    api_k = (request.args.get('api_key') or request.headers.get('X-API-KEY') or '').strip()
+    owner = None
+    if usr_actual:
+        owner = usr_actual
+    elif api_k:
+        con = get_db()
+        cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT username FROM usuarios WHERE api_key=%s", (api_k,))
+        u = cur.fetchone()
+        if u:
+            owner = u['username']
+    if not owner:
+        return jsonify({"ok": False, "msg": "No autorizado", "mineros": []}), 401
+
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial FROM mineros_activos WHERE owner=%s ORDER BY ip", (owner,))
+    rows = cur.fetchall()
+    mineros = []
+    for r in rows:
+        mineros.append({
+            "ip": r['ip'],
+            "modelo": r['modelo'] or 'Antminer',
+            "algoritmo": r.get('algoritmo') or 'SHA-256d',
+            "moneda": r.get('moneda') or 'BTC',
+            "unidad": r.get('unidad') or 'TH/s',
+            "hashrate": float(r['hashrate'] or 0.0),
+            "temp_max": int(r['temp_max'] or 0),
+            "consumo_w": float(r['consumo_w'] or 0.0),
+            "estado": r['estado'] or 'En línea',
+            "fans": r.get('fans') or '',
+            "worker": r.get('worker1') or '',
+            "serial": r.get('serial') or '',
+            "ultima_act": str(r.get('ultima_act') or '')
+        })
+    return jsonify({"ok": True, "count": len(mineros), "mineros": mineros}), 200
+
 @agente_bp.route('/api/agente/login', methods=['POST'])
 def api_agente_login():
     cf = request.headers.get('CF-Connecting-IP', '')
