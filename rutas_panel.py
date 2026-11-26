@@ -169,7 +169,11 @@ def descargar_apk():
 @panel_bp.route('/descargar-apk-beta')
 @panel_bp.route('/descargar_beta')
 def descargar_apk_beta():
-    return redirect("https://github.com/elminerogris/el-minero-gris-android-beta/releases/download/latest/ElMineroGris-Beta.apk")
+    resp = redirect(f"https://github.com/elminerogris/el-minero-gris-android-beta/releases/download/latest/ElMineroGris-Beta.apk?t={int(time.time())}")
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 @panel_bp.route('/compatibilidad')
 def pagina_compatibilidad():
