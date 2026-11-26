@@ -1686,13 +1686,14 @@ def api_dispositivos_actualizar_actual():
     loc_c = obtener_ubicacion_ip(ip_c, request)
     
     try:
+        usr_dueno = session.get('admin_real') or session.get('usuario_real') or usr_actual
         con = get_db(); con.autocommit = True; cur = con.cursor()
         cur.execute(
             """UPDATE dispositivos_confianza 
                SET dispositivo=%s, 
                    ubicacion=CASE WHEN (ubicacion IS NULL OR ubicacion='' OR ubicacion='Ubicación Desconocida' OR ubicacion='Ubicación no registrada') THEN %s ELSE ubicacion END 
                WHERE LOWER(username)=LOWER(%s) AND token_hash=%s""",
-            (disp_nuevo, loc_c, usr_actual, tok_hash)
+            (disp_nuevo, loc_c, usr_dueno, tok_hash)
         )
         return jsonify({
             "status": "ok",

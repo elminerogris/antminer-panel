@@ -109,7 +109,7 @@ def admin_entrar_soporte(uid):
     session['usuario'] = target['username']
     session['plan'] = target.get('plan', 'Gratis')
     session['saldo'] = target.get('saldo', 0.0)
-    return redirect('/')
+    return redirect('/resumen')
 
 @admin_bp.route('/admin/salir_soporte')
 @login_required

@@ -184,12 +184,14 @@ def asegurar_bd():
             tok_check = hashlib.sha256(disp_token_act.encode('utf-8')).hexdigest() if disp_token_act else session.get('trusted_device_hash')
             if tok_check:
                 try:
+                    # El usuario autenticado dueño del dispositivo/cookie puede ser el Admin real si está en modo soporte
+                    usr_autenticado = session.get('admin_real') or session.get('usuario_real') or session.get('usuario')
                     con_chk_rev = get_db()
                     cur_chk_rev = con_chk_rev.cursor()
                     ahora_s_rev = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                     cur_chk_rev.execute(
                         "SELECT id FROM dispositivos_confianza WHERE LOWER(username)=LOWER(%s) AND token_hash=%s AND expira_en > %s LIMIT 1",
-                        (session['usuario'], tok_check, ahora_s_rev)
+                        (usr_autenticado, tok_check, ahora_s_rev)
                     )
                     if not cur_chk_rev.fetchone():
                         # ¡Dispositivo eliminado/revocado! Destruir sesión y cookies de inmediato
