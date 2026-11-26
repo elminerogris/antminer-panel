@@ -90,9 +90,6 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html {
             scroll-behavior: smooth;
-            overflow-x: hidden;
-            width: 100%;
-            max-width: 100vw;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
@@ -104,7 +101,7 @@
             min-height: 100vh;
             overflow-x: hidden;
             width: 100%;
-            max-width: 100vw;
+            position: relative;
         }
         a { text-decoration: none; color: inherit; }
         .container { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
@@ -747,9 +744,9 @@
                 flex: 0 0 auto;
             }
             .hero-checks { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px 12px; font-size: 0.76em; margin-bottom: 16px; }
-            .hero-metrics { grid-template-columns: repeat(4, 1fr); gap: 6px; padding-top: 12px; }
-            .hm-val { font-size: 1.05em; }
-            .hm-lbl { font-size: 0.58em; letter-spacing: 0; }
+            .hero-metrics { grid-template-columns: repeat(2, 1fr); gap: 10px; padding-top: 14px; }
+            .hm-val { font-size: 1.25em; }
+            .hm-lbl { font-size: 0.66em; letter-spacing: 0.3px; }
 
             /* Top Bar & Navbar */
             .top-bar { font-size: 0.72em; padding: 6px 8px; gap: 6px; line-height: 1.35; }
@@ -866,7 +863,7 @@
             .cta-banner h2 { font-size: clamp(1.35rem, 5vw, 1.75rem); }
             .cta-banner p { font-size: 0.88em; }
             .cta-banner div[style*="display:flex"] { flex-direction: column; gap: 10px; width: 100%; }
-            .cta-banner .btn { width: 100%; justify-content: center; }
+            .cta-banner .btn { width: 100%; justify-content: center; padding: 11px 18px !important; font-size: 0.90em !important; }
 
             /* Hardware & Badges */
             .hardware-brands { gap: 6px; margin-top: 18px; }
@@ -1621,12 +1618,15 @@
             const tab = document.getElementById(`mkTab${i}`);
             if (tab) {
                 tab.classList.toggle('active', i === slideActualShowcase);
-                if (i === slideActualShowcase && typeof tab.scrollIntoView === 'function') {
-                    try {
-                        tab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                    } catch(e) {}
-                }
             }
+        }
+
+        // Scroll horizontal seguro DENTRO del contenedor de pestañas (NUNCA mueve la página)
+        const tabsBar = document.querySelector('.mk-nav-tabs');
+        const activeTab = document.getElementById(`mkTab${slideActualShowcase}`);
+        if (tabsBar && activeTab && tabsBar.scrollWidth > tabsBar.clientWidth) {
+            const offset = activeTab.offsetLeft - (tabsBar.clientWidth / 2) + (activeTab.clientWidth / 2);
+            tabsBar.scrollTo({ left: Math.max(0, offset), behavior: 'smooth' });
         }
 
         const dotsWrap = document.getElementById('mkDots');
@@ -1662,7 +1662,10 @@
     }
 
     function detenerAutoSlide() {
-        if (timerShowcase) clearInterval(timerShowcase);
+        if (timerShowcase) {
+            clearInterval(timerShowcase);
+            timerShowcase = null;
+        }
     }
 
     // Touch Swipe para Celular
@@ -1690,13 +1693,28 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        iniciarAutoSlide();
         configurarSwipeMovil();
 
         const mockup = document.getElementById('showcaseMockup');
         if (mockup) {
             mockup.addEventListener('mouseenter', detenerAutoSlide);
             mockup.addEventListener('mouseleave', iniciarAutoSlide);
+
+            // Pausar automáticamente el carrusel si el usuario baja a leer el resto de la página
+            if ('IntersectionObserver' in window) {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            iniciarAutoSlide();
+                        } else {
+                            detenerAutoSlide();
+                        }
+                    });
+                }, { threshold: 0.1 });
+                observer.observe(mockup);
+            } else {
+                iniciarAutoSlide();
+            }
         }
     });
     </script>
