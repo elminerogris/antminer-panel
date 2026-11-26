@@ -222,18 +222,31 @@
         .btn-toggle-pass {
             position: absolute;
             right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
             background: transparent;
             border: none;
             color: var(--text-muted);
             cursor: pointer;
-            font-size: 1em;
-            padding: 4px 6px;
-            border-radius: 4px;
-            transition: 0.15s;
+            padding: 6px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.15s ease, background 0.15s ease;
+            width: 32px;
+            height: 32px;
+            user-select: none;
         }
         .btn-toggle-pass:hover {
             color: var(--text-main);
-            background: var(--hover-bg);
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .btn-toggle-pass svg {
+            width: 18px;
+            height: 18px;
+            stroke-width: 2;
+            display: block;
         }
 
         /* Barra de fortaleza de contraseña (solo en registro) */
@@ -421,7 +434,9 @@
                 <div class="input-wrap">
                     <span class="input-icon">🔒</span>
                     <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="{{ 'new-password' if mode == 'register' else 'current-password' }}" oninput="evaluarSeguridadClave(this.value)" required>
-                    <button type="button" class="btn-toggle-pass" onclick="alternarVisibilidadClave(this)" title="Mostrar u ocultar contraseña">👁️</button>
+                    <button type="button" class="btn-toggle-pass" onclick="alternarVisibilidadClave(this)" title="Mostrar contraseña" aria-label="Mostrar u ocultar contraseña" tabindex="-1">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
                 </div>
                 {% if mode == 'register' %}
                     <div class="pass-strength-bar"><div id="passStrengthFill" class="pass-strength-fill"></div></div>
@@ -448,15 +463,22 @@
     </div>
 
     <script>
+        const SVG_EYE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+        const SVG_EYE_OFF = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+
         function alternarVisibilidadClave(btn) {
             const inp = document.getElementById('password');
             if (!inp) return;
             if (inp.type === 'password') {
                 inp.type = 'text';
-                btn.innerText = '🙈';
+                btn.innerHTML = SVG_EYE_OFF;
+                btn.title = "Ocultar contraseña";
+                btn.setAttribute('aria-label', "Ocultar contraseña");
             } else {
                 inp.type = 'password';
-                btn.innerText = '👁️';
+                btn.innerHTML = SVG_EYE;
+                btn.title = "Mostrar contraseña";
+                btn.setAttribute('aria-label', "Mostrar contraseña");
             }
         }
 

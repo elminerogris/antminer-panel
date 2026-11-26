@@ -157,15 +157,24 @@
     .btn-eye {
         position: absolute;
         right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
         background: transparent;
         border: none;
         color: var(--text-muted);
         cursor: pointer;
-        font-size: 1em;
-        padding: 4px 6px;
-        border-radius: 4px;
+        padding: 5px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        transition: color 0.15s ease, background 0.15s ease;
+        user-select: none;
     }
-    .btn-eye:hover { color: var(--text-main); background: var(--hover-bg); }
+    .btn-eye:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.08); }
+    .btn-eye svg { width: 17px; height: 17px; stroke-width: 2; display: block; }
 
     .subnet-presets { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
     .sub-pill {
@@ -421,7 +430,9 @@
             <div class="api-box-pro">
                 <span id="apiKeyDisplay" class="api-key-val" data-real="{{ user.api_key }}" translate="no">{{ user.api_key }}</span>
                 <div class="api-actions">
-                    <button type="button" class="btn-mini-icon" onclick="toggleApiKeyMask(this)" title="Ocultar / Mostrar API Key">👁️</button>
+                    <button type="button" class="btn-mini-icon" onclick="toggleApiKeyMask(this)" title="Ocultar / Mostrar API Key" aria-label="Mostrar u ocultar API Key">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
                     <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes('{{ user.api_key }}', 'API Key copiada')" title="Copiar API Key">📋 Copiar</button>
                 </div>
             </div>
@@ -457,7 +468,9 @@
                             <label class="form-label">Contraseña ASIC</label>
                             <div class="input-wrap">
                                 <input type="password" id="minerPassInput" name="miner_pass" class="form-input with-eye" value="{{ user.miner_pass or '' }}" placeholder="root (de fábrica)">
-                                <button type="button" class="btn-eye" onclick="togglePassField('minerPassInput', this)">👁️</button>
+                                <button type="button" class="btn-eye" onclick="togglePassField('minerPassInput', this)" title="Mostrar contraseña" aria-label="Mostrar u ocultar contraseña" tabindex="-1">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -501,7 +514,9 @@
                     <label class="form-label">Token del Bot (creado con @BotFather)</label>
                     <div class="input-wrap">
                         <input type="password" id="tgTokenInput" name="tg_token" class="form-input with-eye" value="{{ user.tg_token }}" placeholder="Ej: 7294850183:AAHk1_d..." autocomplete="off">
-                        <button type="button" class="btn-eye" onclick="togglePassField('tgTokenInput', this)">👁️</button>
+                        <button type="button" class="btn-eye" onclick="togglePassField('tgTokenInput', this)" title="Mostrar token" aria-label="Mostrar u ocultar token" tabindex="-1">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </button>
                     </div>
                 </div>
                 <div class="form-group">
@@ -559,14 +574,18 @@
                     <label class="form-label">Nueva Contraseña</label>
                     <div class="input-wrap">
                         <input type="password" id="nuevaPass" name="nueva_pass" class="form-input with-eye" placeholder="Ingresa nueva contraseña" oninput="verificarCoincidenciaPass()" required>
-                        <button type="button" class="btn-eye" onclick="togglePassField('nuevaPass', this)">👁️</button>
+                        <button type="button" class="btn-eye" onclick="togglePassField('nuevaPass', this)" title="Mostrar contraseña" aria-label="Mostrar u ocultar contraseña" tabindex="-1">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </button>
                     </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Confirmar Contraseña</label>
                     <div class="input-wrap">
                         <input type="password" id="confirmPass" name="confirm_pass" class="form-input with-eye" placeholder="Repite la nueva contraseña" oninput="verificarCoincidenciaPass()" required>
-                        <button type="button" class="btn-eye" onclick="togglePassField('confirmPass', this)">👁️</button>
+                        <button type="button" class="btn-eye" onclick="togglePassField('confirmPass', this)" title="Mostrar contraseña" aria-label="Mostrar u ocultar contraseña" tabindex="-1">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </button>
                     </div>
                 </div>
                 <div id="passMatchMsg" class="pass-match-msg"></div>
@@ -809,13 +828,17 @@
         });
     }
 
+    const SVG_EYE = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+    const SVG_EYE_OFF = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+
     function toggleApiKeyMask(btn) {
         const el = document.getElementById('apiKeyDisplay');
         if (!el) return;
         const real = el.getAttribute('data-real');
         apiKeyOculta = !apiKeyOculta;
         el.innerText = apiKeyOculta ? 'EMG-••••••••••••••••' : real;
-        btn.innerText = apiKeyOculta ? '🙈' : '👁️';
+        btn.innerHTML = apiKeyOculta ? SVG_EYE_OFF : SVG_EYE;
+        btn.title = apiKeyOculta ? "Mostrar API Key" : "Ocultar API Key";
     }
 
     function setSubnet(val) {
@@ -828,12 +851,23 @@
         if (!inp) return;
         if (inp.type === 'password') {
             inp.type = 'text';
-            btn.innerText = '🙈';
+            btn.innerHTML = SVG_EYE_OFF;
+            btn.title = "Ocultar valor";
+            btn.setAttribute('aria-label', "Ocultar valor");
         } else {
             inp.type = 'password';
-            btn.innerText = '👁️';
+            btn.innerHTML = SVG_EYE;
+            btn.title = "Mostrar valor";
+            btn.setAttribute('aria-label', "Mostrar valor");
         }
     }
+
+    // Cerrar cualquier modal abierto con la tecla Escape (Esc)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            document.querySelectorAll('.ajustes-modal-bg.open').forEach(m => m.classList.remove('open'));
+        }
+    });
 
     function verificarCoincidenciaPass() {
         const p1 = document.getElementById('nuevaPass').value;
