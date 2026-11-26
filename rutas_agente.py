@@ -126,7 +126,7 @@ def api_agente_apk_version():
 
     version_code = APK_VERSION_CODE
     version_name = APK_VERSION_NAME
-    apk_url = "https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris-Agente.apk"
+    apk_url = "https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris.apk"
     version_json_url = "https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/version.json"
 
     try:
