@@ -134,8 +134,8 @@ def api_agente_apk_version():
 
     version_code = APK_VERSION_CODE
     version_name = APK_VERSION_NAME
-    apk_url = f"https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/{apk_file}"
-    version_json_url = "https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/version.json"
+    apk_url = f"https://github.com/elminerogris/el-minero-gris-android/releases/download/latest/{apk_file}"
+    version_json_url = "https://github.com/elminerogris/el-minero-gris-android/releases/download/latest/version.json"
 
     try:
         req = urllib.request.Request(
