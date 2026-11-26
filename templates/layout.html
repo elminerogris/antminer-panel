@@ -810,9 +810,11 @@
         <nav class="menu">
             <div class="menu-section-label">Operación</div>
             <a href="/resumen" class="{{ 'active' if active_page == 'resumen' else '' }}">📊 Resumen</a>
-            <a href="/mineros" class="{{ 'active' if active_page == 'mineros' else '' }}">⛏️ Mineros</a>
-            <a href="/racks" class="{{ 'active' if active_page == 'racks' else '' }}">🗂️ Mapa de Racks</a>
             <a href="/granjas" class="{{ 'active' if active_page == 'granjas' else '' }}">🏭 Granjas</a>
+            <a href="/mineros" class="{{ 'active' if active_page == 'mineros' else '' }}">⛏️ Mineros</a>
+            {% if es_super_admin %}
+            <a href="/racks" class="{{ 'active' if active_page == 'racks' else '' }}">🗂️ Mapa de Racks</a>
+            {% endif %}
             <a href="/alertas" class="{{ 'active' if active_page == 'alertas' else '' }}">🔔 Alertas</a>
 
             {% if not es_tecnico %}

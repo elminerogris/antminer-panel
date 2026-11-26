@@ -7,7 +7,7 @@ from db import get_db
 from utils import (
     login_required, a_int_seguro, a_float_seguro, generar_api_key,
     nombre_inteligente_minero, calcular_segundos_desconectado,
-    ordenar_ip_key, render_seguro
+    ordenar_ip_key, render_seguro, es_super_admin
 )
 
 pro_bp = Blueprint('pro_bp', __name__)
@@ -60,6 +60,8 @@ def controlar_acceso_tecnico():
 @pro_bp.route('/racks')
 @login_required
 def vista_racks():
+    if not es_super_admin():
+        return redirect('/resumen')
     usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -201,6 +203,8 @@ def vista_racks():
 @pro_bp.route('/api/racks/crear', methods=['POST'])
 @login_required
 def api_racks_crear():
+    if not es_super_admin():
+        return jsonify({"status": "error", "msg": "Acceso restringido a administradores"}), 403
     usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     nombre = str(data.get('nombre') or '').strip()[:40]
@@ -220,6 +224,8 @@ def api_racks_crear():
 @pro_bp.route('/api/racks/editar', methods=['POST'])
 @login_required
 def api_racks_editar():
+    if not es_super_admin():
+        return jsonify({"status": "error", "msg": "Acceso restringido a administradores"}), 403
     usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     rack_id = a_int_seguro(data.get('id'), 0)
@@ -265,6 +271,8 @@ def api_racks_editar():
 @pro_bp.route('/api/racks/eliminar', methods=['POST'])
 @login_required
 def api_racks_eliminar():
+    if not es_super_admin():
+        return jsonify({"status": "error", "msg": "Acceso restringido a administradores"}), 403
     usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     nombre = str(data.get('nombre') or '').strip()
@@ -278,6 +286,8 @@ def api_racks_eliminar():
 @pro_bp.route('/api/racks/asignar', methods=['POST'])
 @login_required
 def api_racks_asignar():
+    if not es_super_admin():
+        return jsonify({"status": "error", "msg": "Acceso restringido a administradores"}), 403
     usr_actual = session.get('usuario', 'Admin')
     data = request.get_json(silent=True) or {}
     ip = str(data.get('ip') or '').strip()
