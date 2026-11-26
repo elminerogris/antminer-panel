@@ -718,99 +718,168 @@
         }
 
         @media (max-width: 680px) {
-            .container { padding: 0 14px; }
-            section { padding: 46px 0; }
-            .hero { padding: 24px 0 28px 0; }
-            .hero h1 { font-size: clamp(1.75rem, 6.8vw, 2.5rem); line-height: 1.18; margin-bottom: 14px; }
-            .hero-sub { font-size: 0.94em; margin-bottom: 20px; line-height: 1.55; }
-            .hero-actions { display: flex; flex-direction: column; width: 100%; gap: 10px; margin-bottom: 20px; }
-            .hero-actions .btn { width: 100%; justify-content: center; padding: 13px 18px; font-size: 0.94em; }
-            .hero-checks { flex-direction: column; gap: 8px; font-size: 0.82em; margin-bottom: 20px; }
-            .hero-metrics { grid-template-columns: repeat(2, 1fr); gap: 10px; padding-top: 16px; }
-            .hm-val { font-size: 1.25em; }
-            .hm-lbl { font-size: 0.68em; }
+            .container { padding: 0 12px; }
+            section { padding: 36px 0; }
+            .hero { padding: 18px 0 24px 0; }
+            .hero-badge-wrap { gap: 6px; margin-bottom: 10px; }
+            .pill { font-size: 0.70em; padding: 4px 10px; }
+            .hero h1 { font-size: clamp(1.22rem, 5.2vw, 1.48rem); line-height: 1.24; margin-bottom: 10px; letter-spacing: -0.3px; }
+            .hero-sub { font-size: 0.86em; margin-bottom: 14px; line-height: 1.45; }
+            .hero-actions {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                width: 100%;
+                gap: 8px;
+                margin-bottom: 16px;
+                align-items: center;
+                justify-content: flex-start;
+            }
+            .hero-actions .btn {
+                width: auto;
+                max-width: 100%;
+                padding: 8px 14px;
+                font-size: 0.82em;
+                border-radius: 8px;
+                flex: 0 0 auto;
+            }
+            .hero-checks { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px 12px; font-size: 0.76em; margin-bottom: 16px; }
+            .hero-metrics { grid-template-columns: repeat(4, 1fr); gap: 6px; padding-top: 12px; }
+            .hm-val { font-size: 1.05em; }
+            .hm-lbl { font-size: 0.58em; letter-spacing: 0; }
 
             /* Top Bar & Navbar */
-            .top-bar { font-size: 0.74em; padding: 7px 10px; gap: 6px; line-height: 1.4; }
-            .nav-inner { height: 56px; }
+            .top-bar { font-size: 0.72em; padding: 6px 8px; gap: 6px; line-height: 1.35; }
+            .nav-inner { height: 52px; }
             .brand { gap: 8px; }
-            .brand-logo-img { width: 30px; height: 30px; }
-            .brand-text { font-size: 0.88em; }
+            .brand-logo-img { width: 28px; height: 28px; }
+            .brand-text { font-size: 0.86em; }
             .nav-cta { gap: 5px; }
-            .nav-cta .btn-sm { padding: 6px 10px; font-size: 0.78em; }
+            .nav-cta .btn-sm { padding: 5px 8px; font-size: 0.76em; }
             .nav-cta .nav-login-btn { display: none; }
-            .emg-theme-btn { width: 30px; height: 30px; font-size: 0.82em; }
-            .emg-mini-lang { max-width: 76px; font-size: 0.74em; padding: 4px 6px; }
+            .emg-theme-btn { width: 28px; height: 28px; font-size: 0.80em; }
+            .emg-mini-lang { max-width: 72px; font-size: 0.72em; padding: 3px 5px; }
 
-            /* Showcase Mockup */
-            .mockup { padding: 12px 10px; border-radius: 12px; }
-            .mk-top { font-size: 0.72em; padding-bottom: 8px; margin-bottom: 8px; }
+            /* Showcase Mockup - 100% Ajustado a la Pantalla Móvil */
+            .hero-grid { grid-template-columns: 1fr; gap: 20px; }
+            .hero-grid > * { min-width: 0; max-width: 100%; }
+            .mockup-wrap { width: 100%; max-width: 100%; min-width: 0; overflow: hidden; }
+            .mockup {
+                padding: 10px 8px;
+                border-radius: 12px;
+                max-width: 100%;
+                min-width: 0;
+                box-sizing: border-box;
+            }
+            .mk-top { font-size: 0.68em; padding-bottom: 6px; margin-bottom: 6px; }
             .mk-nav-tabs {
                 display: flex;
                 overflow-x: auto;
                 scroll-snap-type: x mandatory;
-                gap: 5px;
-                padding: 4px;
+                gap: 4px;
+                padding: 3px;
+                margin-bottom: 8px;
                 scrollbar-width: none;
                 -webkit-overflow-scrolling: touch;
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                box-sizing: border-box;
             }
             .mk-nav-tabs::-webkit-scrollbar { display: none; }
             .mk-tab {
                 flex: 0 0 auto;
-                font-size: 0.74em;
-                padding: 7px 12px;
-                scroll-snap-align: start;
-            }
-            .mk-kpis { grid-template-columns: repeat(3, 1fr); gap: 6px; }
-            .mk-kpi { padding: 6px 4px; border-radius: 8px; }
-            .mk-kpi small { font-size: 0.60em; }
-            .mk-kpi strong { font-size: 0.90em; }
-            .mk-row {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 3px;
-                padding: 7px 8px;
                 font-size: 0.72em;
+                padding: 6px 10px;
+                scroll-snap-align: start;
+                white-space: nowrap;
             }
-            .mk-ctrl-buttons { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-            .mk-chart-svg { height: 130px; }
-            .mk-chart-legend { gap: 8px; font-size: 0.70em; }
+            .mk-carousel-viewport {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                overflow: hidden;
+                border-radius: 8px;
+            }
+            .mk-carousel-track {
+                display: flex;
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+            }
+            .mk-slide {
+                flex: 0 0 100%;
+                min-width: 100%;
+                max-width: 100%;
+                width: 100%;
+                box-sizing: border-box;
+                overflow: hidden;
+            }
+            .mk-kpis { grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 8px; }
+            .mk-kpi { padding: 5px 3px; border-radius: 6px; text-align: center; }
+            .mk-kpi small { font-size: 0.56em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .mk-kpi strong { font-size: 0.82em; }
+            .mk-row {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                gap: 4px;
+                padding: 5px 7px;
+                margin-bottom: 4px;
+                font-size: 0.68em;
+                border-radius: 5px;
+            }
+            .mk-tag {
+                font-size: 0.66em;
+                padding: 2px 4px;
+                white-space: nowrap;
+            }
+            .mk-ctrl-buttons { grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px; }
+            .mk-ctrl-btn { padding: 6px 2px; font-size: 0.68em; text-align: center; }
+            .mk-watchdog-event { padding: 7px 9px; font-size: 0.70em; line-height: 1.35; border-radius: 6px; }
+            .mk-tg-card, .mk-apk-card { padding: 7px 9px; font-size: 0.72em; border-radius: 6px; margin-bottom: 5px; }
+            .mk-chart-svg { height: 115px; width: 100%; display: block; }
+            .mk-chart-head { font-size: 0.68em; padding-bottom: 4px; margin-bottom: 4px; }
+            .mk-chart-legend { gap: 6px; font-size: 0.65em; margin-top: 4px; flex-wrap: wrap; }
+            .mk-carousel-bottom { padding-top: 8px; margin-top: 6px; }
+            .mk-arrow-btn { width: 26px; height: 26px; font-size: 13px; }
 
             /* Calculator */
-            .calc-wrapper { padding: 18px 14px; border-radius: 12px; }
-            .calc-results { padding: 16px 12px; gap: 10px; }
-            .calc-profit-val { font-size: 1.4em; }
+            .calc-wrapper { padding: 16px 12px; border-radius: 12px; }
+            .calc-results { padding: 14px 10px; gap: 8px; }
+            .calc-profit-val { font-size: 1.3em; }
 
             /* Cards & Grids */
             .grid-3 { grid-template-columns: 1fr; gap: 14px; }
             .pricing-grid { grid-template-columns: 1fr; gap: 16px; }
-            .sec-head { margin-bottom: 30px; }
-            .sec-head h2 { font-size: clamp(1.5rem, 5.5vw, 1.95rem); }
-            .sec-head p { font-size: 0.90em; }
-            .bg-card, .step-card, .compare-card, .card { padding: 18px 14px; border-radius: 12px; }
-            .price-card { padding: 22px 16px; border-radius: 14px; }
-            .cta-banner { padding: 28px 14px; border-radius: 14px; }
-            .cta-banner h2 { font-size: clamp(1.5rem, 5.5vw, 2rem); }
-            .cta-banner p { font-size: 0.92em; }
+            .sec-head { margin-bottom: 24px; }
+            .sec-head h2 { font-size: clamp(1.35rem, 5vw, 1.75rem); }
+            .sec-head p { font-size: 0.86em; }
+            .bg-card, .step-card, .compare-card, .card { padding: 16px 12px; border-radius: 10px; }
+            .price-card { padding: 20px 14px; border-radius: 12px; }
+            .cta-banner { padding: 24px 12px; border-radius: 12px; }
+            .cta-banner h2 { font-size: clamp(1.35rem, 5vw, 1.75rem); }
+            .cta-banner p { font-size: 0.88em; }
             .cta-banner div[style*="display:flex"] { flex-direction: column; gap: 10px; width: 100%; }
             .cta-banner .btn { width: 100%; justify-content: center; }
 
             /* Hardware & Badges */
-            .hardware-brands { gap: 8px; margin-top: 22px; }
+            .hardware-brands { gap: 6px; margin-top: 18px; }
             .hw-badge {
                 max-width: 100%;
-                font-size: 0.76em;
-                padding: 6px 12px;
+                font-size: 0.72em;
+                padding: 5px 10px;
                 text-align: center;
                 word-break: break-word;
             }
 
             /* WhatsApp Float */
             .wa-float-btn {
-                bottom: 14px;
-                right: 14px;
-                width: 48px;
-                height: 48px;
+                bottom: 12px;
+                right: 12px;
+                width: 44px;
+                height: 44px;
                 border-radius: 50%;
                 justify-content: center;
                 padding: 0;
@@ -819,7 +888,7 @@
                 display: none;
             }
             .wa-float-btn span:first-child {
-                font-size: 1.35em;
+                font-size: 1.25em;
             }
         }
 
@@ -891,13 +960,13 @@
                     </p>
                     <div class="hero-actions">
                         <a href="/descargar_apk" class="btn btn-apk">
-                            <span>📱</span> Descargar App Android (Oficial)
+                            <span>📱</span> Descargar APK
                         </a>
                         <a href="/register" class="btn btn-primary">
-                            <span>🚀</span> Empezar Gratis (3 Mineros)
+                            <span>🚀</span> Empezar Gratis
                         </a>
                         <a href="/guia" class="btn btn-outline">
-                            <span>📖</span> Guía de 2 Minutos
+                            <span>📖</span> Guía
                         </a>
                     </div>
                     <div class="hero-checks">
@@ -1001,7 +1070,7 @@
                                             <span style="color:var(--blue-light); font-weight:bold;">🔍 Pinch-to-Zoom</span>
                                         </div>
                                         <!-- SVG Telemetry Curve -->
-                                        <svg class="mk-chart-svg" viewBox="0 0 460 160" preserveAspectRatio="none">
+                                        <svg class="mk-chart-svg" viewBox="0 0 460 160" preserveAspectRatio="xMidYMid meet">
                                             <defs>
                                                 <linearGradient id="hrGrad" x1="0" y1="0" x2="0" y2="1">
                                                     <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
@@ -1530,8 +1599,10 @@
         slideActualShowcase = idx;
 
         const track = document.getElementById('mkTrack');
-        if (track) {
-            track.style.transform = `translateX(-${slideActualShowcase * 100}%)`;
+        const vp = document.getElementById('mkViewport');
+        if (track && vp) {
+            const slideW = vp.clientWidth;
+            track.style.transform = `translateX(-${slideActualShowcase * slideW}px)`;
         }
 
         for (let i = 0; i < totalSlidesShowcase; i++) {
@@ -1555,6 +1626,15 @@
         const counter = document.getElementById('mkSlideCounter');
         if (counter) counter.innerText = `${slideActualShowcase + 1} / ${totalSlidesShowcase}`;
     }
+
+    window.addEventListener('resize', () => {
+        const track = document.getElementById('mkTrack');
+        const vp = document.getElementById('mkViewport');
+        if (track && vp) {
+            const slideW = vp.clientWidth;
+            track.style.transform = `translateX(-${slideActualShowcase * slideW}px)`;
+        }
+    });
 
     function slideSiguienteShowcase() {
         cambiarSlideShowcase(slideActualShowcase + 1);
