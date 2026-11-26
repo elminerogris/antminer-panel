@@ -390,7 +390,7 @@
             <div class="alert-box alert-success"><span>✅</span><span>{{ success }}</span></div>
         {% endif %}
 
-        <form method="POST" id="authForm" onsubmit="alEnviarFormulario()">
+        <form method="POST" id="authForm" action="{{ '/register' if mode == 'register' else '/login' }}" onsubmit="alEnviarFormulario()">
             <!-- Anti-Bot Honeypot: Campo señuelo invisible para humanos, pero completado por bots automatizados -->
             <div style="position:absolute; left:-9999px; top:-9999px; opacity:0; pointer-events:none; width:0; height:0;" aria-hidden="true">
                 <input type="text" name="b_website" tabindex="-1" autocomplete="off" value="">
@@ -494,8 +494,10 @@
         function alEnviarFormulario() {
             const btn = document.getElementById('btnSubmitAuth');
             if (btn) {
-                btn.disabled = true;
-                btn.innerText = "{{ '⏳ Creando cuenta...' if mode == 'register' else '⏳ Autenticando...' }}";
+                setTimeout(function() {
+                    btn.disabled = true;
+                    btn.innerText = "{{ '⏳ Creando cuenta...' if mode == 'register' else '⏳ Autenticando...' }}";
+                }, 10);
             }
         }
         (function(){ try { var b = document.getElementById('btnTemaStandalone'); if (b) b.textContent = (localStorage.getItem('emg_theme') === 'light') ? '🌙' : '☀️'; } catch(e){} })();

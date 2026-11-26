@@ -1778,17 +1778,22 @@ def login():
             notificar_alerta_seguridad("Intento Fallido de Acceso Admin", f"Contraseña inválida intentada para usuario: {u}", ip_c)
 
         return render_seguro('login.html', error='Credenciales incorrectas', mode='login')
+    if session.get('usuario'):
+        return redirect('/resumen')
     return render_seguro('login.html', mode='login')
 
 @panel_bp.route('/register', methods=['GET', 'POST'])
 def register():
+    if session.get('usuario'):
+        return redirect('/resumen')
+
     if request.method == 'POST':
         # 1. Anti-Bot Honeypot (campo invisible para humanos)
-        if request.form.get('b_website'):
+        if (request.form.get('b_website') or '').strip():
             notificar_alerta_seguridad("Bot detectado en registro", f"Trampa honeypot activada desde IP: {_ip_cliente()}", _ip_cliente())
             return render_seguro('login.html', error='Solicitud inválida.', mode='register'), 400
 
-        if verificar_rate_limit(f"register:{_ip_cliente()}", max_intentos=5, ventana_seg=600):
+        if verificar_rate_limit(f"register:{_ip_cliente()}", max_intentos=10, ventana_seg=300):
             return render_seguro('login.html', error='Demasiados registros recientes desde esta IP. Intenta más tarde.', mode='register'), 429
 
         u = (request.form.get('username') or '').strip()
@@ -1817,13 +1822,25 @@ def register():
             if cur.fetchone():
                 return render_seguro('login.html', error='Este correo electrónico ya está registrado en otra cuenta.', mode='register')
 
+            hoy_str = datetime.utcnow().strftime("%Y-%m-%d")
+            api_k = generar_api_key()
+            pwd_hash = generate_password_hash(p)
             cur.execute("""
                 INSERT INTO usuarios (username, email, fecha_registro, password, plan, saldo, api_key, email_verificado, email_token, email_token_exp)
                 VALUES (%s, %s, %s, %s, 'Gratis', 0.0, %s, 1, '', '')
-            """, (u, em, hoy_str, generate_password_hash(p), generar_api_key()))
+            """, (u, em, hoy_str, pwd_hash, api_k))
 
-            return render_seguro('login.html', success='Cuenta creada exitosamente (Plan Gratis: hasta 3 mineros). Ahora inicia sesión.', mode='login')
+            # Auto-login directo para entrar directamente al panel
+            session.clear()
+            session.permanent = True
+            session['usuario'] = u
+            session['plan'] = 'Gratis'
+            session['saldo'] = 0.0
+            session['last_seen_ts'] = time.time()
+            session['admin_last_activity'] = time.time()
+            return redirect('/resumen?bienvenido=1')
         except Exception as e:
+            print(f"Error al registrar usuario {u}: {e}", flush=True)
             return render_seguro('login.html', error='Ocurrió un error al crear la cuenta. Intenta de nuevo.', mode='register')
     return render_seguro('login.html', mode='register')
 
