@@ -99,6 +99,12 @@ def landing_o_resumen():
         return redirect('/login')
     return render_seguro('landing.html')
 
+@panel_bp.route('/descargar_apk')
+@panel_bp.route('/descargar-apk')
+@panel_bp.route('/app/android')
+def descargar_apk():
+    return redirect("https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris.apk")
+
 @panel_bp.route('/compatibilidad')
 def pagina_compatibilidad():
     return render_seguro('compatibilidad.html')
