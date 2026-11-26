@@ -33,8 +33,9 @@ def verificar_password(stored_pass, input_pass):
         return check_password_hash(stored_pass, input_pass)
     return stored_pass == input_pass
 
-def es_super_admin():
-    return str(session.get('usuario') or '').lower() == 'admin' or str(session.get('admin_real') or '').lower() == 'admin'
+def es_super_admin(usr=None):
+    u = str(usr if usr is not None else (session.get('usuario') or '')).lower()
+    return u == 'admin' or str(session.get('admin_real') or '').lower() == 'admin'
 
 def login_required(f):
     @wraps(f)

@@ -170,8 +170,7 @@ def descargar_apk():
 @panel_bp.route('/app/android/beta')
 @login_required
 def descargar_apk_beta():
-    usr_actual = session.get('usuario', '')
-    if not es_super_admin(usr_actual):
+    if not es_super_admin():
         return "Acceso denegado: Esta versión de prueba es exclusiva para el administrador.", 403
     return redirect("https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris-Beta.apk")
 
