@@ -1568,7 +1568,7 @@
                             <span style="width:7px; height:7px; background:var(--green); border-radius:50%; display:inline-block; box-shadow:0 0 8px var(--green);"></span>
                             <span>Red Bitcoin en Vivo:</span>
                         </span>
-                        <span>Precio: <strong id="lblBtcPrice" style="color:var(--text-main); font-family:monospace;">${{ "{:,.0f}".format(red_info.precio_btc) if red_info else "65,000" }} USD</strong></span>
+                        <span>Precio: <strong id="lblBtcPrice" style="color:var(--text-main); font-family:monospace;">${{ "{:,.0f}".format(red_info.precio_btc) if red_info else "60,500" }} USD</strong></span>
                         <span>·</span>
                         <span>Dificultad: <strong id="lblBtcDiff" style="color:var(--text-main); font-family:monospace;">{{ "{:.1f}".format(red_info.dificultad_t) if red_info else "134.8" }} T</strong></span>
                         <span>·</span>
@@ -1856,9 +1856,9 @@
     <script>
     // Métricas en vivo de la red Bitcoin (inicializadas con SSR o fallback automático)
     let redLiveInfo = {
-        usd_por_th: {{ red_info.usd_por_th_dia if (red_info and red_info.usd_por_th_dia) else 0.0285 }},
+        usd_por_th: {{ red_info.usd_por_th_dia if (red_info and red_info.usd_por_th_dia) else 0.0282 }},
         btc_por_th: {{ red_info.btc_por_th_dia if (red_info and red_info.btc_por_th_dia) else 0.000000466 }},
-        precio_btc: {{ red_info.precio_btc if (red_info and red_info.precio_btc) else 65000 }},
+        precio_btc: {{ red_info.precio_btc if (red_info and red_info.precio_btc) else 60500 }},
         dificultad_t: {{ red_info.dificultad_t if (red_info and red_info.dificultad_t) else 134.8 }},
         recompensa: {{ red_info.recompensa if (red_info and red_info.recompensa) else 3.125 }}
     };

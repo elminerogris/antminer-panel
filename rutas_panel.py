@@ -124,7 +124,7 @@ def landing_o_resumen():
     if 'ElMineroGris-AndroidApp' in (request.headers.get('User-Agent') or ''):
         return redirect('/login')
     datos_red = obtener_datos_red()
-    p = float(datos_red.get('precio') or 65000.0)
+    p = float(datos_red.get('precio') or 60500.0)
     dif_t = float(datos_red.get('dificultad_t') or 134.8)
     rec = float(datos_red.get('recompensa') or 3.125)
     btc_por_th = (86400.0 * rec) / (dif_t * (2**32)) if dif_t > 0 else 0.000000466
@@ -143,7 +143,7 @@ def landing_o_resumen():
 def api_public_metricas_red():
     """Retorna métricas de la red Bitcoin en vivo para la calculadora pública y widgets."""
     datos_red = obtener_datos_red()
-    p = float(datos_red.get('precio') or 65000.0)
+    p = float(datos_red.get('precio') or 60500.0)
     dif_t = float(datos_red.get('dificultad_t') or 134.8)
     rec = float(datos_red.get('recompensa') or 3.125)
     btc_por_th = (86400.0 * rec) / (dif_t * (2**32)) if dif_t > 0 else 0.000000466

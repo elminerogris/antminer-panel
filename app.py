@@ -179,27 +179,28 @@ def asegurar_bd():
         # VALIDACIÓN DE CUENTA VIVA: Si la cuenta fue eliminada o suspendida por el admin, destruir sesión de inmediato
         if DB_URL and not request.path.startswith('/static/') and request.path != '/logout':
             usr_sesion = session.get('admin_real') or session.get('usuario')
-            try:
-                con_u_chk = get_db()
-                cur_u_chk = con_u_chk.cursor()
-                cur_u_chk.execute(
-                    "SELECT id, suspendido FROM usuarios WHERE LOWER(username)=LOWER(%s)",
-                    (usr_sesion,)
-                )
-                usr_db = cur_u_chk.fetchone()
-                if not usr_db or int(usr_db[1] or 0) == 1:
-                    # ¡Cuenta eliminada o suspendida! Expulsar y destruir sesión y cookies de inmediato
-                    session.clear()
-                    resp = redirect('/login')
-                    host_c = (request.host or '').split(':')[0].lower()
-                    cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
-                    resp.delete_cookie('emg_trusted_device', path='/', domain=cookie_domain)
-                    resp.delete_cookie('emg_trusted_device', path='/')
-                    resp.delete_cookie('session', path='/', domain=cookie_domain)
-                    resp.delete_cookie('session', path='/')
-                    return resp
-            except Exception as e_uchk:
-                print(f"[USER EXIST CHECK ERROR]: {e_uchk}")
+            if usr_sesion:
+                try:
+                    con_u_chk = get_db()
+                    with con_u_chk.cursor() as cur_u_chk:
+                        cur_u_chk.execute(
+                            "SELECT id, suspendido FROM usuarios WHERE LOWER(username)=LOWER(%s)",
+                            (usr_sesion,)
+                        )
+                        usr_db = cur_u_chk.fetchone()
+                        if not usr_db or int(usr_db[1] or 0) == 1:
+                            # ¡Cuenta eliminada o suspendida! Expulsar y destruir sesión y cookies de inmediato
+                            session.clear()
+                            resp = redirect('/login')
+                            host_c = (request.host or '').split(':')[0].lower()
+                            cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
+                            resp.delete_cookie('emg_trusted_device', path='/', domain=cookie_domain)
+                            resp.delete_cookie('emg_trusted_device', path='/')
+                            resp.delete_cookie('session', path='/', domain=cookie_domain)
+                            resp.delete_cookie('session', path='/')
+                            return resp
+                except Exception as e_uchk:
+                    print(f"[USER EXIST CHECK ERROR]: {e_uchk}")
 
         # VALIDACIÓN DE REVOCACIÓN REMOTA DE DISPOSITIVO:
         # Si la petición trae cookie de dispositivo o la sesión está asociada a un dispositivo de confianza,
@@ -209,26 +210,25 @@ def asegurar_bd():
             tok_check = hashlib.sha256(disp_token_act.encode('utf-8')).hexdigest() if disp_token_act else session.get('trusted_device_hash')
             if tok_check:
                 try:
-                    # El usuario autenticado dueño del dispositivo/cookie puede ser el Admin real si está en modo soporte
                     usr_autenticado = session.get('admin_real') or session.get('usuario_real') or session.get('usuario')
                     con_chk_rev = get_db()
-                    cur_chk_rev = con_chk_rev.cursor()
-                    ahora_s_rev = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                    cur_chk_rev.execute(
-                        "SELECT id FROM dispositivos_confianza WHERE LOWER(username)=LOWER(%s) AND token_hash=%s AND expira_en > %s LIMIT 1",
-                        (usr_autenticado, tok_check, ahora_s_rev)
-                    )
-                    if not cur_chk_rev.fetchone():
-                        # ¡Dispositivo eliminado/revocado! Destruir sesión y cookies de inmediato
-                        session.clear()
-                        resp = redirect('/login')
-                        host_c = (request.host or '').split(':')[0].lower()
-                        cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
-                        resp.delete_cookie('emg_trusted_device', path='/', domain=cookie_domain)
-                        resp.delete_cookie('emg_trusted_device', path='/')
-                        resp.delete_cookie('session', path='/', domain=cookie_domain)
-                        resp.delete_cookie('session', path='/')
-                        return resp
+                    with con_chk_rev.cursor() as cur_chk_rev:
+                        ahora_s_rev = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                        cur_chk_rev.execute(
+                            "SELECT id FROM dispositivos_confianza WHERE LOWER(username)=LOWER(%s) AND token_hash=%s AND expira_en > %s LIMIT 1",
+                            (usr_autenticado, tok_check, ahora_s_rev)
+                        )
+                        if not cur_chk_rev.fetchone():
+                            # ¡Dispositivo eliminado/revocado! Destruir sesión y cookies de inmediato
+                            session.clear()
+                            resp = redirect('/login')
+                            host_c = (request.host or '').split(':')[0].lower()
+                            cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
+                            resp.delete_cookie('emg_trusted_device', path='/', domain=cookie_domain)
+                            resp.delete_cookie('emg_trusted_device', path='/')
+                            resp.delete_cookie('session', path='/', domain=cookie_domain)
+                            resp.delete_cookie('session', path='/')
+                            return resp
                 except Exception as e_rev:
                     print(f"[REVOKE CHECK ERROR]: {e_rev}")
 

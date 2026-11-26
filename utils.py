@@ -14,8 +14,8 @@ APK_VERSION_NAME = "1.3"
 cache_geo_granja = {}
 cache_clima_coord = {}
 cache_red = {
-    'datos': {'precio': 96500.0, 'dificultad_t': 134.82, 'recompensa': 3.125, 'red_ehs': 965.11},
-    'ultima_act': time.time(),
+    'datos': {'precio': 60500.0, 'dificultad_t': 134.82, 'recompensa': 3.125, 'red_ehs': 1050.0},
+    'ultima_act': 0.0,
     'actualizando': False
 }
 
@@ -463,62 +463,67 @@ def notificar_alerta_seguridad(titulo, detalle, ip=""):
     t.start()
 
 def _obtener_precio_btc():
-    """Intenta obtener el precio de BTC con 3 APIs de respaldo."""
-    # 1. Binance
-    try:
-        req = urllib.request.Request(
-            "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
-            headers={'User-Agent': 'Mozilla/5.0'}
-        )
-        precio = float(json.loads(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8'))['price'])
-        if precio > 1000:
-            return precio
-    except Exception:
-        pass
-
-    # 2. Coinbase
-    try:
-        req = urllib.request.Request(
+    """Consulta múltiples orígenes globales con timeout ultrarrápido (2.5s) para blindar el precio contra caídas."""
+    endpoints = [
+        # 1. Coinbase (Spot BTC-USD) - Alta disponibilidad, sin restricciones de IP en EE.UU.
+        (
             "https://api.coinbase.com/v2/prices/BTC-USD/spot",
-            headers={'User-Agent': 'Mozilla/5.0'}
-        )
-        j = json.loads(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8'))
-        precio = float(j['data']['amount'])
-        if precio > 1000:
-            return precio
-    except Exception:
-        pass
-
-    # 3. CoinGecko
-    try:
-        req = urllib.request.Request(
+            lambda j: float(j['data']['amount'])
+        ),
+        # 2. Kraken (Ticker XBTUSD) - Alta liquidez y respuesta inmediata
+        (
+            "https://api.kraken.com/0/public/Ticker?pair=XBTUSD",
+            lambda j: float(list(j['result'].values())[0]['c'][0])
+        ),
+        # 3. Mempool.space - Datos directos de minería y precio USD oficial
+        (
+            "https://mempool.space/api/v1/prices",
+            lambda j: float(j['USD'])
+        ),
+        # 4. Blockchain.info - API clásica de máxima estabilidad
+        (
+            "https://blockchain.info/ticker",
+            lambda j: float(j['USD']['last'])
+        ),
+        # 5. Binance - Par BTCUSDT global
+        (
+            "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+            lambda j: float(j['price'])
+        ),
+        # 6. CoinGecko - Respaldo complementario
+        (
             "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd",
-            headers={'User-Agent': 'Mozilla/5.0'}
+            lambda j: float(j['bitcoin']['usd'])
         )
-        j = json.loads(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8'))
-        precio = float(j['bitcoin']['usd'])
-        if precio > 1000:
-            return precio
-    except Exception:
-        pass
+    ]
+
+    for url, parser in endpoints:
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+            resp = urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8')
+            precio = parser(json.loads(resp))
+            if precio and precio > 1000.0:
+                return round(precio, 2)
+        except Exception:
+            continue
 
     return None
 
 def _obtener_dificultad_btc():
-    """Intenta obtener dificultad (T) y hashrate global (EH/s) de la red Bitcoin."""
+    """Intenta obtener dificultad (T) y hashrate global (EH/s) de la red Bitcoin con respaldo múltiple."""
     # 1. Mempool.space
     try:
         req = urllib.request.Request(
             "https://mempool.space/api/v1/mining/hashrate/3d",
             headers={'User-Agent': 'Mozilla/5.0'}
         )
-        j = json.loads(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8'))
+        j = json.loads(urllib.request.urlopen(req, timeout=3.0).read().decode('utf-8'))
         diff = float(j.get('currentDifficulty') or 0)
         hr_red = float(j.get('currentHashrate') or 0)
         if diff > 0:
             dif_t = diff / 1_000_000_000_000
             ehs = round(hr_red / 1e18, 2) if hr_red > 0 else round(dif_t * 7.1583, 2)
-            return dif_t, ehs
+            return round(dif_t, 2), ehs
     except Exception:
         pass
 
@@ -528,10 +533,10 @@ def _obtener_dificultad_btc():
             "https://blockchain.info/q/getdifficulty",
             headers={'User-Agent': 'Mozilla/5.0'}
         )
-        diff = float(urllib.request.urlopen(req, timeout=2.5).read().decode('utf-8').strip())
+        diff = float(urllib.request.urlopen(req, timeout=3.0).read().decode('utf-8').strip())
         if diff > 0:
             dif_t = diff / 1_000_000_000_000
-            return dif_t, round(dif_t * 7.1583, 2)
+            return round(dif_t, 2), round(dif_t * 7.1583, 2)
     except Exception:
         pass
 
@@ -579,8 +584,13 @@ def _actualizar_datos_red_worker():
 def obtener_datos_red():
     global cache_red
     ahora = time.time()
-    # Si pasaron más de 5 minutos y no hay un hilo activo, actualizar en segundo plano sin frenar la web
-    if ahora - cache_red.get('ultima_act', 0) > 300 and not cache_red.get('actualizando', False):
+    # Si es el primer arranque o aún no hay datos frescos, actualizar de inmediato
+    if cache_red.get('ultima_act', 0) == 0.0:
+        _actualizar_datos_red_worker()
+        return cache_red['datos']
+
+    # Si pasaron más de 3 minutos (180s) y no hay un hilo activo, actualizar en segundo plano sin frenar la web
+    if ahora - cache_red.get('ultima_act', 0) > 180 and not cache_red.get('actualizando', False):
         cache_red['actualizando'] = True
         try:
             hilo = threading.Thread(target=_actualizar_datos_red_worker, daemon=True)

@@ -1858,6 +1858,8 @@
         afterDraw: function(chart) {
             const ctx = chart.ctx;
             const ca = chart.chartArea;
+            const yAxis = chart.scales.y;
+            const y1Axis = chart.scales.y1;
             const xAxis = chart.scales.x;
             if (!ca) return;
 
