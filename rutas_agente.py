@@ -153,6 +153,31 @@ def api_agente_apk_version():
     _cache_apk_version["data"] = resultado
     return jsonify(resultado), 200
 
+@agente_bp.route('/api/agente/mi_sesion')
+def api_agente_mi_sesion():
+    usr_actual = session.get('usuario')
+    if not usr_actual:
+        return jsonify({"ok": False, "msg": "No autenticado"}), 401
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM usuarios WHERE LOWER(username)=LOWER(%s)", (usr_actual,))
+    usr = cur.fetchone()
+    if not usr:
+        return jsonify({"ok": False, "msg": "Usuario no encontrado"}), 404
+    api_k = usr.get('api_key')
+    if not api_k:
+        api_k = generar_api_key()
+        cur.execute("UPDATE usuarios SET api_key=%s WHERE id=%s", (api_k, usr['id']))
+        con.commit()
+    return jsonify({
+        "ok": True,
+        "username": usr['username'],
+        "api_key": api_k,
+        "subnet": usr.get('subnet') or '192.168.0',
+        "miner_user": usr.get('miner_user') or 'root',
+        "miner_pass": usr.get('miner_pass') or ''
+    }), 200
+
 @agente_bp.route('/api/agente/login', methods=['POST'])
 def api_agente_login():
     cf = request.headers.get('CF-Connecting-IP', '')
