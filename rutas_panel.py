@@ -1666,11 +1666,13 @@ def plan():
     mineros_usados = a_int_seguro(row_m['total_mineros'] if row_m else 0, 0)
 
     # Cantidad de granjas/sedes reales
-    cur.execute("SELECT COUNT(DISTINCT COALESCE(NULLIF(farm_id,''), subred)) AS total_granjas FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT COUNT(DISTINCT NULLIF(farm_id,'')) AS total_granjas FROM mineros_activos WHERE owner=%s", (usr_actual,))
     row_g = cur.fetchone()
     cur.execute("SELECT COUNT(*) AS cnt FROM granjas_sedes WHERE owner=%s", (usr_actual,))
     row_gs = cur.fetchone()
-    granjas_usadas = max(a_int_seguro(row_g['total_granjas'] if row_g else 0), a_int_seguro(row_gs['cnt'] if row_gs else 0), 1 if mineros_usados > 0 else 0)
+    cnt_g = a_int_seguro(row_g['total_granjas'] if row_g else 0, 0)
+    cnt_gs = a_int_seguro(row_gs['cnt'] if row_gs else 0, 0)
+    granjas_usadas = max(cnt_g, cnt_gs, 1 if mineros_usados > 0 else 0)
 
     lim_m_cfg = a_int_seguro(u.get('limite_mineros'), 0)
     pro_hasta = str(u.get('pro_hasta') or '').strip()
