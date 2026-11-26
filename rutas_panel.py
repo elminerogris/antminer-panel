@@ -95,6 +95,8 @@ def _calcular_horas_rango(ini_str, fin_str):
 def landing_o_resumen():
     if 'usuario' in session:
         return redirect('/resumen')
+    if 'ElMineroGris-AndroidApp' in (request.headers.get('User-Agent') or ''):
+        return redirect('/login')
     return render_seguro('landing.html')
 
 @panel_bp.route('/compatibilidad')
