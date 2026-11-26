@@ -7,7 +7,8 @@ from db import get_db
 from utils import (
     login_required, es_super_admin, a_int_seguro, a_float_seguro,
     evaluar_plan_usuario, obtener_datos_red, calcular_segundos_desconectado,
-    ordenar_ip_key, render_seguro, generar_totp_secret, verificar_totp, notificar_alerta_seguridad
+    ordenar_ip_key, render_seguro, generar_totp_secret, verificar_totp, notificar_alerta_seguridad,
+    generar_qr_base64
 )
 
 admin_bp = Blueprint('admin_bp', __name__)
@@ -134,7 +135,8 @@ def admin_2fa_iniciar():
     secret = generar_totp_secret(32)
     session['temp_totp_secret'] = secret
     uri = f"otpauth://totp/ElMineroGris:admin?secret={secret}&issuer=ElMineroGris"
-    return jsonify({"status": "ok", "secret": secret, "uri": uri})
+    qr_b64 = generar_qr_base64(uri)
+    return jsonify({"status": "ok", "secret": secret, "uri": uri, "qr_b64": qr_b64})
 
 @admin_bp.route('/admin/2fa/confirmar', methods=['POST'])
 @login_required
@@ -168,7 +170,8 @@ def admin_2fa_ver_clave():
     if not secret:
         return jsonify({"status": "error", "msg": "No hay clave 2FA activa configurada."}), 400
     uri = f"otpauth://totp/ElMineroGris:admin?secret={secret}&issuer=ElMineroGris"
-    return jsonify({"status": "ok", "secret": secret, "uri": uri})
+    qr_b64 = generar_qr_base64(uri)
+    return jsonify({"status": "ok", "secret": secret, "uri": uri, "qr_b64": qr_b64})
 
 @admin_bp.route('/admin/2fa/desactivar', methods=['POST'])
 @login_required

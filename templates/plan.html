@@ -904,7 +904,7 @@
             document.getElementById('payExactAmount').innerText = `${j.pay_amount} USDT`;
             document.getElementById('payRedLbl').innerText = j.red_label;
             document.getElementById('payAddressTxt').innerText = j.pay_address;
-            document.getElementById('payQrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(j.pay_address);
+            document.getElementById('payQrImg').src = j.qr_b64 || ('https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(j.pay_address));
             const st = document.getElementById('payStatusBadge');
             st.className = 'pay-badge-live';
             st.innerText = '⏳ Esperando depósito en la red...';

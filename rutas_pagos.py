@@ -3,7 +3,7 @@ import psycopg2.extras, json, os, uuid, hmac, hashlib, urllib.request, urllib.er
 from datetime import datetime, timedelta
 
 from db import get_db
-from utils import login_required, a_float_seguro, a_int_seguro, enviar_telegram
+from utils import login_required, a_float_seguro, a_int_seguro, enviar_telegram, generar_qr_base64
 
 pagos_bp = Blueprint('pagos_bp', __name__)
 
@@ -147,7 +147,8 @@ def api_crear_pago_usdt():
         "pay_amount": pay_amount,
         "pay_currency": red,
         "red_label": REDES_VALIDAS[red],
-        "estado": estado
+        "estado": estado,
+        "qr_b64": generar_qr_base64(pay_address)
     }), 200
 
 

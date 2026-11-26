@@ -759,9 +759,9 @@
         <p style="font-size:0.78em; color:var(--text-muted); margin-bottom:6px;">
             2. Si no puedes escanear el QR, ingresa esta clave manual en tu app:
         </p>
-        <div class="api-box-pro" style="margin-bottom:14px; font-size:0.88em; padding:8px 12px;">
-            <span id="txtSecret2FA" class="api-key-val" style="letter-spacing:1px;" translate="no"></span>
-            <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes(document.getElementById('txtSecret2FA').innerText, 'Clave 2FA copiada')">📋 Copiar</button>
+        <div class="api-box-pro" style="margin-bottom:14px; font-size:0.88em; padding:8px 12px; background:var(--bg-well-soft, #1e293b); border:1px solid var(--border-color); border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span id="txtSecret2FA" class="api-key-val" style="letter-spacing:1.5px; font-family:monospace; color:var(--accent-green, #00e676); font-weight:bold;" translate="no"></span>
+            <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes(document.getElementById('txtSecret2FA').getAttribute('data-raw') || document.getElementById('txtSecret2FA').innerText.replace(/\s+/g, ''), 'Clave 2FA copiada')">📋 Copiar</button>
         </div>
 
         <p style="font-size:0.78em; color:var(--text-muted); margin-bottom:6px;">
@@ -792,7 +792,7 @@
 
         <div class="api-box-pro" style="margin:12px 0; font-size:0.92em; padding:10px 14px; background:var(--bg-well-soft, #1e293b); border:1px solid var(--border-color); border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
             <span id="resp2FAKeyDisplay" class="api-key-val" style="letter-spacing:1.5px; font-family:monospace; color:var(--accent-green, #00e676); font-weight:bold;" translate="no"></span>
-            <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes(document.getElementById('resp2FAKeyDisplay').innerText, 'Clave secreta copiada')">📋 Copiar</button>
+            <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes(document.getElementById('resp2FAKeyDisplay').getAttribute('data-raw') || document.getElementById('resp2FAKeyDisplay').innerText.replace(/\s+/g, ''), 'Clave secreta copiada')">📋 Copiar</button>
         </div>
 
         <div style="display:flex; justify-content:flex-end;">
@@ -968,12 +968,21 @@
             const data = await res.json();
             if (data.status === 'ok') {
                 const qrImg = document.getElementById('imgQr2FA');
-                qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(data.uri);
-                qrImg.onerror = function() {
-                    this.onerror = null;
-                    this.src = 'https://quickchart.io/qr?size=160&text=' + encodeURIComponent(data.uri);
-                };
-                document.getElementById('txtSecret2FA').innerText = data.secret;
+                if (data.qr_b64) {
+                    qrImg.src = data.qr_b64;
+                } else {
+                    qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(data.uri);
+                    qrImg.onerror = function() {
+                        this.onerror = null;
+                        this.src = 'https://quickchart.io/qr?size=160&text=' + encodeURIComponent(data.uri);
+                    };
+                }
+                const secStr = String(data.secret || '').trim();
+                const secFormateado = secStr.match(/.{1,4}/g)?.join(' ') || secStr;
+                const txtEl = document.getElementById('txtSecret2FA');
+                txtEl.innerText = secFormateado;
+                txtEl.setAttribute('data-raw', secStr);
+
                 document.getElementById('inputCod2FAConfirmar').value = '';
                 document.getElementById('modalConfig2FA').classList.add('open');
             } else {
@@ -1012,12 +1021,21 @@
             const data = await res.json();
             if (data.status === 'ok') {
                 const qrImg = document.getElementById('imgQr2FAResp');
-                qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(data.uri);
-                qrImg.onerror = function() {
-                    this.onerror = null;
-                    this.src = 'https://quickchart.io/qr?size=160&text=' + encodeURIComponent(data.uri);
-                };
-                document.getElementById('resp2FAKeyDisplay').innerText = data.secret;
+                if (data.qr_b64) {
+                    qrImg.src = data.qr_b64;
+                } else {
+                    qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(data.uri);
+                    qrImg.onerror = function() {
+                        this.onerror = null;
+                        this.src = 'https://quickchart.io/qr?size=160&text=' + encodeURIComponent(data.uri);
+                    };
+                }
+                const secStr = String(data.secret || '').trim();
+                const secFormateado = secStr.match(/.{1,4}/g)?.join(' ') || secStr;
+                const dispEl = document.getElementById('resp2FAKeyDisplay');
+                dispEl.innerText = secFormateado;
+                dispEl.setAttribute('data-raw', secStr);
+
                 document.getElementById('modalVerClave2FA').classList.add('open');
             } else {
                 alert(data.msg || 'Error al obtener clave');

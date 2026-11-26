@@ -827,6 +827,7 @@
     let cursorCanvasY = null;
     let ultimoContextoTooltip = null;
     let mapaMetaPuntos = {};
+    let brechasDesconexion = [];
     let cacheClimaExterior = [];
     let visibilidadCurvas = {};
     let elementoTooltipActivo = null;
@@ -1741,12 +1742,18 @@
     }
 
     function iconoEvento(tipo) {
-        if (tipo === 'WATCHDOG_REBOOT') return { ic: '🔄', col: 'rgba(96, 165, 250, 0.75)' };
-        if (tipo === 'WATCHDOG_CUARENTENA') return { ic: '🔒', col: 'rgba(192, 132, 252, 0.80)' };
-        if (tipo === 'CORTE_TERMICO') return { ic: '🛡️', col: 'rgba(255, 82, 82, 0.80)' };
-        if (tipo === 'HORARIO_PICO') return { ic: '⚡', col: 'rgba(255, 179, 0, 0.80)' };
-        if (tipo === 'HORARIO_NORMAL') return { ic: '🟢', col: 'rgba(0, 230, 118, 0.75)' };
-        return { ic: '•', col: 'rgba(148, 163, 184, 0.6)' };
+        if (tipo === 'WATCHDOG_REBOOT') return { ic: '🔄', label: 'Watchdog', col: '#38bdf8', bg: 'rgba(56, 189, 248, 0.22)', border: '#0284c7' };
+        if (tipo === 'WATCHDOG_CUARENTENA') return { ic: '🔒', label: 'Cuarentena', col: '#c084fc', bg: 'rgba(192, 132, 252, 0.22)', border: '#9333ea' };
+        if (tipo === 'CORTE_TERMICO') return { ic: '🛡️', label: 'Corte Térmico', col: '#ef4444', bg: 'rgba(239, 68, 68, 0.25)', border: '#b91c1c' };
+        if (tipo === 'HORARIO_PICO') return { ic: '⚡', label: 'Tarifa Pico', col: '#f59e0b', bg: 'rgba(245, 158, 11, 0.22)', border: '#d97706' };
+        if (tipo === 'HORARIO_NORMAL') return { ic: '🟢', label: 'Tarifa Normal', col: '#10b981', bg: 'rgba(16, 185, 129, 0.22)', border: '#047857' };
+        if (tipo === 'CMD_SLEEP') return { ic: '😴', label: 'Modo Sleep', col: '#a855f7', bg: 'rgba(168, 85, 247, 0.22)', border: '#7e22ce' };
+        if (tipo === 'CMD_NORMAL') return { ic: '▶️', label: 'Modo Normal', col: '#00e676', bg: 'rgba(0, 230, 118, 0.22)', border: '#059669' };
+        if (tipo === 'CMD_RESTART') return { ic: '🔄', label: 'Reinicio Manual', col: '#38bdf8', bg: 'rgba(56, 189, 248, 0.22)', border: '#0284c7' };
+        if (tipo === 'APAGON_SEDE') return { ic: '🔌', label: 'Apagón / Corte', col: '#f97316', bg: 'rgba(249, 115, 22, 0.25)', border: '#c2410c' };
+        if (tipo === 'GRANJA_CAIDA') return { ic: '⚠️', label: 'Sede Desconectada', col: '#e11d48', bg: 'rgba(225, 29, 72, 0.25)', border: '#be123c' };
+        if (tipo === 'GRANJA_ONLINE') return { ic: '🟢', label: 'Sede Online', col: '#00e676', bg: 'rgba(0, 230, 118, 0.22)', border: '#059669' };
+        return { ic: '⚡', label: 'Evento', col: '#94a3b8', bg: 'rgba(148, 163, 184, 0.18)', border: '#64748b' };
     }
 
     function buscarEventoCercano(tsSegundos) {
@@ -1773,6 +1780,7 @@
             if (!xAxis || !ca) return;
             const ctx = chart.ctx;
 
+            // 1. Zona izquierda sin telemetría previa
             if (primerTsGrabadoGlobal > xAxis.min + 180) {
                 const xInicioDatos = Math.min(ca.right, Math.max(ca.left, xAxis.getPixelForValue(primerTsGrabadoGlobal)));
                 if (xInicioDatos > ca.left + 12) {
@@ -1781,6 +1789,50 @@
                     ctx.fillRect(ca.left, ca.top, xInicioDatos - ca.left, ca.bottom - ca.top);
                     ctx.restore();
                 }
+            }
+
+            // 2. Sombreado de zonas de desconexión / corte eléctrico para que principiantes lo entiendan de inmediato
+            if (brechasDesconexion && brechasDesconexion.length > 0) {
+                const esClaro = (document.documentElement.getAttribute('data-theme') === 'light');
+                brechasDesconexion.forEach(b => {
+                    if (b.finTs < xAxis.min || b.inicioTs > xAxis.max) return;
+                    const x1 = Math.max(ca.left, xAxis.getPixelForValue(b.inicioTs));
+                    const x2 = Math.min(ca.right, xAxis.getPixelForValue(b.finTs));
+                    const ancho = x2 - x1;
+                    if (ancho > 4) {
+                        ctx.save();
+                        // Fondo suave de interrupción
+                        ctx.fillStyle = esClaro ? 'rgba(239, 68, 68, 0.06)' : 'rgba(239, 68, 68, 0.11)';
+                        ctx.fillRect(x1, ca.top, ancho, ca.bottom - ca.top);
+
+                        // Bordes punteados de corte
+                        ctx.strokeStyle = esClaro ? 'rgba(239, 68, 68, 0.30)' : 'rgba(239, 68, 68, 0.45)';
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([3, 3]);
+                        ctx.beginPath();
+                        ctx.moveTo(x1, ca.top);
+                        ctx.lineTo(x1, ca.bottom);
+                        ctx.moveTo(x2, ca.top);
+                        ctx.lineTo(x2, ca.bottom);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        // Etiqueta informativa central si el espacio es visible
+                        if (ancho >= 65) {
+                            const horas = Math.floor(b.segundos / 3600);
+                            const minutos = Math.floor((b.segundos % 3600) / 60);
+                            let durStr = horas > 0 ? `${horas}h ${minutos > 0 ? minutos + 'm' : ''}` : `${minutos}m`;
+                            const txt = `⏸️ Desconectado (${durStr.trim()})`;
+
+                            ctx.font = '600 10px sans-serif';
+                            ctx.fillStyle = esClaro ? 'rgba(185, 28, 28, 0.85)' : 'rgba(252, 165, 165, 0.90)';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(txt, x1 + (ancho / 2), ca.top + ((ca.bottom - ca.top) / 2));
+                        }
+                        ctx.restore();
+                    }
+                });
             }
 
             const esClaroGrid = (document.documentElement.getAttribute('data-theme') === 'light');
@@ -1806,13 +1858,12 @@
         afterDraw: function(chart) {
             const ctx = chart.ctx;
             const ca = chart.chartArea;
-            const yAxis = chart.scales.y;
-            const y1Axis = chart.scales.y1;
             const xAxis = chart.scales.x;
             if (!ca) return;
 
             ctx.save();
 
+            // Marcadores de eventos (Watchdog, Sleep, Normal, Reinicio, Cortes térmicos) con líneas verticales y etiquetas superiores
             if (xAxis && eventosGrafico && eventosGrafico.length > 0) {
                 let ultimoXIcono = -999;
                 const visibles = eventosGrafico
@@ -1820,21 +1871,52 @@
                     .sort((a, b) => a.ts - b.ts);
                 visibles.forEach(ev => {
                     const xEv = xAxis.getPixelForValue(ev.ts);
-                    if (xEv < ca.left + 10 || xEv > ca.right - 10) return;
+                    if (xEv < ca.left + 5 || xEv > ca.right - 5) return;
                     const infoEv = iconoEvento(ev.tipo);
+
+                    // 1. Línea vertical de alta visibilidad en el minuto exacto del evento
+                    ctx.save();
                     ctx.beginPath();
-                    ctx.setLineDash([2, 4]);
-                    ctx.moveTo(xEv, ca.top + 14);
+                    ctx.setLineDash([4, 4]);
+                    ctx.moveTo(xEv, ca.top + 20);
                     ctx.lineTo(xEv, ca.bottom);
-                    ctx.lineWidth = 1;
+                    ctx.lineWidth = 1.8;
                     ctx.strokeStyle = infoEv.col;
                     ctx.stroke();
-                    ctx.setLineDash([]);
+                    ctx.restore();
 
-                    if (xEv - ultimoXIcono >= 18) {
-                        ctx.font = '11px sans-serif';
+                    // 2. Insignia / Pill badge en la parte superior del gráfico
+                    if (xEv - ultimoXIcono >= 45) {
+                        ctx.save();
+                        ctx.font = 'bold 10px sans-serif';
+                        const textoPill = `${infoEv.ic} ${infoEv.label}`;
+                        const textMetrics = ctx.measureText(textoPill);
+                        const pillW = textMetrics.width + 12;
+                        const pillH = 18;
+                        const pillX = Math.max(ca.left + 2, Math.min(ca.right - pillW - 2, xEv - (pillW / 2)));
+                        const pillY = ca.top + 2;
+
+                        // Fondo y borde del pill badge
+                        ctx.fillStyle = infoEv.bg;
+                        ctx.strokeStyle = infoEv.border;
+                        ctx.lineWidth = 1;
+                        if (ctx.roundRect) {
+                            ctx.beginPath();
+                            ctx.roundRect(pillX, pillY, pillW, pillH, 4);
+                            ctx.fill();
+                            ctx.stroke();
+                        } else {
+                            ctx.fillRect(pillX, pillY, pillW, pillH);
+                            ctx.strokeRect(pillX, pillY, pillW, pillH);
+                        }
+
+                        // Texto centrado
+                        ctx.fillStyle = infoEv.col;
                         ctx.textAlign = 'center';
-                        ctx.fillText(infoEv.ic, xEv, ca.top + 11);
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(textoPill, pillX + (pillW / 2), pillY + (pillH / 2));
+                        ctx.restore();
+
                         ultimoXIcono = xEv;
                     }
                 });
@@ -2160,7 +2242,13 @@
 
             const evCercano = buscarEventoCercano(tsSegundos);
             if (evCercano) {
-                html += `<div class="tt-event-box">${evCercano.msg}</div>`;
+                const infoEv = iconoEvento(evCercano.tipo);
+                html += `<div class="tt-event-box" style="background:${infoEv.bg}; border-left:3px solid ${infoEv.col}; color:#f8fafc; font-size:0.75em; padding:6px 8px; margin-top:6px; border-radius:5px; line-height:1.4;">
+                    <div style="font-weight:700; color:${infoEv.col}; display:flex; align-items:center; gap:5px; margin-bottom:2px;">
+                        <span>${infoEv.ic}</span> <span>${infoEv.label}</span>
+                    </div>
+                    <div style="color:var(--text-main, #e2e8f0);">${evCercano.msg}</div>
+                </div>`;
             }
 
             ttEl.innerHTML = html;
@@ -2518,6 +2606,7 @@
         let ptsH = [], ptsT = [], ptsTMin = [], ptsA = [], ptsClima = [], ptsSens = [], ptsE = [];
         let maxErrPeriodo = 0;
         mapaMetaPuntos = {};
+        brechasDesconexion = [];
         ultimoKeyTooltipRenderizado = null;
 
         if (limiteIzqForzado && (agrupados.length === 0 || agrupados[0].ts > limiteIzqForzado + 60)) {
@@ -2552,6 +2641,12 @@
                     ptsSens.push({ x: tsCorte, y: null });
                     ptsE.push({ x: tsCorte, y: null });
                     mapaMetaPuntos[tsCorte] = { esSeparadorCorte: true };
+
+                    brechasDesconexion.push({
+                        inicioTs: agrupados[i - 1].ts,
+                        finTs: actual.ts,
+                        segundos: brecha
+                    });
                 }
             }
 

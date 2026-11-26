@@ -15,7 +15,8 @@ from utils import (
     parsear_dispositivo, fijar_cookie_dispositivo, determinar_credenciales_defecto,
     sanitizar_nombre_minero, sanitizar_nombre_granja, sanitizar_texto_seguro,
     enmascarar_email, enviar_email_codigo, calcular_dias_pro_restantes,
-    obtener_ubicacion_ip, desglosar_dispositivo_info, resolver_modelo_comercial
+    obtener_ubicacion_ip, desglosar_dispositivo_info, resolver_modelo_comercial,
+    generar_qr_base64
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
@@ -78,6 +79,30 @@ def despachar_comando(cur, owner, ip, comando, fecha=None):
         "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s)",
         (owner, agent_id, ip, comando, estado, ahora)
     )
+
+    # Registrar evento para trazar líneas verticales de estado en los gráficos de telemetría
+    cmd_lower = str(comando or '').strip().lower()
+    tipo_ev = None
+    msg_ev = None
+    if 'sleep' in cmd_lower:
+        tipo_ev = 'CMD_SLEEP'
+        msg_ev = f"Modo Sleep activado en minero {ip}"
+    elif 'restart' in cmd_lower or 'reboot' in cmd_lower:
+        tipo_ev = 'CMD_RESTART'
+        msg_ev = f"Reinicio ordenado al minero {ip}"
+    elif 'normal' in cmd_lower or 'wake' in cmd_lower:
+        tipo_ev = 'CMD_NORMAL'
+        msg_ev = f"Minero {ip} reactivado a modo Normal"
+
+    if tipo_ev:
+        try:
+            cur.execute(
+                "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, %s, %s, %s)",
+                (owner, ip, tipo_ev, msg_ev, ahora)
+            )
+        except Exception:
+            pass
+
     return enviado
 
 def _calcular_horas_rango(ini_str, fin_str):
@@ -818,9 +843,13 @@ def detalle_minero(ip):
         SELECT tipo, mensaje, fecha
         FROM registro_alertas
         WHERE owner=%s AND (ip=%s OR ip='TARIFA_PICO')
-          AND tipo IN ('WATCHDOG_REBOOT', 'WATCHDOG_CUARENTENA', 'CORTE_TERMICO', 'HORARIO_PICO', 'HORARIO_NORMAL')
+          AND tipo IN (
+            'WATCHDOG_REBOOT', 'WATCHDOG_CUARENTENA', 'CORTE_TERMICO',
+            'HORARIO_PICO', 'HORARIO_NORMAL', 'CMD_SLEEP', 'CMD_NORMAL',
+            'CMD_RESTART', 'APAGON_SEDE', 'GRANJA_CAIDA', 'GRANJA_ONLINE'
+          )
         ORDER BY id DESC
-        LIMIT 80
+        LIMIT 120
     """, (usr_actual, ip))
     eventos_graf = []
     for ev in cur.fetchall():
@@ -1604,7 +1633,8 @@ def api_2fa_configurar():
     secret = generar_totp_secret()
     session['temp_totp_secret'] = secret
     uri = f"otpauth://totp/ElMineroGris:{usr_actual}?secret={secret}&issuer=ElMineroGris"
-    return jsonify({"status": "ok", "secret": secret, "uri": uri})
+    qr_b64 = generar_qr_base64(uri)
+    return jsonify({"status": "ok", "secret": secret, "uri": uri, "qr_b64": qr_b64})
 
 @panel_bp.route('/api/2fa/confirmar', methods=['POST'])
 @login_required
@@ -1636,7 +1666,8 @@ def api_2fa_ver_clave():
     if not secret:
         return jsonify({"status": "error", "msg": "No hay clave 2FA activa configurada."}), 400
     uri = f"otpauth://totp/ElMineroGris:{usr_actual}?secret={secret}&issuer=ElMineroGris"
-    return jsonify({"status": "ok", "secret": secret, "uri": uri})
+    qr_b64 = generar_qr_base64(uri)
+    return jsonify({"status": "ok", "secret": secret, "uri": uri, "qr_b64": qr_b64})
 
 @panel_bp.route('/api/2fa/desactivar', methods=['POST'])
 @login_required

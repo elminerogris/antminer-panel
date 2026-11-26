@@ -386,6 +386,29 @@ def generar_totp_secret(length=32):
     chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
     return "".join(secrets.choice(chars) for _ in range(length))
 
+def generar_qr_base64(data_str, box_size=5, border=2):
+    """Genera un código QR como Data URL PNG Base64 localmente sin depender de servicios externos."""
+    if not data_str:
+        return ""
+    try:
+        import qrcode, io
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=box_size,
+            border=border
+        )
+        qr.add_data(data_str)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+        return f"data:image/png;base64,{b64}"
+    except Exception as e:
+        print(f"Error generando QR base64: {e}")
+        return ""
+
 def verificar_totp(secret, codigo, ventana=1):
     """Valida un código TOTP RFC 6238 de 6 dígitos con ventana de tolerancia."""
     if not secret or not codigo:
