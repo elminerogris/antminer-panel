@@ -387,16 +387,48 @@
         :root[data-theme="light"] .mk-chart-box { background: #f8fafc; }
         .mk-chart-head {
             display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 10px; font-size: 0.8em;
+            margin-bottom: 8px; font-size: 0.8em;
         }
+        .mk-badge-status {
+            font-size: 0.72em; color: var(--green); background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3); padding: 1px 7px; border-radius: 999px; font-weight: 700;
+        }
+        .mk-chart-filters {
+            display: inline-flex; align-items: center; gap: 3px;
+            background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border);
+            padding: 2px 3px; border-radius: 6px; font-size: 0.72em;
+        }
+        .mk-chart-filters span {
+            padding: 2px 6px; border-radius: 4px; color: var(--text-muted); font-weight: 700; cursor: default;
+        }
+        .mk-chart-filters span.active {
+            background: var(--blue); color: #fff;
+        }
+        .mk-chart-stats {
+            display: flex; gap: 8px 12px; flex-wrap: wrap;
+            background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border);
+            border-radius: 6px; padding: 5px 8px; font-size: 0.70em; margin-bottom: 8px; color: var(--text-muted);
+        }
+        .mk-chart-stats span b { color: var(--text-main); font-family: monospace; }
         .mk-chart-svg {
             width: 100%; height: 160px; display: block;
         }
         .mk-chart-legend {
-            display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 0.76em; color: var(--text-muted);
+            display: flex; gap: 6px 8px; flex-wrap: wrap; margin-top: 8px; font-size: 0.72em;
         }
-        .mk-chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
-        .mk-dot-lbl { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .mk-legend-pill {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
+            padding: 2px 7px; border-radius: 20px; font-weight: 600; color: var(--text-main);
+        }
+        .mk-legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .hero-login-hint {
+            font-size: 0.84em; color: var(--text-muted); margin-top: -8px; margin-bottom: 16px;
+        }
+        .hero-login-hint a {
+            color: var(--blue-light); font-weight: 700; text-decoration: underline; margin-left: 4px;
+        }
+        .hero-login-hint a:hover { color: #fff; }
 
         /* Slide 3 - Control & Watchdog */
         .mk-ctrl-buttons {
@@ -756,7 +788,7 @@
             .brand-text { font-size: 0.86em; }
             .nav-cta { gap: 5px; }
             .nav-cta .btn-sm { padding: 5px 8px; font-size: 0.76em; }
-            .nav-cta .nav-login-btn { display: none; }
+            .nav-cta .nav-login-btn { display: inline-flex !important; }
             .emg-theme-btn { width: 28px; height: 28px; font-size: 0.80em; }
             .emg-mini-lang { max-width: 72px; font-size: 0.72em; padding: 3px 5px; }
 
@@ -938,8 +970,8 @@
                     <option value="fr" translate="no" data-short="🌐 FR" data-full="🌐 Français">🌐 Français</option>
                     <option value="de" translate="no" data-short="🌐 DE" data-full="🌐 Deutsch">🌐 Deutsch</option>
                 </select>
-                <a href="/login" class="btn btn-outline btn-sm nav-login-btn">Entrar</a>
-                <a href="/register" class="btn btn-primary btn-sm nav-register-btn">Crear cuenta gratis</a>
+                <a href="/login" class="btn btn-outline btn-sm nav-login-btn">Iniciar sesión</a>
+                <a href="/register" class="btn btn-primary btn-sm nav-register-btn">Crear cuenta</a>
             </div>
         </div>
     </header>
@@ -969,6 +1001,9 @@
                         <a href="/guia" class="btn btn-outline">
                             <span>📖</span> Guía
                         </a>
+                    </div>
+                    <div class="hero-login-hint">
+                        ¿Ya eres usuario? <a href="/login">Inicia sesión aquí →</a>
                     </div>
                     <div class="hero-checks">
                         <span><b>✓</b> Sin abrir puertos ni VPN</span>
@@ -1063,51 +1098,87 @@
                                     </div>
                                 </div>
 
-                                <!-- SLIDE 1: GRÁFICO 24H & HYDRO -->
+                                <!-- SLIDE 1: GRÁFICO 24H & TELEMETRÍA REAL -->
                                 <div class="mk-slide">
                                     <div class="mk-chart-box">
+                                        <!-- Header con modelo y filtros de tiempo reales (idéntico a _grafico.html) -->
                                         <div class="mk-chart-head">
-                                            <span><strong>Antminer S19 Pro Hydro</strong> · Telemetría 24h</span>
-                                            <span style="color:var(--blue-light); font-weight:bold;">🔍 Pinch-to-Zoom</span>
+                                            <div style="display:flex; align-items:center; gap:6px;">
+                                                <span><strong>Antminer S21+</strong> (216 TH/s)</span>
+                                                <span class="mk-badge-status">● En línea</span>
+                                            </div>
+                                            <div class="mk-chart-filters">
+                                                <span>1h</span>
+                                                <span>6h</span>
+                                                <span class="active">24h</span>
+                                                <span>7d</span>
+                                            </div>
                                         </div>
-                                        <!-- SVG Telemetry Curve -->
-                                        <svg class="mk-chart-svg" viewBox="0 0 460 160" preserveAspectRatio="xMidYMid meet">
+
+                                        <!-- Barra de Estadísticas del Periodo (Promedio, Min, Temp, Fans) -->
+                                        <div class="mk-chart-stats">
+                                            <span>Prom: <b>221.8 TH/s</b></span>
+                                            <span>Min: <b>216.5 TH/s</b></span>
+                                            <span>Temp: <b style="color:var(--amber);">64 °C</b></span>
+                                            <span>Fans: <b style="color:var(--purple);">5,820 RPM</b></span>
+                                        </div>
+
+                                        <!-- SVG Telemetry Curve (Gráfico idéntico a Chart.js del panel) -->
+                                        <svg class="mk-chart-svg" viewBox="0 0 460 150" preserveAspectRatio="xMidYMid meet">
                                             <defs>
-                                                <linearGradient id="hrGrad" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35"/>
+                                                <linearGradient id="hrGradReal" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.32"/>
                                                     <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.0"/>
                                                 </linearGradient>
                                             </defs>
-                                            <!-- Grid lines -->
-                                            <line x1="0" y1="35" x2="460" y2="35" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                                            <line x1="0" y1="75" x2="460" y2="75" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                                            <line x1="0" y1="115" x2="460" y2="115" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
+                                            <!-- Ejes y Líneas Guía -->
+                                            <line x1="32" y1="25" x2="430" y2="25" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
+                                            <line x1="32" y1="65" x2="430" y2="65" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
+                                            <line x1="32" y1="105" x2="430" y2="105" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
+                                            <line x1="32" y1="130" x2="430" y2="130" stroke="rgba(255,255,255,0.08)"/>
 
-                                            <!-- Hashrate Area & Line -->
-                                            <polygon points="0,150 0,68 40,62 80,65 120,58 160,60 200,55 240,57 280,52 320,55 360,50 400,53 460,48 460,150" fill="url(#hrGrad)" />
-                                            <path d="M 0,68 Q 40,62 80,65 T 160,60 T 240,57 T 320,55 T 400,53 T 460,48" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round"/>
+                                            <!-- Etiquetas Eje Y Izquierdo (TH/s) -->
+                                            <text x="26" y="28" font-family="monospace" font-size="8" fill="#38bdf8" text-anchor="end">235T</text>
+                                            <text x="26" y="68" font-family="monospace" font-size="8" fill="#38bdf8" text-anchor="end">220T</text>
+                                            <text x="26" y="108" font-family="monospace" font-size="8" fill="#38bdf8" text-anchor="end">205T</text>
 
-                                            <!-- Chip Temp Line (Orange) -->
-                                            <path d="M 0,105 Q 40,102 80,104 T 160,100 T 240,98 T 320,102 T 400,99 T 460,98" fill="none" stroke="#f59e0b" stroke-width="1.6" stroke-linecap="round"/>
+                                            <!-- Etiquetas Eje Y Derecho (Temp °C) -->
+                                            <text x="436" y="28" font-family="monospace" font-size="8" fill="#f59e0b" text-anchor="start">75°C</text>
+                                            <text x="436" y="68" font-family="monospace" font-size="8" fill="#f59e0b" text-anchor="start">65°C</text>
+                                            <text x="436" y="108" font-family="monospace" font-size="8" fill="#f59e0b" text-anchor="start">55°C</text>
 
-                                            <!-- Water Out (Hydro Red/Crimson) -->
-                                            <path d="M 0,122 Q 40,120 80,121 T 160,119 T 240,118 T 320,120 T 400,118 T 460,117" fill="none" stroke="#ef4444" stroke-width="1.4" stroke-linecap="round"/>
+                                            <!-- Hashrate Promedio 24h (Línea Azul punteada de referencia) -->
+                                            <line x1="32" y1="62" x2="430" y2="62" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.8"/>
 
-                                            <!-- Water In (Hydro Cyan) -->
-                                            <path d="M 0,140 Q 40,139 80,140 T 160,138 T 240,139 T 320,138 T 400,139 T 460,138" fill="none" stroke="#10b981" stroke-width="1.4" stroke-linecap="round"/>
+                                            <!-- Hashrate Real (Área degradada y Curva Bezier viva) -->
+                                            <polygon points="32,130 32,68 65,60 100,64 135,55 170,58 205,52 240,56 275,50 310,54 345,46 380,48 415,44 430,42 430,130" fill="url(#hrGradReal)" />
+                                            <path d="M 32,68 Q 65,60 100,64 T 170,58 T 240,56 T 310,54 T 380,48 T 430,42" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round"/>
 
-                                            <!-- Active Telemetry Apex Callout -->
-                                            <circle cx="360" cy="50" r="4.5" fill="#38bdf8" stroke="#ffffff" stroke-width="2"/>
-                                            <rect x="250" y="8" width="180" height="30" rx="5" fill="rgba(15,23,42,0.92)" stroke="rgba(56,189,248,0.5)" stroke-width="1"/>
-                                            <text x="340" y="22" font-family="monospace" font-size="9" fill="#38bdf8" text-anchor="middle" font-weight="bold">14:30 · 219.2 TH/s · 70°C</text>
-                                            <text x="340" y="33" font-family="monospace" font-size="8" fill="#10b981" text-anchor="middle">Agua: 32°C In / 54°C Out (Δ 22°C)</text>
+                                            <!-- Temperatura Chips (Línea Naranja suave) -->
+                                            <path d="M 32,92 Q 65,90 100,91 T 170,89 T 240,88 T 310,90 T 380,88 T 430,87" fill="none" stroke="#f59e0b" stroke-width="1.6" stroke-linecap="round"/>
+
+                                            <!-- Ventiladores RPM (Línea Púrpura) -->
+                                            <path d="M 32,112 Q 65,110 100,111 T 170,110 T 240,109 T 310,110 T 380,108 T 430,107" fill="none" stroke="#a855f7" stroke-width="1.3" stroke-linecap="round"/>
+
+                                            <!-- Eje X Timestamps -->
+                                            <text x="40" y="142" font-family="monospace" font-size="8" fill="rgba(255,255,255,0.4)">00:00</text>
+                                            <text x="135" y="142" font-family="monospace" font-size="8" fill="rgba(255,255,255,0.4)">06:00</text>
+                                            <text x="240" y="142" font-family="monospace" font-size="8" fill="rgba(255,255,255,0.4)">12:00</text>
+                                            <text x="345" y="142" font-family="monospace" font-size="8" fill="rgba(255,255,255,0.4)">18:00</text>
+                                            <text x="420" y="142" font-family="monospace" font-size="8" fill="#38bdf8" font-weight="bold">Ahora</text>
+
+                                            <!-- Punto Activo Apex y Tooltip interactivo idéntico al panel -->
+                                            <circle cx="380" cy="48" r="4.5" fill="#38bdf8" stroke="#ffffff" stroke-width="2"/>
+                                            <rect x="235" y="6" width="190" height="24" rx="5" fill="rgba(15,23,42,0.95)" stroke="rgba(56,189,248,0.5)" stroke-width="1"/>
+                                            <text x="330" y="22" font-family="monospace" font-size="8.5" fill="#38bdf8" text-anchor="middle" font-weight="bold">14:30 · 224.6 TH/s · 64°C · 5,850 RPM</text>
                                         </svg>
 
+                                        <!-- Leyendas tipo Píldoras interactivas (idénticas a _grafico.html) -->
                                         <div class="mk-chart-legend">
-                                            <span><i class="mk-dot-lbl" style="background:#38bdf8;"></i> Hashrate 218T</span>
-                                            <span><i class="mk-dot-lbl" style="background:#f59e0b;"></i> Chips 70°C</span>
-                                            <span><i class="mk-dot-lbl" style="background:#ef4444;"></i> Salida 54°C</span>
-                                            <span><i class="mk-dot-lbl" style="background:#10b981;"></i> Entrada 32°C</span>
+                                            <span class="mk-legend-pill"><i class="mk-legend-dot" style="background:#38bdf8;"></i> Hashrate Real</span>
+                                            <span class="mk-legend-pill"><i class="mk-legend-dot" style="background:#3b82f6;"></i> Promedio 24h</span>
+                                            <span class="mk-legend-pill"><i class="mk-legend-dot" style="background:#f59e0b;"></i> Chips 64°C</span>
+                                            <span class="mk-legend-pill"><i class="mk-legend-dot" style="background:#a855f7;"></i> Fans 5,820 RPM</span>
                                         </div>
                                     </div>
                                 </div>
