@@ -646,11 +646,293 @@ def obtener_ubicacion_ip(ip_str, req=None):
         
     return 'Ubicación Desconocida'
 
+# Mapeo exhaustivo de códigos técnicos de modelos (ej. SM-A107M) a nombres comerciales amigables (ej. Samsung Galaxy A10s)
+SAMSUNG_MODELOS = {
+    # Serie Galaxy A
+    'SM-A015': 'Samsung Galaxy A01',
+    'SM-A022': 'Samsung Galaxy A02',
+    'SM-A025': 'Samsung Galaxy A02s',
+    'SM-A032': 'Samsung Galaxy A03 Core',
+    'SM-A035': 'Samsung Galaxy A03',
+    'SM-A037': 'Samsung Galaxy A03s',
+    'SM-A042': 'Samsung Galaxy A04e',
+    'SM-A045': 'Samsung Galaxy A04',
+    'SM-A047': 'Samsung Galaxy A04s',
+    'SM-A055': 'Samsung Galaxy A05',
+    'SM-A057': 'Samsung Galaxy A05s',
+    'SM-A105': 'Samsung Galaxy A10',
+    'SM-A107': 'Samsung Galaxy A10s',
+    'SM-A115': 'Samsung Galaxy A11',
+    'SM-A125': 'Samsung Galaxy A12',
+    'SM-A127': 'Samsung Galaxy A12 Nacho',
+    'SM-A135': 'Samsung Galaxy A13',
+    'SM-A136': 'Samsung Galaxy A13 5G',
+    'SM-A137': 'Samsung Galaxy A13',
+    'SM-A145': 'Samsung Galaxy A14',
+    'SM-A146': 'Samsung Galaxy A14 5G',
+    'SM-A155': 'Samsung Galaxy A15',
+    'SM-A156': 'Samsung Galaxy A15 5G',
+    'SM-A205': 'Samsung Galaxy A20',
+    'SM-A207': 'Samsung Galaxy A20s',
+    'SM-A217': 'Samsung Galaxy A21s',
+    'SM-A225': 'Samsung Galaxy A22',
+    'SM-A226': 'Samsung Galaxy A22 5G',
+    'SM-A235': 'Samsung Galaxy A23',
+    'SM-A236': 'Samsung Galaxy A23 5G',
+    'SM-A245': 'Samsung Galaxy A24',
+    'SM-A256': 'Samsung Galaxy A25 5G',
+    'SM-A305': 'Samsung Galaxy A30',
+    'SM-A307': 'Samsung Galaxy A30s',
+    'SM-A315': 'Samsung Galaxy A31',
+    'SM-A325': 'Samsung Galaxy A32',
+    'SM-A326': 'Samsung Galaxy A32 5G',
+    'SM-A336': 'Samsung Galaxy A33 5G',
+    'SM-A346': 'Samsung Galaxy A34 5G',
+    'SM-A356': 'Samsung Galaxy A35 5G',
+    'SM-A505': 'Samsung Galaxy A50',
+    'SM-A507': 'Samsung Galaxy A50s',
+    'SM-A515': 'Samsung Galaxy A51',
+    'SM-A516': 'Samsung Galaxy A51 5G',
+    'SM-A525': 'Samsung Galaxy A52',
+    'SM-A526': 'Samsung Galaxy A52 5G',
+    'SM-A528': 'Samsung Galaxy A52s 5G',
+    'SM-A536': 'Samsung Galaxy A53 5G',
+    'SM-A546': 'Samsung Galaxy A54 5G',
+    'SM-A556': 'Samsung Galaxy A55 5G',
+    'SM-A705': 'Samsung Galaxy A70',
+    'SM-A715': 'Samsung Galaxy A71',
+    'SM-A725': 'Samsung Galaxy A72',
+    'SM-A736': 'Samsung Galaxy A73 5G',
+
+    # Serie Galaxy S
+    'SM-G970': 'Samsung Galaxy S10e',
+    'SM-G973': 'Samsung Galaxy S10',
+    'SM-G975': 'Samsung Galaxy S10+',
+    'SM-G977': 'Samsung Galaxy S10 5G',
+    'SM-G980': 'Samsung Galaxy S20',
+    'SM-G981': 'Samsung Galaxy S20 5G',
+    'SM-G985': 'Samsung Galaxy S20+',
+    'SM-G986': 'Samsung Galaxy S20+ 5G',
+    'SM-G988': 'Samsung Galaxy S20 Ultra',
+    'SM-G990': 'Samsung Galaxy S21 FE',
+    'SM-G991': 'Samsung Galaxy S21',
+    'SM-G996': 'Samsung Galaxy S21+',
+    'SM-G998': 'Samsung Galaxy S21 Ultra',
+    'SM-S901': 'Samsung Galaxy S22',
+    'SM-S906': 'Samsung Galaxy S22+',
+    'SM-S908': 'Samsung Galaxy S22 Ultra',
+    'SM-S911': 'Samsung Galaxy S23',
+    'SM-S916': 'Samsung Galaxy S23+',
+    'SM-S918': 'Samsung Galaxy S23 Ultra',
+    'SM-S921': 'Samsung Galaxy S24',
+    'SM-S926': 'Samsung Galaxy S24+',
+    'SM-S928': 'Samsung Galaxy S24 Ultra',
+    'SM-S711': 'Samsung Galaxy S23 FE',
+    'SM-S721': 'Samsung Galaxy S24 FE',
+
+    # Serie Galaxy Note
+    'SM-N970': 'Samsung Galaxy Note 10',
+    'SM-N975': 'Samsung Galaxy Note 10+',
+    'SM-N980': 'Samsung Galaxy Note 20',
+    'SM-N981': 'Samsung Galaxy Note 20 5G',
+    'SM-N985': 'Samsung Galaxy Note 20 Ultra',
+    'SM-N986': 'Samsung Galaxy Note 20 Ultra 5G',
+
+    # Serie Galaxy Z (Flip & Fold)
+    'SM-F700': 'Samsung Galaxy Z Flip',
+    'SM-F707': 'Samsung Galaxy Z Flip 5G',
+    'SM-F711': 'Samsung Galaxy Z Flip 3',
+    'SM-F721': 'Samsung Galaxy Z Flip 4',
+    'SM-F731': 'Samsung Galaxy Z Flip 5',
+    'SM-F741': 'Samsung Galaxy Z Flip 6',
+    'SM-F900': 'Samsung Galaxy Fold',
+    'SM-F916': 'Samsung Galaxy Z Fold 2',
+    'SM-F926': 'Samsung Galaxy Z Fold 3',
+    'SM-F936': 'Samsung Galaxy Z Fold 4',
+    'SM-F946': 'Samsung Galaxy Z Fold 5',
+    'SM-F956': 'Samsung Galaxy Z Fold 6',
+}
+
+# Modelos Xiaomi / Redmi / POCO
+XIAOMI_MODELOS = {
+    '2201117': 'Xiaomi Redmi Note 11',
+    '2312DRA50': 'Xiaomi Redmi Note 13 Pro',
+    '23076RN4BI': 'Xiaomi Redmi 12',
+    'M2003J15SC': 'Xiaomi Redmi Note 9',
+    'M2101K6G': 'Xiaomi Redmi Note 10 Pro',
+    '220333QAG': 'Xiaomi Redmi 10C',
+    '2109119DG': 'Xiaomi 11 Lite 5G NE',
+    '2210132G': 'Xiaomi 12T Pro',
+    '23049PCD8G': 'POCO F5',
+}
+
+def resolver_modelo_comercial(raw_text):
+    """
+    Traduce códigos técnicos de hardware (ej. SM-A107M, 2201117PG) o cadenas de SO
+    al nombre de modelo comercial limpio (ej. Samsung Galaxy A10s, iPhone 16 Pro Max, PC con Windows).
+    """
+    if not raw_text:
+        return 'Dispositivo Web'
+    
+    s = str(raw_text).strip()
+    s_l = s.lower()
+    
+    # 1. Búsqueda de códigos Samsung (ej: SM-A107M, SM-G981U, etc.)
+    m_sm = re.search(r'\b(SM-[A-Z0-9]{4,6})\b', s, re.IGNORECASE)
+    if m_sm:
+        code = m_sm.group(1).upper()
+        for k, v in SAMSUNG_MODELOS.items():
+            if code.startswith(k):
+                return v
+        return f"Samsung Galaxy ({code})"
+        
+    # 2. Búsqueda de modelos Xiaomi / Redmi
+    for k, v in XIAOMI_MODELOS.items():
+        if k.lower() in s_l:
+            return v
+            
+    # 3. Modelos Apple iPhone / iPad específicos o genéricos
+    if 'iphone 16 pro max' in s_l:
+        return 'iPhone 16 Pro Max'
+    elif 'iphone 16 pro' in s_l:
+        return 'iPhone 16 Pro'
+    elif 'iphone 16 plus' in s_l:
+        return 'iPhone 16 Plus'
+    elif 'iphone 16' in s_l:
+        return 'iPhone 16'
+    elif 'iphone 15 pro max' in s_l:
+        return 'iPhone 15 Pro Max'
+    elif 'iphone 15 pro' in s_l:
+        return 'iPhone 15 Pro'
+    elif 'iphone 15' in s_l:
+        return 'iPhone 15'
+    elif 'iphone 14 pro max' in s_l:
+        return 'iPhone 14 Pro Max'
+    elif 'iphone 14 pro' in s_l:
+        return 'iPhone 14 Pro'
+    elif 'iphone 14 plus' in s_l:
+        return 'iPhone 14 Plus'
+    elif 'iphone 14' in s_l:
+        return 'iPhone 14'
+    elif 'iphone 13 pro max' in s_l:
+        return 'iPhone 13 Pro Max'
+    elif 'iphone 13 pro' in s_l:
+        return 'iPhone 13 Pro'
+    elif 'iphone 13' in s_l:
+        return 'iPhone 13'
+    elif 'iphone 12' in s_l:
+        return 'iPhone 12'
+    elif 'iphone 11' in s_l:
+        return 'iPhone 11'
+    elif 'ipad pro' in s_l:
+        return 'iPad Pro'
+    elif 'ipad air' in s_l:
+        return 'iPad Air'
+    elif 'ipad mini' in s_l:
+        return 'iPad mini'
+    elif 'ipad' in s_l:
+        return 'Apple iPad'
+    elif 'iphone' in s_l:
+        m_ip = re.search(r'(iphone[^\;\)]*)', s, re.IGNORECASE)
+        return m_ip.group(1).strip() if m_ip else 'Apple iPhone'
+        
+    # 4. Sistemas de escritorio
+    if 'windows 10/11' in s_l or 'windows nt 10.0' in s_l or 'windows 11' in s_l or 'windows 10' in s_l:
+        return 'PC con Windows'
+    elif 'windows' in s_l:
+        return 'PC con Windows'
+    elif 'macintosh' in s_l or 'mac os' in s_l or 'mac (macos)' in s_l:
+        return 'Apple Mac (macOS)'
+    elif 'linux' in s_l:
+        return 'PC con Linux'
+        
+    # 5. Android genérico
+    if 'android' in s_l:
+        m_par = re.search(r'android\s*\(([^\)]+)\)', s, re.IGNORECASE)
+        if m_par:
+            interior = m_par.group(1).strip()
+            res_int = resolver_modelo_comercial(interior)
+            if res_int != 'Dispositivo Web' and 'android' not in res_int.lower():
+                return res_int
+            return f"Android ({interior})"
+        return 'Teléfono Android'
+        
+    return s
+
+def desglosar_dispositivo_info(disp_str):
+    """
+    Desglosa una cadena de dispositivo (ej: 'Google Chrome en Android (SM-A107M)' o 'Chrome en Windows')
+    en sus componentes limpios y profesionales:
+    - modelo: 'Samsung Galaxy A10s' (título principal en negrita)
+    - navegador: 'Google Chrome' (subtítulo en letras pequeñas)
+    - icono: '📱' / '💻' / '📟'
+    """
+    raw = str(disp_str or '').strip()
+    if not raw:
+        return {'modelo': 'Dispositivo Seguro', 'navegador': 'Navegador Web', 'icono': '🌐'}
+        
+    raw_l = raw.lower()
+    
+    # 1. Detección del navegador
+    nav = "Navegador Web"
+    if "app el minero gris" in raw_l or "elminerogris-app" in raw_l:
+        nav = "App El Minero Gris"
+    elif "telegram" in raw_l:
+        nav = "Telegram In-App"
+    elif "instagram" in raw_l:
+        nav = "Instagram In-App"
+    elif "facebook" in raw_l or "fbav" in raw_l:
+        nav = "Facebook In-App"
+    elif "samsung internet" in raw_l or "samsungbrowser" in raw_l:
+        nav = "Samsung Internet"
+    elif "google chrome" in raw_l or "chrome" in raw_l or "crios" in raw_l:
+        nav = "Google Chrome"
+    elif "microsoft edge" in raw_l or "edg" in raw_l:
+        nav = "Microsoft Edge"
+    elif "opera" in raw_l or "opr" in raw_l:
+        nav = "Opera"
+    elif "firefox" in raw_l or "fxios" in raw_l:
+        nav = "Mozilla Firefox"
+    elif "safari" in raw_l:
+        nav = "Apple Safari"
+        
+    # 2. Detección del modelo de hardware
+    parte_hw = raw
+    if " en " in raw:
+        parte_hw = raw.split(" en ", 1)[1].strip()
+    elif " · " in raw:
+        parte_hw = raw.split(" · ", 1)[0].strip()
+        
+    modelo = resolver_modelo_comercial(parte_hw)
+    if modelo in ('Dispositivo', 'Dispositivo Web'):
+        modelo = resolver_modelo_comercial(raw)
+        
+    # 3. Asignación de ícono
+    mod_l = modelo.lower()
+    if 'ipad' in mod_l or 'tablet' in mod_l:
+        ico = '📟'
+    elif 'iphone' in mod_l or 'samsung' in mod_l or 'galaxy' in mod_l or 'xiaomi' in mod_l or 'redmi' in mod_l or 'android' in mod_l or 'pixel' in mod_l or 'motorola' in mod_l or 'teléfono' in mod_l:
+        ico = '📱'
+    elif 'windows' in mod_l or 'pc' in mod_l:
+        ico = '💻'
+    elif 'mac' in mod_l:
+        ico = '🖥️'
+    elif 'linux' in mod_l:
+        ico = '🐧'
+    else:
+        ico = '🌐'
+        
+    return {
+        'modelo': modelo,
+        'navegador': nav,
+        'icono': ico
+    }
+
 def parsear_dispositivo(ua_string, client_hint=None):
     """
-    Genera un nombre detallado de dispositivo, navegador y sistema operativo.
-    Soporta discriminación exacta de iPhone (ej: iPhone 16 Pro Max), iPad, Android,
-    Chrome, Safari, Firefox, Edge, Telegram y Apps embebidas.
+    Genera un nombre detallado y profesional de dispositivo, navegador y sistema operativo.
+    Soporta discriminación exacta de iPhone, iPad, Samsung Galaxy (resuelve SM-XXXX a nombre comercial),
+    Android, Chrome, Safari, Firefox, Edge, etc.
     """
     ua = str(ua_string or "")
     ua_l = ua.lower()
@@ -661,32 +943,32 @@ def parsear_dispositivo(ua_string, client_hint=None):
     # 2. Detección de Sistema y Dispositivo
     os_name = "Dispositivo"
     
-    if hint_clean and ("iphone" in hint_clean.lower() or "ipad" in hint_clean.lower() or "galaxy" in hint_clean.lower() or "pixel" in hint_clean.lower()):
-        os_name = hint_clean
+    if hint_clean and ("iphone" in hint_clean.lower() or "ipad" in hint_clean.lower() or "galaxy" in hint_clean.lower() or "pixel" in hint_clean.lower() or "sm-" in hint_clean.lower()):
+        os_name = resolver_modelo_comercial(hint_clean)
     elif "ipad" in ua_l or ("macintosh" in ua_l and "mobile" in ua_l):
-        os_name = "iPad"
+        os_name = "Apple iPad"
     elif "iphone" in ua_l:
-        os_name = "iPhone"
+        os_name = "Apple iPhone"
     elif "android" in ua_l:
         m = re.search(r'android\s+[\d\.]+;\s*([^;\)]+)', ua, re.IGNORECASE)
         if m and m.group(1):
             modelo_raw = m.group(1).strip()
             if "build" in modelo_raw.lower():
                 modelo_raw = modelo_raw.split("Build")[0].strip()
-            os_name = f"Android ({modelo_raw})"
+            os_name = resolver_modelo_comercial(modelo_raw)
         else:
-            os_name = "Android"
+            os_name = "Teléfono Android"
     elif "windows nt 10.0" in ua_l or "windows 11" in ua_l:
-        os_name = "Windows 10/11"
+        os_name = "PC con Windows"
     elif "windows" in ua_l:
-        os_name = "Windows"
+        os_name = "PC con Windows"
     elif "macintosh" in ua_l or "mac os x" in ua_l:
-        os_name = "Mac (macOS)"
+        os_name = "Apple Mac (macOS)"
     elif "linux" in ua_l:
-        os_name = "Linux"
+        os_name = "PC con Linux"
 
     # 3. Detección precisa de Navegador o App
-    browser = "Navegador"
+    browser = "Navegador Web"
     if "elminerogris-app" in ua_l:
         browser = "App El Minero Gris"
     elif "telegram" in ua_l:
@@ -698,7 +980,7 @@ def parsear_dispositivo(ua_string, client_hint=None):
     elif "crios/" in ua_l:
         browser = "Google Chrome"
     elif "fxios/" in ua_l:
-        browser = "Firefox"
+        browser = "Mozilla Firefox"
     elif "edgios/" in ua_l or "edg/" in ua_l:
         browser = "Microsoft Edge"
     elif "opios/" in ua_l or "opr/" in ua_l or "opera" in ua_l:
@@ -708,9 +990,9 @@ def parsear_dispositivo(ua_string, client_hint=None):
     elif "chrome/" in ua_l and "safari/" in ua_l:
         browser = "Google Chrome"
     elif "safari/" in ua_l and "chrome" not in ua_l:
-        browser = "Safari"
+        browser = "Apple Safari"
     elif "firefox/" in ua_l:
-        browser = "Firefox"
+        browser = "Mozilla Firefox"
 
     return f"{browser} en {os_name}"
 

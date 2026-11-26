@@ -686,26 +686,33 @@
                     {% for d in user.dispositivos %}
                     <div style="background:var(--bg-well); border:1px solid {{ 'rgba(0,230,118,0.45)' if d.es_actual else 'var(--border-color)' }}; border-radius:8px; padding:12px 14px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
                         <div style="display:flex; gap:12px; align-items:flex-start;">
-                            <span style="font-size:1.8em; line-height:1; margin-top:2px;">{{ d.icono }}</span>
+                            <span style="font-size:1.8em; line-height:1; margin-top:2px;" id="{{ 'dispActualIcono' if d.es_actual else '' }}">{{ d.icono }}</span>
                             <div>
-                                <div style="font-weight:bold; font-size:0.88em; color:var(--text-main); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                    <span id="{{ 'dispActualNombre' if d.es_actual else '' }}">{{ d.dispositivo }}</span>
+                                <!-- TÍTULO: MODELO LIMPIO DEL DISPOSITIVO -->
+                                <div style="font-weight:700; font-size:0.92em; color:var(--text-main); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <span id="{{ 'dispActualModelo' if d.es_actual else '' }}">{{ d.modelo }}</span>
                                     {% if d.es_actual %}
-                                    <span style="background:rgba(0,230,118,0.18); color:var(--accent-green); border:1px solid rgba(0,230,118,0.4); font-size:0.68em; padding:1px 6px; border-radius:10px; font-family:monospace;">📍 Sesión Actual</span>
+                                    <span style="background:rgba(0,230,118,0.18); color:var(--accent-green); border:1px solid rgba(0,230,118,0.4); font-size:0.68em; padding:1px 6px; border-radius:10px; font-family:monospace; font-weight:600;">📍 Sesión Actual</span>
                                     {% endif %}
                                 </div>
+                                
+                                <!-- SUBTÍTULO: NAVEGADOR EN LETRAS PEQUEÑAS (PROFESIONAL TIPO TELEGRAM / GOOGLE) -->
+                                <div style="font-size:0.75em; color:var(--text-muted); margin-top:2px; display:flex; align-items:center; gap:4px;">
+                                    <span>🌐</span> <span id="{{ 'dispActualNavegador' if d.es_actual else '' }}">{{ d.navegador }}</span>
+                                </div>
+
+                                <!-- UBICACIÓN GEOGRÁFICA -->
                                 <div style="font-size:0.76em; color:var(--accent-cyan, #38bdf8); font-weight:600; margin-top:3px; display:flex; align-items:center; gap:4px;">
                                     <span>📍</span> <span id="{{ 'dispActualUbicacion' if d.es_actual else '' }}">{{ d.ubicacion }}</span>
                                 </div>
-                                <div style="font-size:0.74em; color:var(--text-muted); font-family:monospace; margin-top:2px;">
-                                    🌐 IP: {{ d.ip }}
-                                </div>
-                                <div style="font-size:0.70em; color:var(--text-secondary); margin-top:2px;">
-                                    📅 Guardado: {{ d.fecha_creacion[:10] }} · Expira: {{ d.expira_en[:10] }}
+
+                                <!-- IP Y FECHA -->
+                                <div style="font-size:0.71em; color:var(--text-muted); font-family:monospace; margin-top:2px;">
+                                    IP: {{ d.ip }} · Guardado: {{ d.fecha_creacion[:10] }}
                                 </div>
                             </div>
                         </div>
-                        <button type="button" class="btn-mini-icon" onclick="eliminarDispositivo({{ d.id }}, '{{ d.dispositivo|escape }}')" style="color:var(--accent-red); padding:6px 9px;" title="Olvidar y revocar este dispositivo">
+                        <button type="button" class="btn-mini-icon" onclick="eliminarDispositivo({{ d.id }}, '{{ d.modelo|escape }}')" style="color:var(--accent-red); padding:6px 9px;" title="Olvidar y revocar este dispositivo">
                             🗑️
                         </button>
                     </div>
@@ -780,11 +787,11 @@
         </p>
 
         <div style="text-align:center; margin:10px 0;">
-            <img id="imgQr2FAResp" src="" alt="QR Respaldo" style="width:150px; height:150px; display:inline-block; background:#fff; padding:6px; border-radius:8px;">
+            <img id="imgQr2FAResp" src="" alt="QR Respaldo" style="width:160px; height:160px; display:inline-block; background:#fff; padding:8px; border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,0.35); object-fit:contain;">
         </div>
 
-        <div class="api-box-pro" style="margin:12px 0; font-size:0.88em; padding:8px 12px;">
-            <span id="resp2FAKeyDisplay" class="api-key-val" style="letter-spacing:1px;" translate="no"></span>
+        <div class="api-box-pro" style="margin:12px 0; font-size:0.92em; padding:10px 14px; background:var(--bg-well-soft, #1e293b); border:1px solid var(--border-color); border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span id="resp2FAKeyDisplay" class="api-key-val" style="letter-spacing:1.5px; font-family:monospace; color:var(--accent-green, #00e676); font-weight:bold;" translate="no"></span>
             <button type="button" class="btn-mini-icon" onclick="copiarTextoAjustes(document.getElementById('resp2FAKeyDisplay').innerText, 'Clave secreta copiada')">📋 Copiar</button>
         </div>
 
@@ -1123,7 +1130,7 @@
                 const match = ua.match(/Android\s+[\d\.]+;\s*([^;\)]+)/i);
                 if (match && match[1]) {
                     let modelo = match[1].replace(/Build\/.*/i, '').trim();
-                    return 'Android (' + modelo + ')';
+                    return modelo || 'Android';
                 }
                 return 'Android';
             }
@@ -1141,11 +1148,15 @@
                     credentials: 'same-origin',
                     body: JSON.stringify({ client_hint: hint })
                 }).then(r => r.json()).then(data => {
-                    if (data && data.status === 'ok' && data.dispositivo) {
-                        const el = document.getElementById('dispActualNombre');
-                        if (el) el.innerText = data.dispositivo;
+                    if (data && data.status === 'ok') {
+                        const modEl = document.getElementById('dispActualModelo');
+                        if (modEl && data.modelo) modEl.innerText = data.modelo;
+                        const navEl = document.getElementById('dispActualNavegador');
+                        if (navEl && data.navegador) navEl.innerText = data.navegador;
                         const locEl = document.getElementById('dispActualUbicacion');
                         if (locEl && data.ubicacion) locEl.innerText = data.ubicacion;
+                        const icoEl = document.getElementById('dispActualIcono');
+                        if (icoEl && data.icono) icoEl.innerText = data.icono;
                     }
                 }).catch(() => {});
             }

@@ -15,7 +15,7 @@ from utils import (
     parsear_dispositivo, fijar_cookie_dispositivo, determinar_credenciales_defecto,
     sanitizar_nombre_minero, sanitizar_nombre_granja, sanitizar_texto_seguro,
     enmascarar_email, enviar_email_codigo, calcular_dias_pro_restantes,
-    obtener_ubicacion_ip
+    obtener_ubicacion_ip, desglosar_dispositivo_info, resolver_modelo_comercial
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
@@ -1521,19 +1521,9 @@ def ajustes():
     for d in dispositivos_db:
         es_act = bool(hash_actual and d.get('token_hash') == hash_actual)
         disp_nom = d.get('dispositivo') or 'Navegador Web'
-        dl = disp_nom.lower()
-        if 'ipad' in dl:
-            ico = '📟'
-        elif 'iphone' in dl or 'android' in dl:
-            ico = '📱'
-        elif 'windows' in dl:
-            ico = '💻'
-        elif 'mac' in dl:
-            ico = '🖥️'
-        elif 'linux' in dl:
-            ico = '🐧'
-        else:
-            ico = '🌐'
+        
+        info = desglosar_dispositivo_info(disp_nom)
+        ico = info['icono']
 
         d_ip = d.get('ip') or ''
         d_loc = (d.get('ubicacion') or '').strip()
@@ -1548,7 +1538,9 @@ def ajustes():
 
         lista_dispositivos.append({
             'id': d['id'],
-            'dispositivo': disp_nom,
+            'modelo': info['modelo'],
+            'navegador': info['navegador'],
+            'dispositivo': f"{info['modelo']} · {info['navegador']}",
             'icono': ico,
             'ip': d_ip or 'Desconocida',
             'ubicacion': d_loc or 'Ubicación no registrada',
@@ -1689,6 +1681,7 @@ def api_dispositivos_actualizar_actual():
     tok_hash = hashlib.sha256(token_actual.encode('utf-8')).hexdigest()
     ua = request.headers.get('User-Agent', '')
     disp_nuevo = parsear_dispositivo(ua, hint)
+    info_nuevo = desglosar_dispositivo_info(disp_nuevo)
     ip_c = _ip_cliente()
     loc_c = obtener_ubicacion_ip(ip_c, request)
     
@@ -1701,7 +1694,14 @@ def api_dispositivos_actualizar_actual():
                WHERE LOWER(username)=LOWER(%s) AND token_hash=%s""",
             (disp_nuevo, loc_c, usr_actual, tok_hash)
         )
-        return jsonify({"status": "ok", "dispositivo": disp_nuevo, "ubicacion": loc_c})
+        return jsonify({
+            "status": "ok",
+            "dispositivo": disp_nuevo,
+            "modelo": info_nuevo['modelo'],
+            "navegador": info_nuevo['navegador'],
+            "icono": info_nuevo['icono'],
+            "ubicacion": loc_c
+        })
     except Exception as e:
         return jsonify({"status": "error", "msg": str(e)}), 500
 

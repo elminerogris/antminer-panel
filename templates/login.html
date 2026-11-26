@@ -550,7 +550,7 @@
                     const match = ua.match(/Android\s+[\d\.]+;\s*([^;\)]+)/i);
                     if (match && match[1]) {
                         let modelo = match[1].replace(/Build\/.*/i, '').trim();
-                        return 'Android (' + modelo + ')';
+                        return modelo || 'Android';
                     }
                     return 'Android';
                 }
