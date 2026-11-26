@@ -165,6 +165,12 @@ def api_public_metricas_red():
 def descargar_apk():
     return redirect("https://github.com/elminerogris/el-minero-gris-android/releases/download/latest/ElMineroGris.apk")
 
+@panel_bp.route('/descargar_apk_beta')
+@panel_bp.route('/descargar-apk-beta')
+@panel_bp.route('/descargar_beta')
+def descargar_apk_beta():
+    return redirect("https://github.com/elminerogris/el-minero-gris-android-beta/releases/download/latest/ElMineroGris-Beta.apk")
+
 @panel_bp.route('/compatibilidad')
 def pagina_compatibilidad():
     return render_seguro('compatibilidad.html')
