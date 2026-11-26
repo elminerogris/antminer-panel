@@ -226,6 +226,7 @@ def api_historial_pagos():
 
 
 @pagos_bp.route('/api/plan/activar_pro', methods=['POST'])
+@pagos_bp.route('/api/plan/activar_plan', methods=['POST'])
 @login_required
 def api_activar_pro_con_saldo():
     if str(session.get('rol') or 'owner').lower() == 'tecnico':
@@ -234,30 +235,52 @@ def api_activar_pro_con_saldo():
     username = session.get("usuario", "Admin")
     data = request.get_json(silent=True) or {}
     meses = max(1, min(12, a_int_seguro(data.get("meses"), 1)))
-    costo = round(PRECIO_PRO_30D * meses, 2)
+    asics_in = a_int_seguro(data.get("asics"), 0)
+    plan_solicitado = str(data.get("plan") or "").strip().lower()
+
+    if plan_solicitado == "inicio" or asics_in == 10:
+        asics = 10
+        costo_mensual = 3.0
+        plan_nombre = "Inicio"
+    elif plan_solicitado == "pro" or asics_in == 20:
+        asics = 20
+        costo_mensual = 6.0
+        plan_nombre = "Pro"
+    elif asics_in > 0:
+        if asics_in % 10 != 0:
+            asics_in = ((asics_in // 10) + 1) * 10
+        asics = max(10, asics_in)
+        costo_mensual = round((asics / 10.0) * 3.0, 2)
+        plan_nombre = f"Personalizado ({asics} ASICs)"
+    else:
+        asics = 20
+        costo_mensual = 6.0
+        plan_nombre = "Pro"
+
+    costo = round(costo_mensual * meses, 2)
 
     con = get_db(); con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT id, saldo, saldo_bonus, pro_hasta FROM usuarios WHERE username=%s", (username,))
+    cur.execute("SELECT id, saldo, pro_hasta FROM usuarios WHERE username=%s", (username,))
     u = cur.fetchone()
     if not u:
         return jsonify({"ok": False, "msg": "Usuario no encontrado"}), 404
 
     saldo_real = round(a_float_seguro(u.get("saldo"), 0.0), 2)
-    saldo_bonus = round(a_float_seguro(u.get("saldo_bonus"), 0.0), 2)
-    disponible = round(saldo_real + saldo_bonus, 2)
+    disponible = saldo_real
 
     if disponible < costo:
+        faltante = round(costo - disponible, 2)
         return jsonify({
             "ok": False,
+            "saldo_insuficiente": True,
+            "disponible": disponible,
+            "costo": costo,
+            "faltante": faltante,
             "msg": f"Saldo insuficiente. Necesitas ${costo:.2f} USDT y tienes ${disponible:.2f} USDT disponibles."
         }), 400
 
-    # Descontar primero del saldo promocional (bonus) y el resto del saldo real
-    uso_bonus = min(saldo_bonus, costo)
-    uso_real = round(costo - uso_bonus, 2)
-    nuevo_bonus = round(saldo_bonus - uso_bonus, 2)
-    nuevo_saldo = round(saldo_real - uso_real, 2)
+    nuevo_saldo = round(saldo_real - costo, 2)
 
     base_dt = datetime.utcnow()
     ph_prev = str(u.get("pro_hasta") or "").strip()
@@ -272,22 +295,23 @@ def api_activar_pro_con_saldo():
     ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
     cur.execute(
-        "UPDATE usuarios SET plan='Pro', saldo=%s, saldo_bonus=%s, pro_hasta=%s, limite_mineros=0 WHERE id=%s",
-        (nuevo_saldo, nuevo_bonus, nueva_exp, u["id"])
+        "UPDATE usuarios SET plan=%s, saldo=%s, pro_hasta=%s, limite_mineros=%s WHERE id=%s",
+        (plan_nombre, nuevo_saldo, nueva_exp, asics, u["id"])
     )
     cur.execute(
         "INSERT INTO movimientos_saldo (username, tipo, monto, nota, fecha) VALUES (%s, 'gasto', %s, %s, %s)",
-        (username, -costo, f"Activación Plan Pro ({meses * 30} días · hasta {nueva_exp[:10]})", ahora)
+        (username, -costo, f"Activación {plan_nombre} ({meses * 30} días · hasta {nueva_exp[:10]})", ahora)
     )
-    session["plan"] = "Pro"
+    session["plan"] = plan_nombre
     session["saldo"] = nuevo_saldo
 
     return jsonify({
         "ok": True,
-        "msg": f"Plan Pro activado por {meses * 30} días (vence {nueva_exp[:10]}).",
+        "msg": f"¡Plan {plan_nombre} activado con éxito! Capacidad de {asics} mineros por {meses * 30} días (vence {nueva_exp[:10]}).",
         "nuevo_saldo": nuevo_saldo,
-        "nuevo_bonus": nuevo_bonus,
-        "pro_hasta": nueva_exp[:10]
+        "pro_hasta": nueva_exp[:10],
+        "limite_mineros": asics,
+        "plan": plan_nombre
     }), 200
 
 

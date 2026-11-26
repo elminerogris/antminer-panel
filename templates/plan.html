@@ -1,230 +1,882 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
-    .plan-header {
-        display: flex; align-items: center; justify-content: space-between;
-        flex-wrap: wrap; gap: 12px; margin-bottom: 18px;
-        background: var(--bg-card); border: 1px solid var(--border-color);
-        border-radius: 10px; padding: 16px 20px;
-    }
-    .plan-header h1 { margin: 0; font-size: 1.38em; }
-    .plan-header p { margin: 4px 0 0 0; font-size: 0.84em; color: var(--text-muted); }
-
-    .wallet-kpis {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-        gap: 14px; margin-bottom: 20px;
-    }
-    .w-kpi {
-        background: var(--bg-card); border: 1px solid var(--border-color);
-        border-radius: 10px; padding: 16px 18px;
-    }
-    .w-kpi small { font-size: 0.72em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
-    .w-kpi strong { display: block; font-size: 1.55em; font-family: monospace; margin-top: 6px; }
-
-    .plan-grid {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
-        gap: 18px; margin-bottom: 20px; align-items: start;
-    }
-    .card-box {
-        background: var(--bg-card); border: 1px solid var(--border-color);
-        border-radius: 10px; padding: 20px;
-    }
-    .card-box h2 { margin: 0 0 10px 0; font-size: 1.08em; }
-    .sub { font-size: 0.84em; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
-
-    .lbl {
-        display: block; font-size: 0.74em; color: var(--text-muted);
-        text-transform: uppercase; font-weight: bold; margin-bottom: 6px;
-    }
-    .inp, .sel {
-        width: 100%; background: var(--bg-input); border: 1px solid var(--border-color);
-        color: var(--text-main); padding: 10px 12px; border-radius: 7px;
-        font-size: 0.92em; font-family: monospace; margin-bottom: 12px; outline: none;
-    }
-    .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-    .preset-btn {
-        background: var(--bg-well-soft); border: 1px solid var(--border-color);
-        color: var(--text-main); padding: 6px 12px; border-radius: 6px;
-        font-family: monospace; font-weight: bold; font-size: 0.84em; cursor: pointer;
-    }
-    .preset-btn:hover { border-color: #3b82f6; background: rgba(51, 102, 255, 0.14); }
-
-    .btn-primary {
-        width: 100%; background: linear-gradient(135deg, #3366ff, #2563eb);
-        color: #fff; border: 1px solid #60a5fa; padding: 11px;
-        border-radius: 8px; font-weight: bold; font-size: 0.92em; cursor: pointer;
-    }
-    .btn-primary:disabled { opacity: 0.6; cursor: wait; }
-    .btn-green {
-        width: 100%; background: linear-gradient(135deg, #00e676, #00c853);
-        color: #07120c; border: 1px solid #69f0ae; padding: 11px;
-        border-radius: 8px; font-weight: 800; font-size: 0.92em; cursor: pointer;
+    /* Estilos Dark SaaS inspirados en el diseño de facturación */
+    .billing-container {
+        max-width: 1280px;
+        margin: 0 auto 30px auto;
     }
 
-    .pay-box {
-        display: none; margin-top: 16px; padding: 16px; border-radius: 10px;
-        background: var(--bg-well); border: 1px solid rgba(96, 165, 250, 0.45);
+    .billing-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+    .billing-header h1 {
+        margin: 0;
+        font-size: 1.6em;
+        font-weight: 800;
+        color: var(--text-main, #f8fafc);
+        letter-spacing: -0.4px;
+    }
+    .billing-subtitle {
+        font-size: 0.88em;
+        color: var(--text-muted, #94a3b8);
+        margin-top: 4px;
+    }
+    .billing-subtitle b {
+        color: #3b82f6;
+    }
+
+    .wallet-chip {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: #111827;
+        border: 1px solid #1f293d;
+        padding: 8px 16px;
+        border-radius: 10px;
+    }
+    .wallet-chip-meta small {
+        display: block;
+        font-size: 0.68em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .wallet-chip-meta strong {
+        font-size: 1.25em;
+        font-family: monospace;
+        color: #10b981;
+    }
+    .btn-quick-recharge {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        border: none;
+        padding: 7px 13px;
+        border-radius: 7px;
+        font-size: 0.82em;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.15s, opacity 0.15s;
+    }
+    .btn-quick-recharge:hover {
+        transform: translateY(-1px);
+        opacity: 0.95;
+    }
+
+    /* Tarjeta Tu Uso */
+    .usage-card {
+        background: #0f172a;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 18px 22px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+    .usage-title {
+        font-size: 0.92em;
+        font-weight: 700;
+        color: #f1f5f9;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .usage-row {
+        margin-bottom: 14px;
+    }
+    .usage-row:last-child {
+        margin-bottom: 0;
+    }
+    .usage-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.82em;
+        margin-bottom: 6px;
+    }
+    .usage-label {
+        color: #94a3b8;
+        font-weight: 500;
+    }
+    .usage-val {
+        color: #f8fafc;
+        font-family: monospace;
+        font-weight: 700;
+    }
+    .progress-bar-bg {
+        background: #1e293b;
+        height: 7px;
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .progress-bar-fill {
+        background: linear-gradient(90deg, #f43f5e, #fb7185);
+        height: 100%;
+        border-radius: 999px;
+        transition: width 0.4s ease;
+    }
+
+    /* Grid de Planes (4 Columnas) */
+    .plans-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+    @media (max-width: 1100px) {
+        .plans-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 640px) {
+        .plans-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .plan-card {
+        background: #0f172a;
+        border: 1px solid #1e293b;
+        border-radius: 14px;
+        padding: 24px 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .plan-card:hover {
+        border-color: #334155;
+        transform: translateY(-2px);
+    }
+    .plan-card.current {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 1px #2563eb, 0 8px 24px rgba(37, 99, 235, 0.15);
+    }
+    .plan-card.popular {
+        border-color: rgba(59, 130, 246, 0.4);
+    }
+    .plan-card.custom-card {
+        border-color: rgba(99, 102, 241, 0.45);
+        background: linear-gradient(180deg, #101935 0%, #0f172a 100%);
+    }
+
+    .plan-card-tag {
+        position: absolute;
+        top: -10px;
+        right: 16px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 0.68em;
+        font-weight: 800;
+        letter-spacing: 0.6px;
+        padding: 2px 9px;
+        border-radius: 999px;
+        text-transform: uppercase;
+    }
+
+    .plan-name {
+        font-size: 1.15em;
+        font-weight: 750;
+        color: #f8fafc;
+        margin-bottom: 8px;
+    }
+    .plan-price-row {
+        margin-bottom: 20px;
+    }
+    .plan-price-val {
+        font-size: 2.1em;
+        font-weight: 900;
+        color: #f8fafc;
+        letter-spacing: -0.5px;
+        line-height: 1;
+    }
+    .plan-price-val small {
+        font-size: 0.42em;
+        font-weight: 500;
+        color: #94a3b8;
+        letter-spacing: normal;
+    }
+
+    .plan-features {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 24px 0;
+        font-size: 0.84em;
+        color: #cbd5e1;
+        flex: 1;
+    }
+    .plan-features li {
+        margin-bottom: 10px;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        line-height: 1.4;
+    }
+    .plan-features li .check-icon {
+        color: #10b981;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+
+    /* Stepper editable de 10 en 10 ASICs */
+    .stepper-wrap {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 9px;
+        padding: 10px;
+        margin-bottom: 16px;
         text-align: center;
     }
-    .pay-addr {
-        background: var(--bg-well-deep); border: 1px solid var(--border-color);
-        padding: 9px 10px; border-radius: 6px; font-family: monospace;
-        font-size: 0.8em; color: var(--accent-green); word-break: break-all; margin: 10px 0;
+    .stepper-title {
+        font-size: 0.70em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        font-weight: 700;
+        margin-bottom: 6px;
     }
-    .pay-status {
-        display: inline-block; padding: 5px 12px; border-radius: 999px;
-        font-size: 0.78em; font-weight: bold; font-family: monospace;
-        background: rgba(255, 179, 0, 0.14); border: 1px solid rgba(255, 179, 0, 0.45);
-        color: var(--accent-gold); margin-top: 8px;
+    .stepper-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
     }
-    .pay-status.ok {
-        background: rgba(0, 230, 118, 0.14); border-color: rgba(0, 230, 118, 0.5); color: var(--accent-green);
+    .stepper-btn {
+        background: #334155;
+        color: #f8fafc;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        font-size: 1.2em;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .stepper-btn:hover {
+        background: #475569;
+    }
+    .stepper-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    .stepper-count {
+        font-size: 1.25em;
+        font-weight: 800;
+        font-family: monospace;
+        color: #60a5fa;
+        min-width: 90px;
+    }
+    .stepper-hint {
+        font-size: 0.68em;
+        color: #94a3b8;
+        margin-top: 4px;
     }
 
-    .pro-features { list-style: none; padding: 0; margin: 0 0 18px 0; font-size: 0.88em; color: var(--text-secondary); }
-    .pro-features li { padding: 5px 0; }
-    .pro-features li::before { content: "✓ "; color: var(--accent-green); font-weight: bold; }
+    /* Botones de Planes */
+    .btn-plan {
+        width: 100%;
+        padding: 11px 16px;
+        border-radius: 8px;
+        font-size: 0.88em;
+        font-weight: 700;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        border: 1px solid transparent;
+    }
+    .btn-plan-outline {
+        background: #1e293b;
+        color: #94a3b8;
+        border-color: #334155;
+    }
+    .btn-plan-outline.active {
+        background: rgba(37, 99, 235, 0.12);
+        color: #60a5fa;
+        border-color: #2563eb;
+        cursor: default;
+    }
+    .btn-plan-action {
+        background: #1e293b;
+        color: #f8fafc;
+        border-color: #334155;
+    }
+    .btn-plan-action:hover {
+        background: #2563eb;
+        border-color: #3b82f6;
+    }
+    .btn-plan-primary {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+    }
+    .btn-plan-primary:hover {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    }
 
-    .hist-table { width: 100%; border-collapse: collapse; font-size: 0.84em; }
-    .hist-table th { text-align: left; padding: 9px 10px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); font-size: 0.78em; text-transform: uppercase; }
-    .hist-table td { padding: 9px 10px; border-bottom: 1px solid var(--border-subtle); font-family: monospace; }
+    /* Nota al pie */
+    .pricing-footer-note {
+        text-align: center;
+        font-size: 0.78em;
+        color: #64748b;
+        margin: 18px 0 30px 0;
+    }
+
+    /* Sección de Cupón Promocional */
+    .coupon-bar {
+        background: #0f172a;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 16px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+    .coupon-info b {
+        color: #f8fafc;
+        font-size: 0.95em;
+    }
+    .coupon-info p {
+        margin: 3px 0 0 0;
+        font-size: 0.80em;
+        color: #94a3b8;
+    }
+    .coupon-form {
+        display: flex;
+        gap: 8px;
+    }
+    .coupon-input {
+        background: #1e293b;
+        border: 1px solid #334155;
+        color: #f8fafc;
+        padding: 8px 12px;
+        border-radius: 7px;
+        font-family: monospace;
+        font-weight: 700;
+        text-transform: uppercase;
+        width: 140px;
+        outline: none;
+    }
+    .coupon-input:focus {
+        border-color: #10b981;
+    }
+    .btn-coupon-apply {
+        background: #10b981;
+        color: #042f2e;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 7px;
+        font-weight: 800;
+        font-size: 0.84em;
+        cursor: pointer;
+    }
+    .btn-coupon-apply:hover {
+        background: #34d399;
+    }
+
+    /* Modal / Caja de Pago USDT */
+    .pay-checkout-card {
+        background: #0f172a;
+        border: 1px solid #1e293b;
+        border-radius: 14px;
+        padding: 22px;
+        margin-bottom: 24px;
+    }
+    .pay-checkout-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+    .pay-checkout-header h2 {
+        margin: 0;
+        font-size: 1.15em;
+        color: #f8fafc;
+    }
+    .preset-chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+    }
+    .preset-chip {
+        background: #1e293b;
+        border: 1px solid #334155;
+        color: #cbd5e1;
+        padding: 7px 14px;
+        border-radius: 7px;
+        font-family: monospace;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    .preset-chip:hover, .preset-chip.active {
+        background: #2563eb;
+        border-color: #3b82f6;
+        color: #fff;
+    }
+    .pay-input-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+    @media (max-width: 600px) {
+        .pay-input-row {
+            grid-template-columns: 1fr;
+        }
+    }
+    .pay-input, .pay-select {
+        width: 100%;
+        background: #1e293b;
+        border: 1px solid #334155;
+        color: #f8fafc;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-family: monospace;
+        outline: none;
+    }
+
+    .pay-qr-box {
+        display: none;
+        background: #141f36;
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        margin-top: 18px;
+    }
+    .pay-addr-text {
+        background: #0b1120;
+        border: 1px solid #1e293b;
+        padding: 9px 12px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.82em;
+        color: #34d399;
+        word-break: break-all;
+        margin: 10px 0;
+    }
+    .pay-badge-live {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-size: 0.78em;
+        font-weight: bold;
+        font-family: monospace;
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.35);
+        color: #fbbf24;
+        margin-top: 8px;
+    }
+    .pay-badge-live.ok {
+        background: rgba(16, 185, 129, 0.14);
+        border-color: rgba(16, 185, 129, 0.45);
+        color: #34d399;
+    }
+
+    /* Tabla de Historial */
+    .hist-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.84em;
+    }
+    .hist-table th {
+        text-align: left;
+        padding: 10px;
+        color: #64748b;
+        border-bottom: 1px solid #1e293b;
+        font-size: 0.75em;
+        text-transform: uppercase;
+    }
+    .hist-table td {
+        padding: 10px;
+        border-bottom: 1px solid #1e293b;
+        font-family: monospace;
+        color: #cbd5e1;
+    }
 </style>
 
-<div class="plan-header">
-    <div>
-        <h1>💳 Capacidad de Máquinas y Planes</h1>
-        <p>✨ <b>¡Todas las funciones avanzadas son 100% GRATIS!</b> Mapa de Racks, Hosting para Clientes, Técnicos, Acciones Masivas, Historial de 30 días y Exportación CSV están desbloqueados para todos. Solo se cobra por cantidad de máquinas monitoreadas.</p>
-    </div>
-</div>
-
-<div class="wallet-kpis">
-    <div class="w-kpi">
-        <small>Capacidad de Máquinas</small>
-        <strong style="color:#00e676;">{{ (limite_efectivo ~ ' Mineros') if limite_efectivo > 0 else 'Ilimitados' }}</strong>
-    </div>
-    <div class="w-kpi">
-        <small>Funciones Pro</small>
-        <strong style="color:#00e676;">100% Gratis (Todas)</strong>
-    </div>
-    <div class="w-kpi">
-        <small>Vigencia de Cupón / Plan</small>
-        <strong style="color:{{ '#ffd54f' if pro_dias_restantes else '#60a5fa' }};">{{ (pro_dias_restantes ~ ' días restantes') if pro_dias_restantes else 'Permanente (Base: 3 ASICs)' }}</strong>
-    </div>
-    <div class="w-kpi">
-        <small>Saldo Disponible</small>
-        <strong style="color:#00e676;" translate="no">${{ "%.2f"|format(saldo) }} USDT</strong>
-    </div>
-    <div class="w-kpi">
-        <small>Crédito Promocional</small>
-        <strong style="color:#ffd54f;" translate="no">${{ "%.2f"|format(saldo_bonus) }} USDT</strong>
-    </div>
-</div>
-
-<div class="plan-grid">
-    <!-- CANJEAR CUPÓN PROMOCIONAL -->
-    <div class="card-box" style="border-color:rgba(0, 230, 118, 0.45); background:linear-gradient(180deg, rgba(0, 230, 118, 0.04) 0%, transparent 100%);">
-        <h2 style="color:#00e676;">🎟️ Canjear Cupón Promocional</h2>
-        <div class="sub">Ingresa tu código de cupón para ampliar tu límite de mineros gratis.</div>
-
-        <div style="background:rgba(0, 230, 118, 0.08); border:1px solid rgba(0, 230, 118, 0.25); border-radius:8px; padding:12px 14px; margin:14px 0; font-size:0.86em; line-height:1.5; color:var(--text-main);">
-            🎁 <b>Cupón Especial:</b> Usa el código <code style="background:#00e676; color:#0f172a; padding:3px 9px; border-radius:5px; font-weight:bold; font-size:1.15em; letter-spacing:1px;">PRO10</code> para subir de <b>3 a 10 máquinas</b> gratis con vigencia hasta el <b>1 de febrero de 2027</b>.
+<div class="billing-container">
+    <!-- Header -->
+    <div class="billing-header">
+        <div>
+            <h1>Plan y facturación</h1>
+            <div class="billing-subtitle">
+                Estás en el plan <b>{{ current_plan }}</b>
+                {% if pro_dias_restantes %}
+                · <span style="color:#10b981; font-weight:600;">{{ pro_dias_restantes }} días activos (hasta {{ pro_hasta }})</span>
+                {% endif %}
+            </div>
         </div>
-
-        <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
-            <input type="text" id="cuponCodigo" class="inp" placeholder="Ej: PRO10" style="text-transform:uppercase; font-weight:bold; letter-spacing:1px; flex:1; min-width:180px;" maxlength="30" value="PRO10">
-            <button type="button" id="btnCanjearCupon" class="btn-green" onclick="canjearCupon()" style="margin:0; padding:10px 22px;">⚡ Canjear Cupón</button>
+        <div class="wallet-chip">
+            <div class="wallet-chip-meta">
+                <small>Saldo Disponible</small>
+                <strong translate="no">${{ "%.2f"|format(saldo) }} USDT</strong>
+            </div>
+            <button type="button" class="btn-quick-recharge" onclick="abrirRecargaUsdt(6)">+ Recargar</button>
         </div>
-        <div id="cuponMsg" style="font-size:0.88em; margin-top:10px; font-weight:bold;"></div>
     </div>
 
-    <!-- RECARGA AUTOMÁTICA USDT -->
-    <div class="card-box">
-        <h2>⚡ Recargar Saldo Automático (USDT)</h2>
-        <div class="sub">El saldo se acredita solo en cuanto la red confirma tu transferencia (1 a 3 minutos).</div>
-
-        <label class="lbl">Monto a recargar (USD / USDT)</label>
-        <div class="presets">
-            <button type="button" class="preset-btn" onclick="setMonto(15)">$15</button>
-            <button type="button" class="preset-btn" onclick="setMonto(30)">$30</button>
-            <button type="button" class="preset-btn" onclick="setMonto(50)">$50</button>
-            <button type="button" class="preset-btn" onclick="setMonto(100)">$100</button>
+    <!-- Tu Uso (Exacto al Screenshot) -->
+    <div class="usage-card">
+        <div class="usage-title">
+            <span>📊 Tu uso</span>
         </div>
-        <input type="number" id="usdtMonto" class="inp" value="15" min="5" max="5000" step="1">
-
-        <label class="lbl">Red de depósito</label>
-        <select id="usdtRed" class="sel">
-            <option value="usdttrc20">USDT — Red TRC20 (Tron)</option>
-            <option value="usdtbsc">USDT — Red BEP20 (Binance Smart Chain)</option>
-            <option value="usdtsol">USDT — Red Solana</option>
-        </select>
-
-        <button type="button" id="btnGenerarUsdt" class="btn-primary" onclick="generarPagoUsdt()">💎 Generar Dirección de Pago USDT</button>
-        <div id="usdtErr" style="color:var(--accent-red); font-size:0.82em; margin-top:8px; display:none;"></div>
-
-        <div id="usdtPayBox" class="pay-box">
-            <div style="font-size:0.84em; color:var(--text-secondary);">Envía exactamente <b id="payExactAmount" style="color:var(--text-main);"></b> (<span id="payRedLbl"></span>):</div>
-            <img id="payQrImg" src="" alt="QR USDT" style="width:160px; height:160px; border-radius:8px; margin:12px auto 4px auto; display:block; background:#fff; padding:6px;">
-            <div id="payAddressTxt" class="pay-addr" translate="no"></div>
-            <button type="button" class="preset-btn" onclick="copiarDireccionUsdt(this)">📋 Copiar Dirección</button>
-            <div>
-                <span id="payStatusBadge" class="pay-status">⏳ Esperando depósito...</span>
+        <div class="usage-row">
+            <div class="usage-meta">
+                <span class="usage-label">Granjas</span>
+                <span class="usage-val">{{ granjas_usadas }} / {{ granjas_max }}</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: {{ [((granjas_usadas / granjas_max) * 100)|round, 100]|min if granjas_max > 0 else 100 }}%;"></div>
+            </div>
+        </div>
+        <div class="usage-row">
+            <div class="usage-meta">
+                <span class="usage-label">Mineros</span>
+                <span class="usage-val">{{ mineros_usados }} / {{ limite_mineros_efectivo }}</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: {{ [((mineros_usados / limite_mineros_efectivo) * 100)|round, 100]|min if limite_mineros_efectivo > 0 else 100 }}%;"></div>
             </div>
         </div>
     </div>
 
-    <!-- AMPLIACIÓN DE CAPACIDAD -->
-    <div class="card-box" style="border-color:rgba(96, 165, 250, 0.45);">
-        <h2 style="color:#60a5fa;">🚀 Ampliación de Capacidad</h2>
-        <div class="sub">Todas las funciones Pro están incluidas. Si tu flota supera los mineros de tu plan, amplía tu cupo ilimitado.</div>
-        <ul class="pro-features">
-            <li><b>✓</b> Todas las funciones Pro activadas gratis</li>
-            <li><b>✓</b> Racks, Hosting para clientes y Técnicos incluidos</li>
-            <li><b>✓</b> Acciones masivas e Historial de 30 días sin costo</li>
-            <li><b>✓</b> Capacidad para flotas ilimitadas de mineros ASIC</li>
-            <li><b>✓</b> Soporte prioritario por WhatsApp</li>
-        </ul>
+    <!-- Grid de 4 Planes -->
+    <div class="plans-grid">
+        <!-- 1. GRATIS -->
+        <div class="plan-card {{ 'current' if current_plan == 'Free' else '' }}">
+            <div>
+                <div class="plan-name">Gratis</div>
+                <div class="plan-price-row">
+                    <div class="plan-price-val">Gratis</div>
+                </div>
+                <ul class="plan-features">
+                    <li><span class="check-icon">✓</span> 1 granja</li>
+                    <li><span class="check-icon">✓</span> Hasta 3 mineros</li>
+                    <li><span class="check-icon">✓</span> Monitorización en directo y control remoto</li>
+                    <li><span class="check-icon">✓</span> Alertas en el panel de control y Telegram</li>
+                </ul>
+            </div>
+            <div>
+                <button type="button" class="btn-plan btn-plan-outline {{ 'active' if current_plan == 'Free' else '' }}" disabled>
+                    {{ '✓ Plan actual' if current_plan == 'Free' else 'Plan Base' }}
+                </button>
+            </div>
+        </div>
 
-        <label class="lbl">Duración de ampliación ilimitada</label>
-        <select id="proMeses" class="sel">
-            <option value="1">1 Mes (30 días) — $15.00 USDT</option>
-            <option value="3">3 Meses (90 días) — $45.00 USDT</option>
-            <option value="6">6 Meses (180 días) — $90.00 USDT</option>
-        </select>
+        <!-- 2. INICIO (3 USD / 10 ASIC) -->
+        <div class="plan-card {{ 'current' if current_plan == 'Inicio' else '' }}">
+            <div>
+                <div class="plan-name">Inicio</div>
+                <div class="plan-price-row">
+                    <div class="plan-price-val">3 $ <small>/mes</small></div>
+                </div>
+                <ul class="plan-features">
+                    <li><span class="check-icon">✓</span> 2 granjas</li>
+                    <li><span class="check-icon">✓</span> Hasta 10 mineros ASIC</li>
+                    <li><span class="check-icon">✓</span> Todo en Gratis</li>
+                    <li><span class="check-icon">✓</span> Watchdog automático de reinicio</li>
+                </ul>
+            </div>
+            <div>
+                <button type="button" class="btn-plan btn-plan-action" onclick="activarPlanConfirmado('inicio', 10, 3)">
+                    {{ '✓ Activo' if current_plan == 'Inicio' else 'Mejorar a Inicio' }}
+                </button>
+            </div>
+        </div>
 
-        <button type="button" id="btnActivarPro" class="btn-green" onclick="activarPlanPro()">⚡ Activar / Renovar Capacidad Ilimitada con Saldo</button>
-        <div id="proMsg" style="font-size:0.84em; margin-top:10px; font-weight:bold;"></div>
+        <!-- 3. PRO (6 USD / 20 ASIC) -->
+        <div class="plan-card popular {{ 'current' if current_plan == 'Pro' else '' }}">
+            <span class="plan-card-tag">POPULAR</span>
+            <div>
+                <div class="plan-name">Pro</div>
+                <div class="plan-price-row">
+                    <div class="plan-price-val">6 $ <small>/mes</small></div>
+                </div>
+                <ul class="plan-features">
+                    <li><span class="check-icon">✓</span> 5 granjas</li>
+                    <li><span class="check-icon">✓</span> Hasta 20 mineros ASIC</li>
+                    <li><span class="check-icon">✓</span> Todo en Inicio</li>
+                    <li><span class="check-icon">✓</span> Mapa de Racks y Enlaces de Hosting</li>
+                </ul>
+            </div>
+            <div>
+                <button type="button" class="btn-plan btn-plan-action" onclick="activarPlanConfirmado('pro', 20, 6)">
+                    {{ '✓ Activo' if current_plan == 'Pro' else 'Mejorar a Pro' }}
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. PERSONALIZADO / A MEDIDA (DE 10 EN 10 ASIC) -->
+        <div class="plan-card custom-card {{ 'current' if 'Personalizado' in current_plan else '' }}">
+            <span class="plan-card-tag" style="background:#4f46e5;">★ A MEDIDA</span>
+            <div>
+                <div class="plan-name">Personalizado</div>
+                <div class="plan-price-row">
+                    <div class="plan-price-val"><span id="customPriceTxt">9</span> $ <small>/mes</small></div>
+                </div>
+
+                <!-- Stepper editable de 10 en 10 -->
+                <div class="stepper-wrap">
+                    <div class="stepper-title">Capacidad deseada</div>
+                    <div class="stepper-row">
+                        <button type="button" class="stepper-btn" onclick="modificarAsicsCustom(-10)">−</button>
+                        <div class="stepper-count"><span id="customAsicNum">30</span> ASICs</div>
+                        <button type="button" class="stepper-btn" onclick="modificarAsicsCustom(10)">+</button>
+                    </div>
+                    <div class="stepper-hint">$3 USD cada 10 equipos</div>
+                </div>
+
+                <ul class="plan-features">
+                    <li><span class="check-icon">✓</span> Granjas ilimitadas</li>
+                    <li><span class="check-icon">✓</span> <span id="customAsicFeatTxt">Hasta 30 mineros</span> ASIC</li>
+                    <li><span class="check-icon">✓</span> Alertas instantáneas por caída o temperatura</li>
+                    <li><span class="check-icon">✓</span> Soporte prioritario dedicado</li>
+                </ul>
+            </div>
+            <div>
+                <button type="button" class="btn-plan btn-plan-primary" onclick="activarPlanCustom()">
+                    Mejorar a Medida
+                </button>
+            </div>
+        </div>
     </div>
-</div>
 
-<!-- HISTORIAL DE RECARGAS USDT -->
-<div class="card-box">
-    <h2>📜 Historial de Recargas USDT</h2>
-    <div style="overflow-x:auto;">
-        <table class="hist-table">
-            <thead>
-                <tr>
-                    <th>Orden</th>
-                    <th>Monto</th>
-                    <th>Red</th>
-                    <th>Estado</th>
-                    <th>Fecha</th>
-                </tr>
-            </thead>
-            <tbody id="histPagosBody">
-                <tr><td colspan="5" style="color:var(--text-muted);">Cargando historial...</td></tr>
-            </tbody>
-        </table>
+    <div class="pricing-footer-note">
+        🔒 Pagos seguros con USDT Crypto (TRC20, BSC, Solana) · Sin contratos ni tarjeta · Precios en USD
+    </div>
+
+    <!-- Barra de Cupón Promocional (PRO10 hasta 1-Feb-2027) -->
+    <div class="coupon-bar">
+        <div class="coupon-info">
+            <b>🎟️ ¿Tienes un cupón promocional?</b>
+            <p>Usa el código <code style="color:#10b981; font-weight:bold;">PRO10</code> para activar 10 máquinas gratis hasta el 1 de febrero de 2027.</p>
+        </div>
+        <div class="coupon-form">
+            <input type="text" id="cuponCodigo" class="coupon-input" placeholder="PRO10" value="PRO10">
+            <button type="button" id="btnCanjearCupon" class="btn-coupon-apply" onclick="canjearCupon()">Aplicar Cupón</button>
+        </div>
+    </div>
+    <div id="cuponMsg" style="font-size:0.86em; font-weight:bold; margin:-16px 0 20px 0; text-align:right;"></div>
+
+    <!-- Módulo de Recarga USDT / Checkout -->
+    <div class="pay-checkout-card" id="payCheckoutSection">
+        <div class="pay-checkout-header">
+            <div>
+                <h2>⚡ Recargar Saldo con USDT</h2>
+                <div style="font-size:0.82em; color:#94a3b8; margin-top:3px;">
+                    El saldo se acredita automáticamente al recibir 1 confirmación de la red blockchain (1 a 3 minutos).
+                </div>
+            </div>
+            <div id="checkoutNotice" style="font-size:0.84em; font-weight:700; color:#fbbf24;"></div>
+        </div>
+
+        <div class="preset-chips">
+            <button type="button" class="preset-chip" onclick="seleccionarPresetMonto(3)">$3 USDT</button>
+            <button type="button" class="preset-chip" onclick="seleccionarPresetMonto(6)">$6 USDT</button>
+            <button type="button" class="preset-chip" onclick="seleccionarPresetMonto(9)">$9 USDT</button>
+            <button type="button" class="preset-chip" onclick="seleccionarPresetMonto(15)">$15 USDT</button>
+            <button type="button" class="preset-chip" onclick="seleccionarPresetMonto(30)">$30 USDT</button>
+            <button type="button" class="preset-chip" onclick="seleccionarPresetMonto(50)">$50 USDT</button>
+        </div>
+
+        <div class="pay-input-row">
+            <div>
+                <label style="display:block; font-size:0.75em; text-transform:uppercase; color:#94a3b8; margin-bottom:5px; font-weight:700;">Monto a recargar (USDT)</label>
+                <input type="number" id="usdtMonto" class="pay-input" value="6" min="3" max="5000" step="1">
+            </div>
+            <div>
+                <label style="display:block; font-size:0.75em; text-transform:uppercase; color:#94a3b8; margin-bottom:5px; font-weight:700;">Red de Depósito</label>
+                <select id="usdtRed" class="pay-select">
+                    <option value="usdttrc20">USDT — Red TRC20 (Tron)</option>
+                    <option value="usdtbsc">USDT — Red BEP20 (Binance Smart Chain)</option>
+                    <option value="usdtsol">USDT — Red Solana</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="button" id="btnGenerarUsdt" class="btn-plan btn-plan-primary" onclick="generarPagoUsdt()" style="padding:13px; font-size:0.95em;">
+            💎 Generar Dirección de Pago USDT
+        </button>
+        <div id="usdtErr" style="color:#f87171; font-size:0.84em; margin-top:8px; display:none;"></div>
+
+        <div id="usdtPayBox" class="pay-qr-box">
+            <div style="font-size:0.88em; color:#cbd5e1;">Envía exactamente <b id="payExactAmount" style="color:#fff; font-size:1.15em;"></b> en <span id="payRedLbl" style="color:#60a5fa; font-weight:700;"></span>:</div>
+            <img id="payQrImg" src="" alt="QR USDT" style="width:160px; height:160px; border-radius:8px; margin:14px auto 6px auto; display:block; background:#fff; padding:6px;">
+            <div id="payAddressTxt" class="pay-addr-text" translate="no"></div>
+            <button type="button" class="preset-chip" onclick="copiarDireccionUsdt(this)">📋 Copiar Dirección</button>
+            <div>
+                <span id="payStatusBadge" class="pay-badge-live">⏳ Esperando depósito en la red...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historial de Pagos -->
+    <div class="usage-card" style="padding:18px 20px;">
+        <div class="usage-title" style="margin-bottom:12px;">
+            <span>📜 Historial de Recargas USDT</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="hist-table">
+                <thead>
+                    <tr>
+                        <th>Orden</th>
+                        <th>Monto</th>
+                        <th>Moneda / Red</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody id="histPagosBody">
+                    <tr><td colspan="5" style="color:#64748b;">Cargando historial...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <script>
+    let saldoActual = {{ saldo|float }};
+    let asicsCustom = 30;
+    let currentOrderId = null;
     let pollPagoTimer = null;
-    let currentOrderId = "";
 
-    function setMonto(v) {
-        document.getElementById('usdtMonto').value = v;
+    // Modificar cantidad de ASICs en el plan personalizado (de 10 en 10)
+    function modificarAsicsCustom(delta) {
+        asicsCustom += delta;
+        if (asicsCustom < 30) asicsCustom = 30;
+        if (asicsCustom > 1000) asicsCustom = 1000;
+
+        const costoMensual = Math.round((asicsCustom / 10) * 3);
+        document.getElementById('customAsicNum').innerText = asicsCustom;
+        document.getElementById('customPriceTxt').innerText = costoMensual;
+        document.getElementById('customAsicFeatTxt').innerText = `Hasta ${asicsCustom} mineros`;
     }
 
+    function seleccionarPresetMonto(v) {
+        document.getElementById('usdtMonto').value = v;
+        document.querySelectorAll('.preset-chip').forEach(c => {
+            c.classList.remove('active');
+            if (c.innerText.includes('$' + v)) c.classList.add('active');
+        });
+    }
+
+    function abrirRecargaUsdt(montoSugerido) {
+        seleccionarPresetMonto(montoSugerido || 6);
+        const el = document.getElementById('payCheckoutSection');
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    // Activar plan Inicio ($3) o Pro ($6)
+    async function activarPlanConfirmado(planTipo, asics, costo) {
+        if (saldoActual < costo) {
+            const faltante = (costo - saldoActual).toFixed(2);
+            document.getElementById('checkoutNotice').innerText = `⚠️ Te faltan $${faltante} USDT para activar el Plan ${planTipo.toUpperCase()}.`;
+            abrirRecargaUsdt(Math.ceil(costo - saldoActual));
+            return;
+        }
+
+        if (!confirm(`¿Deseas activar el Plan ${planTipo.toUpperCase()} (${asics} ASICs) por $${costo} USDT por 30 días?`)) {
+            return;
+        }
+
+        ejecutarActivacionPlan(planTipo, asics, 1);
+    }
+
+    // Activar plan Personalizado
+    function activarPlanCustom() {
+        const costo = Math.round((asicsCustom / 10) * 3);
+        if (saldoActual < costo) {
+            const faltante = (costo - saldoActual).toFixed(2);
+            document.getElementById('checkoutNotice').innerText = `⚠️ Te faltan $${faltante} USDT para activar el Plan Personalizado (${asicsCustom} ASICs).`;
+            abrirRecargaUsdt(Math.ceil(costo - saldoActual));
+            return;
+        }
+
+        if (!confirm(`¿Deseas activar el Plan Personalizado (${asicsCustom} ASICs) por $${costo} USDT por 30 días?`)) {
+            return;
+        }
+
+        ejecutarActivacionPlan('custom', asicsCustom, 1);
+    }
+
+    async function ejecutarActivacionPlan(planTipo, asics, meses) {
+        try {
+            const r = await fetch('/api/plan/activar_plan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plan: planTipo, asics: asics, meses: meses })
+            });
+            const j = await r.json();
+            if (j.ok) {
+                alert(j.msg || '¡Plan activado con éxito!');
+                window.location.reload();
+            } else {
+                alert('⚠️ ' + (j.msg || 'No se pudo activar el plan.'));
+                if (j.saldo_insuficiente) {
+                    abrirRecargaUsdt(Math.ceil(j.faltante || 6));
+                }
+            }
+        } catch (e) {
+            alert('⚠️ Error de conexión con el servidor.');
+        }
+    }
+
+    // Canje de Cupón
+    async function canjearCupon() {
+        const inp = document.getElementById('cuponCodigo');
+        const btn = document.getElementById('btnCanjearCupon');
+        const msg = document.getElementById('cuponMsg');
+        const codigo = (inp.value || '').trim();
+        if (!codigo) {
+            msg.style.color = '#f87171';
+            msg.innerText = '⚠️ Ingresa el código del cupón.';
+            inp.focus();
+            return;
+        }
+        btn.disabled = true;
+        btn.innerText = '⏳ Aplicando...';
+        msg.innerText = '';
+        try {
+            const r = await fetch('/api/plan/canjear_cupon', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo })
+            });
+            const j = await r.json();
+            if (j.ok) {
+                msg.style.color = '#10b981';
+                msg.innerText = j.msg;
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                msg.style.color = '#f87171';
+                msg.innerText = '⚠️ ' + (j.msg || 'Cupón inválido.');
+            }
+        } catch (e) {
+            msg.style.color = '#f87171';
+            msg.innerText = '⚠️ Error de conexión.';
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Aplicar Cupón';
+        }
+    }
+
+    // Generar Pago USDT
     async function generarPagoUsdt() {
         const btn = document.getElementById('btnGenerarUsdt');
         const err = document.getElementById('usdtErr');
@@ -234,7 +886,7 @@
 
         err.style.display = 'none';
         btn.disabled = true;
-        btn.innerText = '⏳ Generando orden...';
+        btn.innerText = '⏳ Generando orden segura...';
 
         try {
             const r = await fetch('/api/pagos/crear_usdt', {
@@ -254,8 +906,8 @@
             document.getElementById('payAddressTxt').innerText = j.pay_address;
             document.getElementById('payQrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(j.pay_address);
             const st = document.getElementById('payStatusBadge');
-            st.className = 'pay-status';
-            st.innerText = '⏳ Esperando depósito...';
+            st.className = 'pay-badge-live';
+            st.innerText = '⏳ Esperando depósito en la red...';
             box.style.display = 'block';
 
             cargarHistorialPagos();
@@ -277,8 +929,8 @@
             const j = await r.json();
             const st = document.getElementById('payStatusBadge');
             if (j.ok && j.estado === 'pagado') {
-                st.className = 'pay-status ok';
-                st.innerText = '✅ ¡Pago Confirmado! Saldo acreditado.';
+                st.className = 'pay-badge-live ok';
+                st.innerText = '✅ ¡Depósito confirmado! Saldo acreditado.';
                 clearInterval(pollPagoTimer);
                 setTimeout(() => window.location.reload(), 2000);
             } else if (j.ok && j.estado) {
@@ -296,73 +948,6 @@
         });
     }
 
-    async function canjearCupon() {
-        const inp = document.getElementById('cuponCodigo');
-        const btn = document.getElementById('btnCanjearCupon');
-        const msg = document.getElementById('cuponMsg');
-        const codigo = (inp.value || '').trim();
-        if (!codigo) {
-            msg.style.color = '#ff8a80';
-            msg.innerText = '⚠️ Por favor ingresa el código del cupón.';
-            inp.focus();
-            return;
-        }
-        btn.disabled = true;
-        btn.innerText = '⏳ Aplicando...';
-        msg.innerText = '';
-        try {
-            const r = await fetch('/api/plan/canjear_cupon', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ codigo })
-            });
-            const j = await r.json();
-            if (j.ok) {
-                msg.style.color = '#00e676';
-                msg.innerText = j.msg;
-                setTimeout(() => window.location.reload(), 2000);
-            } else {
-                msg.style.color = '#ff8a80';
-                msg.innerText = '⚠️ ' + (j.msg || 'Cupón inválido.');
-            }
-        } catch (e) {
-            msg.style.color = '#ff8a80';
-            msg.innerText = '⚠️ Error de conexión con el servidor.';
-        } finally {
-            btn.disabled = false;
-            btn.innerText = '⚡ Canjear Cupón';
-        }
-    }
-
-    async function activarPlanPro() {
-        const btn = document.getElementById('btnActivarPro');
-        const msg = document.getElementById('proMsg');
-        const meses = parseInt(document.getElementById('proMeses').value) || 1;
-        btn.disabled = true;
-        msg.innerText = '';
-        try {
-            const r = await fetch('/api/plan/activar_pro', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ meses })
-            });
-            const j = await r.json();
-            if (j.ok) {
-                msg.style.color = '#00e676';
-                msg.innerText = '✅ ' + j.msg;
-                setTimeout(() => window.location.reload(), 1800);
-            } else {
-                msg.style.color = '#ff8a80';
-                msg.innerText = '⚠️ ' + (j.msg || 'No se pudo activar.');
-            }
-        } catch (e) {
-            msg.style.color = '#ff8a80';
-            msg.innerText = '⚠️ Error de conexión.';
-        } finally {
-            btn.disabled = false;
-        }
-    }
-
     async function cargarHistorialPagos() {
         const tb = document.getElementById('histPagosBody');
         try {
@@ -370,11 +955,11 @@
             const j = await r.json();
             const list = (j && j.pagos) ? j.pagos : [];
             if (list.length === 0) {
-                tb.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted);">Sin recargas USDT registradas aún.</td></tr>';
+                tb.innerHTML = '<tr><td colspan="5" style="color:#64748b;">Sin recargas USDT registradas aún.</td></tr>';
                 return;
             }
             tb.innerHTML = list.map(p => {
-                const color = p.estado === 'pagado' ? '#00e676' : '#ffd54f';
+                const color = p.estado === 'pagado' ? '#10b981' : '#fbbf24';
                 return `<tr>
                     <td>${p.order_id}</td>
                     <td>$${Number(p.monto_usd).toFixed(2)}</td>
@@ -384,7 +969,7 @@
                 </tr>`;
             }).join('');
         } catch (e) {
-            tb.innerHTML = '<tr><td colspan="5" style="color:#ff8a80;">Error cargando historial.</td></tr>';
+            tb.innerHTML = '<tr><td colspan="5" style="color:#f87171;">Error cargando historial.</td></tr>';
         }
     }
 

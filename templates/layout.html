@@ -847,21 +847,9 @@
                         </div>
                     </a>
 
-                    {% if saldo_bonus_actual and saldo_bonus_actual > 0 %}
-                    <div class="promo-credit-pill" onclick="this.classList.toggle('show-tt')">
-                        <span translate="no">🎁 Promo: ${{ "%.2f"|format(saldo_bonus_actual) }}</span>
-                        <span>ⓘ</span>
-                        <div class="promo-tooltip-box">
-                            <b style="color:#ffd54f;">🎁 Crédito Promocional</b><br>
-                            Saldo de cortesía otorgado por El Minero Gris. Se descuenta automáticamente al activar o renovar tu Plan Pro.<br>
-                            <span style="color:#ff8a80;">⚠️ No reembolsable, ni transferible a otras cuentas ni retirable en efectivo/USDT.</span>
-                        </div>
-                    </div>
-                    {% endif %}
-
                     {% if pro_dias_restantes is not none and pro_dias_restantes > 0 %}
                     <div class="pro-days-chip" translate="no">
-                        🎁 Pro: {{ pro_dias_restantes }}d · {{ (limite_efectivo ~ ' ASICs') if limite_efectivo > 0 else 'Ilimitado' }}
+                        ⚡ Plan: {{ pro_dias_restantes }}d · {{ (limite_efectivo ~ ' ASICs') if limite_efectivo > 0 else 'Ilimitado' }}
                     </div>
                     {% endif %}
                 {% endif %}

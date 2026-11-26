@@ -1655,13 +1655,60 @@ def plan():
     usr_actual = session.get('usuario', 'Admin')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT plan, saldo, saldo_bonus, pro_hasta, limite_mineros FROM usuarios WHERE username=%s", (usr_actual,))
+    cur.execute("SELECT plan, saldo, pro_hasta, limite_mineros FROM usuarios WHERE username=%s", (usr_actual,))
     u = cur.fetchone() or {}
     session['plan'] = u.get('plan', session.get('plan', 'Gratis'))
-    session['saldo'] = u.get('saldo', session.get('saldo', 0.0))
+    session['saldo'] = round(a_float_seguro(u.get('saldo'), 0.0), 2)
+
+    # Cantidad de mineros registrados en la cuenta
+    cur.execute("SELECT COUNT(*) AS total_mineros FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    row_m = cur.fetchone()
+    mineros_usados = a_int_seguro(row_m['total_mineros'] if row_m else 0, 0)
+
+    # Cantidad de granjas/sedes reales
+    cur.execute("SELECT COUNT(DISTINCT COALESCE(NULLIF(farm_id,''), subred)) AS total_granjas FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    row_g = cur.fetchone()
+    cur.execute("SELECT COUNT(*) AS cnt FROM granjas_sedes WHERE owner=%s", (usr_actual,))
+    row_gs = cur.fetchone()
+    granjas_usadas = max(a_int_seguro(row_g['total_granjas'] if row_g else 0), a_int_seguro(row_gs['cnt'] if row_gs else 0), 1 if mineros_usados > 0 else 0)
+
+    lim_m_cfg = a_int_seguro(u.get('limite_mineros'), 0)
+    pro_hasta = str(u.get('pro_hasta') or '').strip()
+    dias_rest = calcular_dias_pro_restantes(pro_hasta) if pro_hasta else None
+
+    # Límite efectivo de mineros
+    if lim_m_cfg > 0:
+        limite_mineros_efectivo = lim_m_cfg
+    elif dias_rest is not None and dias_rest > 0:
+        limite_mineros_efectivo = 10
+    else:
+        limite_mineros_efectivo = 3
+
+    # Límites y nombre descriptivo del plan actual
+    if limite_mineros_efectivo <= 4:
+        granjas_max = 1
+        plan_display = 'Free'
+    elif limite_mineros_efectivo <= 10:
+        granjas_max = 2
+        plan_display = 'Inicio'
+    elif limite_mineros_efectivo <= 20:
+        granjas_max = 5
+        plan_display = 'Pro'
+    else:
+        granjas_max = 999
+        plan_display = f'Personalizado ({limite_mineros_efectivo} ASICs)'
+
     return render_seguro(
-        'plan.html', active_page='plan', current_plan=session['plan'],
-        saldo=session['saldo'], saldo_bonus=round(a_float_seguro(u.get('saldo_bonus'), 0.0), 2)
+        'plan.html', active_page='plan',
+        current_plan=plan_display,
+        raw_plan=session['plan'],
+        saldo=session['saldo'],
+        mineros_usados=mineros_usados,
+        limite_mineros_efectivo=limite_mineros_efectivo,
+        granjas_usadas=granjas_usadas,
+        granjas_max=granjas_max,
+        pro_dias_restantes=dias_rest,
+        pro_hasta=pro_hasta[:10] if pro_hasta else ''
     )
 
 # --- Autenticación y Recuperación (con Rate Limiting) ---
