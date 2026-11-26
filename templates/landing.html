@@ -924,6 +924,9 @@
             .sec-head p { font-size: 0.86em; }
             .bg-card, .step-card, .compare-card, .card { padding: 16px 12px; border-radius: 10px; }
             .price-card { padding: 20px 14px; border-radius: 12px; }
+            .pricing-addon-box { flex-direction: column; text-align: center; gap: 12px; }
+            .pricing-addon-box .btn { width: 100%; justify-content: center; }
+            .pricing-coupon-badge { font-size: 0.76em; padding: 6px 10px; }
             .cta-banner { padding: 24px 12px; border-radius: 12px; }
             .cta-banner h2 { font-size: clamp(1.35rem, 5vw, 1.75rem); }
             .cta-banner p { font-size: 0.88em; }
@@ -1663,41 +1666,76 @@
         <section id="precios" style="background: rgba(255,255,255,0.01); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
             <div class="container">
                 <div class="sec-head">
-                    <div class="pill">Sin sorpresas</div>
+                    <div class="pill">Precios Transparentes</div>
                     <h2>Comienza gratis y escala cuando tu flota crezca</h2>
-                    <p>No pedimos tarjeta de crédito para empezar. Prueba todas las funciones con tus primeros equipos.</p>
+                    <p>Paga únicamente por los mineros que tengas activos. Sin contratos forzosos y recargas directas en USDT.</p>
+                    <div style="margin-top: 14px;">
+                        <span class="pricing-coupon-badge">
+                            🎁 Promo de Bienvenida: Usa el cupón <strong>LANZAMIENTO10</strong> para 10 máquinas gratis
+                        </span>
+                    </div>
                 </div>
+
                 <div class="pricing-grid">
+                    <!-- Plan Gratis -->
                     <div class="price-card">
                         <h3>Plan Gratis</h3>
                         <div class="price-val">$0 <span style="font-size:0.42em; color:var(--text-muted); font-weight:normal;">/mes</span></div>
-                        <p style="font-size:0.88em; color:var(--text-muted);">Ideal para principiantes con sus primeros mineros en casa.</p>
+                        <p style="font-size:0.86em; color:var(--text-muted);">Para mineros en casa con sus primeros equipos.</p>
                         <ul class="price-list">
-                            <li><b>✓</b> Hasta 3 mineros ASIC activos</li>
+                            <li><b>✓</b> Hasta <strong>3 mineros ASIC</strong> activos</li>
                             <li><b>✓</b> Agente Android APK y Python PC</li>
                             <li><b>✓</b> Watchdog automático de reinicio</li>
                             <li><b>✓</b> Alertas directas a Telegram</li>
                             <li><b>✓</b> Proxy Web Local para ASIC y Router</li>
-                            <li><b>✓</b> Historial de 24 horas</li>
+                            <li><b>✓</b> Historial de telemetría 24h</li>
                         </ul>
-                        <a href="/register" class="btn btn-outline" style="width:100%;">Empezar Gratis Ahora</a>
+                        <a href="/register" class="btn btn-outline" style="width:100%;">Empezar Gratis</a>
                     </div>
 
-                    <div class="price-card pro">
-                        <div class="price-popular-tag">Más Popular</div>
-                        <h3 style="color:var(--blue-light);">Plan Pro</h3>
-                        <div class="price-val">Escalable <span style="font-size:0.4em; color:var(--text-muted); font-weight:normal;">por flota</span></div>
-                        <p style="font-size:0.88em; color:var(--text-muted);">Para granjas comerciales, técnicos y operadores medianos.</p>
+                    <!-- Plan Inicio -->
+                    <div class="price-card featured">
+                        <div class="price-popular-tag">Recomendado</div>
+                        <h3 style="color:var(--blue-light);">Plan Inicio</h3>
+                        <div class="price-val">$3 <span style="font-size:0.42em; color:var(--text-muted); font-weight:normal;">USDT /mes</span></div>
+                        <p style="font-size:0.86em; color:var(--text-muted);">Para pequeños operadores y talleres de minería.</p>
                         <ul class="price-list">
-                            <li><b>✓</b> Mineros y sedes ilimitados</li>
-                            <li><b>✓</b> Acciones masivas en 1 clic por granja</li>
-                            <li><b>✓</b> Automatización de Tarifa Pico (Curtailment)</li>
-                            <li><b>✓</b> Historial extendido de 30 días</li>
-                            <li><b>✓</b> Exportación de reportes CSV para socios</li>
-                            <li><b>✓</b> Soporte prioritario por WhatsApp directo</li>
+                            <li><b>✓</b> Hasta <strong>10 mineros ASIC</strong> activos</li>
+                            <li><b>✓</b> Acciones masivas en 1 clic</li>
+                            <li><b>✓</b> Monitoreo multi-red y multi-agente</li>
+                            <li><b>✓</b> Watchdog agresivo anti-congelamiento</li>
+                            <li><b>✓</b> Alertas instantáneas sin límites</li>
+                            <li><b>✓</b> Historial completo de 30 días</li>
                         </ul>
-                        <a href="/register" class="btn btn-primary" style="width:100%;">Crear Cuenta Pro</a>
+                        <a href="/register" class="btn btn-primary" style="width:100%;">Elegir Plan Inicio</a>
                     </div>
+
+                    <!-- Plan Pro -->
+                    <div class="price-card">
+                        <h3>Plan Pro</h3>
+                        <div class="price-val">$6 <span style="font-size:0.42em; color:var(--text-muted); font-weight:normal;">USDT /mes</span></div>
+                        <p style="font-size:0.86em; color:var(--text-muted);">Para granjas comerciales y medianas instalaciones.</p>
+                        <ul class="price-list">
+                            <li><b>✓</b> Hasta <strong>20 mineros ASIC</strong> activos</li>
+                            <li><b>✓</b> Automatización de Tarifa Pico (Curtailment)</li>
+                            <li><b>✓</b> Exportación de métricas y CSV para socios</li>
+                            <li><b>✓</b> Proxy web sin límites de ancho de banda</li>
+                            <li><b>✓</b> Soporte prioritario por WhatsApp directo</li>
+                            <li><b>✓</b> Asistencia remota de configuración</li>
+                        </ul>
+                        <a href="/register" class="btn btn-outline" style="width:100%;">Elegir Plan Pro</a>
+                    </div>
+                </div>
+
+                <!-- Addon Gran Granja -->
+                <div class="pricing-addon-box">
+                    <div>
+                        <strong style="font-size:1.05em; display:block; margin-bottom:4px;">🏭 ¿Tienes más de 20 mineros? Escala tu granja sin límites</strong>
+                        <span style="font-size:0.88em; color:var(--text-muted);">
+                            Solo <strong>$3.00 USDT al mes por cada 10 ASICs adicionales</strong> ($0.30/minero). Recargas seguras con USDT (TRC-20, BEP-20, Solana).
+                        </span>
+                    </div>
+                    <a href="/register" class="btn btn-primary btn-sm" style="white-space:nowrap;">Personalizar Flota →</a>
                 </div>
             </div>
         </section>
