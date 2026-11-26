@@ -15,7 +15,7 @@ from utils import (
 
 agente_bp = Blueprint('agente_bp', __name__)
 ultima_limpieza_bd = 0
-_cache_apk_version = {"ts": 0, "data": None}
+_cache_apk_version = {}
 _ag_rate_lock = threading.Lock()
 _ag_rate_buckets = {}
 _col_app_ver_ok = False
@@ -120,13 +120,21 @@ def migrar_ip_en_tablas(cur, owner, ip_vieja, ip_nueva):
 
 @agente_bp.route('/api/agente/apk_version')
 def api_agente_apk_version():
+    channel = (request.args.get('channel') or request.args.get('flavor') or '').strip().lower()
+    pkg = (request.args.get('pkg') or '').strip().lower()
+    es_beta_channel = channel == 'beta' or 'beta' in pkg
+    apk_file = "ElMineroGris-Beta.apk" if es_beta_channel else "ElMineroGris.apk"
+    cache_key = "beta" if es_beta_channel else "prod"
+
     ahora = time.time()
-    if _cache_apk_version["data"] and (ahora - _cache_apk_version["ts"]) < 300:
-        return jsonify(_cache_apk_version["data"]), 200
+    if isinstance(_cache_apk_version.get(cache_key), dict):
+        entry = _cache_apk_version[cache_key]
+        if (ahora - entry.get("ts", 0)) < 300:
+            return jsonify(entry.get("data")), 200
 
     version_code = APK_VERSION_CODE
     version_name = APK_VERSION_NAME
-    apk_url = "https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/ElMineroGris.apk"
+    apk_url = f"https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/{apk_file}"
     version_json_url = "https://github.com/elminerogris/el-minero-gris-android/releases/latest/download/version.json"
 
     try:
@@ -147,10 +155,10 @@ def api_agente_apk_version():
     resultado = {
         "version_code": version_code,
         "version_name": version_name,
-        "apk_url": apk_url
+        "apk_url": apk_url,
+        "channel": cache_key
     }
-    _cache_apk_version["ts"] = ahora
-    _cache_apk_version["data"] = resultado
+    _cache_apk_version[cache_key] = {"ts": ahora, "data": resultado}
     return jsonify(resultado), 200
 
 @agente_bp.route('/api/agente/mi_sesion')
