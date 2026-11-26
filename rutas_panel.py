@@ -14,7 +14,7 @@ from utils import (
     generar_totp_secret, verificar_totp, notificar_alerta_seguridad,
     parsear_dispositivo, fijar_cookie_dispositivo, determinar_credenciales_defecto,
     sanitizar_nombre_minero, sanitizar_nombre_granja, sanitizar_texto_seguro,
-    enmascarar_email, enviar_email_codigo
+    enmascarar_email, enviar_email_codigo, calcular_dias_pro_restantes
 )
 
 panel_bp = Blueprint('panel_bp', __name__)
