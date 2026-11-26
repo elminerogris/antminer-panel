@@ -1506,14 +1506,21 @@ def ajustes():
             msg = "Tu API Key ha sido regenerada con éxito."
         elif accion == 'guardar_red_agente':
             subnet = request.form.get('subnet', '192.168.0').strip()
-            tarifa = a_float_seguro(request.form.get('tarifa_kwh'), 0.0)
+            tarifa_raw = request.form.get('tarifa_kwh')
             miner_user = (request.form.get('miner_user') or 'root').strip()[:40] or 'root'
             miner_pass = (request.form.get('miner_pass') or '').strip()[:80]
-            cur.execute(
-                "UPDATE usuarios SET subnet=%s, tarifa_kwh=%s, miner_user=%s, miner_pass=%s WHERE username=%s",
-                (subnet, tarifa, miner_user, miner_pass, usr_actual)
-            )
-            msg = "Preferencias de red, tarifa y credenciales ASIC guardadas."
+            if tarifa_raw is not None and str(tarifa_raw).strip() != '':
+                tarifa = a_float_seguro(tarifa_raw, 0.0)
+                cur.execute(
+                    "UPDATE usuarios SET subnet=%s, tarifa_kwh=%s, miner_user=%s, miner_pass=%s WHERE username=%s",
+                    (subnet, tarifa, miner_user, miner_pass, usr_actual)
+                )
+            else:
+                cur.execute(
+                    "UPDATE usuarios SET subnet=%s, miner_user=%s, miner_pass=%s WHERE username=%s",
+                    (subnet, miner_user, miner_pass, usr_actual)
+                )
+            msg = "Preferencias de red y credenciales de minero guardadas correctamente."
         elif accion == 'cambiar_username':
             nuevo_u = (request.form.get('nuevo_username') or '').strip()
             if usr_actual.lower() == 'admin':

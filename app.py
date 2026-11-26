@@ -174,9 +174,34 @@ def asegurar_bd():
             except Exception as e_disp:
                 print(f"[TRUSTED DEVICE AUTO-LOGIN]: {e_disp}")
 
-    # 2. Manejo de sesión activa y verificación de revocación remota
+    # 2. Manejo de sesión activa: verificar existencia de la cuenta y revocación remota
     if 'usuario' in session:
-        # VALIDACIÓN DE REVOCACIÓN REMOTA:
+        # VALIDACIÓN DE CUENTA VIVA: Si la cuenta fue eliminada o suspendida por el admin, destruir sesión de inmediato
+        if DB_URL and not request.path.startswith('/static/') and request.path != '/logout':
+            usr_sesion = session.get('admin_real') or session.get('usuario')
+            try:
+                con_u_chk = get_db()
+                cur_u_chk = con_u_chk.cursor()
+                cur_u_chk.execute(
+                    "SELECT id, suspendido FROM usuarios WHERE LOWER(username)=LOWER(%s)",
+                    (usr_sesion,)
+                )
+                usr_db = cur_u_chk.fetchone()
+                if not usr_db or int(usr_db[1] or 0) == 1:
+                    # ¡Cuenta eliminada o suspendida! Expulsar y destruir sesión y cookies de inmediato
+                    session.clear()
+                    resp = redirect('/login')
+                    host_c = (request.host or '').split(':')[0].lower()
+                    cookie_domain = '.elminerogris.com' if 'elminerogris.com' in host_c else None
+                    resp.delete_cookie('emg_trusted_device', path='/', domain=cookie_domain)
+                    resp.delete_cookie('emg_trusted_device', path='/')
+                    resp.delete_cookie('session', path='/', domain=cookie_domain)
+                    resp.delete_cookie('session', path='/')
+                    return resp
+            except Exception as e_uchk:
+                print(f"[USER EXIST CHECK ERROR]: {e_uchk}")
+
+        # VALIDACIÓN DE REVOCACIÓN REMOTA DE DISPOSITIVO:
         # Si la petición trae cookie de dispositivo o la sesión está asociada a un dispositivo de confianza,
         # verificar en la base de datos que dicho dispositivo no haya sido eliminado (ej. revocado desde otra PC).
         if DB_URL and not request.path.startswith('/static/') and request.path != '/logout':

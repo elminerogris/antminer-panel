@@ -351,11 +351,15 @@ def admin_panel():
                     ('mineros_activos', 'owner'), ('granjas_sedes', 'owner'),
                     ('nombres_mineros', 'owner'), ('logs_mineros', 'owner'),
                     ('historial_nube', 'owner'), ('cola_comandos', 'owner'),
-                    ('registro_alertas', 'owner'), ('movimientos_saldo', 'username')
+                    ('registro_alertas', 'owner'), ('movimientos_saldo', 'username'),
+                    ('dispositivos_confianza', 'username'), ('pagos_usdt', 'username')
                 ]:
-                    cur.execute(f"DELETE FROM {tbl} WHERE {col}=%s", (uname_del,))
+                    try:
+                        cur.execute(f"DELETE FROM {tbl} WHERE LOWER({col})=LOWER(%s)", (uname_del,))
+                    except Exception:
+                        pass
                 cur.execute("DELETE FROM usuarios WHERE id=%s", (uid,))
-                msg = f"Cuenta '{uname_del}' y todos sus datos asociados eliminados."
+                msg = f"Cuenta '{uname_del}', dispositivos vinculados y todos sus datos asociados fueron eliminados de inmediato."
 
     # 1. Todos los mineros y sedes reales de usuarios existentes para estadísticas globales y mapa
     cur.execute("""
