@@ -97,6 +97,9 @@ def despachar_comando(cur, owner, ip, comando, fecha=None):
     elif 'restart' in cmd_lower or 'reboot' in cmd_lower:
         tipo_ev = 'CMD_RESTART'
         msg_ev = f"Reinicio ordenado al minero {ip}"
+    elif 'reset' in cmd_lower:
+        tipo_ev = 'CMD_RESET'
+        msg_ev = f"Formateo de fábrica ordenado al minero {ip}"
     elif 'normal' in cmd_lower or 'wake' in cmd_lower:
         tipo_ev = 'CMD_NORMAL'
         msg_ev = f"Minero {ip} reactivado a modo Normal"

@@ -117,6 +117,26 @@
         border-color: #ef4444;
         box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
     }
+    .btn-hdr-reset {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: rgba(249, 115, 22, 0.12);
+        border: 1px solid rgba(249, 115, 22, 0.4);
+        color: #fb923c;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.78em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.18s ease;
+    }
+    .btn-hdr-reset:hover {
+        background: #ea580c;
+        color: #fff;
+        border-color: #f97316;
+        box-shadow: 0 0 12px rgba(249, 115, 22, 0.5);
+    }
     .hdr-switch-box {
         display: inline-flex;
         align-items: center;
@@ -510,10 +530,13 @@
         <div class="miner-sub-meta">
             <span class="meta-pill-tag" translate="no">🖥️ {{ modelo }}</span>
 
-            <!-- Acciones Rápidas de Hardware: Reiniciar, Interruptor LED, Interruptor Reposo (movidas a esta fila) -->
+            <!-- Acciones Rápidas de Hardware: Reiniciar, Formatear, Interruptor LED, Interruptor Reposo (movidas a esta fila) -->
             <div class="miner-header-actions">
                 <button type="button" class="btn-hdr-reboot" onclick="confirmarReinicioCabecera()" title="Reiniciar minero (Reboot)">
                     🔄 Reiniciar
+                </button>
+                <button type="button" class="btn-hdr-reset" onclick="confirmarFormateoCabecera()" title="Restablecer minero a valores de fábrica (Factory Reset)">
+                    🧹 Formatear
                 </button>
 
                 <div class="hdr-switch-box" title="Localizar minero haciendo parpadear sus luces LED">
@@ -811,6 +834,23 @@
             fetch('/cmd/{{ ip }}/restart').then(() => {
                 alert('Orden de reinicio enviada.');
                 setTimeout(() => location.reload(), 2000);
+            });
+        }
+    }
+
+    function confirmarFormateoCabecera() {
+        if (typeof ejecutarComandoPro === 'function') {
+            ejecutarComandoPro(
+                '🧹 Formatear Minero (Factory Reset)',
+                '¿Estás seguro de RESTABLECER DE FÁBRICA este minero ({{ ip }})? Esto borrará las configuraciones y pools personalizadas regresándolo a sus valores originales.',
+                '/cmd/{{ ip }}/reset',
+                'Orden de formateo de fábrica enviada',
+                true
+            );
+        } else if (confirm('¿Estás seguro de FORMATEAR DE FÁBRICA el minero {{ ip }}? Borrará configuraciones personalizadas.')) {
+            fetch('/cmd/{{ ip }}/reset').then(() => {
+                alert('Orden de formateo enviada.');
+                setTimeout(() => location.reload(), 3000);
             });
         }
     }
