@@ -1760,13 +1760,10 @@ def procesar_comandos(ordenes):
                     reportar_progreso_firmware(int(fw_id_str), ip_dest, "error", 0, f"Error lanzando flash: {e}")
 
 def recolectar_y_enviar():
-    global ips_conocidas, ultimo_escaneo_auto
+    global ips_conocidas
     verificar_actualizacion()
-    ahora_ts = time.time()
-    if ahora_ts - ultimo_escaneo_auto > 600:
-        ultimo_escaneo_auto = ahora_ts
-        ips_conocidas = escanear_red()
 
+    # Escaneo automático desactivado: solo busca en la red cuando el usuario da la orden explícita (comando 'scan')
     for ip_b in IPS_BASE:
         if ip_b not in ips_conocidas:
             ips_conocidas.append(ip_b)
