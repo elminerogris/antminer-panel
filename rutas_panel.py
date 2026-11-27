@@ -90,12 +90,20 @@ def despachar_comando(cur, owner, ip, comando, fecha=None):
     if 'sleep' in cmd_lower:
         tipo_ev = 'CMD_SLEEP'
         msg_ev = f"Modo Sleep activado en minero {ip}"
+        try:
+            cur.execute("UPDATE mineros_activos SET prot_sleep_desde=%s, prot_motivo='sleep', estado='sleep' WHERE owner=%s AND ip=%s", (ahora, owner, ip))
+        except Exception:
+            pass
     elif 'restart' in cmd_lower or 'reboot' in cmd_lower:
         tipo_ev = 'CMD_RESTART'
         msg_ev = f"Reinicio ordenado al minero {ip}"
     elif 'normal' in cmd_lower or 'wake' in cmd_lower:
         tipo_ev = 'CMD_NORMAL'
         msg_ev = f"Minero {ip} reactivado a modo Normal"
+        try:
+            cur.execute("UPDATE mineros_activos SET prot_sleep_desde='', prot_motivo='', estado='online' WHERE owner=%s AND ip=%s", (owner, ip))
+        except Exception:
+            pass
 
     if tipo_ev:
         try:
@@ -975,12 +983,19 @@ def detalle_minero(ip):
         tamb_g = [t_amb_val if t_amb_val > 0 else None]
         err_g = [0]; cad_g = [cadenas]
 
+    es_sleep = bool(
+        str(m.get('prot_sleep_desde') or '').strip()
+        or 'sleep' in str(m.get('prot_motivo') or '').lower()
+        or str(m.get('estado') or '').lower() == 'sleep'
+    )
+
     dt = {
         'hashrate': hr_val, 'hashrate_30m': hr_30m_val, 'unidad': unidad_hr, 'unidad_efi': unidad_efi,
         'algoritmo': algoritmo_val, 'moneda': moneda_val,
         'temp_max': t_val, 'temp_amb': t_amb_val,
         'corte_activo': corte_activo, 'corte_temp': corte_temp,
         'watchdog_activo': watchdog_activo, 'wd_cuarentena': wd_cuarentena,
+        'es_sleep': es_sleep,
         'errores': a_int_seguro(m.get('errores'), 0), 'consumo': f"{round(c_val/1000, 2)} kW",
         'fans': fans, 'uptime': uptime_val,
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0,
@@ -1011,6 +1026,7 @@ def detalle_minero(ip):
     return render_seguro(
         'minero.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str,
         ultimo=dt, extra=extra, dispositivo=disp, offline=offline, tunel_activo=tunel_ok,
+        es_sleep=es_sleep,
         graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g),
         graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g),
         graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas),
@@ -2222,8 +2238,25 @@ def comando_minero(ip, accion):
         return jsonify({"status": "error", "msg": "Minero no autorizado"}), 403
 
     cmd_str = ""
-    if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'):
+    if accion in ['restart', 'reset', 'sleep', 'normal', 'blink', 'blink_off', 'scan', 'get_log', 'clog', 'hlog', 'dlog'] or accion.startswith('profile_'):
         cmd_str = accion.replace('_', '|') if accion.startswith('profile_') else accion
+        if accion == 'sleep':
+            ahora_sl = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            try:
+                if ip == 'all':
+                    cur.execute("UPDATE mineros_activos SET prot_sleep_desde=%s, prot_motivo='sleep', estado='sleep' WHERE owner=%s", (ahora_sl, usr_actual))
+                else:
+                    cur.execute("UPDATE mineros_activos SET prot_sleep_desde=%s, prot_motivo='sleep', estado='sleep' WHERE owner=%s AND ip=%s", (ahora_sl, usr_actual, ip))
+            except Exception:
+                pass
+        elif accion == 'normal':
+            try:
+                if ip == 'all':
+                    cur.execute("UPDATE mineros_activos SET prot_sleep_desde='', prot_motivo='', estado='online' WHERE owner=%s", (usr_actual,))
+                else:
+                    cur.execute("UPDATE mineros_activos SET prot_sleep_desde='', prot_motivo='', estado='online' WHERE owner=%s AND ip=%s", (usr_actual, ip))
+            except Exception:
+                pass
     elif accion == 'set_network':
         host = str(request.args.get('host', 'Antminer')).replace('|', '').strip()
         proto = str(request.args.get('proto', '2')).replace('|', '').strip()

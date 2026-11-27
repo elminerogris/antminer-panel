@@ -1668,11 +1668,16 @@ def procesar_comandos(ordenes):
             cambiar_modo_inteligente(ip_dest, "sleep")
         elif accion == "normal":
             cambiar_modo_inteligente(ip_dest, "normal")
-        elif accion == "blink":
+        elif accion in ("blink", "blink_on"):
             if es_wm:
                 peticion_4028(ip_dest, "set_led")
             else:
                 peticion_http(ip_dest, "blink.cgi", "POST", {"blink": "true"}, timeout_sec=4.5)
+        elif accion == "blink_off":
+            if es_wm:
+                peticion_4028(ip_dest, "set_led")
+            else:
+                peticion_http(ip_dest, "blink.cgi", "POST", {"blink": "false"}, timeout_sec=4.5)
         elif accion.startswith("change_pass|"):
             partes = accion.split('|')
             if len(partes) >= 3 and not es_wm:

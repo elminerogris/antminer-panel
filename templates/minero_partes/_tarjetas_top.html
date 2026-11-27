@@ -90,6 +90,115 @@
         background: var(--accent-red);
     }
 
+    /* Acciones Rápidas en Cabecera (Reiniciar, Switch LED, Switch Reposo) */
+    .miner-header-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .btn-hdr-reboot {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        color: #f87171;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.78em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.18s ease;
+    }
+    .btn-hdr-reboot:hover {
+        background: #dc2626;
+        color: #fff;
+        border-color: #ef4444;
+        box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+    }
+    .hdr-switch-box {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--bg-well-soft);
+        border: 1px solid var(--border-color);
+        padding: 3px 9px;
+        border-radius: 16px;
+        font-size: 0.78em;
+        font-weight: 600;
+        color: var(--text-main);
+    }
+    .hdr-switch-title {
+        user-select: none;
+    }
+    .hdr-toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 34px;
+        height: 18px;
+        margin: 0;
+        cursor: pointer;
+    }
+    .hdr-toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+    }
+    .hdr-toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: var(--border-subtle);
+        border: 1px solid var(--border-color);
+        transition: 0.22s;
+        border-radius: 18px;
+    }
+    .hdr-toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 12px;
+        width: 12px;
+        left: 2px;
+        bottom: 2px;
+        background-color: var(--text-muted);
+        transition: 0.22s;
+        border-radius: 50%;
+    }
+    /* Slider LED */
+    .hdr-toggle-switch input:checked + .hdr-toggle-slider.led-slider {
+        background-color: rgba(250, 204, 21, 0.25);
+        border-color: #facc15;
+        box-shadow: 0 0 8px rgba(250, 204, 21, 0.4);
+    }
+    .hdr-toggle-switch input:checked + .hdr-toggle-slider.led-slider:before {
+        transform: translateX(16px);
+        background-color: #facc15;
+        box-shadow: 0 0 6px #facc15;
+    }
+    /* Slider Reposo */
+    .hdr-toggle-switch input:checked + .hdr-toggle-slider.sleep-slider {
+        background-color: rgba(249, 115, 22, 0.25);
+        border-color: #f97316;
+        box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+    }
+    .hdr-toggle-switch input:checked + .hdr-toggle-slider.sleep-slider:before {
+        transform: translateX(16px);
+        background-color: #f97316;
+        box-shadow: 0 0 6px #f97316;
+    }
+    /* Estado badge reposo */
+    .miner-status-badge.sleep {
+        background: rgba(249, 115, 22, 0.16);
+        color: #fb923c;
+        border: 1px solid rgba(249, 115, 22, 0.45);
+    }
+    .miner-status-badge.sleep .miner-pulse-dot {
+        background: #f97316;
+        box-shadow: 0 0 8px #f97316;
+    }
+
     .btn-edit-name-pro {
         background: var(--bg-well-soft);
         border: 1px solid var(--border-color);
@@ -373,9 +482,32 @@
                 <span id="feedbackNombreInline" style="font-size:0.78em; font-family:monospace; font-weight:bold;"></span>
             </div>
 
-            <span class="miner-status-badge {{ 'offline' if offline else 'online' }}" data-top-tt="badge_estado">
+            <!-- Acciones Rápidas junto al Nombre: Reiniciar, LED, Reposo -->
+            <div class="miner-header-actions">
+                <button type="button" class="btn-hdr-reboot" onclick="confirmarReinicioCabecera()" title="Reiniciar minero (Reboot)">
+                    🔄 Reiniciar
+                </button>
+
+                <div class="hdr-switch-box" title="Localizar minero haciendo parpadear sus luces LED">
+                    <span class="hdr-switch-title">💡 LED</span>
+                    <label class="hdr-toggle-switch">
+                        <input type="checkbox" id="switchHdrLed" onchange="toggleLedCabecera(this)">
+                        <span class="hdr-toggle-slider led-slider"></span>
+                    </label>
+                </div>
+
+                <div class="hdr-switch-box" title="Modo Reposo (Sleep): detiene el minado sin alertas de 0 TH">
+                    <span class="hdr-switch-title">😴 Reposo</span>
+                    <label class="hdr-toggle-switch">
+                        <input type="checkbox" id="switchHdrReposo" {% if es_sleep or ultimo.es_sleep %}checked{% endif %} onchange="toggleReposoCabecera(this)">
+                        <span class="hdr-toggle-slider sleep-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <span class="miner-status-badge {{ 'offline' if offline else ('sleep' if (es_sleep or ultimo.es_sleep) else 'online') }}" data-top-tt="badge_estado" id="badgeEstadoCabecera">
                 <span class="miner-pulse-dot"></span>
-                {{ 'SIN CONEXIÓN' if offline else 'EN LÍNEA' }}
+                {{ 'SIN CONEXIÓN' if offline else ('EN REPOSO' if (es_sleep or ultimo.es_sleep) else 'EN LÍNEA') }}
             </span>
         </div>
 
@@ -656,6 +788,63 @@
                 btnEl.innerHTML = origHtml;
             }, 1500);
         });
+    }
+
+    function confirmarReinicioCabecera() {
+        if (typeof ejecutarComandoPro === 'function') {
+            ejecutarComandoPro(
+                '🔄 Reiniciar Minero',
+                '¿Estás seguro de REINICIAR (Reboot) el minero {{ ip }}?',
+                '/cmd/{{ ip }}/restart',
+                'Orden de reinicio enviada',
+                true
+            );
+        } else if (confirm('¿Estás seguro de REINICIAR el minero {{ ip }}?')) {
+            fetch('/cmd/{{ ip }}/restart').then(() => {
+                alert('Orden de reinicio enviada.');
+                setTimeout(() => location.reload(), 2000);
+            });
+        }
+    }
+
+    function toggleLedCabecera(chk) {
+        const encender = chk.checked;
+        const url = encender ? '/cmd/{{ ip }}/blink' : '/cmd/{{ ip }}/blink_off';
+        fetch(url)
+            .then(r => {
+                if (!r.ok) throw new Error('Error al enviar orden de LED');
+            })
+            .catch(() => {
+                chk.checked = !encender;
+                alert('No se pudo enviar la orden de LED.');
+            });
+    }
+
+    function toggleReposoCabecera(chk) {
+        const activarSleep = chk.checked;
+        const titulo = activarSleep ? '😴 Activar Modo Reposo' : '▶ Reanudar Modo Normal';
+        const msg = activarSleep
+            ? '¿Poner en modo Reposo (Sleep) este minero? Las placas hash se apagarán reduciendo el consumo al mínimo y NO se enviarán alertas de 0 TH.'
+            : '¿Reanudar minado en Modo Normal? Las placas hash volverán a encenderse.';
+        const url = activarSleep ? '/cmd/{{ ip }}/sleep' : '/cmd/{{ ip }}/normal';
+
+        if (typeof ejecutarComandoPro === 'function') {
+            ejecutarComandoPro(
+                titulo,
+                msg,
+                url,
+                activarSleep ? 'Modo Reposo activado' : 'Modo Normal activado',
+                true,
+                null,
+                function() { chk.checked = !activarSleep; }
+            );
+        } else {
+            if (confirm(msg)) {
+                fetch(url).then(() => setTimeout(() => location.reload(), 2000));
+            } else {
+                chk.checked = !activarSleep;
+            }
+        }
     }
 
     window.addEventListener('load', function() {

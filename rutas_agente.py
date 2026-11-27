@@ -1266,7 +1266,11 @@ def recibir_datos():
             cur.execute('''INSERT INTO mineros_activos (ip, owner, agent_id, farm_id, miner_uid, marca, modelo, algoritmo, moneda, unidad, hashrate, hashrate_30m, temp_max, temp_amb, consumo_w, estado, ultima_act, errores, pool1, worker1, pass1, pool2, worker2, pass2, pool3, worker3, pass3, mac, serial, firmware, fw_tipo, perfil_oc, fans, cadenas, uptime, status1, acc1, rej1, status2, acc2, rej2, status3, acc3, rej3, hostname, net_proto, netmask, gateway, dns, cred_defecto, farm_lat, farm_lon, farm_city, farm_country, real_lat, real_lon, real_source) 
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
                             farm_id=CASE WHEN mineros_activos.farm_id IS NOT NULL AND mineros_activos.farm_id != '' THEN mineros_activos.farm_id ELSE EXCLUDED.farm_id END,
-                            miner_uid=EXCLUDED.miner_uid, marca=EXCLUDED.marca, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w, estado='online', ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_activos.mac END, serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_activos.serial END, firmware=EXCLUDED.firmware, fw_tipo=EXCLUDED.fw_tipo, perfil_oc=EXCLUDED.perfil_oc, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, cred_defecto=EXCLUDED.cred_defecto,
+                            miner_uid=EXCLUDED.miner_uid, marca=EXCLUDED.marca, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w,
+                            estado=CASE WHEN (mineros_activos.prot_sleep_desde IS NOT NULL AND mineros_activos.prot_sleep_desde != '' OR mineros_activos.estado = 'sleep') AND EXCLUDED.hashrate <= 0.01 THEN 'sleep' ELSE 'online' END,
+                            prot_sleep_desde=CASE WHEN EXCLUDED.hashrate > 0.01 THEN '' ELSE mineros_activos.prot_sleep_desde END,
+                            prot_motivo=CASE WHEN EXCLUDED.hashrate > 0.01 THEN '' ELSE mineros_activos.prot_motivo END,
+                            ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_activos.mac END, serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_activos.serial END, firmware=EXCLUDED.firmware, fw_tipo=EXCLUDED.fw_tipo, perfil_oc=EXCLUDED.perfil_oc, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, cred_defecto=EXCLUDED.cred_defecto,
                             farm_lat=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lat ELSE EXCLUDED.farm_lat END,
                             farm_lon=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lon ELSE EXCLUDED.farm_lon END,
                             farm_city=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_city ELSE EXCLUDED.farm_city END,
@@ -1322,6 +1326,9 @@ def recibir_datos():
             corte_on_m = a_int_seguro(prev_m.get('corte_activo'), 0)
             corte_temp_m = a_int_seguro(prev_m.get('corte_temp'), 85)
             prot_sleep_desde = str(prev_m.get('prot_sleep_desde') or '').strip()
+            prot_motivo = str(prev_m.get('prot_motivo') or '').strip().lower()
+            estado_prev = str(prev_m.get('estado') or '').strip().lower()
+            es_modo_sleep = bool((prot_sleep_desde or 'sleep' in prot_motivo or estado_prev == 'sleep') and hr_m <= 0.01)
             accion_proteccion = None
             motivo_proteccion = ""
 
@@ -1388,11 +1395,11 @@ def recibir_datos():
                 cur.execute("UPDATE mineros_activos SET placas_normales=%s WHERE owner=%s AND agent_id=%s AND ip=%s", (placas_normales, owner_user, agent_id, ip_m))
 
             fallo_wd = None
-            if wd_zero_hr and hr_m <= 0.01 and not prot_sleep_desde:
+            if wd_zero_hr and hr_m <= 0.01 and not es_modo_sleep:
                 fallo_wd = f"0 {unid} (Hashrate en cero)"
-            elif wd_cold_on and temp_m > 0 and temp_m <= wd_cold_temp and not prot_sleep_desde:
+            elif wd_cold_on and temp_m > 0 and temp_m <= wd_cold_temp and not es_modo_sleep:
                 fallo_wd = f"Minero frío ({temp_m}°C ≤ {wd_cold_temp}°C)"
-            elif wd_amb_cold_on and t_amb > 0 and t_amb <= wd_amb_cold_temp and not prot_sleep_desde:
+            elif wd_amb_cold_on and t_amb > 0 and t_amb <= wd_amb_cold_temp and not es_modo_sleep:
                 fallo_wd = f"Temp. Ambiente baja ({t_amb}°C ≤ {wd_amb_cold_temp}°C)"
             elif wd_dead_board and placas_normales >= 2 and hr_m > 0 and placas_con_hr < placas_normales:
                 fallo_wd = f"Placa caída ({placas_con_hr}/{placas_normales} placas activas)"
@@ -1458,7 +1465,7 @@ def recibir_datos():
             prev_alerta_temp = a_int_seguro(prev_m.get('alerta_temp_disparada'), 0)
 
             # 1. Alerta por Caída de Hashrate (Anti-Flapping: requiere al menos 120s tras la última recuperación)
-            if umbral_h > 0 and hr_m < umbral_h and temp_m > 5:
+            if not es_modo_sleep and umbral_h > 0 and hr_m < umbral_h and temp_m > 5:
                 if prev_alerta_hr == 0:
                     if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'HASHRATE_OK', 120):
                         cur.execute(
@@ -1488,6 +1495,11 @@ def recibir_datos():
                                 'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
                                 'hr': hr_m, 'unid': unid, 'temp': temp_m
                             })
+            elif es_modo_sleep and prev_alerta_hr == 1:
+                cur.execute(
+                    "UPDATE mineros_activos SET alerta_hr_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                    (owner_user, agent_id, ip_m)
+                )
 
             # 2. Alerta por Exceso de Temperatura (Histéresis de 5°C y Anti-Flapping de 120s)
             if temp_m >= umbral_t:

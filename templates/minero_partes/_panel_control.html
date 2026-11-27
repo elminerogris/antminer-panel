@@ -269,47 +269,7 @@
 </div>
 
 <div class="ctrl-card-pro" data-no-live-patch="1">
-    <div class="ctrl-grid-sections">
-        <!-- SECCIÓN 1: MODO DE OPERACIÓN Y PERFILES TÉRMICOS -->
-        <div class="ctrl-box">
-            <div class="ctrl-box-header">
-                <span>⚡ Modo de Operación y Energía</span>
-                <span class="ctrl-box-sub" id="estadoComandoBadge" translate="no">● Listo</span>
-            </div>
-            <div class="ctrl-buttons-wrap">
-                <button type="button" class="btn-ctrl-pro glow-blue {{ 'active' if ultimo.hashrate > 0 else '' }}" data-ctrl-tt="modo_normal" onclick="ejecutarComandoPro('▶ Modo Normal', '¿Activar modo Normal de minado en {{ ip }}?', '/cmd/{{ ip }}/normal', 'Modo Normal enviado', true)">
-                    ▶ Normal
-                </button>
-                <button type="button" class="btn-ctrl-pro glow-orange {{ 'active' if (not offline and ultimo.hashrate == 0) else '' }}" data-ctrl-tt="modo_sleep" onclick="ejecutarComandoPro('😴 Modo Reposo (Sleep)', '¿Poner en modo Reposo (Sleep) este minero? Detendrá el hashrate pero seguirá conectado.', '/cmd/{{ ip }}/sleep', 'Modo Reposo enviado', true)">
-                    😴 Reposo (Sleep)
-                </button>
-                <button type="button" class="btn-ctrl-pro glow-green" data-ctrl-tt="perfil_eco" onclick="ejecutarComandoPro('❄️ Perfil Eco (Low)', '¿Aplicar perfil Invierno / Bajo Consumo (Low Power)?', '/cmd/{{ ip }}/profile_low', 'Perfil Eco enviado')">
-                    ❄️ Eco (Low)
-                </button>
-                <button type="button" class="btn-ctrl-pro glow-red" data-ctrl-tt="perfil_max" onclick="ejecutarComandoPro('🔥 Perfil Max (High)', '¿Aplicar perfil Verano / Potencia Estándar (High)?', '/cmd/{{ ip }}/profile_high', 'Perfil Max enviado')">
-                    🔥 Max (High)
-                </button>
-            </div>
-        </div>
-
-        <!-- SECCIÓN 2: ACCIONES DE HARDWARE Y MANTENIMIENTO -->
-        <div class="ctrl-box">
-            <div class="ctrl-box-header">
-                <span>🛠️ Acciones de Hardware</span>
-                <span class="ctrl-box-sub" translate="no">IP: {{ ip }}</span>
-            </div>
-            <div class="ctrl-buttons-wrap">
-                <button type="button" class="btn-ctrl-pro glow-red" data-ctrl-tt="hw_reboot" onclick="ejecutarComandoPro('🔄 Reiniciar Minero', '¿Estás seguro de REINICIAR (Reboot) el minero {{ ip }}?', '/cmd/{{ ip }}/restart', 'Orden de reinicio enviada', true)">
-                    🔄 Reiniciar
-                </button>
-                <button type="button" class="btn-ctrl-pro glow-gold" id="btnLedLocator" data-ctrl-tt="hw_blink" onclick="activarLedLocator()">
-                    💡 Localizar LED
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- SECCIÓN 3: CONSOLA UNIFICADA DE LOGS DEL KERNEL Y HASHBOARDS -->
+    <!-- SECCIÓN CONSOLA UNIFICADA DE LOGS DEL KERNEL Y HASHBOARDS -->
     <div class="terminal-section-pro">
         <div class="terminal-toolbar">
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -392,8 +352,8 @@
         }
     };
 
-    function ejecutarComandoPro(titulo, mensajeConfirm, urlCmd, textoExito, recargar = false, onConfirm = null) {
-        accionCtrlPendiente = { urlCmd, textoExito, recargar, onConfirm };
+    function ejecutarComandoPro(titulo, mensajeConfirm, urlCmd, textoExito, recargar = false, onConfirm = null, onCancel = null) {
+        accionCtrlPendiente = { urlCmd, textoExito, recargar, onConfirm, onCancel };
         const modal = document.getElementById('ctrlConfirmModal');
         const tEl = document.getElementById('ctrlConfirmTitle');
         const mEl = document.getElementById('ctrlConfirmText');
@@ -403,6 +363,9 @@
     }
 
     function cerrarCtrlConfirm() {
+        if (accionCtrlPendiente && typeof accionCtrlPendiente.onCancel === 'function') {
+            try { accionCtrlPendiente.onCancel(); } catch(e) {}
+        }
         accionCtrlPendiente = null;
         const modal = document.getElementById('ctrlConfirmModal');
         if (modal) modal.style.display = 'none';
