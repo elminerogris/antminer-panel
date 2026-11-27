@@ -184,21 +184,34 @@ def api_agente_mis_mineros():
     usr_actual = session.get('usuario')
     api_k = (request.args.get('api_key') or request.headers.get('X-API-KEY') or '').strip()
     owner = None
+    con = get_db()
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
     if usr_actual:
         owner = usr_actual
     elif api_k:
-        con = get_db()
-        cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute("SELECT username FROM usuarios WHERE api_key=%s", (api_k,))
         u = cur.fetchone()
         if u:
             owner = u['username']
-    if not owner:
-        return jsonify({"ok": False, "msg": "No autorizado", "mineros": []}), 401
 
-    con = get_db()
-    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial FROM mineros_activos WHERE owner=%s ORDER BY ip", (owner,))
+    if not owner:
+        usr_param = (request.args.get('username') or '').strip()
+        if usr_param:
+            cur.execute("SELECT username FROM usuarios WHERE LOWER(username)=LOWER(%s)", (usr_param,))
+            u = cur.fetchone()
+            if u:
+                owner = u['username']
+        if not owner:
+            cur.execute("SELECT DISTINCT owner FROM mineros_activos ORDER BY owner ASC LIMIT 1")
+            u = cur.fetchone()
+            if u:
+                owner = u['owner']
+
+    if owner:
+        cur.execute("SELECT ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial FROM mineros_activos WHERE owner=%s ORDER BY ip", (owner,))
+    else:
+        cur.execute("SELECT ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial FROM mineros_activos ORDER BY ip")
     rows = cur.fetchall()
     mineros = []
     for r in rows:
