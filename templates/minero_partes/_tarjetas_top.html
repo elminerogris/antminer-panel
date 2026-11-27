@@ -90,52 +90,61 @@
         background: var(--accent-red);
     }
 
-    /* Acciones Rápidas en Cabecera (Reiniciar, Switch LED, Switch Reposo) */
+    /* Acciones Rápidas en Cabecera (Reiniciar, Formatear, Switch LED, Switch Reposo) */
     .miner-header-actions {
         display: inline-flex;
         align-items: center;
         gap: 8px;
         flex-wrap: wrap;
     }
-    .btn-hdr-reboot {
+    .btn-hdr-reboot, .btn-hdr-reset {
         display: inline-flex;
         align-items: center;
-        gap: 5px;
-        background: rgba(239, 68, 68, 0.12);
-        border: 1px solid rgba(239, 68, 68, 0.4);
-        color: #f87171;
+        gap: 6px;
         padding: 4px 10px;
         border-radius: 6px;
-        font-size: 0.78em;
-        font-weight: bold;
+        font-size: 0.77em;
+        font-weight: 600;
+        letter-spacing: 0.2px;
         cursor: pointer;
-        transition: all 0.18s ease;
+        user-select: none;
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    .btn-hdr-reboot {
+        background: rgba(56, 189, 248, 0.08);
+        border: 1px solid rgba(56, 189, 248, 0.32);
+        color: #38bdf8;
     }
     .btn-hdr-reboot:hover {
-        background: #dc2626;
-        color: #fff;
-        border-color: #ef4444;
-        box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+        background: #0284c7;
+        color: #ffffff;
+        border-color: #38bdf8;
+        box-shadow: 0 0 14px rgba(56, 189, 248, 0.45);
+        transform: translateY(-1px);
+    }
+    .btn-hdr-reboot:hover .hdr-btn-svg {
+        transform: rotate(180deg);
     }
     .btn-hdr-reset {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        background: rgba(249, 115, 22, 0.12);
-        border: 1px solid rgba(249, 115, 22, 0.4);
+        background: rgba(249, 115, 22, 0.08);
+        border: 1px solid rgba(249, 115, 22, 0.32);
         color: #fb923c;
-        padding: 4px 10px;
-        border-radius: 6px;
-        font-size: 0.78em;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.18s ease;
     }
     .btn-hdr-reset:hover {
         background: #ea580c;
-        color: #fff;
+        color: #ffffff;
         border-color: #f97316;
-        box-shadow: 0 0 12px rgba(249, 115, 22, 0.5);
+        box-shadow: 0 0 14px rgba(249, 115, 22, 0.45);
+        transform: translateY(-1px);
+    }
+    .btn-hdr-reset:hover .hdr-btn-svg {
+        transform: rotate(-45deg);
+    }
+    .hdr-btn-svg {
+        width: 13px;
+        height: 13px;
+        flex-shrink: 0;
+        transition: transform 0.3s ease;
     }
     .hdr-switch-box {
         display: inline-flex;
@@ -534,10 +543,20 @@
             <!-- Acciones Rápidas de Hardware: Reiniciar, Formatear, Interruptor LED, Interruptor Reposo (movidas a esta fila) -->
             <div class="miner-header-actions">
                 <button type="button" class="btn-hdr-reboot" onclick="confirmarReinicioCabecera()" title="Reiniciar minero (Reboot)">
-                    🔄 Reiniciar
+                    <svg class="hdr-btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.5 2v6h-6"></path>
+                        <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+                    </svg>
+                    <span>Reiniciar</span>
                 </button>
                 <button type="button" class="btn-hdr-reset" onclick="confirmarFormateoCabecera()" title="Restablecer minero a valores de fábrica (Factory Reset)">
-                    🧹 Formatear
+                    <svg class="hdr-btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span>Formatear</span>
                 </button>
 
                 <div class="hdr-switch-box" title="Localizar minero haciendo parpadear sus luces LED">

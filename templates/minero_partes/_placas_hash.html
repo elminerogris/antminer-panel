@@ -7,9 +7,12 @@
         overflow: hidden;
     }
     .boards-header-pro {
-        padding: 13px 16px;
+        padding: 10px 16px;
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
         gap: 10px;
         border-bottom: 1px solid var(--border-subtle);
         background: var(--bg-well-soft);
@@ -496,27 +499,18 @@
             <span class="boards-title-txt">🌡️ Placas de Hash y Telemetría de Chips</span>
             <span class="boards-help-btn" data-board-tip="guia">? Guía rápida</span>
         </div>
-        <div class="boards-status-row">
-            {% if t_max_val >= 82 %}
-                <span class="boards-temp-pill crit" data-board-tip="estado_temp">● Temp Crítica (<span translate="no">{{ t_max_val }}°C</span>)</span>
-            {% elif t_max_val >= 75 %}
-                <span class="boards-temp-pill warn" data-board-tip="estado_temp">● Temp Elevada (<span translate="no">{{ t_max_val }}°C</span>)</span>
-            {% else %}
-                <span class="boards-temp-pill ok" data-board-tip="estado_temp">● Temp Óptima (<span translate="no">{{ t_max_val }}°C</span>)</span>
-            {% endif %}
 
-            <div class="thermal-cut-box {{ 'active' if corte_on else '' }}" id="thermalCutBox" data-no-live-patch="1">
-                <span class="thermal-cut-lbl" data-board-tip="corte_termico">
-                    <span>🛡️ Corte<span class="thermal-cut-lbl-extra"> Térmico</span>:</span>
-                    <span class="board-info-dot">i</span>
-                </span>
-                <input type="number" id="corteTempInput" class="thermal-cut-input" min="60" max="105" value="{{ corte_val }}" onchange="guardarCorteTermico()" translate="no">
-                <span translate="no">°C</span>
-                <label class="thermal-switch" title="Activar o desactivar apagado automático por temperatura">
-                    <input type="checkbox" id="corteActivoSwitch" {{ 'checked' if corte_on else '' }} onchange="guardarCorteTermico()">
-                    <span class="thermal-slider"></span>
-                </label>
-            </div>
+        <div class="thermal-cut-box {{ 'active' if corte_on else '' }}" id="thermalCutBox" data-no-live-patch="1">
+            <span class="thermal-cut-lbl" data-board-tip="corte_termico">
+                <span>🛡️ Corte<span class="thermal-cut-lbl-extra"> Térmico</span>:</span>
+                <span class="board-info-dot">i</span>
+            </span>
+            <input type="number" id="corteTempInput" class="thermal-cut-input" min="60" max="105" value="{{ corte_val }}" onchange="guardarCorteTermico()" translate="no">
+            <span translate="no">°C</span>
+            <label class="thermal-switch" title="Activar o desactivar apagado automático por temperatura">
+                <input type="checkbox" id="corteActivoSwitch" {{ 'checked' if corte_on else '' }} onchange="guardarCorteTermico()">
+                <span class="thermal-slider"></span>
+            </label>
         </div>
     </div>
 

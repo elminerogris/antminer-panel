@@ -204,7 +204,6 @@
     <div class="miner-section-wrap">{% include "minero_partes/_tarjetas_top.html" %}</div>
     <div class="miner-section-wrap">{% include "minero_partes/_grafico.html" %}</div>
     <div class="miner-section-wrap">{% include "minero_partes/_placas_hash.html" %}</div>
-    <div class="miner-section-wrap">{% include "minero_partes/_panel_control.html" %}</div>
     <div class="miner-section-wrap">{% include "minero_partes/_pools.html" %}</div>
     <div class="miner-section-wrap">{% include "minero_partes/_red_info.html" %}</div>
 
@@ -238,6 +237,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Consola de Diagnóstico (movida al final de la página) -->
+    <div class="miner-section-wrap">{% include "minero_partes/_panel_control.html" %}</div>
 </div>
 
 <button type="button" id="btnScrollTopPro" class="btn-scroll-top-pro" onclick="volverArribaSuave()" title="Volver arriba">↑</button>
