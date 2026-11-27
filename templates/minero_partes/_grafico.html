@@ -152,15 +152,23 @@
         color: #fff;
     }
 
-    /* Barra flotante dentro del gráfico (arriba a la derecha en PC) */
+    /* Contenedor unificado de controles superiores del gráfico */
+    .chart-controls-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 8px;
+        padding: 0 2px;
+    }
+
+    /* Barra de filtros temporales */
     .chart-floating-toolbar {
-        position: absolute;
-        top: 6px;
-        right: 16px;
-        z-index: 25;
         display: flex;
         justify-content: flex-end;
-        pointer-events: none;
+        align-items: center;
+        pointer-events: auto;
     }
 
     /* Botonera de Rangos de Tiempo */
@@ -468,23 +476,36 @@
         color: var(--text-main);
     }
 
-    /* Contenedor Full-Bleed optimizado con aceleración GPU */
+    /* Tarjeta principal con soporte Full-Bleed */
+    .chart-main-card {
+        position: relative;
+        overflow: visible;
+        z-index: 20;
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 14px 16px 12px 16px;
+        margin-bottom: 20px;
+    }
+
+    /* Contenedor Full-Bleed de extremo a extremo sin espacios negros (estilo Binance) */
     .chart-edge-container {
         position: relative;
-        margin-left: -12px;
-        margin-right: -12px;
+        margin-left: -16px;
+        margin-right: -16px;
         touch-action: pan-y;
         -webkit-user-select: none;
         user-select: none;
+        overflow: hidden;
     }
     .chart-canvas-box { height: 312px; position: relative; width: 100%; }
 
     /* Brillo de tope derecho (En vivo) e izquierdo (Inicio del periodo) + Botón Ir a Ahora */
     .edge-live-glow {
         position: absolute;
-        top: 38px;
-        bottom: 24px;
-        right: 12px;
+        top: 8px;
+        bottom: 20px;
+        right: 0;
         width: 26px;
         border-radius: 0 6px 6px 0;
         background: linear-gradient(90deg, rgba(0, 230, 118, 0) 0%, rgba(0, 230, 118, 0.34) 100%);
@@ -498,7 +519,7 @@
     .edge-live-pill {
         position: absolute;
         top: 50%;
-        right: 24px;
+        right: 16px;
         transform: translateY(-50%) translateX(8px);
         background: var(--bg-tooltip);
         border: 1px solid rgba(0, 230, 118, 0.6);
@@ -518,9 +539,9 @@
 
     .edge-start-glow {
         position: absolute;
-        top: 38px;
-        bottom: 24px;
-        left: 12px;
+        top: 8px;
+        bottom: 20px;
+        left: 0;
         width: 26px;
         border-radius: 6px 0 0 6px;
         background: linear-gradient(270deg, rgba(56, 189, 248, 0) 0%, rgba(56, 189, 248, 0.34) 100%);
@@ -534,7 +555,7 @@
     .edge-start-pill {
         position: absolute;
         top: 50%;
-        left: 24px;
+        left: 16px;
         transform: translateY(-50%) translateX(-8px);
         background: var(--bg-tooltip);
         border: 1px solid rgba(56, 189, 248, 0.6);
@@ -555,8 +576,8 @@
     .btn-ir-ahora {
         display: none;
         position: absolute;
-        bottom: 34px;
-        right: 22px;
+        bottom: 26px;
+        right: 12px;
         z-index: 35;
         background: var(--bg-tooltip);
         border: 1px solid rgba(0, 230, 118, 0.65);
@@ -571,35 +592,36 @@
     }
     .btn-ir-ahora:hover { background: #059669; color: #fff; transform: translateY(-1px); }
 
-    /* Tooltip flotante en línea 0 debajo del gráfico */
+    /* HUD Flotante interactivo estilo Binance dentro del gráfico */
     .custom-chart-tooltip {
-        --arrow-x: 50%;
         position: absolute;
+        top: 8px;
         display: none;
         pointer-events: none;
-        background: var(--bg-tooltip);
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        padding: 9px 12px;
+        background: rgba(13, 15, 23, 0.90);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        border-radius: 8px;
+        padding: 8px 12px;
         color: var(--text-main);
-        font-family: sans-serif;
-        font-size: 0.78em;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 0.76em;
         line-height: 1.45;
         z-index: 2200;
         white-space: nowrap;
-        box-shadow: var(--shadow-card);
-        transform: translate3d(-50%, 0, 0);
-        will-change: left, top;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 12px rgba(56, 189, 248, 0.15);
+        transition: left 0.14s cubic-bezier(0.2, 0.8, 0.2, 1), right 0.14s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.15s ease;
+        will-change: left, right;
+    }
+    :root[data-theme="light"] .custom-chart-tooltip {
+        background: rgba(255, 255, 255, 0.94);
+        border-color: rgba(59, 130, 246, 0.35);
+        color: #0f172a;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16), 0 0 12px rgba(59, 130, 246, 0.12);
     }
     .custom-chart-tooltip::before {
-        content: "";
-        position: absolute;
-        top: -6px;
-        left: var(--arrow-x, 50%);
-        transform: translateX(-50%);
-        border-width: 0 6px 6px 6px;
-        border-style: solid;
-        border-color: transparent transparent var(--bg-tooltip) transparent;
+        display: none !important;
     }
     .tt-title {
         font-weight: bold;
@@ -662,14 +684,33 @@
         display: inline-block;
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 768px) {
+        .chart-main-card {
+            margin-left: -10px !important;
+            margin-right: -10px !important;
+            border-radius: 0 !important;
+            border-left: none !important;
+            border-right: none !important;
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+            padding-top: 12px !important;
+            padding-bottom: 8px !important;
+        }
+        .chart-edge-container {
+            margin-left: -10px !important;
+            margin-right: -10px !important;
+        }
+        .chart-canvas-box {
+            height: 325px;
+        }
+        .chart-controls-row {
+            padding: 0;
+            gap: 6px;
+        }
         .chart-floating-toolbar {
-            position: relative;
-            top: auto;
-            right: auto;
-            padding: 0 12px 6px 12px;
+            width: 100%;
             justify-content: flex-end;
-            pointer-events: auto;
+            padding: 0;
         }
         .chart-filters {
             max-width: 100%;
@@ -686,7 +727,6 @@
         .filter-divider { margin: 0 2px; }
         .farm-map-container { height: 210px; }
         .farm-gps-btn { font-size: 0.70em; padding: 3px 4px 3px 8px; }
-        .edge-live-glow, .edge-start-glow { top: 6px; }
     }
 </style>
 
@@ -740,7 +780,7 @@
     </div>
 </div>
 
-<div class="card" data-no-live-patch="1" style="position: relative; overflow: visible; z-index: 20; padding-left: 16px; padding-right: 16px;">
+<div class="card chart-main-card" data-no-live-patch="1">
     <div class="panel-title" style="margin-bottom: 10px;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <span>📈 Telemetría e Historial</span>
@@ -783,11 +823,9 @@
         </div>
     </div>
 
-    <!-- Píldoras interactivas para encender/apagar curvas -->
-    <div class="chart-CustomLegends" id="customLegendsBar"></div>
-
-    <!-- Gráfico estirado con soporte de Zoom con 2 dedos y Doble Toque para resetear -->
-    <div id="chartWrapper" class="chart-edge-container">
+    <!-- Controles superiores: Leyendas de curvas a la izquierda y filtros de tiempo a la derecha -->
+    <div class="chart-controls-row">
+        <div class="chart-CustomLegends" id="customLegendsBar"></div>
         <div class="chart-floating-toolbar">
             <div class="chart-filters">
                 <button class="btn-reset-zoom" id="btnResetZoom" data-filter-key="reset_zoom" onclick="resetearZoomGrafico()">🔍 <span translate="no">100%</span></button>
@@ -801,6 +839,10 @@
                 <button class="btn-filter" id="btnCamara" data-filter-key="camara" onclick="descargarCapturaGrafico()">📷</button>
             </div>
         </div>
+    </div>
+
+    <!-- Gráfico estirado Full-Bleed de extremo a extremo sin espacios negros (estilo Binance) -->
+    <div id="chartWrapper" class="chart-edge-container">
         <div class="chart-canvas-box">
             <canvas id="hashrateChart"></canvas>
             <div id="edgeStartGlow" class="edge-start-glow"></div>
@@ -854,7 +896,9 @@
     let chartInstance = null;
     let rangoActual = '24h';
     let cursorDentroArea = false;
+    let cursorCanvasX = null;
     let cursorCanvasY = null;
+    let ladoTooltipBinance = 'right';
     let ultimoContextoTooltip = null;
     let mapaMetaPuntos = {};
     let brechasDesconexion = [];
@@ -1290,6 +1334,13 @@
             }
         });
 
+        document.addEventListener('touchstart', function(e) {
+            const canvas = document.getElementById('hashrateChart');
+            if (canvas && e.target !== canvas && !canvas.contains(e.target)) {
+                ocultarTooltipGris();
+            }
+        }, { passive: true });
+
         function registrarScrollPagina() {
             ultimoScrollPaginaTs = Date.now();
             zoomRuedaHabilitado = false;
@@ -1304,11 +1355,10 @@
         window.addEventListener('resize', function() {
             rectCanvasCache = null;
             if (chartInstance && chartInstance.options && chartInstance.options.layout && chartInstance.options.layout.padding) {
-                const nuevoPadTop = window.innerWidth <= 640 ? 6 : 40;
-                if (chartInstance.options.layout.padding.top !== nuevoPadTop) {
-                    chartInstance.options.layout.padding.top = nuevoPadTop;
-                    chartInstance.update('none');
-                }
+                chartInstance.options.layout.padding.left = 0;
+                chartInstance.options.layout.padding.right = 0;
+                chartInstance.options.layout.padding.top = 10;
+                chartInstance.update('none');
             }
         }, { passive: true });
     }
@@ -2145,7 +2195,9 @@
 
     function ocultarTooltipGris() {
         cursorDentroArea = false;
+        cursorCanvasX = null;
         cursorCanvasY = null;
+        ladoTooltipBinance = 'right';
         ultimoContextoTooltip = null;
         ultimoKeyTooltipRenderizado = null;
         const ttEl = document.getElementById('customChartTooltip');
@@ -2327,22 +2379,34 @@
             ttEl.style.display = 'block';
         }
 
-        const chartArea = chart.chartArea;
         const wrapperW = chart.canvas.clientWidth || chart.width;
-        const ttW = ultimoAnchoTooltipCache;
+        const mitad = wrapperW / 2;
+        const posXActual = (cursorCanvasX !== null) ? cursorCanvasX : (tooltip.caretX || mitad);
 
-        let posX = tooltip.caretX;
-        const minX = (ttW / 2) + 6;
-        const maxX = wrapperW - (ttW / 2) - 6;
-        if (posX < minX) posX = minX;
-        if (posX > maxX) posX = maxX;
+        // Dinámica inteligente Binance (Anti-obstrucción con histéresis):
+        // 1. Si el cursor o dedo está a la derecha del centro, la caja salta automáticamente al extremo IZQUIERDO.
+        // 2. Si está a la izquierda, la caja salta al extremo DERECHO.
+        // 3. Al centro, inicia en la derecha hasta que el usuario se desplaza un poco hacia ella intentando tocarla,
+        //    momento en el cual la caja se recorre de inmediato al extremo opuesto para no tapar los datos ni el dedo.
+        if (ladoTooltipBinance === 'right') {
+            if (posXActual > (mitad + 12)) {
+                ladoTooltipBinance = 'left';
+            }
+        } else {
+            if (posXActual < (mitad - 12)) {
+                ladoTooltipBinance = 'right';
+            }
+        }
 
-        let arrowOffsetPx = (ttW / 2) + (tooltip.caretX - posX);
-        arrowOffsetPx = Math.max(14, Math.min(ttW - 14, arrowOffsetPx));
-        ttEl.style.setProperty('--arrow-x', arrowOffsetPx + 'px');
-
-        ttEl.style.left = posX + 'px';
-        ttEl.style.top = (chartArea.bottom + 2) + 'px';
+        ttEl.style.top = '8px';
+        if (ladoTooltipBinance === 'left') {
+            ttEl.style.left = '8px';
+            ttEl.style.right = 'auto';
+        } else {
+            ttEl.style.left = 'auto';
+            ttEl.style.right = '8px';
+        }
+        ttEl.style.transform = 'none';
     }
 
     function construirLeyendasPildora() {
@@ -2447,10 +2511,11 @@
             const y = clientY - rectCanvasCache.top;
             const ca = chartInstance.chartArea;
 
-            if (y > ca.bottom || y < ca.top || x < ca.left || x > ca.right) {
+            if (y > (ca.bottom + 14) || y < (ca.top - 14) || x < ca.left || x > ca.right) {
                 if (cursorDentroArea) ocultarTooltipGris();
             } else {
                 cursorDentroArea = true;
+                cursorCanvasX = x;
                 cursorCanvasY = y;
                 if (ultimoContextoTooltip) {
                     renderizarTooltipExterno(ultimoContextoTooltip);
@@ -2971,6 +3036,7 @@
         if (chartInstance) {
             chartInstance.data.datasets = datasetsList;
             chartInstance.options.scales.y2.max = topeEjeErrores;
+            chartInstance.options.layout.padding = { left: 0, right: 0, top: 10, bottom: 2 };
             if (estabaConZoom) {
                 if (estabaEnBordeDerecho) {
                     const spanZoom = prevMaxZoom - prevMinZoom;
@@ -2995,7 +3061,7 @@
                     normalized: true,
                     parsed: false,
                     responsive: true, maintainAspectRatio: false,
-                    layout: { padding: { left: 14, right: 14, top: window.innerWidth <= 640 ? 6 : 40, bottom: 2 } },
+                    layout: { padding: { left: 0, right: 0, top: 10, bottom: 2 } },
                     interaction: { mode: 'index', axis: 'x', intersect: false },
                     plugins: {
                         legend: { display: false },
