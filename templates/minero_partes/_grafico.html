@@ -917,6 +917,7 @@
     let puntoFijadoY = null;
     let puntoFijadoX = null;
     let puntoFijadoActiveElements = null;
+    let contextoTooltipFijado = null;
     let ultimoContextoTooltip = null;
     let mapaMetaPuntos = {};
     let brechasDesconexion = [];
@@ -2205,36 +2206,44 @@
     const pluginCrosshairVertical = {
         id: 'crosshairVertical',
         afterDraw: function(chart) {
-            const hasActive = chart.tooltip && chart.tooltip._active && chart.tooltip._active.length > 0;
-            if ((!cursorDentroArea && !tooltipFijado) || (!hasActive && !puntoFijadoActiveElements)) return;
-            
-            const activeList = hasActive ? chart.tooltip._active : puntoFijadoActiveElements;
-            if (!activeList || !activeList.length) return;
-            const activePoint = activeList[0];
-            const dp0 = (chart.tooltip && chart.tooltip.dataPoints && chart.tooltip.dataPoints[0]) || 
-                        (ultimoContextoTooltip && ultimoContextoTooltip.tooltip && ultimoContextoTooltip.tooltip.dataPoints && ultimoContextoTooltip.tooltip.dataPoints[0]);
-            if (dp0 && mapaMetaPuntos[dp0.parsed.x] && mapaMetaPuntos[dp0.parsed.x].esSeparadorCorte) return;
+            if (!cursorDentroArea && !tooltipFijado) return;
 
-            const ctx = chart.ctx;
-            const x = (activePoint && activePoint.element) ? activePoint.element.x : (puntoFijadoX || cursorCanvasX);
+            let x = null;
+            let yH = null;
+
+            if (tooltipFijado) {
+                // Modo CONGELADO / FIJADO: Líneas 100% inmóviles en las coordenadas fijadas
+                if (puntoFijadoActiveElements && puntoFijadoActiveElements.length > 0 && puntoFijadoActiveElements[0].element) {
+                    x = puntoFijadoActiveElements[0].element.x;
+                } else {
+                    x = puntoFijadoX;
+                }
+                yH = puntoFijadoY;
+            } else {
+                // Modo VIVO: sigue la posición del cursor
+                const hasActive = chart.tooltip && chart.tooltip._active && chart.tooltip._active.length > 0;
+                if (!hasActive) return;
+                const activePoint = chart.tooltip._active[0];
+                x = (activePoint && activePoint.element) ? activePoint.element.x : cursorCanvasX;
+                yH = cursorCanvasY;
+                if (yH === null && activePoint && activePoint.element) yH = activePoint.element.y;
+            }
+
+            if (x === null || x === undefined || isNaN(x)) return;
+
             const topY = chart.chartArea.top;
             const bottomY = chart.chartArea.bottom;
             const leftX = chart.chartArea.left;
             const rightX = chart.chartArea.right;
 
-            // Determinar Y horizontal: cursor en vivo o punto fijado
-            let yH = tooltipFijado ? puntoFijadoY : cursorCanvasY;
-            if (yH === null && activePoint && activePoint.element) yH = activePoint.element.y;
-
-            if (x === null || x === undefined || isNaN(x)) return;
-
+            const ctx = chart.ctx;
             ctx.save();
             ctx.beginPath();
             ctx.setLineDash([4, 4]);
             ctx.lineWidth = tooltipFijado ? 1.5 : 1;
             ctx.strokeStyle = (document.documentElement.getAttribute('data-theme') === 'light') 
-                ? (tooltipFijado ? 'rgba(2, 132, 199, 0.75)' : 'rgba(15, 23, 42, 0.40)') 
-                : (tooltipFijado ? 'rgba(56, 189, 248, 0.85)' : 'rgba(255, 255, 255, 0.45)');
+                ? (tooltipFijado ? 'rgba(2, 132, 199, 0.85)' : 'rgba(15, 23, 42, 0.40)') 
+                : (tooltipFijado ? 'rgba(56, 189, 248, 0.95)' : 'rgba(255, 255, 255, 0.45)');
 
             // 1. Línea parada (vertical estilo Binance)
             ctx.moveTo(x, topY);
@@ -2308,9 +2317,16 @@
     }
 
     function renderizarTooltipExterno(context) {
-        const { chart, tooltip } = context;
         const ttEl = document.getElementById('customChartTooltip');
         if (!ttEl) return;
+
+        // Si el gráfico está fijado/congelado, IGNORAR llamadas de movimiento del mouse para mantener datos paralizados
+        if (tooltipFijado && contextoTooltipFijado && context !== contextoTooltipFijado) {
+            return;
+        }
+
+        const ctxEfectivo = (tooltipFijado && contextoTooltipFijado) ? contextoTooltipFijado : context;
+        const { chart, tooltip } = ctxEfectivo;
 
         if (!tooltipFijado && (tooltip.opacity === 0 || !cursorDentroArea || !tooltip.dataPoints || tooltip.dataPoints.length === 0)) {
             ttEl.style.display = 'none';
@@ -2334,7 +2350,9 @@
             return;
         }
 
-        ultimoContextoTooltip = { chart, tooltip };
+        if (!tooltipFijado) {
+            ultimoContextoTooltip = { chart, tooltip };
+        }
 
         const focusId = detectarCurvaEnfocada(chart, tooltip.dataPoints);
         const renderKey = tsSegundos + '|' + (focusId || '') + '|' + (tooltipFijado ? 'pin' : 'no');
@@ -2463,20 +2481,22 @@
 
         const wrapperW = chart.canvas.clientWidth || chart.width;
         const mitad = wrapperW / 2;
-        const posXActual = (cursorCanvasX !== null) ? cursorCanvasX : (tooltip.caretX || mitad);
+        const posXActual = tooltipFijado ? (puntoFijadoX || mitad) : ((cursorCanvasX !== null) ? cursorCanvasX : (tooltip.caretX || mitad));
 
         // Dinámica inteligente Binance (Anti-obstrucción con histéresis):
         // 1. Si el cursor o dedo está a la derecha del centro, la caja salta automáticamente al extremo IZQUIERDO.
         // 2. Si está a la izquierda, la caja salta al extremo DERECHO.
         // 3. Al centro, inicia en la derecha hasta que el usuario se desplaza un poco hacia ella intentando tocarla,
         //    momento en el cual la caja se recorre de inmediato al extremo opuesto para no tapar los datos ni el dedo.
-        if (ladoTooltipBinance === 'right') {
-            if (posXActual > (mitad + 12)) {
-                ladoTooltipBinance = 'left';
-            }
-        } else {
-            if (posXActual < (mitad - 12)) {
-                ladoTooltipBinance = 'right';
+        if (!tooltipFijado) {
+            if (ladoTooltipBinance === 'right') {
+                if (posXActual > (mitad + 12)) {
+                    ladoTooltipBinance = 'left';
+                }
+            } else {
+                if (posXActual < (mitad - 12)) {
+                    ladoTooltipBinance = 'right';
+                }
             }
         }
 
@@ -2811,7 +2831,20 @@
             }
         }, { passive: true });
 
-        // Clic para fijar / congelar la información o soltarla (estilo Binance)
+        function descongelarGrafico() {
+            tooltipFijado = false;
+            puntoFijadoTs = null;
+            puntoFijadoX = null;
+            puntoFijadoY = null;
+            puntoFijadoActiveElements = null;
+            contextoTooltipFijado = null;
+            actualizarVisualPin(false);
+            if (chartInstance) {
+                chartInstance.update('none');
+            }
+        }
+
+        // Clic para fijar / congelar la información o soltarla (estilo Binance: 1er clic congela, 2do clic descongela)
         canvas.addEventListener('click', function(e) {
             if (!chartInstance || !chartInstance.chartArea) return;
             if (!rectCanvasCache) actualizarRectCache();
@@ -2819,44 +2852,48 @@
             const y = e.clientY - rectCanvasCache.top;
             const ca = chartInstance.chartArea;
 
-            if (x >= ca.left && x <= ca.right && y >= ca.top && y <= ca.bottom) {
-                // Si aún no se estaba detectando este punto, forzar cálculo
-                if (!tooltipFijado) {
+            // Si ya estaba congelado: el segundo clic SIEMPRE descongela
+            if (tooltipFijado) {
+                descongelarGrafico();
+                // Si el clic fue dentro del área del gráfico, retomar inmediatamente la detección en ese punto
+                if (x >= ca.left && x <= ca.right && y >= ca.top && y <= ca.bottom) {
                     validarPosicionCursor(e.clientX, e.clientY);
+                } else {
+                    ocultarTooltipGris();
                 }
+                return;
+            }
+
+            // Primer clic: congelar la información y ambas líneas en las coordenadas actuales
+            if (x >= ca.left && x <= ca.right && y >= ca.top && y <= ca.bottom) {
+                validarPosicionCursor(e.clientX, e.clientY);
 
                 if (ultimoContextoTooltip && ultimoContextoTooltip.tooltip && ultimoContextoTooltip.tooltip.dataPoints && ultimoContextoTooltip.tooltip.dataPoints.length > 0) {
                     const dp0 = ultimoContextoTooltip.tooltip.dataPoints[0];
                     const ts = dp0.parsed.x;
-                    if (tooltipFijado && puntoFijadoTs === ts) {
-                        // Clic en el mismo punto fijado: descongelar
-                        tooltipFijado = false;
-                        puntoFijadoTs = null;
-                        puntoFijadoX = null;
-                        puntoFijadoY = null;
-                        puntoFijadoActiveElements = null;
-                        actualizarVisualPin(false);
-                    } else {
-                        // Fijar en este punto con coordenadas X e Y exactas
-                        tooltipFijado = true;
-                        puntoFijadoTs = ts;
-                        puntoFijadoX = x;
-                        puntoFijadoY = y;
-                        if (chartInstance.tooltip && chartInstance.tooltip._active) {
-                            puntoFijadoActiveElements = chartInstance.tooltip._active.slice();
-                        }
-                        actualizarVisualPin(true);
+                    
+                    tooltipFijado = true;
+                    puntoFijadoTs = ts;
+                    puntoFijadoX = x;
+                    puntoFijadoY = y;
+                    contextoTooltipFijado = ultimoContextoTooltip;
+                    if (chartInstance.tooltip && chartInstance.tooltip._active && chartInstance.tooltip._active.length > 0) {
+                        puntoFijadoActiveElements = chartInstance.tooltip._active.slice();
                     }
+                    actualizarVisualPin(true);
                     renderizarTooltipExterno(ultimoContextoTooltip);
                     chartInstance.update('none');
                 }
             } else {
-                tooltipFijado = false;
-                puntoFijadoTs = null;
-                puntoFijadoX = null;
-                puntoFijadoY = null;
-                puntoFijadoActiveElements = null;
-                actualizarVisualPin(false);
+                descongelarGrafico();
+                ocultarTooltipGris();
+            }
+        });
+
+        // Clic fuera del gráfico: si estaba congelado, descongelar y ocultar
+        document.addEventListener('click', function(e) {
+            if (tooltipFijado && !canvas.contains(e.target) && !document.getElementById('customChartTooltip')?.contains(e.target) && !e.target.closest('#btnCamara')) {
+                descongelarGrafico();
                 ocultarTooltipGris();
             }
         });

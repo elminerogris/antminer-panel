@@ -373,17 +373,18 @@
     }
     .chips-grid-bitmain {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(13px, 1fr));
         gap: 3.5px;
-        max-height: 220px;
+        max-height: 250px;
         overflow-y: auto;
-        padding: 6px 4px;
-        background: rgba(0, 0, 0, 0.35);
+        padding: 8px 10px;
+        background: rgba(0, 0, 0, 0.45);
         border: 1px solid var(--border-subtle);
-        border-radius: 5px;
+        border-radius: 6px;
+        justify-content: center;
     }
     .chip-cell {
-        aspect-ratio: 1;
+        width: 14px;
+        height: 14px;
         border-radius: 2.5px;
         display: flex;
         align-items: center;
@@ -393,6 +394,15 @@
         font-weight: bold;
         user-select: none;
         transition: transform 0.12s ease;
+    }
+    .chain-id-pill.no-chip-hover {
+        cursor: default !important;
+    }
+    .chain-id-pill.no-chip-hover:hover {
+        border-color: var(--border-color) !important;
+        background: var(--bg-card) !important;
+        box-shadow: none !important;
+        transform: none !important;
     }
     .chip-cell:hover {
         transform: scale(1.35);
@@ -629,12 +639,21 @@
                     {% set pct_hr = (hr_c / ns.max_hr * 100) if ns.max_hr > 0 else 0 %}
                     {% set pct_tc = (tc / 90 * 100) if tc < 90 else 100 %}
                     {% set pct_tp = (tp / 90 * 100) if tp < 90 else 100 %}
+                    {% set marca_norm = (extra.marca | default('') ~ ' ' ~ modelo | default('')) | lower %}
+                    {% set tiene_chips_bitmain = ('antminer' in marca_norm or 'bitmain' in marca_norm or 's19' in marca_norm or 's21' in marca_norm or 't19' in marca_norm or 't21' in marca_norm or 's9' in marca_norm or 'l7' in marca_norm or 'z15' in marca_norm) and not ('whatsminer' in marca_norm or 'avalon' in marca_norm or 'canaan' in marca_norm or 'ebang' in marca_norm or 'fluminer' in marca_norm) %}
                     <tr>
                         <td>
-                            <span class="chain-id-pill" data-chain-chips="1" data-chain-id="{{ c.id }}" data-chips-num="{{ c.chips | default(114) }}" data-chain-hr="{{ '%.2f'|format(hr_c) }}" data-chain-hw="{{ c.hw | default(0) }}" title="Toca o pasa el mouse para inspeccionar los chips individuales de esta placa">
-                                <span class="chain-dot {{ '' if hr_c > 0 else 'off' }}"></span>
-                                Cadena <span translate="no">#{{ c.id }}</span>
-                            </span>
+                            {% if tiene_chips_bitmain and (c.chips | default(0) | int) > 0 %}
+                                <span class="chain-id-pill" data-chain-chips="1" data-chain-id="{{ c.id }}" data-chips-num="{{ c.chips | default(114) }}" data-chain-hr="{{ '%.2f'|format(hr_c) }}" data-chain-hw="{{ c.hw | default(0) }}" title="Toca o pasa el mouse para inspeccionar los chips individuales de esta placa">
+                                    <span class="chain-dot {{ '' if hr_c > 0 else 'off' }}"></span>
+                                    Cadena <span translate="no">#{{ c.id }}</span>
+                                </span>
+                            {% else %}
+                                <span class="chain-id-pill no-chip-hover" title="Cadena #{{ c.id }}">
+                                    <span class="chain-dot {{ '' if hr_c > 0 else 'off' }}"></span>
+                                    Cadena <span translate="no">#{{ c.id }}</span>
+                                </span>
+                            {% endif %}
                         </td>
                         <td translate="no">
                             <div class="mini-bar-wrap">
@@ -818,6 +837,15 @@
             activeEl = target;
             target.classList.add('btt-active');
 
+            // Calcular columnas simétricas exactas para que todas las filas queden perfectas y ordenadas
+            let cols = 16;
+            if (numChips % 19 === 0) cols = 19;
+            else if (numChips % 14 === 0) cols = 14;
+            else if (numChips % 15 === 0) cols = 15;
+            else if (numChips % 16 === 0) cols = 16;
+            else if (numChips % 12 === 0) cols = 12;
+            else if (numChips % 10 === 0) cols = 10;
+
             // Determinar salud de chips: si hay muchos errores HW o la placa está caída
             let chipsHtml = '';
             let chipsOk = 0;
@@ -851,7 +879,7 @@
                         ${chipsErr > 0 ? `<span style="color:#ff5252; font-weight:bold;">🔴 ${chipsErr} Fallo</span>` : `<span style="color:var(--text-muted);">🔴 0 Fallo</span>`}
                         <span>HW: <b style="color:${hwVal > 20 ? '#ff5252' : 'var(--text-main)'}; font-family:monospace;">${hwVal}</b></span>
                     </div>
-                    <div class="chips-grid-bitmain">
+                    <div class="chips-grid-bitmain" style="grid-template-columns: repeat(${cols}, 14px);">
                         ${chipsHtml}
                     </div>
                     <div style="font-size:9.5px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
@@ -864,7 +892,7 @@
             box.style.display = 'block';
 
             const rect = target.getBoundingClientRect();
-            const boxW = Math.min(320, window.innerWidth - 20);
+            const boxW = Math.min(Math.max(300, (cols * 18) + 38), window.innerWidth - 16);
             box.style.width = boxW + 'px';
             const boxH = box.offsetHeight || 220;
             const margin = 10;
