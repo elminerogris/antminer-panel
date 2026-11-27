@@ -914,7 +914,9 @@
     let cursorCanvasY = null;
     let ladoTooltipBinance = 'right';
     let tooltipFijado = false;
-    let puntoFijadoTs = null;
+    let puntoFijadoY = null;
+    let puntoFijadoX = null;
+    let puntoFijadoActiveElements = null;
     let ultimoContextoTooltip = null;
     let mapaMetaPuntos = {};
     let brechasDesconexion = [];
@@ -1346,9 +1348,13 @@
             ocultarSmartTooltip();
             const canvas = document.getElementById('hashrateChart');
             const btnCam = document.getElementById('btnCamara');
-            if (canvas && e.target !== canvas && (!btnCam || !btnCam.contains(e.target))) {
+            const ttEl = document.getElementById('customChartTooltip');
+            if (canvas && e.target !== canvas && (!btnCam || !btnCam.contains(e.target)) && (!ttEl || !ttEl.contains(e.target))) {
                 tooltipFijado = false;
                 puntoFijadoTs = null;
+                puntoFijadoX = null;
+                puntoFijadoY = null;
+                puntoFijadoActiveElements = null;
                 actualizarVisualPin(false);
                 ocultarTooltipGris();
             }
@@ -1357,9 +1363,13 @@
         document.addEventListener('touchstart', function(e) {
             const canvas = document.getElementById('hashrateChart');
             const btnCam = document.getElementById('btnCamara');
-            if (canvas && e.target !== canvas && !canvas.contains(e.target) && (!btnCam || !btnCam.contains(e.target))) {
+            const ttEl = document.getElementById('customChartTooltip');
+            if (canvas && e.target !== canvas && !canvas.contains(e.target) && (!btnCam || !btnCam.contains(e.target)) && (!ttEl || !ttEl.contains(e.target))) {
                 tooltipFijado = false;
                 puntoFijadoTs = null;
+                puntoFijadoX = null;
+                puntoFijadoY = null;
+                puntoFijadoActiveElements = null;
                 actualizarVisualPin(false);
                 ocultarTooltipGris();
             }
@@ -2195,23 +2205,47 @@
     const pluginCrosshairVertical = {
         id: 'crosshairVertical',
         afterDraw: function(chart) {
-            if ((!cursorDentroArea && !tooltipFijado) || !chart.tooltip || !chart.tooltip._active || !chart.tooltip._active.length) return;
-            const activePoint = chart.tooltip._active[0];
-            const dp0 = chart.tooltip.dataPoints && chart.tooltip.dataPoints[0];
+            const hasActive = chart.tooltip && chart.tooltip._active && chart.tooltip._active.length > 0;
+            if ((!cursorDentroArea && !tooltipFijado) || (!hasActive && !puntoFijadoActiveElements)) return;
+            
+            const activeList = hasActive ? chart.tooltip._active : puntoFijadoActiveElements;
+            if (!activeList || !activeList.length) return;
+            const activePoint = activeList[0];
+            const dp0 = (chart.tooltip && chart.tooltip.dataPoints && chart.tooltip.dataPoints[0]) || 
+                        (ultimoContextoTooltip && ultimoContextoTooltip.tooltip && ultimoContextoTooltip.tooltip.dataPoints && ultimoContextoTooltip.tooltip.dataPoints[0]);
             if (dp0 && mapaMetaPuntos[dp0.parsed.x] && mapaMetaPuntos[dp0.parsed.x].esSeparadorCorte) return;
 
             const ctx = chart.ctx;
-            const x = activePoint.element.x;
+            const x = (activePoint && activePoint.element) ? activePoint.element.x : (puntoFijadoX || cursorCanvasX);
             const topY = chart.chartArea.top;
             const bottomY = chart.chartArea.bottom;
+            const leftX = chart.chartArea.left;
+            const rightX = chart.chartArea.right;
+
+            // Determinar Y horizontal: cursor en vivo o punto fijado
+            let yH = tooltipFijado ? puntoFijadoY : cursorCanvasY;
+            if (yH === null && activePoint && activePoint.element) yH = activePoint.element.y;
+
+            if (x === null || x === undefined || isNaN(x)) return;
 
             ctx.save();
             ctx.beginPath();
             ctx.setLineDash([4, 4]);
+            ctx.lineWidth = tooltipFijado ? 1.5 : 1;
+            ctx.strokeStyle = (document.documentElement.getAttribute('data-theme') === 'light') 
+                ? (tooltipFijado ? 'rgba(2, 132, 199, 0.75)' : 'rgba(15, 23, 42, 0.40)') 
+                : (tooltipFijado ? 'rgba(56, 189, 248, 0.85)' : 'rgba(255, 255, 255, 0.45)');
+
+            // 1. Línea parada (vertical estilo Binance)
             ctx.moveTo(x, topY);
             ctx.lineTo(x, bottomY);
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = (document.documentElement.getAttribute('data-theme') === 'light') ? 'rgba(15, 23, 42, 0.35)' : 'rgba(255, 255, 255, 0.42)';
+
+            // 2. Línea echada (horizontal estilo Binance)
+            if (yH !== null && yH >= topY && yH <= bottomY) {
+                ctx.moveTo(leftX, yH);
+                ctx.lineTo(rightX, yH);
+            }
+
             ctx.stroke();
             ctx.restore();
         }
@@ -2798,11 +2832,19 @@
                         // Clic en el mismo punto fijado: descongelar
                         tooltipFijado = false;
                         puntoFijadoTs = null;
+                        puntoFijadoX = null;
+                        puntoFijadoY = null;
+                        puntoFijadoActiveElements = null;
                         actualizarVisualPin(false);
                     } else {
-                        // Fijar en este punto
+                        // Fijar en este punto con coordenadas X e Y exactas
                         tooltipFijado = true;
                         puntoFijadoTs = ts;
+                        puntoFijadoX = x;
+                        puntoFijadoY = y;
+                        if (chartInstance.tooltip && chartInstance.tooltip._active) {
+                            puntoFijadoActiveElements = chartInstance.tooltip._active.slice();
+                        }
                         actualizarVisualPin(true);
                     }
                     renderizarTooltipExterno(ultimoContextoTooltip);
@@ -2811,6 +2853,9 @@
             } else {
                 tooltipFijado = false;
                 puntoFijadoTs = null;
+                puntoFijadoX = null;
+                puntoFijadoY = null;
+                puntoFijadoActiveElements = null;
                 actualizarVisualPin(false);
                 ocultarTooltipGris();
             }

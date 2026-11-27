@@ -726,6 +726,8 @@
         }
     }
 
+    let timerChequeoIpLan = null;
+
     function verificarConflictoIp() {
         const proto = document.getElementById('net_proto')?.value || '2';
         const elIp = document.getElementById('net_ip');
@@ -757,12 +759,37 @@
         if (IPS_OCUPADAS_RED.includes(ipVal) && !permitirIpForzada) {
             elIp.classList.add('conflict');
             banner.style.display = 'block';
-            msgDiv.innerHTML = `⚠️ <b>La IP <code>${ipVal}</code> ya está en uso por otro equipo.</b><br>Lo más seguro es usar una IP libre. Si prefieres quedarte con <code>${ipVal}</code>, tendrás que cambiar el otro equipo o reiniciar el router.`;
+            msgDiv.innerHTML = `⚠️ <b>La IP <code>${ipVal}</code> ya está ocupada en tu red.</b><br>Pertenece a otro equipo activo (puede ser un minero, un celular o un televisor en la red). Elige una IP libre para evitar conflictos.`;
             actDiv.innerHTML = `
                 <button type="button" class="btn-fix-ip" onclick="aplicarIpSugerida('${sugerida}')">✨ Usar ${sugerida} (Recomendado)</button>
                 <button type="button" class="btn-force-ip" onclick="forzarIpOcupada('${ipVal}')">⚠️ Forzar ${ipVal} (Reiniciaré el router)</button>
             `;
             return 'occupied';
+        }
+
+        // Chequeo remoto en vivo de la IP en la red LAN si el formato es válido
+        if (validarFormatoIpv4(ipVal) && ipVal !== IP_ACTUAL_MINERO && !permitirIpForzada) {
+            clearTimeout(timerChequeoIpLan);
+            timerChequeoIpLan = setTimeout(() => {
+                fetch('/api/red/verificar_ip_ocupada', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ipVal, ip_actual: IP_ACTUAL_MINERO })
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res && res.ocupada && !permitirIpForzada) {
+                        elIp.classList.add('conflict');
+                        banner.style.display = 'block';
+                        msgDiv.innerHTML = `⚠️ <b>La IP <code>${ipVal}</code> está OCUPADA en la red LAN.</b><br>${res.msg || 'Detectamos otro dispositivo usando esta IP (puede ser un celular, TV u otro equipo).'}`;
+                        actDiv.innerHTML = `
+                            <button type="button" class="btn-fix-ip" onclick="aplicarIpSugerida('${sugerida}')">✨ Usar ${sugerida} (Libre)</button>
+                            <button type="button" class="btn-force-ip" onclick="forzarIpOcupada('${ipVal}')">⚠️ Forzar asignación</button>
+                        `;
+                    }
+                })
+                .catch(() => {});
+            }, 400);
         }
 
         elIp.classList.remove('conflict');

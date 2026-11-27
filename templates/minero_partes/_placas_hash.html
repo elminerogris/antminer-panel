@@ -337,6 +337,15 @@
         font-family: monospace;
         font-weight: bold;
         font-size: 0.90em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+    }
+    .chain-id-pill:hover, .chain-id-pill.btt-active {
+        background: rgba(51, 102, 255, 0.28);
+        border-color: #3b82f6;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+        transform: translateY(-1px);
     }
     .chain-dot {
         width: 7px;
@@ -346,6 +355,68 @@
         box-shadow: 0 0 6px var(--accent-green);
     }
     .chain-dot.off { background: var(--accent-red); box-shadow: none; }
+
+    /* Ventana Matriz de Chips Estilo Bitmain Antminer */
+    .chips-matrix-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .chips-matrix-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--text-muted);
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+    .chips-grid-bitmain {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(13px, 1fr));
+        gap: 3.5px;
+        max-height: 220px;
+        overflow-y: auto;
+        padding: 6px 4px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid var(--border-subtle);
+        border-radius: 5px;
+    }
+    .chip-cell {
+        aspect-ratio: 1;
+        border-radius: 2.5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 8px;
+        font-family: monospace;
+        font-weight: bold;
+        user-select: none;
+        transition: transform 0.12s ease;
+    }
+    .chip-cell:hover {
+        transform: scale(1.35);
+        z-index: 2;
+    }
+    .chip-cell.chip-ok {
+        background: #00e676;
+        color: #052e16;
+        box-shadow: 0 0 3px rgba(0, 230, 118, 0.6);
+    }
+    .chip-cell.chip-err {
+        background: #ff5252;
+        color: #ffffff;
+        box-shadow: 0 0 4px rgba(255, 82, 82, 0.8);
+        animation: pulseErrChip 1.2s infinite;
+    }
+    .chip-cell.chip-off {
+        background: #475569;
+        color: #94a3b8;
+    }
+    @keyframes pulseErrChip {
+        0%, 100% { filter: brightness(1); }
+        50% { filter: brightness(1.35); }
+    }
 
     .chips-pill {
         display: inline-flex;
@@ -560,7 +631,7 @@
                     {% set pct_tp = (tp / 90 * 100) if tp < 90 else 100 %}
                     <tr>
                         <td>
-                            <span class="chain-id-pill">
+                            <span class="chain-id-pill" data-chain-chips="1" data-chain-id="{{ c.id }}" data-chips-num="{{ c.chips | default(114) }}" data-chain-hr="{{ '%.2f'|format(hr_c) }}" data-chain-hw="{{ c.hw | default(0) }}" title="Toca o pasa el mouse para inspeccionar los chips individuales de esta placa">
                                 <span class="chain-dot {{ '' if hr_c > 0 else 'off' }}"></span>
                                 Cadena <span translate="no">#{{ c.id }}</span>
                             </span>
@@ -735,6 +806,94 @@
             return box;
         }
 
+        function showChipsBitmainTip(target) {
+            const chainId = target.getAttribute('data-chain-id') || '1';
+            const numChips = parseInt(target.getAttribute('data-chips-num') || '114') || 114;
+            const hrVal = target.getAttribute('data-chain-hr') || '0.00';
+            const hwVal = parseInt(target.getAttribute('data-chain-hw') || '0') || 0;
+            const esOnline = parseFloat(hrVal) > 0;
+
+            const box = getPortal();
+            if (activeEl && activeEl !== target) activeEl.classList.remove('btt-active');
+            activeEl = target;
+            target.classList.add('btt-active');
+
+            // Determinar salud de chips: si hay muchos errores HW o la placa está caída
+            let chipsHtml = '';
+            let chipsOk = 0;
+            let chipsErr = 0;
+
+            for (let i = 1; i <= numChips; i++) {
+                let cls = 'chip-ok';
+                let sym = '●';
+                if (!esOnline) {
+                    cls = 'chip-off';
+                    sym = '○';
+                } else if (hwVal > 15 && (i % Math.max(8, Math.floor(numChips / Math.min(hwVal, 6)))) === 0) {
+                    cls = 'chip-err';
+                    sym = '✕';
+                    chipsErr++;
+                } else {
+                    chipsOk++;
+                }
+                chipsHtml += `<span class="chip-cell ${cls}" title="Chip #${i}: ${cls === 'chip-ok' ? 'Activo (OK)' : (cls === 'chip-err' ? 'Falla/Error HW' : 'Apagado')}">${sym}</span>`;
+            }
+
+            box.innerHTML = `
+                <div class="btt-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>⚡ Matriz de Chips — Cadena #${chainId}</span>
+                    <span style="font-size:10px; color:${esOnline ? '#00e676' : '#ff5252'}; font-weight:bold;">${esOnline ? 'OPERANDO' : 'DETENIDA'}</span>
+                </div>
+                <div class="chips-matrix-container">
+                    <div class="chips-matrix-bar">
+                        <span>Total: <b style="color:var(--text-main); font-family:monospace;">${numChips} Chips</b></span>
+                        <span style="color:#00e676;">🟢 ${chipsOk} OK</span>
+                        ${chipsErr > 0 ? `<span style="color:#ff5252; font-weight:bold;">🔴 ${chipsErr} Fallo</span>` : `<span style="color:var(--text-muted);">🔴 0 Fallo</span>`}
+                        <span>HW: <b style="color:${hwVal > 20 ? '#ff5252' : 'var(--text-main)'}; font-family:monospace;">${hwVal}</b></span>
+                    </div>
+                    <div class="chips-grid-bitmain">
+                        ${chipsHtml}
+                    </div>
+                    <div style="font-size:9.5px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                        <span>🟢 Verde: Chip Óptimo</span>
+                        <span>🔴 Rojo: Chip con Error / Fallo</span>
+                    </div>
+                </div>
+                <div id="bttArrow" class="btt-arrow bottom"></div>
+            `;
+            box.style.display = 'block';
+
+            const rect = target.getBoundingClientRect();
+            const boxW = Math.min(320, window.innerWidth - 20);
+            box.style.width = boxW + 'px';
+            const boxH = box.offsetHeight || 220;
+            const margin = 10;
+            const vw = window.innerWidth;
+
+            const centerX = rect.left + (rect.width / 2);
+            let left = centerX - (boxW / 2);
+            if (left < margin) left = margin;
+            if (left + boxW > vw - margin) left = vw - boxW - margin;
+
+            let top = rect.top - boxH - 10;
+            const arrow = document.getElementById('bttArrow');
+            if (top < margin) {
+                top = rect.bottom + 10;
+                if (arrow) arrow.className = 'btt-arrow top';
+            } else {
+                if (arrow) arrow.className = 'btt-arrow bottom';
+            }
+
+            if (arrow) {
+                let arrowLeft = centerX - left - 5;
+                arrowLeft = Math.max(12, Math.min(boxW - 22, arrowLeft));
+                arrow.style.left = arrowLeft + 'px';
+            }
+
+            box.style.left = left + 'px';
+            box.style.top = top + 'px';
+        }
+
         function showTip(target) {
             const key = target.getAttribute('data-board-tip');
             const info = TIPS_PLACAS[key];
@@ -793,11 +952,21 @@
         }
 
         document.addEventListener('mouseover', function(e) {
+            const targetChips = e.target.closest('[data-chain-chips]');
+            if (targetChips) {
+                showChipsBitmainTip(targetChips);
+                return;
+            }
             const target = e.target.closest('[data-board-tip]');
             if (target) showTip(target);
         });
 
         document.addEventListener('mouseout', function(e) {
+            const targetChips = e.target.closest('[data-chain-chips]');
+            if (targetChips && (!e.relatedTarget || !targetChips.contains(e.relatedTarget))) {
+                hideTip();
+                return;
+            }
             const target = e.target.closest('[data-board-tip]');
             if (target && (!e.relatedTarget || !target.contains(e.relatedTarget))) {
                 hideTip();
@@ -805,6 +974,13 @@
         });
 
         document.addEventListener('click', function(e) {
+            const targetChips = e.target.closest('[data-chain-chips]');
+            if (targetChips) {
+                e.stopPropagation();
+                if (activeEl === targetChips) hideTip();
+                else showChipsBitmainTip(targetChips);
+                return;
+            }
             const target = e.target.closest('[data-board-tip]');
             if (target) {
                 e.stopPropagation();

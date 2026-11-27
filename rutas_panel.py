@@ -583,6 +583,63 @@ def api_granjas_editar_minero():
         )
     return jsonify({"status": "ok", "ip": ip, "nombre": nuevo_nombre, "farm_id": nuevo_farm_id})
 
+@panel_bp.route('/api/red/verificar_ip_ocupada', methods=['POST'])
+@login_required
+def api_red_verificar_ip_ocupada():
+    usr_actual = session.get('usuario', 'Admin')
+    data = request.get_json(silent=True) or {}
+    ip_probar = str(data.get('ip') or '').strip()
+    agent_id = str(data.get('agent_id') or 'default').strip()[:40] or 'default'
+    ip_actual_minero = str(data.get('ip_actual') or '').strip()
+
+    if not ip_probar:
+        return jsonify({"ok": False, "ocupada": False, "msg": "IP requerida"}), 400
+
+    # 1. Chequeo inmediato contra base de datos de mineros activos del usuario
+    con = get_db(); con.autocommit = True; cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "SELECT ip, modelo FROM mineros_activos WHERE owner=%s AND ip=%s AND ip!=%s LIMIT 1",
+        (usr_actual, ip_probar, ip_actual_minero)
+    )
+    m_ocup = cur.fetchone()
+    if m_ocup:
+        cur.execute("SELECT nombre FROM nombres_mineros WHERE owner=%s AND ip=%s LIMIT 1", (usr_actual, ip_probar))
+        n_row = cur.fetchone()
+        nom_txt = n_row['nombre'] if (n_row and n_row.get('nombre')) else m_ocup.get('modelo', 'Minero ASIC')
+        return jsonify({
+            "ok": True,
+            "ocupada": True,
+            "tipo": "minero",
+            "nombre": nom_txt,
+            "msg": f"La IP {ip_probar} ya está asignada a tu minero '{nom_txt}'."
+        }), 200
+
+    # 2. Chequeo en la red LAN a través de socket/ping (si el servidor está en la misma LAN o puede alcanzar la IP)
+    # Probamos puertos comunes de dispositivos de red (HTTP 80, SSH 22, HTTPS 443, DNS 53, ASIC 4028, RTSP 554)
+    es_ocupada_socket = False
+    puertos_probar = [4028, 80, 443, 22, 53, 8080, 554]
+    for port in puertos_probar:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.35)
+            res = s.connect_ex((ip_probar, port))
+            s.close()
+            if res == 0:
+                es_ocupada_socket = True
+                break
+        except Exception:
+            pass
+
+    if es_ocupada_socket:
+        return jsonify({
+            "ok": True,
+            "ocupada": True,
+            "tipo": "lan_device",
+            "msg": f"La IP {ip_probar} respondió en la red local (dispositivo activo detectado)."
+        }), 200
+
+    return jsonify({"ok": True, "ocupada": False}), 200
+
 # --- APIs del Panel ---
 @panel_bp.route('/api/eliminar_mineros', methods=['POST'])
 @login_required
