@@ -1267,9 +1267,9 @@ def recibir_datos():
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'online', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT(owner, agent_id, ip) DO UPDATE SET 
                             farm_id=CASE WHEN mineros_activos.farm_id IS NOT NULL AND mineros_activos.farm_id != '' THEN mineros_activos.farm_id ELSE EXCLUDED.farm_id END,
                             miner_uid=EXCLUDED.miner_uid, marca=EXCLUDED.marca, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda, unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, hashrate_30m=EXCLUDED.hashrate_30m, temp_max=EXCLUDED.temp_max, temp_amb=EXCLUDED.temp_amb, consumo_w=EXCLUDED.consumo_w,
-                            estado=CASE WHEN (mineros_activos.prot_sleep_desde IS NOT NULL AND mineros_activos.prot_sleep_desde != '' OR mineros_activos.estado = 'sleep') AND EXCLUDED.hashrate <= 0.01 THEN 'sleep' ELSE 'online' END,
-                            prot_sleep_desde=CASE WHEN EXCLUDED.hashrate > 0.01 THEN '' ELSE mineros_activos.prot_sleep_desde END,
-                            prot_motivo=CASE WHEN EXCLUDED.hashrate > 0.01 THEN '' ELSE mineros_activos.prot_motivo END,
+                            estado=CASE WHEN mineros_activos.estado = 'sleep' OR (mineros_activos.prot_sleep_desde IS NOT NULL AND mineros_activos.prot_sleep_desde != '') OR mineros_activos.prot_motivo = 'sleep' THEN 'sleep' ELSE 'online' END,
+                            prot_sleep_desde=CASE WHEN mineros_activos.estado = 'sleep' OR (mineros_activos.prot_sleep_desde IS NOT NULL AND mineros_activos.prot_sleep_desde != '') THEN mineros_activos.prot_sleep_desde ELSE '' END,
+                            prot_motivo=CASE WHEN mineros_activos.estado = 'sleep' OR mineros_activos.prot_motivo = 'sleep' THEN 'sleep' ELSE mineros_activos.prot_motivo END,
                             ultima_act=EXCLUDED.ultima_act, errores=EXCLUDED.errores, pool1=EXCLUDED.pool1, worker1=EXCLUDED.worker1, pass1=EXCLUDED.pass1, pool2=EXCLUDED.pool2, worker2=EXCLUDED.worker2, pass2=EXCLUDED.pass2, pool3=EXCLUDED.pool3, worker3=EXCLUDED.worker3, pass3=EXCLUDED.pass3, mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_activos.mac END, serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_activos.serial END, firmware=EXCLUDED.firmware, fw_tipo=EXCLUDED.fw_tipo, perfil_oc=EXCLUDED.perfil_oc, fans=EXCLUDED.fans, cadenas=EXCLUDED.cadenas, uptime=EXCLUDED.uptime, status1=EXCLUDED.status1, acc1=EXCLUDED.acc1, rej1=EXCLUDED.rej1, status2=EXCLUDED.status2, acc2=EXCLUDED.acc2, rej2=EXCLUDED.rej2, status3=EXCLUDED.status3, acc3=EXCLUDED.acc3, rej3=EXCLUDED.rej3, hostname=EXCLUDED.hostname, net_proto=EXCLUDED.net_proto, netmask=EXCLUDED.netmask, gateway=EXCLUDED.gateway, dns=EXCLUDED.dns, cred_defecto=EXCLUDED.cred_defecto,
                             farm_lat=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lat ELSE EXCLUDED.farm_lat END,
                             farm_lon=CASE WHEN mineros_activos.gps_manual = 1 THEN mineros_activos.farm_lon ELSE EXCLUDED.farm_lon END,
@@ -1328,7 +1328,7 @@ def recibir_datos():
             prot_sleep_desde = str(prev_m.get('prot_sleep_desde') or '').strip()
             prot_motivo = str(prev_m.get('prot_motivo') or '').strip().lower()
             estado_prev = str(prev_m.get('estado') or '').strip().lower()
-            es_modo_sleep = bool((prot_sleep_desde or 'sleep' in prot_motivo or estado_prev == 'sleep') and hr_m <= 0.01)
+            es_modo_sleep = bool(prot_sleep_desde or 'sleep' in prot_motivo or estado_prev == 'sleep')
             accion_proteccion = None
             motivo_proteccion = ""
 

@@ -623,6 +623,20 @@
     .custom-chart-tooltip::before {
         display: none !important;
     }
+    .custom-chart-tooltip.tt-pinned {
+        border-color: var(--accent-cyan) !important;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.75), 0 0 16px rgba(56, 189, 248, 0.45) !important;
+    }
+    .tt-pin-tag {
+        font-size: 0.75em;
+        color: var(--accent-cyan);
+        background: rgba(56, 189, 248, 0.18);
+        border: 1px solid rgba(56, 189, 248, 0.40);
+        padding: 1px 6px;
+        border-radius: 6px;
+        font-weight: bold;
+        letter-spacing: 0.2px;
+    }
     .tt-title {
         font-weight: bold;
         margin-bottom: 5px;
@@ -899,6 +913,8 @@
     let cursorCanvasX = null;
     let cursorCanvasY = null;
     let ladoTooltipBinance = 'right';
+    let tooltipFijado = false;
+    let puntoFijadoTs = null;
     let ultimoContextoTooltip = null;
     let mapaMetaPuntos = {};
     let brechasDesconexion = [];
@@ -1329,14 +1345,22 @@
         document.addEventListener('click', function(e) {
             ocultarSmartTooltip();
             const canvas = document.getElementById('hashrateChart');
-            if (canvas && e.target !== canvas) {
+            const btnCam = document.getElementById('btnCamara');
+            if (canvas && e.target !== canvas && (!btnCam || !btnCam.contains(e.target))) {
+                tooltipFijado = false;
+                puntoFijadoTs = null;
+                actualizarVisualPin(false);
                 ocultarTooltipGris();
             }
         });
 
         document.addEventListener('touchstart', function(e) {
             const canvas = document.getElementById('hashrateChart');
-            if (canvas && e.target !== canvas && !canvas.contains(e.target)) {
+            const btnCam = document.getElementById('btnCamara');
+            if (canvas && e.target !== canvas && !canvas.contains(e.target) && (!btnCam || !btnCam.contains(e.target))) {
+                tooltipFijado = false;
+                puntoFijadoTs = null;
+                actualizarVisualPin(false);
                 ocultarTooltipGris();
             }
         }, { passive: true });
@@ -2171,7 +2195,7 @@
     const pluginCrosshairVertical = {
         id: 'crosshairVertical',
         afterDraw: function(chart) {
-            if (!cursorDentroArea || !chart.tooltip || !chart.tooltip._active || !chart.tooltip._active.length) return;
+            if ((!cursorDentroArea && !tooltipFijado) || !chart.tooltip || !chart.tooltip._active || !chart.tooltip._active.length) return;
             const activePoint = chart.tooltip._active[0];
             const dp0 = chart.tooltip.dataPoints && chart.tooltip.dataPoints[0];
             if (dp0 && mapaMetaPuntos[dp0.parsed.x] && mapaMetaPuntos[dp0.parsed.x].esSeparadorCorte) return;
@@ -2193,15 +2217,28 @@
         }
     };
 
+    function actualizarVisualPin(fijado) {
+        const ttEl = document.getElementById('customChartTooltip');
+        if (!ttEl) return;
+        if (fijado) {
+            ttEl.classList.add('tt-pinned');
+        } else {
+            ttEl.classList.remove('tt-pinned');
+        }
+    }
+
     function ocultarTooltipGris() {
+        if (tooltipFijado) return;
         cursorDentroArea = false;
         cursorCanvasX = null;
         cursorCanvasY = null;
         ladoTooltipBinance = 'right';
-        ultimoContextoTooltip = null;
         ultimoKeyTooltipRenderizado = null;
         const ttEl = document.getElementById('customChartTooltip');
-        if (ttEl) ttEl.style.display = 'none';
+        if (ttEl) {
+            ttEl.style.display = 'none';
+            ttEl.classList.remove('tt-pinned');
+        }
         if (chartInstance) {
             chartInstance.setActiveElements([]);
             chartInstance.update('none');
@@ -2241,8 +2278,9 @@
         const ttEl = document.getElementById('customChartTooltip');
         if (!ttEl) return;
 
-        if (tooltip.opacity === 0 || !cursorDentroArea || !tooltip.dataPoints || tooltip.dataPoints.length === 0) {
+        if (!tooltipFijado && (tooltip.opacity === 0 || !cursorDentroArea || !tooltip.dataPoints || tooltip.dataPoints.length === 0)) {
             ttEl.style.display = 'none';
+            ttEl.classList.remove('tt-pinned');
             ultimoContextoTooltip = null;
             ultimoKeyTooltipRenderizado = null;
             return;
@@ -2253,16 +2291,19 @@
         const meta = mapaMetaPuntos[tsSegundos];
 
         if (!meta || meta.esSeparadorCorte) {
-            ttEl.style.display = 'none';
-            ultimoContextoTooltip = null;
-            ultimoKeyTooltipRenderizado = null;
+            if (!tooltipFijado) {
+                ttEl.style.display = 'none';
+                ttEl.classList.remove('tt-pinned');
+                ultimoContextoTooltip = null;
+                ultimoKeyTooltipRenderizado = null;
+            }
             return;
         }
 
         ultimoContextoTooltip = { chart, tooltip };
 
         const focusId = detectarCurvaEnfocada(chart, tooltip.dataPoints);
-        const renderKey = tsSegundos + '|' + (focusId || '');
+        const renderKey = tsSegundos + '|' + (focusId || '') + '|' + (tooltipFijado ? 'pin' : 'no');
 
         function clsRow(ids) {
             if (!focusId) return 'tt-row';
@@ -2290,7 +2331,8 @@
                 let signo = diff >= 0 ? '+' : '';
                 deltaT = `<span style="color:#a5a7b5; font-size:0.88em;" translate="no">ΔT ${signo}${diff}°C</span>`;
             }
-            let html = `<div class="tt-title"><span translate="no">${titulo}</span>${deltaT}</div>`;
+            const pinBadge = tooltipFijado ? `<span class="tt-pin-tag">📌 Fijado</span>` : '';
+            let html = `<div class="tt-title"><span translate="no">${titulo}</span><div style="display:flex; align-items:center; gap:6px;">${deltaT}${pinBadge}</div></div>`;
 
             if (meta.estadoPunto === 'SIN_MINAR') {
                 html += `<div class="${clsRow('hr')}"><span class="tt-box" style="background:#ff5252;"></span>⚡ Hashrate: <b style="color:#ff5252;" translate="no">0 ${unidadMinero}</b> <span>(Detenido)</span>${flechaFocus('hr')}</div>`;
@@ -2377,6 +2419,12 @@
             ultimoAnchoTooltipCache = ttEl.offsetWidth || 235;
         } else if (ttEl.style.display === 'none') {
             ttEl.style.display = 'block';
+        }
+
+        if (tooltipFijado) {
+            ttEl.classList.add('tt-pinned');
+        } else {
+            ttEl.classList.remove('tt-pinned');
         }
 
         const wrapperW = chart.canvas.clientWidth || chart.width;
@@ -2478,6 +2526,135 @@
         actualizarControlesZoomYScroll(chartInstance);
     }
 
+    function dibujarHudEnCanvasCaptura(tCtx, srcCanvas, ttEl) {
+        if (!ttEl) return;
+        const ratioX = srcCanvas.width / (srcCanvas.clientWidth || srcCanvas.width);
+        const ratioY = srcCanvas.height / (srcCanvas.clientHeight || srcCanvas.height);
+        const scale = Math.max(1, ratioX);
+
+        let w = (ttEl.offsetWidth || 235) * ratioX;
+        let h = (ttEl.offsetHeight || 140) * ratioY;
+        let x = (ttEl.offsetLeft || 10) * ratioX;
+        let y = (ttEl.offsetTop || 10) * ratioY;
+
+        if (x <= 0 || (ttEl.style.right && ttEl.style.right !== 'auto')) {
+            const rightPx = parseFloat(ttEl.style.right) || 8;
+            x = srcCanvas.width - w - (rightPx * ratioX);
+        }
+        if (y <= 0) y = 10 * ratioY;
+
+        if (x + w > srcCanvas.width - 6) x = srcCanvas.width - w - 6;
+        if (x < 6) x = 6;
+        if (y + h > srcCanvas.height - 6) y = srcCanvas.height - h - 6;
+
+        tCtx.save();
+        tCtx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+        tCtx.shadowBlur = 14 * scale;
+        tCtx.shadowOffsetX = 0;
+        tCtx.shadowOffsetY = 4 * scale;
+
+        tCtx.fillStyle = 'rgba(13, 15, 23, 0.94)';
+        tCtx.strokeStyle = tooltipFijado ? 'rgba(56, 189, 248, 0.90)' : 'rgba(56, 189, 248, 0.50)';
+        tCtx.lineWidth = (tooltipFijado ? 2 : 1.2) * scale;
+
+        const radio = 8 * scale;
+        if (tCtx.roundRect) {
+            tCtx.beginPath();
+            tCtx.roundRect(x, y, w, h, radio);
+            tCtx.fill();
+            tCtx.stroke();
+        } else {
+            tCtx.fillRect(x, y, w, h);
+            tCtx.strokeRect(x, y, w, h);
+        }
+        tCtx.shadowColor = 'transparent';
+
+        const padX = 10 * scale;
+        let curY = y + (16 * scale);
+
+        const titleEl = ttEl.querySelector('.tt-title');
+        if (titleEl) {
+            tCtx.font = `bold ${10.5 * scale}px sans-serif`;
+            tCtx.fillStyle = '#f8fafc';
+            tCtx.textAlign = 'left';
+            tCtx.textBaseline = 'middle';
+            const txtTitulo = (titleEl.textContent || '').trim();
+            tCtx.fillText(txtTitulo, x + padX, curY);
+
+            curY += 8 * scale;
+            tCtx.beginPath();
+            tCtx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+            tCtx.lineWidth = 1 * scale;
+            tCtx.moveTo(x + padX, curY);
+            tCtx.lineTo(x + w - padX, curY);
+            tCtx.stroke();
+            curY += 10 * scale;
+        }
+
+        const rows = ttEl.querySelectorAll('.tt-row');
+        tCtx.font = `${9.5 * scale}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+        rows.forEach(r => {
+            const box = r.querySelector('.tt-box');
+            let dotCol = '#38bdf8';
+            if (box && box.style.background) dotCol = box.style.background;
+
+            tCtx.beginPath();
+            tCtx.fillStyle = dotCol;
+            tCtx.arc(x + padX + (4 * scale), curY, 3 * scale, 0, Math.PI * 2);
+            tCtx.fill();
+
+            tCtx.fillStyle = '#e2e8f0';
+            tCtx.textAlign = 'left';
+            tCtx.textBaseline = 'middle';
+            const filaTxt = (r.textContent || '').replace(/[◀▶]/g, '').trim();
+            tCtx.fillText(filaTxt, x + padX + (12 * scale), curY);
+
+            curY += 14 * scale;
+        });
+
+        const subs = ttEl.querySelectorAll('.tt-sub');
+        if (subs.length > 0) {
+            tCtx.font = `${8.5 * scale}px monospace`;
+            tCtx.fillStyle = '#94a3b8';
+            subs.forEach(s => {
+                tCtx.fillText((s.textContent || '').trim(), x + padX + (14 * scale), curY);
+                curY += 12 * scale;
+            });
+        }
+
+        const evBox = ttEl.querySelector('.tt-event-box');
+        if (evBox) {
+            curY += 4 * scale;
+            tCtx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+            tCtx.strokeStyle = '#38bdf8';
+            tCtx.lineWidth = 1 * scale;
+            const evH = 22 * scale;
+            const evW = w - (padX * 2);
+            if (tCtx.roundRect) {
+                tCtx.beginPath();
+                tCtx.roundRect(x + padX, curY, evW, evH, 4 * scale);
+                tCtx.fill();
+                tCtx.stroke();
+            } else {
+                tCtx.fillRect(x + padX, curY, evW, evH);
+                tCtx.strokeRect(x + padX, curY, evW, evH);
+            }
+            tCtx.font = `bold ${8.5 * scale}px sans-serif`;
+            tCtx.fillStyle = '#38bdf8';
+            tCtx.fillText((evBox.textContent || '').trim(), x + padX + (6 * scale), curY + (evH / 2));
+        }
+
+        if (tooltipFijado) {
+            tCtx.font = `bold ${8.5 * scale}px sans-serif`;
+            tCtx.fillStyle = '#38bdf8';
+            tCtx.textAlign = 'right';
+            tCtx.textBaseline = 'top';
+            tCtx.fillText("📌 Fijado", x + w - (8 * scale), y + (6 * scale));
+        }
+
+        tCtx.restore();
+    }
+
     function descargarCapturaGrafico() {
         if (!chartInstance) return;
         const srcCanvas = chartInstance.canvas;
@@ -2487,7 +2664,30 @@
         const tCtx = tempCanvas.getContext('2d');
         tCtx.fillStyle = '#0d0f17';
         tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+        const ttEl = document.getElementById('customChartTooltip');
+        const hayTooltipEnPantalla = ttEl && ttEl.style.display !== 'none' && ttEl.innerHTML.trim() !== '';
+
+        // Si el usuario fijó la información o estaba inspeccionando un punto, forzar dibujo del crosshair y HUD
+        let restaurarDisplayDespues = false;
+        if (!hayTooltipEnPantalla && ultimoContextoTooltip && ultimoContextoTooltip.tooltip) {
+            renderizarTooltipExterno(ultimoContextoTooltip);
+            restaurarDisplayDespues = true;
+        }
+
+        if (chartInstance && (tooltipFijado || cursorDentroArea || ultimoContextoTooltip)) {
+            chartInstance.update('none');
+        }
+
         tCtx.drawImage(srcCanvas, 0, 0);
+
+        if (ttEl && (ttEl.style.display !== 'none' || tooltipFijado || ultimoContextoTooltip)) {
+            dibujarHudEnCanvasCaptura(tCtx, srcCanvas, ttEl);
+        }
+
+        if (restaurarDisplayDespues && !tooltipFijado && ttEl) {
+            ttEl.style.display = 'none';
+        }
 
         const link = document.createElement('a');
         link.download = `Telemetria_{{ ip }}_${rangoActual}.png`;
@@ -2505,6 +2705,7 @@
         }
 
         function validarPosicionCursor(clientX, clientY) {
+            if (tooltipFijado) return;
             if (!chartInstance || !chartInstance.chartArea) return;
             if (!rectCanvasCache) actualizarRectCache();
             const x = clientX - rectCanvasCache.left;
@@ -2571,8 +2772,49 @@
             mouseEntradaX = null;
             mouseEntradaY = null;
             clearTimeout(timerDesbloqueoZoom);
-            ocultarTooltipGris();
+            if (!tooltipFijado) {
+                ocultarTooltipGris();
+            }
         }, { passive: true });
+
+        // Clic para fijar / congelar la información o soltarla (estilo Binance)
+        canvas.addEventListener('click', function(e) {
+            if (!chartInstance || !chartInstance.chartArea) return;
+            if (!rectCanvasCache) actualizarRectCache();
+            const x = e.clientX - rectCanvasCache.left;
+            const y = e.clientY - rectCanvasCache.top;
+            const ca = chartInstance.chartArea;
+
+            if (x >= ca.left && x <= ca.right && y >= ca.top && y <= ca.bottom) {
+                // Si aún no se estaba detectando este punto, forzar cálculo
+                if (!tooltipFijado) {
+                    validarPosicionCursor(e.clientX, e.clientY);
+                }
+
+                if (ultimoContextoTooltip && ultimoContextoTooltip.tooltip && ultimoContextoTooltip.tooltip.dataPoints && ultimoContextoTooltip.tooltip.dataPoints.length > 0) {
+                    const dp0 = ultimoContextoTooltip.tooltip.dataPoints[0];
+                    const ts = dp0.parsed.x;
+                    if (tooltipFijado && puntoFijadoTs === ts) {
+                        // Clic en el mismo punto fijado: descongelar
+                        tooltipFijado = false;
+                        puntoFijadoTs = null;
+                        actualizarVisualPin(false);
+                    } else {
+                        // Fijar en este punto
+                        tooltipFijado = true;
+                        puntoFijadoTs = ts;
+                        actualizarVisualPin(true);
+                    }
+                    renderizarTooltipExterno(ultimoContextoTooltip);
+                    chartInstance.update('none');
+                }
+            } else {
+                tooltipFijado = false;
+                puntoFijadoTs = null;
+                actualizarVisualPin(false);
+                ocultarTooltipGris();
+            }
+        });
 
         canvas.addEventListener('dblclick', function() { resetearZoomGrafico(); });
 
@@ -2586,9 +2828,11 @@
                 let ahora = Date.now();
                 if (ahora - ultimoToqueTs < 280) resetearZoomGrafico();
                 ultimoToqueTs = ahora;
-                validarPosicionCursor(e.touches[0].clientX, e.touches[0].clientY);
+                const tx = e.touches[0].clientX;
+                const ty = e.touches[0].clientY;
+                validarPosicionCursor(tx, ty);
             } else {
-                ocultarTooltipGris();
+                if (!tooltipFijado) ocultarTooltipGris();
             }
         }, { passive: true });
 
@@ -2603,7 +2847,7 @@
                     });
                 }
             } else {
-                ocultarTooltipGris();
+                if (!tooltipFijado) ocultarTooltipGris();
             }
         }, { passive: true });
     }
