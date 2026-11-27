@@ -107,6 +107,9 @@ def despachar_comando(cur, owner, ip, comando, fecha=None):
             cur.execute("UPDATE mineros_activos SET prot_sleep_desde='', prot_motivo='', estado='online' WHERE owner=%s AND ip=%s", (owner, ip))
         except Exception:
             pass
+    elif 'blink' in cmd_lower:
+        tipo_ev = 'CMD_BLINK'
+        msg_ev = f"LED Locator en minero {ip}"
 
     if tipo_ev:
         try:
@@ -922,7 +925,7 @@ def detalle_minero(ip):
           AND tipo IN (
             'WATCHDOG_REBOOT', 'WATCHDOG_CUARENTENA', 'CORTE_TERMICO',
             'HORARIO_PICO', 'HORARIO_NORMAL', 'CMD_SLEEP', 'CMD_NORMAL',
-            'CMD_RESTART', 'APAGON_SEDE', 'GRANJA_CAIDA', 'GRANJA_ONLINE'
+            'CMD_RESTART', 'CMD_RESET', 'CMD_BLINK', 'APAGON_SEDE', 'GRANJA_CAIDA', 'GRANJA_ONLINE'
           )
         ORDER BY id DESC
         LIMIT 120
