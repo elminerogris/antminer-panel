@@ -209,9 +209,9 @@ def api_agente_mis_mineros():
                 owner = u['owner']
 
     if owner:
-        cur.execute("SELECT ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial FROM mineros_activos WHERE owner=%s ORDER BY ip", (owner,))
+        cur.execute("SELECT ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial, pool1, pass1, pool2, worker2, pass2, pool3, worker3, pass3 FROM mineros_activos WHERE owner=%s ORDER BY ip", (owner,))
     else:
-        cur.execute("SELECT ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial FROM mineros_activos ORDER BY ip")
+        cur.execute("SELECT ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial, pool1, pass1, pool2, worker2, pass2, pool3, worker3, pass3 FROM mineros_activos ORDER BY ip")
     rows = cur.fetchall()
     mineros = []
     for r in rows:
@@ -228,9 +228,137 @@ def api_agente_mis_mineros():
             "fans": r.get('fans') or '',
             "worker": r.get('worker1') or '',
             "serial": r.get('serial') or '',
+            "pool1": r.get('pool1') or '',
+            "worker1": r.get('worker1') or '',
+            "pass1": r.get('pass1') or '',
+            "pool2": r.get('pool2') or '',
+            "worker2": r.get('worker2') or '',
+            "pass2": r.get('pass2') or '',
+            "pool3": r.get('pool3') or '',
+            "worker3": r.get('worker3') or '',
+            "pass3": r.get('pass3') or '',
             "ultima_act": str(r.get('ultima_act') or '')
         })
     return jsonify({"ok": True, "count": len(mineros), "mineros": mineros}), 200
+
+@agente_bp.route('/api/agente/comando', methods=['POST'])
+def api_agente_comando():
+    """Ejecuta o encola comandos (restart, sleep, normal, guardar_pools) desde la App Android o web."""
+    data = request.get_json(silent=True) or {}
+    api_k = (data.get('api_key') or request.args.get('api_key') or '').strip()
+    cmd_raw = (data.get('comando') or data.get('accion') or '').strip()
+    ip_raw = (data.get('ip') or 'all').strip()
+    username_p = (data.get('username') or request.args.get('username') or '').strip()
+
+    if not cmd_raw:
+        return jsonify({"ok": False, "msg": "Comando no especificado"}), 400
+
+    owner = session.get('usuario')
+    con = get_db(); con.autocommit = True
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    if not owner and api_k:
+        cur.execute("SELECT username FROM usuarios WHERE api_key=%s LIMIT 1", (api_k,))
+        u = cur.fetchone()
+        if u:
+            owner = u['username']
+
+    if not owner and username_p:
+        cur.execute("SELECT username FROM usuarios WHERE LOWER(username)=%s LIMIT 1", (username_p.lower(),))
+        u = cur.fetchone()
+        if u:
+            owner = u['username']
+
+    if not owner:
+        cur.execute("SELECT DISTINCT owner FROM mineros_activos ORDER BY owner ASC LIMIT 1")
+        u = cur.fetchone()
+        if u:
+            owner = u['owner']
+
+    if not owner:
+        owner = 'Admin'
+
+    # Normalizar comando
+    cmd_str = cmd_raw
+    if cmd_raw in ['restart', 'reboot']:
+        cmd_str = 'restart'
+    elif cmd_raw in ['sleep', 'dormir', 'reposo']:
+        cmd_str = 'sleep'
+    elif cmd_raw in ['normal', 'wake', 'reanudar']:
+        cmd_str = 'normal'
+    elif cmd_raw.startswith('guardar_pools'):
+        cmd_str = cmd_raw
+    elif 'pools' in data and isinstance(data['pools'], list):
+        pools = data['pools']
+        u1 = str(pools[0].get('url', '') if len(pools) > 0 else '').replace('|', '').strip()
+        w1 = str(pools[0].get('user', '') if len(pools) > 0 else '').replace('|', '').strip()
+        p1 = str(pools[0].get('pass', '123') if len(pools) > 0 else '123').replace('|', '').strip()
+        u2 = str(pools[1].get('url', '') if len(pools) > 1 else '').replace('|', '').strip()
+        w2 = str(pools[1].get('user', '') if len(pools) > 1 else '').replace('|', '').strip()
+        p2 = str(pools[1].get('pass', '123') if len(pools) > 1 else '123').replace('|', '').strip()
+        u3 = str(pools[2].get('url', '') if len(pools) > 2 else '').replace('|', '').strip()
+        w3 = str(pools[2].get('user', '') if len(pools) > 2 else '').replace('|', '').strip()
+        p3 = str(pools[2].get('pass', '123') if len(pools) > 2 else '123').replace('|', '').strip()
+        cmd_str = f"guardar_pools|{u1}|{w1}|{p1}|{u2}|{w2}|{p2}|{u3}|{w3}|{p3}"
+
+    # Si es guardar_pools, actualizar mineros_activos de inmediato para reflejar en tiempo real
+    if cmd_str.startswith('guardar_pools|'):
+        partes = cmd_str.split('|')
+        if len(partes) >= 10:
+            u1, w1, p1 = partes[1], partes[2], partes[3]
+            u2, w2, p2 = partes[4], partes[5], partes[6]
+            u3, w3, p3 = partes[7], partes[8], partes[9]
+            try:
+                if ip_raw == 'all':
+                    cur.execute(
+                        "UPDATE mineros_activos SET pool1=%s, worker1=%s, pass1=%s, pool2=%s, worker2=%s, pass2=%s, pool3=%s, worker3=%s, pass3=%s WHERE owner=%s",
+                        (u1, w1, p1, u2, w2, p2, u3, w3, p3, owner)
+                    )
+                else:
+                    cur.execute(
+                        "UPDATE mineros_activos SET pool1=%s, worker1=%s, pass1=%s, pool2=%s, worker2=%s, pass2=%s, pool3=%s, worker3=%s, pass3=%s WHERE owner=%s AND ip=%s",
+                        (u1, w1, p1, u2, w2, p2, u3, w3, p3, owner, ip_raw)
+                    )
+            except Exception:
+                pass
+
+    # Obtener IPs objetivo
+    if ip_raw == 'all':
+        cur.execute("SELECT ip, agent_id FROM mineros_activos WHERE owner=%s", (owner,))
+        filas = cur.fetchall() or []
+    else:
+        cur.execute("SELECT ip, agent_id FROM mineros_activos WHERE owner=%s AND ip=%s", (owner, ip_raw))
+        filas = cur.fetchall() or []
+        if not filas:
+            filas = [{'ip': ip_raw, 'agent_id': 'default'}]
+
+    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    enviados = 0
+    for r_m in filas:
+        m_ip = r_m['ip']
+        ag_id = str(r_m.get('agent_id') or 'default').strip()
+        ok_ws = enviar_orden_tunel(owner, m_ip, cmd_str, agent_id=ag_id)
+        estado = 'enviado' if ok_ws else 'pendiente'
+        cur.execute(
+            "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s)",
+            (owner, ag_id, m_ip, cmd_str, estado, ahora)
+        )
+        enviados += 1
+
+    # Registrar evento para gráfica y auditoría
+    cmd_lower = cmd_str.lower()
+    tipo_ev = 'CMD_RESTART' if 'restart' in cmd_lower else ('CMD_SLEEP' if 'sleep' in cmd_lower else ('CMD_NORMAL' if 'normal' in cmd_lower else ('CMD_POOLS' if 'guardar_pools' in cmd_lower else None)))
+    if tipo_ev:
+        try:
+            msg_ev = f"Comando [{cmd_str.split('|')[0]}] enviado a {enviados} minero(s)"
+            cur.execute(
+                "INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, %s, %s, %s)",
+                (owner, ip_raw, tipo_ev, msg_ev, ahora)
+            )
+        except Exception:
+            pass
+
+    return jsonify({"ok": True, "enviados": enviados, "comando": cmd_str.split('|')[0], "msg": f"Orden enviada a {enviados} minero(s)"}), 200
 
 @agente_bp.route('/api/agente/login', methods=['POST'])
 def api_agente_login():

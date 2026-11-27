@@ -45,18 +45,21 @@ def verificar_rate_limit(clave, max_intentos=8, ventana_seg=300):
 
 def _validar_origen_csrf():
     """Valida que peticiones críticas de control provengan del mismo host (Anti-CSRF)."""
-    host = request.host
+    def _norm(h):
+        return str(h or '').split('://')[-1].split('/')[0].split(':')[0].lower().replace('www.', '')
+
+    host_norm = _norm(request.host)
     ref = request.headers.get('Referer', '')
     orig = request.headers.get('Origin', '')
     if orig:
-        clean_orig = orig.split('://')[-1].split('/')[0]
-        if clean_orig != host:
-            notificar_alerta_seguridad("Violación Anti-CSRF", f"Origin '{orig}' no coincide con host '{host}' en ruta {request.path}", _ip_cliente())
+        clean_orig = _norm(orig)
+        if clean_orig and clean_orig != host_norm:
+            notificar_alerta_seguridad("Violación Anti-CSRF", f"Origin '{orig}' no coincide con host '{request.host}' en ruta {request.path}", _ip_cliente())
             return False
     elif ref:
-        clean_ref = ref.split('://')[-1].split('/')[0]
-        if clean_ref != host:
-            notificar_alerta_seguridad("Violación Anti-CSRF", f"Referer '{ref}' no coincide con host '{host}' en ruta {request.path}", _ip_cliente())
+        clean_ref = _norm(ref)
+        if clean_ref and clean_ref != host_norm:
+            notificar_alerta_seguridad("Violación Anti-CSRF", f"Referer '{ref}' no coincide con host '{request.host}' en ruta {request.path}", _ip_cliente())
             return False
     return True
 
@@ -2208,7 +2211,10 @@ def comando_minero(ip, accion):
 
     # Mitigación IDOR: Verificar que el minero pertenezca al usuario en sesión
     con = get_db(); con.autocommit = True; cur = con.cursor()
-    cur.execute("SELECT id FROM mineros_activos WHERE owner=%s AND ip=%s LIMIT 1", (usr_actual, ip))
+    if ip == 'all':
+        cur.execute("SELECT 1 FROM mineros_activos WHERE owner=%s LIMIT 1", (usr_actual,))
+    else:
+        cur.execute("SELECT 1 FROM mineros_activos WHERE owner=%s AND ip=%s LIMIT 1", (usr_actual, ip))
     if not cur.fetchone() and not es_super_admin():
         return jsonify({"status": "error", "msg": "Minero no autorizado"}), 403
 
@@ -2234,9 +2240,30 @@ def comando_minero(ip, accion):
         w3 = str(request.args.get('w3', '')).replace('|', '').strip()
         p3 = str(request.args.get('p3', '123')).replace('|', '').strip()
         cmd_str = f"guardar_pools|{u1}|{w1}|{p1}|{u2}|{w2}|{p2}|{u3}|{w3}|{p3}"
+        if u1:
+            try:
+                if ip == 'all':
+                    cur.execute(
+                        "UPDATE mineros_activos SET pool1=%s, worker1=%s, pass1=%s, pool2=%s, worker2=%s, pass2=%s, pool3=%s, worker3=%s, pass3=%s WHERE owner=%s",
+                        (u1, w1, p1, u2, w2, p2, u3, w3, p3, usr_actual)
+                    )
+                else:
+                    cur.execute(
+                        "UPDATE mineros_activos SET pool1=%s, worker1=%s, pass1=%s, pool2=%s, worker2=%s, pass2=%s, pool3=%s, worker3=%s, pass3=%s WHERE owner=%s AND ip=%s",
+                        (u1, w1, p1, u2, w2, p2, u3, w3, p3, usr_actual, ip)
+                    )
+            except Exception:
+                pass
 
     if cmd_str:
-        despachar_comando(cur, usr_actual, ip, cmd_str)
+        if ip == 'all':
+            cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s", (usr_actual,))
+            filas_ips = cur.fetchall() or []
+            for r_m in filas_ips:
+                m_ip = r_m['ip'] if isinstance(r_m, dict) else r_m[0]
+                despachar_comando(cur, usr_actual, m_ip, cmd_str)
+        else:
+            despachar_comando(cur, usr_actual, ip, cmd_str)
     return "OK"
 
 @panel_bp.route('/exportar_csv')

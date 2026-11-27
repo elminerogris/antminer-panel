@@ -1498,9 +1498,15 @@ def cambiar_modo_inteligente(ip_dest, modo):
     if modo == "sleep":
         actualizar_config_minero_segura(ip_dest, {"bitmain-work-mode": "1", "miner-mode": 1})
         peticion_4028(ip_dest, "pause")
+        peticion_4028(ip_dest, "sleep")
+        peticion_http(ip_dest, "sleep.cgi", "POST_EMPTY", timeout_sec=5.0)
+        peticion_http(ip_dest, "sleep.cgi", "GET", timeout_sec=5.0)
     elif modo == "normal":
         actualizar_config_minero_segura(ip_dest, {"bitmain-work-mode": "0", "miner-mode": 0})
         peticion_4028(ip_dest, "resume")
+        peticion_4028(ip_dest, "wakeup")
+        peticion_http(ip_dest, "resume.cgi", "POST_EMPTY", timeout_sec=5.0)
+        peticion_http(ip_dest, "resume.cgi", "GET", timeout_sec=5.0)
 
 # ========= FIRMWARE OTA: Descargar + Flashear =========
 def reportar_progreso_firmware(fw_id, ip, estado, progreso, mensaje=""):
@@ -1652,7 +1658,8 @@ def procesar_comandos(ordenes):
                 peticion_4028(ip_dest, "reboot")
                 peticion_4028(ip_dest, "restart_btminer")
             else:
-                peticion_http(ip_dest, "reboot.cgi", timeout_sec=5.0)
+                peticion_http(ip_dest, "reboot.cgi", "POST_EMPTY", timeout_sec=5.0)
+                peticion_http(ip_dest, "reboot.cgi", "GET", timeout_sec=5.0)
                 peticion_4028(ip_dest, "restart")
         elif accion == "reset":
             if not es_wm:
@@ -1693,21 +1700,37 @@ def procesar_comandos(ordenes):
                     ips_conocidas.append(nip)
         elif accion.startswith("guardar_pools|"):
             partes = accion.split('|')
-            if len(partes) >= 10 and not es_wm:
-                nuevas_pools = {
-                    "pools": [
-                        {"url": partes[1], "user": partes[2], "pass": partes[3]},
-                        {"url": partes[4], "user": partes[5], "pass": partes[6]},
-                        {"url": partes[7], "user": partes[8], "pass": partes[9]}
-                    ]
-                }
-                actualizar_config_minero_segura(ip_dest, nuevas_pools)
-                payload_form_pools = {
-                    "_ant_pool1url": partes[1], "_ant_pool1user": partes[2], "_ant_pool1pw": partes[3],
-                    "_ant_pool2url": partes[4], "_ant_pool2user": partes[5], "_ant_pool2pw": partes[6],
-                    "_ant_pool3url": partes[7], "_ant_pool3user": partes[8], "_ant_pool3pw": partes[9]
-                }
-                peticion_http(ip_dest, "set_miner_conf.cgi", "POST_FORM", payload_form_pools, timeout_sec=5.0)
+            if len(partes) >= 10:
+                u1, w1, p1 = partes[1], partes[2], partes[3]
+                u2, w2, p2 = partes[4], partes[5], partes[6]
+                u3, w3, p3 = partes[7], partes[8], partes[9]
+                if es_wm:
+                    try: peticion_4028(ip_dest, "addpool", f"{u1},{w1},{p1}")
+                    except: pass
+                    if u2:
+                        try: peticion_4028(ip_dest, "addpool", f"{u2},{w2},{p2}")
+                        except: pass
+                    if u3:
+                        try: peticion_4028(ip_dest, "addpool", f"{u3},{w3},{p3}")
+                        except: pass
+                else:
+                    nuevas_pools = {
+                        "pools": [
+                            {"url": u1, "user": w1, "pass": p1},
+                            {"url": u2, "user": w2, "pass": p2},
+                            {"url": u3, "user": w3, "pass": p3}
+                        ]
+                    }
+                    actualizar_config_minero_segura(ip_dest, nuevas_pools)
+                    payload_form_pools = {
+                        "_ant_pool1url": u1, "_ant_pool1user": w1, "_ant_pool1pw": p1,
+                        "_ant_pool2url": u2, "_ant_pool2user": w2, "_ant_pool2pw": p2,
+                        "_ant_pool3url": u3, "_ant_pool3user": w3, "_ant_pool3pw": p3
+                    }
+                    peticion_http(ip_dest, "set_miner_conf.cgi", "POST_FORM", payload_form_pools, timeout_sec=5.0)
+                    peticion_http(ip_dest, "set_miner_conf.cgi", "POST", nuevas_pools, timeout_sec=5.0)
+                    try: peticion_4028(ip_dest, "addpool", f"{u1},{w1},{p1}")
+                    except: pass
         elif accion in ["get_log", "clog", "hlog", "dlog"]:
             if not es_wm:
                 endpoint = f"{accion}.cgi" if accion != "get_log" else "log.cgi"
