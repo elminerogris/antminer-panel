@@ -280,36 +280,39 @@
     .nombre-inline-box {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
     }
     .input-name-inline {
         background: var(--bg-card);
         border: 1.5px solid #3b82f6;
         color: var(--text-main);
-        padding: 4px 10px;
+        padding: 0 10px;
+        height: 32px;
+        box-sizing: border-box;
         border-radius: 6px;
         font-family: inherit;
-        font-size: 1.18em;
-        font-weight: bold;
-        min-width: 160px;
-        max-width: 260px;
+        font-size: 1.05em;
+        font-weight: 600;
+        width: 175px;
+        max-width: 210px;
         outline: none;
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
         transition: all 0.18s ease;
     }
     .input-name-inline:focus {
         border-color: #60a5fa;
-        box-shadow: 0 0 16px rgba(96, 165, 250, 0.55);
+        box-shadow: 0 0 14px rgba(96, 165, 250, 0.5);
     }
     .btn-save-inline {
         background: #2563eb;
         color: #fff;
         border: 1px solid #3b82f6;
-        padding: 5px 11px;
+        padding: 0 10px;
+        height: 32px;
         border-radius: 6px;
         cursor: pointer;
         font-weight: bold;
-        font-size: 0.82em;
+        font-size: 0.78em;
         display: inline-flex;
         align-items: center;
         gap: 4px;
@@ -323,10 +326,11 @@
         background: var(--bg-well-soft);
         color: var(--text-muted);
         border: 1px solid var(--border-color);
-        padding: 5px 9px;
+        padding: 0 9px;
+        height: 32px;
         border-radius: 6px;
         cursor: pointer;
-        font-size: 0.82em;
+        font-size: 0.8em;
         font-weight: bold;
         transition: all 0.18s ease;
     }
@@ -334,6 +338,12 @@
         color: var(--accent-red);
         border-color: var(--accent-red);
         background: rgba(239, 68, 68, 0.12);
+    }
+    .ip-pill-top {
+        font-family: monospace;
+        font-size: 0.82em;
+        padding: 4px 10px;
+        border-radius: 6px;
     }
 
     /* Banner de Alerta cuando el equipo está Offline */
@@ -474,7 +484,7 @@
                 <button type="button" class="btn-edit-name-pro" data-top-tt="btn_editar_nombre" onclick="activarEdicionNombreInline()" title="Editar nombre de este minero">✏️ Renombrar</button>
             </div>
 
-            <!-- Modo Edición In-Place: Input y controles exactamente en el mismo lugar -->
+            <!-- Modo Edición In-Place: Input moderado y compacto profesional -->
             <div id="nombreEdicionWrap" class="nombre-inline-box" style="display: none;">
                 <input type="text" id="inputNombreInline" class="input-name-inline" maxlength="40" value="{{ nombre }}" placeholder="Nombre del minero..." onkeydown="manejarTeclaNombreInline(event)">
                 <button type="button" id="btnGuardarNombreInline" class="btn-save-inline" onclick="guardarNombreInline()" title="Guardar (Enter)">✔ Guardar</button>
@@ -482,7 +492,25 @@
                 <span id="feedbackNombreInline" style="font-size:0.78em; font-family:monospace; font-weight:bold;"></span>
             </div>
 
-            <!-- Acciones Rápidas junto al Nombre: Reiniciar, LED, Reposo -->
+            <!-- Dirección IP y botón copiar (movido arriba junto al nombre) -->
+            <span class="meta-pill-tag ip-pill-top">
+                <span translate="no">🌐 {{ ip }}</span>
+                <button type="button" class="btn-copy-ip-top" onclick="copiarIpCabecera('{{ ip }}', this)" title="Copiar dirección IP">
+                    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    <span>Copiar</span>
+                </button>
+            </span>
+
+            <span class="miner-status-badge {{ 'offline' if offline else ('sleep' if (es_sleep or ultimo.es_sleep) else 'online') }}" data-top-tt="badge_estado" id="badgeEstadoCabecera">
+                <span class="miner-pulse-dot"></span>
+                {{ 'SIN CONEXIÓN' if offline else ('EN REPOSO' if (es_sleep or ultimo.es_sleep) else 'EN LÍNEA') }}
+            </span>
+        </div>
+
+        <div class="miner-sub-meta">
+            <span class="meta-pill-tag" translate="no">🖥️ {{ modelo }}</span>
+
+            <!-- Acciones Rápidas de Hardware: Reiniciar, Interruptor LED, Interruptor Reposo (movidas a esta fila) -->
             <div class="miner-header-actions">
                 <button type="button" class="btn-hdr-reboot" onclick="confirmarReinicioCabecera()" title="Reiniciar minero (Reboot)">
                     🔄 Reiniciar
@@ -504,23 +532,6 @@
                     </label>
                 </div>
             </div>
-
-            <span class="miner-status-badge {{ 'offline' if offline else ('sleep' if (es_sleep or ultimo.es_sleep) else 'online') }}" data-top-tt="badge_estado" id="badgeEstadoCabecera">
-                <span class="miner-pulse-dot"></span>
-                {{ 'SIN CONEXIÓN' if offline else ('EN REPOSO' if (es_sleep or ultimo.es_sleep) else 'EN LÍNEA') }}
-            </span>
-        </div>
-
-        <div class="miner-sub-meta">
-            <span class="meta-pill-tag" translate="no">🖥️ {{ modelo }}</span>
-            <span class="meta-pill-tag">
-                <span translate="no">🌐 {{ ip }}</span>
-                <button type="button" class="btn-copy-ip-top" onclick="copiarIpCabecera('{{ ip }}', this)" title="Copiar dirección IP">
-                    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    <span>Copiar</span>
-                </button>
-            </span>
-            <span class="meta-pill-tag">⏱️ Tiempo activo: <b style="color:var(--text-main);" translate="no">{{ ultimo.uptime }}</b></span>
         </div>
     </div>
 </div>
