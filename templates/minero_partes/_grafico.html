@@ -445,6 +445,28 @@
         flex-wrap: wrap;
     }
     .farm-loc-actions { margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px; }
+    .farm-scope-notice {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        background: rgba(56, 189, 248, 0.08);
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        border-radius: 8px;
+        padding: 9px 12px;
+        margin-top: 10px;
+        margin-bottom: 6px;
+        font-size: 11.5px;
+        line-height: 1.45;
+        color: var(--text-secondary);
+    }
+    .farm-scope-icon {
+        font-size: 16px;
+        flex-shrink: 0;
+        margin-top: 1px;
+    }
+    .farm-scope-body b {
+        color: var(--text-main);
+    }
 
     /* Contenedor Full-Bleed optimizado con aceleración GPU */
     .chart-edge-container {
@@ -675,11 +697,19 @@
 <div id="farmLocModalBg" class="farm-loc-modal-bg" onclick="if(event.target===this) cerrarModalUbicacionGranja()">
     <div class="farm-loc-modal">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <b style="font-size:14.5px;">🗺️ Editar GPS de tus Máquinas</b>
+            <b style="font-size:14.5px;">🗺️ Ubicación de la Granja</b>
             <button type="button" onclick="cerrarModalUbicacionGranja()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:17px;">✕</button>
         </div>
         <div style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">
             Busca una ciudad, usa <b>Mi GPS</b> o <b>toca / arrastra el pin en el mapa</b> donde están instalados tus mineros.
+        </div>
+
+        <div class="farm-scope-notice">
+            <div class="farm-scope-icon">ℹ️</div>
+            <div class="farm-scope-body">
+                <b>Actualización de toda la granja:</b>
+                <span>Al cambiar esta ubicación, se actualizarán <b>todos los mineros de esta sede</b> (<b style="color:var(--accent-cyan);" translate="no">{{ nombre_sede | default('Granja Local') }}</b>). Esto sincroniza el clima exterior, la hora solar y las protecciones térmicas automáticas de toda tu flota aquí instalada.</span>
+            </div>
         </div>
 
         <div class="farm-loc-input-row">
@@ -702,10 +732,10 @@
 
         <div class="farm-loc-actions">
             <button type="button" class="btn-filter" onclick="cerrarModalUbicacionGranja()">Cancelar</button>
-            <button type="button" class="btn-emg-save" onclick="confirmarUbicacionMapa()"
+            <button type="button" class="btn-emg-save" id="btnGuardarUbicacionGranja" onclick="confirmarUbicacionMapa()"
                     data-save-title="📍 Guardar Ubicación de la Granja"
-                    data-save-desc="Guarda las coordenadas exactas seleccionadas en el mapa para calcular el clima exterior real de tu sede."
-                    data-save-note="Usado por la Protección Climática y el gráfico térmico">✅ Guardar Ubicación</button>
+                    data-save-desc="Actualiza las coordenadas geográficas de toda la granja para sincronizar el clima exterior y protecciones automáticas."
+                    data-save-note="Afectará a todos los mineros de {{ nombre_sede | default('esta sede') }}">📍 Guardar para Toda la Granja</button>
         </div>
     </div>
 </div>
@@ -1606,14 +1636,49 @@
             }));
         } catch (e) {}
 
+        const btnSave = document.getElementById('btnGuardarUbicacionGranja');
+        if (btnSave) {
+            btnSave.disabled = true;
+            btnSave.innerText = '⏳ Guardando en toda la granja...';
+        }
+
         fetch('/api/guardar_gps', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lat: GRANJA_LAT, lon: GRANJA_LON, ciudad: GRANJA_CIUDAD, pais: GRANJA_PAIS })
-        }).catch(() => {});
+            body: JSON.stringify({
+                ip: '{{ ip }}',
+                farm_id: '{{ farm_id | default("") }}',
+                agent_id: '{{ agent_id | default("") }}',
+                lat: GRANJA_LAT,
+                lon: GRANJA_LON,
+                ciudad: GRANJA_CIUDAD,
+                pais: GRANJA_PAIS
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (btnSave) {
+                btnSave.disabled = false;
+                btnSave.innerText = '📍 Guardar para Toda la Granja';
+            }
+            cerrarModalUbicacionGranja();
+            cargarClimaDeLaGranja();
 
-        cerrarModalUbicacionGranja();
-        cargarClimaDeLaGranja();
+            const nomSede = (data && data.nombre_sede) ? data.nombre_sede : '{{ nombre_sede | default("Granja") }}';
+            const cantMin = (data && data.mineros_afectados) ? data.mineros_afectados : 1;
+            const msg = `📍 Ubicación de "${nomSede}" actualizada (${GRANJA_CIUDAD}, ${GRANJA_PAIS}). Sincronizados ${cantMin} minero(s).`;
+            if (typeof mostrarLayoutToast === 'function') {
+                mostrarLayoutToast(msg);
+            }
+        })
+        .catch(() => {
+            if (btnSave) {
+                btnSave.disabled = false;
+                btnSave.innerText = '📍 Guardar para Toda la Granja';
+            }
+            cerrarModalUbicacionGranja();
+            cargarClimaDeLaGranja();
+        });
     }
 
     async function autodetectarUbicacionClienteSiFalta() {

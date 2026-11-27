@@ -668,16 +668,45 @@ def api_guardar_gps():
     if es_super_admin() and data.get('owner'):
         owner_target = str(data.get('owner')).strip()
 
+    ip_ref = str(data.get('ip') or '').strip()
     farm_id = str(data.get('farm_id') or '').strip()
     agent_id = str(data.get('agent_id') or '').strip()
     subred = str(data.get('subred') or '').strip()
-    con = get_db(); con.autocommit = True; cur = con.cursor()
+    con = get_db(); con.autocommit = True; cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+    if ip_ref and (not farm_id or not agent_id):
+        try:
+            cur.execute("SELECT farm_id, agent_id FROM mineros_activos WHERE owner=%s AND ip=%s LIMIT 1", (owner_target, ip_ref))
+            r_ref = cur.fetchone()
+            if r_ref:
+                if not farm_id and r_ref.get('farm_id'):
+                    farm_id = str(r_ref['farm_id']).strip()
+                if not agent_id and r_ref.get('agent_id'):
+                    agent_id = str(r_ref['agent_id']).strip()
+        except Exception:
+            pass
+
+    nombre_sede = "Granja Principal"
+    try:
+        cur.execute(
+            "SELECT nombre FROM granjas_sedes WHERE owner=%s AND (farm_id=%s OR agent_id=%s) LIMIT 1",
+            (owner_target, farm_id or agent_id, agent_id or farm_id)
+        )
+        r_ns = cur.fetchone()
+        if r_ns and r_ns.get('nombre'):
+            nombre_sede = str(r_ns['nombre']).strip()
+        elif farm_id:
+            nombre_sede = f"Sede {farm_id}"
+    except Exception:
+        pass
+
+    mineros_actualizados = 0
     if farm_id:
         cur.execute(
             "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s AND (farm_id=%s OR ((farm_id IS NULL OR farm_id='') AND agent_id=%s))",
             (lat, lon, ciudad, pais, owner_target, farm_id, agent_id or farm_id)
         )
+        mineros_actualizados = cur.rowcount
         cur.execute(
             "UPDATE granjas_sedes SET ciudad=%s WHERE owner=%s AND farm_id=%s",
             (ciudad, owner_target, farm_id)
@@ -687,22 +716,44 @@ def api_guardar_gps():
             "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s AND agent_id=%s AND ip LIKE %s",
             (lat, lon, ciudad, pais, owner_target, agent_id, subred[:-1] + '%')
         )
+        mineros_actualizados = cur.rowcount
     elif agent_id:
         cur.execute(
             "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s AND agent_id=%s",
             (lat, lon, ciudad, pais, owner_target, agent_id)
+        )
+        mineros_actualizados = cur.rowcount
+        cur.execute(
+            "UPDATE granjas_sedes SET ciudad=%s WHERE owner=%s AND agent_id=%s",
+            (ciudad, owner_target, agent_id)
         )
     elif subred and subred.endswith('.x'):
         cur.execute(
             "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s AND ip LIKE %s",
             (lat, lon, ciudad, pais, owner_target, subred[:-1] + '%')
         )
+        mineros_actualizados = cur.rowcount
     else:
         cur.execute(
             "UPDATE mineros_activos SET farm_lat=%s, farm_lon=%s, farm_city=%s, farm_country=%s, gps_manual=1 WHERE owner=%s",
             (lat, lon, ciudad, pais, owner_target)
         )
-    return jsonify({"status": "ok", "lat": lat, "lon": lon, "ciudad": ciudad, "pais": pais, "owner": owner_target})
+        mineros_actualizados = cur.rowcount
+        cur.execute(
+            "UPDATE granjas_sedes SET ciudad=%s WHERE owner=%s",
+            (ciudad, owner_target)
+        )
+    return jsonify({
+        "status": "ok",
+        "lat": lat,
+        "lon": lon,
+        "ciudad": ciudad,
+        "pais": pais,
+        "owner": owner_target,
+        "nombre_sede": nombre_sede,
+        "farm_id": farm_id,
+        "mineros_afectados": mineros_actualizados
+    })
 
 def _calcular_rentabilidad_btc_dia(hr_th, consumo_w, datos_red, tarifa_kwh, comision_pool=0.0):
     """Calcula (btc_dia, ingreso_usd, costo_elec_usd, neto_usd) para un minero SHA-256 activo."""
@@ -1021,12 +1072,27 @@ def detalle_minero(ip):
     disp = {'eficiencia': eficiencia_val}
 
     ag_minero = str(m.get('agent_id') or 'default').strip() or 'default'
+    farm_id_minero = str(m.get('farm_id') or '').strip()
     tunel_ok = tunel_esta_activo(usr_actual, agent_id=ag_minero)
+
+    nombre_sede = "Granja Principal"
+    try:
+        cur.execute(
+            "SELECT nombre FROM granjas_sedes WHERE owner=%s AND (farm_id=%s OR agent_id=%s) LIMIT 1",
+            (usr_actual, farm_id_minero or ag_minero, ag_minero or farm_id_minero)
+        )
+        r_ns = cur.fetchone()
+        if r_ns and r_ns.get('nombre'):
+            nombre_sede = str(r_ns['nombre']).strip()
+        elif farm_id_minero:
+            nombre_sede = f"Sede {farm_id_minero}"
+    except Exception:
+        pass
 
     return render_seguro(
         'minero.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str,
         ultimo=dt, extra=extra, dispositivo=disp, offline=offline, tunel_activo=tunel_ok,
-        es_sleep=es_sleep,
+        es_sleep=es_sleep, farm_id=farm_id_minero, agent_id=ag_minero, nombre_sede=nombre_sede,
         graf_fechas_raw=json.dumps(f_raw), graf_hashrate=json.dumps(hr_g),
         graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g),
         graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas),
