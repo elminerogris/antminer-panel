@@ -968,7 +968,7 @@ def recibir_datos():
     cur.execute("""
         SELECT agent_id, farm_id, ip, miner_uid, mac, serial, corte_activo, corte_temp, watchdog_activo,
                wd_fallo_desde, wd_motivo_fallo, wd_ultimo_reinicio, wd_reinicios_seguidos,
-               wd_cuarentena, placas_normales, prot_sleep_desde, prot_motivo,
+               wd_cuarentena, placas_normales, prot_sleep_desde, prot_motivo, estado,
                farm_lat, farm_lon, farm_city, gps_manual, ultima_act,
                COALESCE(alerta_hr_disparada, 0) AS alerta_hr_disparada,
                COALESCE(alerta_temp_disparada, 0) AS alerta_temp_disparada
@@ -1372,21 +1372,23 @@ def recibir_datos():
                     enviar_telegram(tg_tok, tg_cid, f"🛡️ <b>PROTECCIÓN ACTIVADA ({accion_proteccion.upper()})</b>\nMinero: <b>{ip_m}</b> ({mod_m})\nMotivo: <b>{motivo_proteccion}</b>")
 
             if prot_activo and prot_wakeup_on and prot_sleep_desde and hr_m <= 0.01:
-                segs_dormido = calcular_segundos_desconectado(prot_sleep_desde)
-                clima_ok = True
-                if prot_clima_on:
-                    t_ext_chk = obtener_clima_coordenadas(lat_efectiva, lon_efectiva)
-                    if t_ext_chk is not None and t_ext_chk >= prot_clima_val:
-                        clima_ok = False
-                if segs_dormido >= prot_wakeup_seg and clima_ok:
-                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'CORTE_TERMICO', 900):
-                        ordenes.append({"ip": ip_m, "comando": "normal"})
-                        cur.execute("UPDATE mineros_activos SET prot_sleep_desde='', prot_motivo='' WHERE owner=%s AND agent_id=%s AND ip=%s",
-                                    (owner_user, agent_id, ip_m))
-                        msg_wk = f"🌅 AUTO-DESPERTAR: {mod_m} ({ip_m}) vuelto a NORMAL tras {int(segs_dormido // 60)}m de reposo."
-                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'CORTE_TERMICO', %s, %s)", (owner_user, ip_m, msg_wk, ahora))
-                        if alertas_on:
-                            enviar_telegram(tg_tok, tg_cid, f"🌅 <b>AUTO-DESPERTAR TÉRMICO</b>\nMinero: <b>{ip_m}</b> ({mod_m}) vuelto a <b>NORMAL</b> tras enfriar.")
+                # Solo auto-despertar si el reposo fue automático por protección térmica, NUNCA si fue sleep manual del usuario
+                if prot_motivo != 'sleep' and estado_prev != 'sleep':
+                    segs_dormido = calcular_segundos_desconectado(prot_sleep_desde)
+                    clima_ok = True
+                    if prot_clima_on:
+                        t_ext_chk = obtener_clima_coordenadas(lat_efectiva, lon_efectiva)
+                        if t_ext_chk is not None and t_ext_chk >= prot_clima_val:
+                            clima_ok = False
+                    if segs_dormido >= prot_wakeup_seg and clima_ok:
+                        if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'CORTE_TERMICO', 900):
+                            ordenes.append({"ip": ip_m, "comando": "normal"})
+                            cur.execute("UPDATE mineros_activos SET prot_sleep_desde='', prot_motivo='' WHERE owner=%s AND agent_id=%s AND ip=%s",
+                                        (owner_user, agent_id, ip_m))
+                            msg_wk = f"🌅 AUTO-DESPERTAR: {mod_m} ({ip_m}) vuelto a NORMAL tras {int(segs_dormido // 60)}m de reposo."
+                            cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'CORTE_TERMICO', %s, %s)", (owner_user, ip_m, msg_wk, ahora))
+                            if alertas_on:
+                                enviar_telegram(tg_tok, tg_cid, f"🌅 <b>AUTO-DESPERTAR TÉRMICO</b>\nMinero: <b>{ip_m}</b> ({mod_m}) vuelto a <b>NORMAL</b> tras enfriar.")
 
             placas_con_hr = sum(1 for ch in cadenas_list if isinstance(ch, dict) and a_float_seguro(ch.get('hr'), 0.0) > 0.0)
             placas_normales = a_int_seguro(prev_m.get('placas_normales'), 0)
@@ -1401,7 +1403,7 @@ def recibir_datos():
                 fallo_wd = f"Minero frío ({temp_m}°C ≤ {wd_cold_temp}°C)"
             elif wd_amb_cold_on and t_amb > 0 and t_amb <= wd_amb_cold_temp and not es_modo_sleep:
                 fallo_wd = f"Temp. Ambiente baja ({t_amb}°C ≤ {wd_amb_cold_temp}°C)"
-            elif wd_dead_board and placas_normales >= 2 and hr_m > 0 and placas_con_hr < placas_normales:
+            elif wd_dead_board and not es_modo_sleep and placas_normales >= 2 and hr_m > 0 and placas_con_hr < placas_normales:
                 fallo_wd = f"Placa caída ({placas_con_hr}/{placas_normales} placas activas)"
 
             wd_fallo_desde = str(prev_m.get('wd_fallo_desde') or '').strip()
@@ -1410,14 +1412,19 @@ def recibir_datos():
             wd_cuarentena = a_int_seguro(prev_m.get('wd_cuarentena'), 0)
 
             if fallo_wd is None:
-                if wd_fallo_desde or wd_reinicios > 0 or wd_cuarentena == 1 or (prot_sleep_desde and hr_m > 0):
+                if wd_fallo_desde or wd_reinicios > 0 or wd_cuarentena == 1:
                     cur.execute("""
                         UPDATE mineros_activos
-                        SET wd_fallo_desde='', wd_motivo_fallo='', wd_reinicios_seguidos=0, wd_cuarentena=0,
-                            prot_sleep_desde='', prot_motivo=''
+                        SET wd_fallo_desde='', wd_motivo_fallo='', wd_reinicios_seguidos=0, wd_cuarentena=0
                         WHERE owner=%s AND agent_id=%s AND ip=%s
                     """, (owner_user, agent_id, ip_m))
-            elif wd_activo and wd_permitido_minero and aplica_alcance and not corte_disparado and wd_cuarentena == 0:
+                elif prot_sleep_desde and hr_m > 0 and prot_motivo != 'sleep' and estado_prev != 'sleep':
+                    cur.execute("""
+                        UPDATE mineros_activos
+                        SET prot_sleep_desde='', prot_motivo=''
+                        WHERE owner=%s AND agent_id=%s AND ip=%s
+                    """, (owner_user, agent_id, ip_m))
+            elif wd_activo and wd_permitido_minero and aplica_alcance and not corte_disparado and wd_cuarentena == 0 and not es_modo_sleep:
                 if not wd_fallo_desde:
                     cur.execute("UPDATE mineros_activos SET wd_fallo_desde=%s, wd_motivo_fallo=%s WHERE owner=%s AND agent_id=%s AND ip=%s",
                                 (ahora, fallo_wd, owner_user, agent_id, ip_m))
@@ -1460,78 +1467,86 @@ def recibir_datos():
                                         'intento': nuevos_reb, 'max': wd_max_reinicios
                                     })
 
-            # --- Gestión Inteligente de Alertas (Anti-Spam, Agrupación y Anti-Flapping de 120s) ---
+            # --- Gestión Inteligente de Alertas (Anti-Spam, Agrupación y Silenciamiento Total en Modo Sleep) ---
             prev_alerta_hr = a_int_seguro(prev_m.get('alerta_hr_disparada'), 0)
             prev_alerta_temp = a_int_seguro(prev_m.get('alerta_temp_disparada'), 0)
 
-            # 1. Alerta por Caída de Hashrate (Anti-Flapping: requiere al menos 120s tras la última recuperación)
-            if not es_modo_sleep and umbral_h > 0 and hr_m < umbral_h and temp_m > 5:
-                if prev_alerta_hr == 0:
-                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'HASHRATE_OK', 120):
-                        cur.execute(
-                            "UPDATE mineros_activos SET alerta_hr_disparada=1 WHERE owner=%s AND agent_id=%s AND ip=%s",
-                            (owner_user, agent_id, ip_m)
-                        )
-                        msg_hr = f"El equipo {nom_m} ({ip_m}) cayó a {hr_m} {unid} (Mínimo: {umbral_h} {unid})."
-                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE', %s, %s)",
-                                    (owner_user, ip_m, msg_hr, ahora))
-                        if alertas_on:
-                            batch_caida_hr.append({
-                                'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
-                                'hr': hr_m, 'unid': unid, 'umbral': umbral_h, 'temp': temp_m
-                            })
-            elif umbral_h > 0 and hr_m >= umbral_h:
-                if prev_alerta_hr == 1:
-                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'HASHRATE', 120):
-                        cur.execute(
-                            "UPDATE mineros_activos SET alerta_hr_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
-                            (owner_user, agent_id, ip_m)
-                        )
-                        msg_ok = f"El equipo {nom_m} ({ip_m}) recuperó su hashrate: {hr_m} {unid}."
-                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE_OK', %s, %s)",
-                                    (owner_user, ip_m, msg_ok, ahora))
-                        if alertas_on:
-                            batch_recup_hr.append({
-                                'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
-                                'hr': hr_m, 'unid': unid, 'temp': temp_m
-                            })
-            elif es_modo_sleep and prev_alerta_hr == 1:
-                cur.execute(
-                    "UPDATE mineros_activos SET alerta_hr_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
-                    (owner_user, agent_id, ip_m)
-                )
+            # Si el equipo está en modo sleep manual o automático, suprimir el 100% de alertas (silencio absoluto)
+            if es_modo_sleep:
+                if prev_alerta_hr != 0:
+                    cur.execute(
+                        "UPDATE mineros_activos SET alerta_hr_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                        (owner_user, agent_id, ip_m)
+                    )
+                if prev_alerta_temp != 0:
+                    cur.execute(
+                        "UPDATE mineros_activos SET alerta_temp_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                        (owner_user, agent_id, ip_m)
+                    )
+            else:
+                # 1. Alerta por Caída de Hashrate (Anti-Flapping: requiere al menos 120s tras la última recuperación)
+                if umbral_h > 0 and hr_m < umbral_h and temp_m > 5:
+                    if prev_alerta_hr == 0:
+                        if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'HASHRATE_OK', 120):
+                            cur.execute(
+                                "UPDATE mineros_activos SET alerta_hr_disparada=1 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                                (owner_user, agent_id, ip_m)
+                            )
+                            msg_hr = f"El equipo {nom_m} ({ip_m}) cayó a {hr_m} {unid} (Mínimo: {umbral_h} {unid})."
+                            cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE', %s, %s)",
+                                        (owner_user, ip_m, msg_hr, ahora))
+                            if alertas_on:
+                                batch_caida_hr.append({
+                                    'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
+                                    'hr': hr_m, 'unid': unid, 'umbral': umbral_h, 'temp': temp_m
+                                })
+                elif umbral_h > 0 and hr_m >= umbral_h:
+                    if prev_alerta_hr == 1:
+                        if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'HASHRATE', 120):
+                            cur.execute(
+                                "UPDATE mineros_activos SET alerta_hr_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                                (owner_user, agent_id, ip_m)
+                            )
+                            msg_ok = f"El equipo {nom_m} ({ip_m}) recuperó su hashrate: {hr_m} {unid}."
+                            cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'HASHRATE_OK', %s, %s)",
+                                        (owner_user, ip_m, msg_ok, ahora))
+                            if alertas_on:
+                                batch_recup_hr.append({
+                                    'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
+                                    'hr': hr_m, 'unid': unid, 'temp': temp_m
+                                })
 
-            # 2. Alerta por Exceso de Temperatura (Histéresis de 5°C y Anti-Flapping de 120s)
-            if temp_m >= umbral_t:
-                if prev_alerta_temp == 0:
-                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP_OK', 120):
-                        cur.execute(
-                            "UPDATE mineros_activos SET alerta_temp_disparada=1 WHERE owner=%s AND agent_id=%s AND ip=%s",
-                            (owner_user, agent_id, ip_m)
-                        )
-                        msg_al = f"El equipo {nom_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
-                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)",
-                                    (owner_user, ip_m, msg_al, ahora))
-                        if alertas_on:
-                            batch_temp_alta.append({
-                                'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
-                                'temp': temp_m, 'umbral': umbral_t, 'hr': hr_m, 'unid': unid
-                            })
-            elif temp_m > 0 and temp_m <= (umbral_t - 5):
-                if prev_alerta_temp == 1:
-                    if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP', 120):
-                        cur.execute(
-                            "UPDATE mineros_activos SET alerta_temp_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
-                            (owner_user, agent_id, ip_m)
-                        )
-                        msg_temp_ok = f"El equipo {nom_m} ({ip_m}) estabilizó su temperatura a {temp_m}°C."
-                        cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP_OK', %s, %s)",
-                                    (owner_user, ip_m, msg_temp_ok, ahora))
-                        if alertas_on:
-                            batch_temp_ok.append({
-                                'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
-                                'temp': temp_m, 'hr': hr_m, 'unid': unid
-                            })
+                # 2. Alerta por Exceso de Temperatura (Histéresis de 5°C y Anti-Flapping de 120s)
+                if temp_m >= umbral_t:
+                    if prev_alerta_temp == 0:
+                        if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP_OK', 120):
+                            cur.execute(
+                                "UPDATE mineros_activos SET alerta_temp_disparada=1 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                                (owner_user, agent_id, ip_m)
+                            )
+                            msg_al = f"El equipo {nom_m} ({ip_m}) alcanzó {temp_m}°C (Límite: {umbral_t}°C)."
+                            cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP', %s, %s)",
+                                        (owner_user, ip_m, msg_al, ahora))
+                            if alertas_on:
+                                batch_temp_alta.append({
+                                    'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
+                                    'temp': temp_m, 'umbral': umbral_t, 'hr': hr_m, 'unid': unid
+                                })
+                elif temp_m > 0 and temp_m <= (umbral_t - 5):
+                    if prev_alerta_temp == 1:
+                        if not alerta_en_enfriamiento(cur, owner_user, ip_m, 'TEMP', 120):
+                            cur.execute(
+                                "UPDATE mineros_activos SET alerta_temp_disparada=0 WHERE owner=%s AND agent_id=%s AND ip=%s",
+                                (owner_user, agent_id, ip_m)
+                            )
+                            msg_temp_ok = f"El equipo {nom_m} ({ip_m}) estabilizó su temperatura a {temp_m}°C."
+                            cur.execute("INSERT INTO registro_alertas (owner, ip, tipo, mensaje, fecha) VALUES (%s, %s, 'TEMP_OK', %s, %s)",
+                                        (owner_user, ip_m, msg_temp_ok, ahora))
+                            if alertas_on:
+                                batch_temp_ok.append({
+                                    'ip': ip_m, 'nombre': nom_m, 'modelo': mod_m,
+                                    'temp': temp_m, 'hr': hr_m, 'unid': unid
+                                })
         except Exception as err_m:
             print(f"Error guardando minero {m.get('ip')}: {err_m}")
 

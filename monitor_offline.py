@@ -186,6 +186,11 @@ def _enviar_resumen_diario(cur, owner, tg_tok, tg_cid, umbral_t, ahora_utc_str, 
         cuar = a_int_seguro(m.get("wd_cuarentena"), 0)
         mot_wd = str(m.get("wd_motivo_fallo") or "").strip()
         mot_pr = str(m.get("prot_motivo") or "").strip()
+        es_sleep = bool(
+            str(m.get("prot_sleep_desde") or "").strip()
+            or "sleep" in mot_pr.lower()
+            or str(m.get("estado") or "").lower() == "sleep"
+        )
 
         if segs < 300:
             online += 1
@@ -194,17 +199,19 @@ def _enviar_resumen_diario(cur, owner, tg_tok, tg_cid, umbral_t, ahora_utc_str, 
                 temp_max_granja = temp_m
             hr_por_unidad[unid] = hr_por_unidad.get(unid, 0.0) + hr_m
 
-            if cuar == 1:
-                en_alerta.append(f"• <b>{ip_m}</b> ({mod_m}): 🔒 Cuarentena ({mot_wd or 'fallo repetido'})")
-            elif mot_pr:
-                en_alerta.append(f"• <b>{ip_m}</b> ({mod_m}): 🛡️ {mot_pr}")
-            elif temp_m >= umbral_t:
-                en_alerta.append(f"• <b>{ip_m}</b> ({mod_m}): 🔥 {temp_m}°C")
-            elif hr_m <= 0.01:
-                en_alerta.append(f"• <b>{ip_m}</b> ({mod_m}): ⚠️ 0 {unid}")
+            if not es_sleep:
+                if cuar == 1:
+                    en_alerta.append(f"• <b>{ip_m}</b> ({mod_m}): 🔒 Cuarentena ({mot_wd or 'fallo repetido'})")
+                elif mot_pr:
+                    en_alerta.append(f"• <b>{ip_m}</b> ({mod_m}): 🛡️ {mot_pr}")
+                elif temp_m >= umbral_t:
+                    en_alerta.append(f"• <b>{ip_m}</b> ({mod_m}): 🔥 {temp_m}°C")
+                elif hr_m <= 0.01:
+                    en_alerta.append(f"• <b>{ip_m}</b> ({mod_m}): ⚠️ 0 {unid}")
         else:
             offline += 1
-            en_alerta.append(f"• <b>{ip_m}</b> ({mod_m}): 🔴 Desconectado")
+            if not es_sleep:
+                en_alerta.append(f"• <b>{ip_m}</b> ({mod_m}): 🔴 Desconectado")
 
     hr_texto = " | ".join(f"<b>{round(val, 2)} {u}</b>" for u, val in hr_por_unidad.items()) or "<b>0 TH/s</b>"
     kw_actual = consumo_w_total / 1000.0

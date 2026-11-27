@@ -444,6 +444,12 @@
         color: var(--accent-red);
         border: 1px solid rgba(255, 82, 82, 0.35);
     }
+    .pool-status-pill.unconfigured {
+        background: rgba(148, 163, 184, 0.08);
+        color: var(--text-muted);
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        font-weight: normal;
+    }
     .status-dot-pulse {
         width: 6px;
         height: 6px;
@@ -452,6 +458,81 @@
     }
     .pool-status-pill.alive .status-dot-pulse { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
     .pool-status-pill.dead .status-dot-pulse { background: var(--accent-red); }
+
+    /* Popover flotante inteligente de sugerencia de workers de granja */
+    .worker-sugg-popover {
+        position: absolute;
+        z-index: 9999;
+        background: rgba(15, 23, 42, 0.96);
+        border: 1px solid rgba(59, 130, 246, 0.55);
+        border-radius: 9px;
+        padding: 9px 12px;
+        box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.75), 0 0 16px rgba(59, 130, 246, 0.30);
+        backdrop-filter: blur(12px);
+        min-width: 250px;
+        max-width: 420px;
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+        pointer-events: auto;
+        animation: suggFadeIn 0.15s ease-out;
+    }
+    .worker-sugg-popover::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 20px;
+        border-width: 6px;
+        border-style: solid;
+        border-color: rgba(15, 23, 42, 0.96) transparent transparent transparent;
+    }
+    .worker-sugg-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.72em;
+        font-weight: 700;
+        color: #93c5fd;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        border-bottom: 1px solid rgba(59, 130, 246, 0.20);
+        padding-bottom: 4px;
+    }
+    .worker-sugg-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        max-height: 140px;
+        overflow-y: auto;
+        padding-top: 2px;
+    }
+    .worker-sugg-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: rgba(30, 41, 59, 0.85);
+        border: 1px solid rgba(59, 130, 246, 0.35);
+        color: #f8fafc;
+        padding: 4px 9px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.80em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.16s ease;
+        user-select: none;
+    }
+    .worker-sugg-chip:hover {
+        background: #2563eb;
+        border-color: #60a5fa;
+        color: #ffffff;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.55);
+        transform: translateY(-1px);
+    }
+    @keyframes suggFadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
     /* Contenedores alineados de Aceptados y Rechazados */
     .shares-cell-wrap {
@@ -717,6 +798,7 @@
                     </tr>
 
                     <!-- POOL 3 (RESPALDO 2) -->
+                    {% set has_p3 = extra.pool3 and extra.pool3 != '-' and extra.pool3 != '' and extra.pool3.lower() != 'none' %}
                     <tr>
                         <td>
                             <div class="pool-rank-wrap" data-pool-tt="prio_3">
@@ -729,7 +811,7 @@
                         </td>
                         <td>
                             <div class="input-pool-wrap">
-                                <input type="text" id="url_3" value="{{ extra.pool3 }}" class="input-pool-pro" placeholder="stratum+tcp://btc.viabtc.io:25" oninput="marcarPoolEditado(this)" translate="no">
+                                <input type="text" id="url_3" value="{{ extra.pool3 if has_p3 else '' }}" class="input-pool-pro" placeholder="Opcional (stratum+tcp://...)" oninput="marcarPoolEditado(this)" translate="no">
                                 <button type="button" class="btn-copy-inline" onclick="copiarValorInput('url_3', this)" title="Copiar URL del Pool 3">
                                     <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                                 </button>
@@ -737,34 +819,40 @@
                         </td>
                         <td>
                             <div class="input-pool-wrap">
-                                <input type="text" id="user_3" value="{{ extra.worker3 }}" class="input-pool-pro" placeholder="Cuenta.001" oninput="marcarPoolEditado(this)" translate="no">
+                                <input type="text" id="user_3" value="{{ extra.worker3 if has_p3 else '' }}" class="input-pool-pro" placeholder="Opcional" oninput="marcarPoolEditado(this)" translate="no">
                                 <button type="button" class="btn-copy-inline" onclick="copiarValorInput('user_3', this)" title="Copiar Worker">
                                     <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                                 </button>
                             </div>
                         </td>
                         <td>
-                            <input type="text" id="pass_3" value="{{ extra.pass3 }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
+                            <input type="text" id="pass_3" value="{{ extra.pass3 if has_p3 else '' }}" class="input-pool-pro pass-field" placeholder="123" oninput="marcarPoolEditado(this)" translate="no">
                         </td>
                         <td translate="no">
-                            <span class="pool-status-pill {{ 'alive' if extra.status3 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status3 == 'Alive' else 'status_dead' }}">
-                                <span class="status-dot-pulse"></span>
-                                {{ extra.status3 }}
-                            </span>
+                            {% if has_p3 %}
+                                <span class="pool-status-pill {{ 'alive' if extra.status3 == 'Alive' else 'dead' }}" data-pool-tt="{{ 'status_alive' if extra.status3 == 'Alive' else 'status_dead' }}">
+                                    <span class="status-dot-pulse"></span>
+                                    {{ extra.status3 }}
+                                </span>
+                            {% else %}
+                                <span class="pool-status-pill unconfigured" title="Pool no configurado (opcional)">
+                                    <span style="opacity:0.6; margin-right:2px;">—</span> Vacío
+                                </span>
+                            {% endif %}
                         </td>
                         <td translate="no">
                             <div class="shares-cell-wrap">
-                                <span style="color:var(--accent-green); font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc3) }}</span>
+                                <span style="color:{{ 'var(--accent-green)' if (has_p3 and extra.acc3 > 0) else 'var(--text-muted)' }}; font-weight:bold; font-family:monospace;">{{ "{:,}".format(extra.acc3) if has_p3 else "0" }}</span>
                                 <div class="shares-bar-bg">
-                                    <div class="shares-bar-acc" style="width:{{ (100 - pct3) if tot3 > 0 else 0 }}%;"></div>
-                                    <div class="shares-bar-rej" style="width:{{ pct3 if tot3 > 0 else 0 }}%;"></div>
+                                    <div class="shares-bar-acc" style="width:{{ (100 - pct3) if (has_p3 and tot3 > 0) else 0 }}%;"></div>
+                                    <div class="shares-bar-rej" style="width:{{ pct3 if (has_p3 and tot3 > 0) else 0 }}%;"></div>
                                 </div>
                             </div>
                         </td>
                         <td translate="no">
                             <div class="rej-val-group">
-                                <span style="color:{{ '#ff5252' if extra.rej3 > 0 else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej3) }}</span>
-                                <span style="font-size:0.86em; color:{{ '#ff5252' if pct3 > 1.5 else ('#ffb300' if pct3 > 0.8 else 'var(--text-muted)') }};">({{ "%.2f"|format(pct3) }}%)</span>
+                                <span style="color:{{ '#ff5252' if (has_p3 and extra.rej3 > 0) else 'var(--text-muted)' }}; font-weight:bold;">{{ "{:,}".format(extra.rej3) if has_p3 else "0" }}</span>
+                                <span style="font-size:0.86em; color:{{ '#ff5252' if (has_p3 and pct3 > 1.5) else ('#ffb300' if (has_p3 and pct3 > 0.8) else 'var(--text-muted)') }};">({{ "%.2f"|format(pct3) if has_p3 else "0.00" }}%)</span>
                             </div>
                         </td>
                     </tr>
@@ -1118,9 +1206,140 @@
         }
     }
 
+    // ==================== AUTOCOMPLETADO INTELIGENTE DE WORKERS DE LA GRANJA ====================
+    const WORKERS_GRANJA = {{ workers_granja_json|safe if workers_granja_json is defined else '[]' }};
+    const IP_ACTUAL_MINERO = "{{ ip }}";
+    let activeWorkerInput = null;
+
+    function obtenerSugerenciasWorkers() {
+        const res = [];
+        const octeto = IP_ACTUAL_MINERO.split('.').pop() || '';
+
+        if (Array.isArray(WORKERS_GRANJA) && WORKERS_GRANJA.length > 0) {
+            WORKERS_GRANJA.forEach(w => {
+                const wTrim = String(w).trim();
+                if (wTrim && !res.includes(wTrim)) res.push(wTrim);
+            });
+
+            // Si hay un patrón de usuario base (ej: Giovanni.001), sugerir con el octeto de este ASIC
+            const primerWorker = res[0] || '';
+            let baseUsuario = '';
+            if (primerWorker.includes('.')) {
+                baseUsuario = primerWorker.split('.')[0];
+            } else if (primerWorker.includes('_')) {
+                baseUsuario = primerWorker.split('_')[0];
+            }
+
+            if (baseUsuario && octeto) {
+                const sugOcteto3 = `${baseUsuario}.${octeto.padStart(3, '0')}`;
+                const sugOctetoDirecta = `${baseUsuario}.${octeto}`;
+                if (!res.includes(sugOcteto3)) res.unshift(sugOcteto3);
+                else if (!res.includes(sugOctetoDirecta)) res.unshift(sugOctetoDirecta);
+            }
+        }
+        return res;
+    }
+
+    function inicializarSugerenciasWorkers() {
+        const inputs = [document.getElementById('user_1'), document.getElementById('user_2'), document.getElementById('user_3')].filter(Boolean);
+        if (inputs.length === 0) return;
+
+        let popover = document.getElementById('workerSuggPopover');
+        if (!popover) {
+            popover = document.createElement('div');
+            popover.id = 'workerSuggPopover';
+            popover.className = 'worker-sugg-popover';
+            document.body.appendChild(popover);
+        }
+
+        function ocultarPopover() {
+            if (popover) popover.style.display = 'none';
+            activeWorkerInput = null;
+        }
+
+        function mostrarPopover(inputEl) {
+            if (!inputEl) return;
+            const val = inputEl.value.trim();
+            if (val !== '') {
+                ocultarPopover();
+                return;
+            }
+
+            const sugerencias = obtenerSugerenciasWorkers();
+            if (!sugerencias || sugerencias.length === 0) {
+                ocultarPopover();
+                return;
+            }
+
+            activeWorkerInput = inputEl;
+            let htmlChips = '';
+            sugerencias.slice(0, 10).forEach(sug => {
+                htmlChips += `<button type="button" class="worker-sugg-chip" data-worker="${sug}">👤 ${sug}</button>`;
+            });
+
+            popover.innerHTML = `
+                <div class="worker-sugg-header">
+                    <span>💡 Cuentas de tu granja (toca para autocompletar)</span>
+                    <span style="font-size:1.1em; opacity:0.7; cursor:pointer; padding:0 4px;" onclick="document.getElementById('workerSuggPopover').style.display='none'">✕</span>
+                </div>
+                <div class="worker-sugg-chips">${htmlChips}</div>
+            `;
+
+            popover.style.display = 'flex';
+
+            const rect = inputEl.getBoundingClientRect();
+            const popHeight = popover.offsetHeight || 80;
+            const topPos = window.scrollY + rect.top - popHeight - 8;
+            const leftPos = window.scrollX + rect.left;
+
+            popover.style.top = Math.max(10, topPos) + 'px';
+            popover.style.left = Math.max(10, leftPos) + 'px';
+
+            popover.querySelectorAll('.worker-sugg-chip').forEach(btn => {
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                });
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const workerElegido = this.getAttribute('data-worker');
+                    if (activeWorkerInput && workerElegido) {
+                        activeWorkerInput.value = workerElegido;
+                        marcarPoolEditado(activeWorkerInput);
+                        if (activeWorkerInput.id === 'user_1' && typeof sincronizarWorker === 'function') {
+                            sincronizarWorker(workerElegido);
+                        }
+                    }
+                    ocultarPopover();
+                });
+            });
+        }
+
+        inputs.forEach(inp => {
+            inp.addEventListener('focus', function() { mostrarPopover(this); });
+            inp.addEventListener('click', function() { mostrarPopover(this); });
+            inp.addEventListener('input', function() {
+                if (this.value.trim() === '') {
+                    mostrarPopover(this);
+                } else {
+                    ocultarPopover();
+                }
+            });
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!popover.contains(e.target) && !inputs.includes(e.target)) {
+                ocultarPopover();
+            }
+        });
+
+        window.addEventListener('resize', ocultarPopover);
+        window.addEventListener('scroll', ocultarPopover, { passive: true });
+    }
+
     window.addEventListener('load', function() {
         configurarPeekYSombra('poolsPresetsBar', 'poolsPresetsOuter', null, 52, 260);
         configurarPeekYSombra('poolsTableScroll', 'poolsTableOuter', 'poolsMobileHint', 58, 420);
+        inicializarSugerenciasWorkers();
 
         document.querySelectorAll('[data-pool-tt]').forEach(el => {
             const key = el.getAttribute('data-pool-tt');

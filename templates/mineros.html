@@ -859,11 +859,25 @@
     }
 
     function toggleFilaClick(event, fila) {
-        if (event.target.tagName === 'A' || event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON') return;
-        const cb = fila.querySelector('.cb-minero');
-        if (cb) {
-            cb.checked = !cb.checked;
-            actualizarContadorSeleccion();
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON' || event.target.closest('button') || event.target.closest('.row-act-wrap')) return;
+        const td = event.target.closest('td');
+        if (!td) return;
+        const colIdx = td.cellIndex;
+        // Columna 0: Checkbox de selección individual
+        if (colIdx === 0) {
+            const cb = fila.querySelector('.cb-minero');
+            if (cb && event.target !== cb) {
+                cb.checked = !cb.checked;
+                actualizarContadorSeleccion();
+            }
+            return;
+        }
+        // Columnas 1 a 7 (Nombre, Estado, Hashrate, Temperatura, Consumo, Eficiencia, Ganancia)
+        if (colIdx >= 1 && colIdx <= 7) {
+            const link = fila.querySelector('.miner-link');
+            if (link && link.href) {
+                window.location.href = link.href;
+            }
         }
     }
 

@@ -1015,16 +1015,33 @@ def detalle_minero(ip):
     c_val = a_float_seguro(m.get('consumo_w'), 0.0)
     offline = calcular_segundos_desconectado(m.get('ultima_act')) > 300
 
-    pool1 = str(m.get('pool1') or ""); worker1 = str(m.get('worker1') or ""); pass1 = str(m.get('pass1') or "123")
-    pool2 = str(m.get('pool2') or ""); worker2 = str(m.get('worker2') or ""); pass2 = str(m.get('pass2') or "123")
-    pool3 = str(m.get('pool3') or ""); worker3 = str(m.get('worker3') or ""); pass3 = str(m.get('pass3') or "123")
+    pool1 = str(m.get('pool1') or "").strip()
+    worker1 = str(m.get('worker1') or "").strip()
+    pass1 = str(m.get('pass1') or "123").strip()
+    pool2 = str(m.get('pool2') or "").strip()
+    worker2 = str(m.get('worker2') or "").strip()
+    pass2 = str(m.get('pass2') or "123").strip()
+    pool3 = str(m.get('pool3') or "").strip()
+    worker3 = str(m.get('worker3') or "").strip()
+    pass3 = str(m.get('pass3') or "123").strip()
 
     status1 = str(m.get('status1') or ("Alive" if pool1 else "Dead"))
     acc1 = a_int_seguro(m.get('acc1'), 0); rej1 = a_int_seguro(m.get('rej1'), 0)
     status2 = str(m.get('status2') or ("Alive" if pool2 else "Dead"))
     acc2 = a_int_seguro(m.get('acc2'), 0); rej2 = a_int_seguro(m.get('rej2'), 0)
-    status3 = str(m.get('status3') or ("Alive" if pool3 else "Dead"))
-    acc3 = a_int_seguro(m.get('acc3'), 0); rej3 = a_int_seguro(m.get('rej3'), 0)
+
+    has_pool3 = bool(pool3 and pool3 != '-' and pool3.lower() != 'none')
+    status3_raw = str(m.get('status3') or "").strip()
+    if not has_pool3:
+        status3 = "Vacío"
+    elif status3_raw.lower() in ('alive', 'active', 'ok'):
+        status3 = "Alive"
+    elif status3_raw.lower() in ('dead', 'ded'):
+        status3 = "Dead"
+    else:
+        status3 = status3_raw or "Alive"
+    acc3 = a_int_seguro(m.get('acc3'), 0) if has_pool3 else 0
+    rej3 = a_int_seguro(m.get('rej3'), 0) if has_pool3 else 0
 
     mac = str(m.get('mac') or "-"); serial = str(m.get('serial') or "-")
     fw = str(m.get('firmware') or "Desconocido"); fans = str(m.get('fans') or "0 / 0 RPM")
@@ -1152,6 +1169,31 @@ def detalle_minero(ip):
     except Exception:
         pass
 
+    workers_granja = []
+    try:
+        if farm_id_minero:
+            cur.execute("""
+                SELECT DISTINCT worker1 FROM mineros_activos
+                WHERE owner=%s AND farm_id=%s AND worker1 IS NOT NULL AND worker1 != '' AND ip != %s
+                ORDER BY worker1 ASC LIMIT 15
+            """, (usr_actual, farm_id_minero, ip))
+        else:
+            cur.execute("""
+                SELECT DISTINCT worker1 FROM mineros_activos
+                WHERE owner=%s AND worker1 IS NOT NULL AND worker1 != '' AND ip != %s
+                ORDER BY worker1 ASC LIMIT 15
+            """, (usr_actual, ip))
+        workers_granja = [r['worker1'].strip() for r in (cur.fetchall() or []) if r and r.get('worker1') and r['worker1'].strip()]
+        if not workers_granja:
+            cur.execute("""
+                SELECT DISTINCT worker1 FROM mineros_activos
+                WHERE owner=%s AND worker1 IS NOT NULL AND worker1 != ''
+                ORDER BY worker1 ASC LIMIT 10
+            """, (usr_actual,))
+            workers_granja = [r['worker1'].strip() for r in (cur.fetchall() or []) if r and r.get('worker1') and r['worker1'].strip()]
+    except Exception:
+        workers_granja = []
+
     return render_seguro(
         'minero.html', active_page='mineros', ip=ip, nombre=nombre_minero, modelo=mod_str,
         ultimo=dt, extra=extra, dispositivo=disp, offline=offline, tunel_activo=tunel_ok,
@@ -1160,7 +1202,8 @@ def detalle_minero(ip):
         graf_temps=json.dumps(tp_g), graf_temp_amb=json.dumps(tamb_g),
         graf_errores=json.dumps(err_g), cadenas_json=json.dumps(cadenas),
         graf_cadenas_hist=json.dumps(cad_g), ips_ocupadas=json.dumps(ips_ocupadas),
-        eventos_graf_json=json.dumps(eventos_graf)
+        eventos_graf_json=json.dumps(eventos_graf),
+        workers_granja_json=json.dumps(workers_granja)
     )
 
 @panel_bp.route('/mineros')
