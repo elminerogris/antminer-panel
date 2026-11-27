@@ -54,15 +54,17 @@ def normalizar_sn(sn_str):
     return s
 
 def _extraer_nombre_desde_worker(worker_str, ip_str):
+    octeto = str(ip_str).split('.')[-1] if '.' in str(ip_str or '') else str(ip_str or 'ASIC')
     w = str(worker_str or '').strip()
     if w and w not in ('-', 'None', 'null'):
-        if '.' in w:
-            sufijo = w.split('.')[-1].strip()
-            if sufijo and sufijo not in ('-', 'None'):
+        sufijo = w.split('.')[-1].strip() if '.' in w else w
+        if sufijo and sufijo not in ('-', 'None'):
+            if sufijo.isdigit() and octeto.isdigit() and int(sufijo) == int(octeto):
                 return sufijo[:40]
-        return w[:40]
-    octeto = ip_str.split('.')[-1] if '.' in str(ip_str or '') else str(ip_str or 'ASIC')
-    return octeto
+            if sufijo.lower() in ('001', '01', '1', 'default', 'worker', 'miner', 'asic', 'antminer', 'root'):
+                return f"Minero .{octeto}"
+            return f"{sufijo} (.{octeto})"[:40]
+    return f"Minero .{octeto}"
 
 def _siguiente_nombre_granja(cur, owner):
     cur.execute("SELECT nombre FROM granjas_sedes WHERE owner=%s", (owner,))
@@ -209,9 +211,9 @@ def api_agente_mis_mineros():
                 owner = u['owner']
 
     if owner:
-        cur.execute("SELECT ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial, pool1, pass1, pool2, worker2, pass2, pool3, worker3, pass3 FROM mineros_activos WHERE owner=%s ORDER BY ip", (owner,))
+        cur.execute("SELECT DISTINCT ON (ip) ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial, pool1, pass1, pool2, worker2, pass2, pool3, worker3, pass3 FROM mineros_activos WHERE owner=%s ORDER BY ip, ultima_act DESC", (owner,))
     else:
-        cur.execute("SELECT ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial, pool1, pass1, pool2, worker2, pass2, pool3, worker3, pass3 FROM mineros_activos ORDER BY ip")
+        cur.execute("SELECT DISTINCT ON (ip) ip, modelo, algoritmo, moneda, unidad, hashrate, temp_max, consumo_w, estado, ultima_act, fans, cadenas, worker1, serial, pool1, pass1, pool2, worker2, pass2, pool3, worker3, pass3 FROM mineros_activos ORDER BY ip, ultima_act DESC")
     rows = cur.fetchall()
     mineros = []
     for r in rows:
@@ -286,6 +288,13 @@ def api_agente_comando():
         cmd_str = 'sleep'
     elif cmd_raw in ['normal', 'wake', 'reanudar']:
         cmd_str = 'normal'
+    elif cmd_raw in ['delete', 'eliminar', 'quitar']:
+        if ip_raw == 'all':
+            cur.execute("DELETE FROM mineros_activos WHERE owner=%s", (owner,))
+        else:
+            cur.execute("DELETE FROM mineros_activos WHERE owner=%s AND ip=%s", (owner, ip_raw))
+            cur.execute("DELETE FROM nombres_mineros WHERE owner=%s AND ip=%s", (owner, ip_raw))
+        return jsonify({"ok": True, "msg": f"Minero {ip_raw} quitado correctamente", "enviados": 1}), 200
     elif cmd_raw.startswith('guardar_pools'):
         cmd_str = cmd_raw
     elif 'pools' in data and isinstance(data['pools'], list):
@@ -1204,6 +1213,9 @@ def recibir_datos():
                 )
             else:
                 total_existentes += 1
+
+            # Garantizar que no queden filas duplicadas de otro agent_id con la misma IP para este owner
+            cur.execute("DELETE FROM mineros_activos WHERE owner=%s AND ip=%s AND agent_id != %s", (owner_user, ip_m, agent_id))
 
             mod_m = str(m.get('modelo') or 'Antminer')
             nom_m = nombres_map.get(ip_m) or f"Minero {ip_m.split('.')[-1]}"

@@ -724,7 +724,7 @@ def index():
     session['plan'] = u_row.get('plan', session.get('plan', 'Gratis'))
     session['saldo'] = u_row.get('saldo', session.get('saldo', 0.0))
 
-    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT DISTINCT ON (ip) * FROM mineros_activos WHERE owner=%s ORDER BY ip, ultima_act DESC", (usr_actual,))
     mineros = sorted(cur.fetchall(), key=ordenar_ip_key)
 
     cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
@@ -1030,7 +1030,7 @@ def mineros():
     tarifa_kwh = max(0.0, a_float_seguro(u_row.get('tarifa_kwh'), 0.0))
     comision_pool = min(100.0, max(0.0, a_float_seguro(u_row.get('comision_pool'), 0.0)))
 
-    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT DISTINCT ON (ip) * FROM mineros_activos WHERE owner=%s ORDER BY ip, ultima_act DESC", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
 
     cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
@@ -1135,7 +1135,7 @@ def granjas():
     cur.execute("SELECT * FROM granjas_sedes WHERE owner=%s ORDER BY id ASC", (usr_actual,))
     sedes_db = cur.fetchall()
 
-    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT DISTINCT ON (ip) * FROM mineros_activos WHERE owner=%s ORDER BY ip, ultima_act DESC", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
 
     cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
@@ -2303,7 +2303,7 @@ def exportar_reporte_mensual():
     tarifa = max(0.0, a_float_seguro(u_row.get('tarifa_kwh'), 0.0))
     comision_pool = min(100.0, max(0.0, a_float_seguro(u_row.get('comision_pool'), 0.0)))
 
-    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s", (usr_actual,))
+    cur.execute("SELECT DISTINCT ON (ip) * FROM mineros_activos WHERE owner=%s ORDER BY ip, ultima_act DESC", (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
     cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
     nombres_dict = {r['ip']: r['nombre'] for r in cur.fetchall()}

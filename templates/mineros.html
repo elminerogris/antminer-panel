@@ -610,10 +610,14 @@
                 
                 <td><input type="checkbox" class="cb-minero" value="{{ m.ip }}" onchange="actualizarContadorSeleccion()"></td>
                 
-                <!-- 1. Nombre + Nombre de su Granja -->
+                <!-- 1. Nombre + IP + Nombre de su Granja -->
                 <td data-sort-str="{{ m.nombre }}" translate="no">
                     <a href="/minero/{{ m.ip }}" class="miner-link" title="IP: {{ m.ip }} · {{ m.modelo }}">{{ m.nombre }}</a>
-                    <div class="sub-txt">🏭 {{ granja_lbl }}</div>
+                    <div class="sub-txt" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:2px;">
+                        <span style="font-family:monospace; color:#3b82f6; font-weight:700; font-size:0.86em;">{{ m.ip }}</span>
+                        <span style="color:var(--text-muted); font-size:0.75em;">·</span>
+                        <span style="color:var(--text-muted); font-size:0.78em;">🏭 {{ granja_lbl }}</span>
+                    </div>
                 </td>
 
                 <!-- 2. Estado (en medio de Nombre y Hashrate) -->

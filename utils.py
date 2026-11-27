@@ -183,10 +183,19 @@ def clave_granja_minero(ip, ciudad):
 def nombre_inteligente_minero(ip, nombres_dict, worker1=""):
     if ip in nombres_dict and nombres_dict[ip]:
         return nombres_dict[ip]
+    octeto = str(ip).split('.')[-1] if '.' in str(ip or '') else str(ip or '')
     w = str(worker1 or "").strip()
-    if w and w != "-":
-        return w.split('.')[-1] if '.' in w else w
-    return ip.split('.')[-1]
+    if w and w not in ('-', 'None', 'null'):
+        suf = w.split('.')[-1].strip() if '.' in w else w
+        if suf and suf not in ('-', 'None'):
+            # Si el worker es idéntico al octeto (ej. minero.14 -> 14)
+            if suf.isdigit() and octeto.isdigit() and int(suf) == int(octeto):
+                return suf[:40]
+            # Si el worker es un sufijo genérico común (ej. 001, miner, default) y no coincide con la IP
+            if suf.lower() in ('001', '01', '1', 'default', 'worker', 'miner', 'asic', 'antminer', 'root'):
+                return f"Minero .{octeto}"
+            return f"{suf} (.{octeto})"[:40]
+    return f"Minero .{octeto}"
 
 def calcular_segundos_desconectado(ult_str):
     if not ult_str: return 999999

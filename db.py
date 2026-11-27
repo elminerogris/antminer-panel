@@ -412,6 +412,17 @@ def init_db():
             c.execute("UPDATE historial_nube SET temp_max = 0 WHERE temp_max >= 150")
             c.execute("UPDATE mineros_activos SET temp_max = 0 WHERE temp_max >= 150")
             c.execute("UPDATE mineros_activos SET temp_amb = 0 WHERE temp_amb >= 120 OR temp_amb < -40")
+            # Deduplicación automática de mineros_activos manteniendo el registro más reciente por (owner, ip)
+            c.execute("""
+                DELETE FROM mineros_activos
+                WHERE ctid NOT IN (
+                    SELECT DISTINCT ON (owner, ip) ctid
+                    FROM mineros_activos
+                    ORDER BY owner, ip, ultima_act DESC NULLS LAST
+                )
+            """)
+            # Limpieza de minero huérfano / stale de prueba que cambió de IP hace días
+            c.execute("DELETE FROM mineros_activos WHERE ip='192.168.0.111' AND ultima_act < '2026-11-25'")
         except:
             pass
 
