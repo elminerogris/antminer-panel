@@ -167,35 +167,64 @@
         color: var(--accent-green);
     }
 
-    /* Formulario inline para cambiar el alias del minero */
-    .form-edit-name-inline {
-        display: none;
-        margin-top: 6px;
-        gap: 6px;
+    /* Edición de nombre In-Place */
+    .nombre-inline-box {
+        display: inline-flex;
         align-items: center;
-        flex-wrap: wrap;
+        gap: 8px;
     }
-    .input-name-pro {
-        background: var(--bg-input);
-        border: 1px solid #3b82f6;
+    .input-name-inline {
+        background: var(--bg-card);
+        border: 1.5px solid #3b82f6;
         color: var(--text-main);
-        padding: 5px 10px;
+        padding: 4px 10px;
         border-radius: 6px;
-        font-family: monospace;
-        font-size: 0.88em;
-        width: 170px;
+        font-family: inherit;
+        font-size: 1.18em;
+        font-weight: bold;
+        min-width: 160px;
+        max-width: 260px;
         outline: none;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
+        transition: all 0.18s ease;
     }
-    .btn-save-name-pro {
-        background: #3366ff;
+    .input-name-inline:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 16px rgba(96, 165, 250, 0.55);
+    }
+    .btn-save-inline {
+        background: #2563eb;
         color: #fff;
-        border: none;
-        padding: 6px 12px;
+        border: 1px solid #3b82f6;
+        padding: 5px 11px;
         border-radius: 6px;
         cursor: pointer;
         font-weight: bold;
-        font-size: 0.78em;
+        font-size: 0.82em;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.18s ease;
+    }
+    .btn-save-inline:hover {
+        background: #1d4ed8;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+    }
+    .btn-cancel-inline {
+        background: var(--bg-well-soft);
+        color: var(--text-muted);
+        border: 1px solid var(--border-color);
+        padding: 5px 9px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.82em;
+        font-weight: bold;
+        transition: all 0.18s ease;
+    }
+    .btn-cancel-inline:hover {
+        color: var(--accent-red);
+        border-color: var(--accent-red);
+        background: rgba(239, 68, 68, 0.12);
     }
 
     /* Banner de Alerta cuando el equipo está Offline */
@@ -329,12 +358,25 @@
     <div class="top-miner-left">
         <div class="miner-title-row">
             <a href="/" class="btn-back-pro" data-top-tt="btn_volver">←</a>
-            <h1 class="miner-name-h1" id="nombreTexto" translate="no">{{ nombre }}</h1>
+
+            <!-- Modo Vista: Nombre y botón Renombrar -->
+            <div id="nombreVistaWrap" class="nombre-inline-box">
+                <h1 class="miner-name-h1" id="nombreTexto" translate="no" onclick="activarEdicionNombreInline()" style="cursor:pointer;" title="Clic para renombrar">{{ nombre }}</h1>
+                <button type="button" class="btn-edit-name-pro" data-top-tt="btn_editar_nombre" onclick="activarEdicionNombreInline()" title="Editar nombre de este minero">✏️ Renombrar</button>
+            </div>
+
+            <!-- Modo Edición In-Place: Input y controles exactamente en el mismo lugar -->
+            <div id="nombreEdicionWrap" class="nombre-inline-box" style="display: none;">
+                <input type="text" id="inputNombreInline" class="input-name-inline" maxlength="40" value="{{ nombre }}" placeholder="Nombre del minero..." onkeydown="manejarTeclaNombreInline(event)">
+                <button type="button" id="btnGuardarNombreInline" class="btn-save-inline" onclick="guardarNombreInline()" title="Guardar (Enter)">✔ Guardar</button>
+                <button type="button" class="btn-cancel-inline" onclick="cancelarEdicionNombreInline()" title="Cancelar (Esc)">✕</button>
+                <span id="feedbackNombreInline" style="font-size:0.78em; font-family:monospace; font-weight:bold;"></span>
+            </div>
+
             <span class="miner-status-badge {{ 'offline' if offline else 'online' }}" data-top-tt="badge_estado">
                 <span class="miner-pulse-dot"></span>
                 {{ 'SIN CONEXIÓN' if offline else 'EN LÍNEA' }}
             </span>
-            <button type="button" class="btn-edit-name-pro" data-top-tt="btn_editar_nombre" onclick="toggleEditarNombrePro()">✏️ Renombrar</button>
         </div>
 
         <div class="miner-sub-meta">
@@ -351,16 +393,6 @@
             <span class="meta-pill-tag" style="color:var(--accent-cyan); border-color:rgba(56,189,248,0.25);" translate="no">📍 {{ ultimo.farm_city }}</span>
             {% endif %}
         </div>
-
-        <form id="formNombrePro" class="form-edit-name-inline" action="/guardar_nombre" method="POST">
-            <input type="hidden" name="ip" value="{{ ip }}">
-            <input type="text" name="nombre" maxlength="40" value="{{ nombre }}" class="input-name-pro" placeholder="Alias del minero..." required>
-            <button type="submit" class="btn-emg-save" style="padding:6px 12px; font-size:0.78em;"
-                    data-save-title="💾 Guardar Alias del Minero"
-                    data-save-desc="Asigna un nombre personalizado a esta máquina (ej. Rack-A1) para identificarla rápido en todo el panel."
-                    data-save-note="Solo cambia la etiqueta visual en tu panel">💾 Guardar</button>
-            <button type="button" class="btn-edit-name-pro" onclick="toggleEditarNombrePro()">Cancelar</button>
-        </form>
     </div>
 </div>
 
@@ -528,10 +560,89 @@
         }
     };
 
-    function toggleEditarNombrePro() {
-        const f = document.getElementById('formNombrePro');
-        if (!f) return;
-        f.style.display = (f.style.display === 'flex') ? 'none' : 'flex';
+    function activarEdicionNombreInline() {
+        const vWrap = document.getElementById('nombreVistaWrap');
+        const eWrap = document.getElementById('nombreEdicionWrap');
+        const input = document.getElementById('inputNombreInline');
+        const txt = document.getElementById('nombreTexto');
+        if (!vWrap || !eWrap || !input) return;
+        input.value = txt ? txt.innerText.trim() : '{{ nombre }}';
+        vWrap.style.display = 'none';
+        eWrap.style.display = 'inline-flex';
+        input.focus();
+        input.select();
+    }
+
+    function cancelarEdicionNombreInline() {
+        const vWrap = document.getElementById('nombreVistaWrap');
+        const eWrap = document.getElementById('nombreEdicionWrap');
+        const fb = document.getElementById('feedbackNombreInline');
+        if (fb) fb.innerText = '';
+        if (eWrap) eWrap.style.display = 'none';
+        if (vWrap) vWrap.style.display = 'inline-flex';
+    }
+
+    function manejarTeclaNombreInline(ev) {
+        if (ev.key === 'Enter') {
+            ev.preventDefault();
+            guardarNombreInline();
+        } else if (ev.key === 'Escape') {
+            ev.preventDefault();
+            cancelarEdicionNombreInline();
+        }
+    }
+
+    async function guardarNombreInline() {
+        const input = document.getElementById('inputNombreInline');
+        const txt = document.getElementById('nombreTexto');
+        const fb = document.getElementById('feedbackNombreInline');
+        const btnSave = document.getElementById('btnGuardarNombreInline');
+        if (!input) return;
+
+        const nuevoNombre = input.value.trim();
+        if (!nuevoNombre) {
+            input.focus();
+            return;
+        }
+
+        if (btnSave) btnSave.disabled = true;
+        if (fb) {
+            fb.style.color = 'var(--accent-cyan)';
+            fb.innerText = 'Guardando...';
+        }
+
+        try {
+            const resp = await fetch('/guardar_nombre', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ ip: '{{ ip }}', nombre: nuevoNombre })
+            });
+
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const res = await resp.json().catch(() => ({ status: 'ok' }));
+
+            if (txt) {
+                txt.innerText = (res.nombre || nuevoNombre);
+            }
+            if (fb) {
+                fb.style.color = 'var(--accent-green)';
+                fb.innerText = '✔ Guardado';
+            }
+            setTimeout(() => {
+                cancelarEdicionNombreInline();
+                if (btnSave) btnSave.disabled = false;
+            }, 300);
+        } catch (e) {
+            console.error('Error guardando nombre:', e);
+            if (fb) {
+                fb.style.color = 'var(--accent-red)';
+                fb.innerText = 'Error';
+            }
+            if (btnSave) btnSave.disabled = false;
+        }
     }
 
     function copiarIpCabecera(ipTxt, btnEl) {

@@ -2167,12 +2167,15 @@ def logout():
 @login_required
 def guardar_nombre():
     usr_actual = session.get('usuario', 'Admin')
-    ip = str(request.form.get('ip') or '').strip()
-    raw_nombre = request.form.get('nombre')
+    data = request.get_json(silent=True) or {}
+    ip = str(data.get('ip') or request.form.get('ip') or '').strip()
+    raw_nombre = data.get('nombre') if 'nombre' in data else request.form.get('nombre')
     nombre = sanitizar_nombre_minero(raw_nombre, ip_defecto=ip) if raw_nombre is not None else ''
     if ip and nombre:
         con = get_db(); con.autocommit = True; cur = con.cursor()
         cur.execute("INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s) ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre", (usr_actual, ip, nombre))
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+        return jsonify({"status": "ok", "ip": ip, "nombre": nombre})
     return redirect(f'/minero/{ip}')
 
 @panel_bp.route('/cmd_bulk', methods=['POST'])
