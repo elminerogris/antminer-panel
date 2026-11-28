@@ -191,16 +191,16 @@
     }
     .btn-proto-opt:hover { color: var(--text-main); background: var(--hover-bg); }
     .btn-proto-opt.active-static {
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.20) 0%, rgba(51, 102, 255, 0.16) 100%);
+        background: rgba(56, 189, 248, 0.20);
         color: var(--accent-cyan);
-        border-color: rgba(56, 189, 248, 0.55);
-        box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+        border: 2px solid rgba(56, 189, 248, 0.75);
+        box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
     }
     .btn-proto-opt.active-dhcp {
-        background: linear-gradient(135deg, rgba(192, 132, 252, 0.20) 0%, rgba(147, 51, 234, 0.16) 100%);
+        background: rgba(192, 132, 252, 0.20);
         color: #c084fc;
-        border-color: rgba(192, 132, 252, 0.55);
-        box-shadow: 0 0 12px rgba(192, 132, 252, 0.2);
+        border: 2px solid rgba(192, 132, 252, 0.75);
+        box-shadow: 0 0 14px rgba(192, 132, 252, 0.25);
     }
     .proto-helper-hint {
         font-size: 0.74em;
@@ -467,12 +467,12 @@
     </div>
 
     <!-- TARJETA 2: CONFIGURACIÓN REMOTA DE RED (IP ESTÁTICA / DHCP) -->
-    <div class="info-card-pro">
+    <div class="info-card-pro" data-no-live-patch="1">
         <div>
             <div class="info-header-pro">
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span class="info-header-title">🌐 Configuración de Red LAN</span>
-                    <span class="proto-badge-pro {{ 'dhcp' if es_dhcp else 'static' }}" id="badgeProtoRed" data-net-tt="net_proto_badge" onclick="conmutarProtocoloRed()" style="cursor:pointer;" title="Toca aquí para alternar entre DHCP e IP Fija">
+                    <span class="proto-badge-pro {{ 'dhcp' if es_dhcp else 'static' }}" id="badgeProtoRed" onclick="conmutarProtocoloRed()" style="cursor:pointer;" title="Toca aquí para alternar entre DHCP e IP Fija">
                         ● Modo {{ 'DHCP' if es_dhcp else 'IP Fija' }}
                     </span>
                 </div>
@@ -481,12 +481,17 @@
                 </button>
             </div>
 
-            <!-- Interruptor Visual Directo: IP Fija vs DHCP -->
+            <!-- Selector Visual Directo: IP Fija vs DHCP -->
             <div class="proto-switch-section">
-                <label class="net-field-label" data-net-tt="net_proto" onclick="conmutarProtocoloRed()" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:6px;">
-                    <span>Protocolo de Asignación IP</span>
-                    <span style="font-size:0.80em; color:var(--accent-cyan); font-weight:normal;">(Toca aquí para alternar)</span>
-                </label>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+                    <label class="net-field-label" style="cursor:pointer;" onclick="conmutarProtocoloRed()">
+                        Protocolo de Asignación IP
+                    </label>
+                    <select id="selProtoSelect" class="input-net-pro" style="width:auto; padding:4px 10px; font-size:0.80em; font-weight:bold; cursor:pointer;" onchange="seleccionarProtocoloRed(this.value, true)">
+                        <option value="2" {{ '' if es_dhcp else 'selected' }}>📌 IP Fija (Static)</option>
+                        <option value="1" {{ 'selected' if es_dhcp else '' }}>🔄 Automática (DHCP)</option>
+                    </select>
+                </div>
                 <input type="hidden" id="net_proto" value="{{ '1' if es_dhcp else '2' }}">
                 <div class="proto-segmented-wrap">
                     <button type="button" id="btnProtoStatic" class="btn-proto-opt {{ '' if es_dhcp else 'active-static' }}" onclick="seleccionarProtocoloRed('2', true)">
@@ -499,13 +504,15 @@
                 <div id="protoHelperHint" class="proto-helper-hint"></div>
 
                 <!-- Aviso interactivo inmediato al cambiar de modo -->
-                <div id="protoChangeAlert" style="display:none; margin-top:8px; padding:10px 14px; background:rgba(59,130,246,0.14); border:1px solid rgba(59,130,246,0.45); border-radius:8px; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div id="protoChangeAlert" style="display:none; margin-top:10px; padding:12px 14px; background:rgba(192,132,252,0.12); border:1px solid rgba(192,132,252,0.45); border-radius:8px; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
                     <div style="font-size:0.82em; color:var(--text-main);" id="protoChangeAlertTxt">
                         ⚠️ Cambio de protocolo pendiente
                     </div>
-                    <button type="button" class="btn-save-net-pro" style="padding:6px 14px; font-size:0.80em;" onclick="guardarConfiguracionRed()">
-                        💾 Guardar Ahora
-                    </button>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" id="btnAlertAplicar" class="btn-save-net-pro" style="padding:7px 15px; font-size:0.82em; background:#7e22ce; border-color:#c084fc; color:#fff;" onclick="guardarConfiguracionRed()">
+                            ⚡ Aplicar Ahora
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -863,14 +870,19 @@
     }
 
     function seleccionarProtocoloRed(valor, fueClicUsuario) {
+        valor = String(valor);
         const inpProto = document.getElementById('net_proto');
         if (inpProto) inpProto.value = valor;
+        const selProto = document.getElementById('selProtoSelect');
+        if (selProto) selProto.value = valor;
 
         const esDhcp = (valor === '1');
         const btnStatic = document.getElementById('btnProtoStatic');
         const btnDhcp = document.getElementById('btnProtoDhcp');
         const hint = document.getElementById('protoHelperHint');
         const badge = document.getElementById('badgeProtoRed');
+        const btnSave = document.getElementById('btnGuardarRedPro');
+        const txtSave = document.getElementById('txtGuardarRed');
 
         if (btnStatic) btnStatic.className = 'btn-proto-opt' + (esDhcp ? '' : ' active-static');
         if (btnDhcp) btnDhcp.className = 'btn-proto-opt' + (esDhcp ? ' active-dhcp' : '');
@@ -881,13 +893,20 @@
         }
         if (hint) {
             hint.innerHTML = esDhcp
-                ? '🔄 <b>Modo Automático:</b> Tu router asignará la IP, máscara y DNS automáticamente (los campos de abajo quedan bloqueados).'
-                : '📌 <b>Recomendado:</b> El minero conservará siempre esta misma IP fija aunque se corte la luz o se reinicie el router.';
+                ? '🔄 <b>Modo Automático:</b> Tu router asignará la IP, máscara y DNS automáticamente.'
+                : '📌 <b>Recomendado:</b> El minero conservará siempre esta misma IP fija permanente.';
         }
 
         ['net_ip', 'net_mask', 'net_gw', 'net_dns'].forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.disabled = esDhcp;
+            if (el) {
+                el.disabled = esDhcp;
+                if (esDhcp) {
+                    if (el.value) el.setAttribute('data-prev-val', el.value);
+                } else if (el.hasAttribute('data-prev-val')) {
+                    el.value = el.getAttribute('data-prev-val');
+                }
+            }
         });
 
         if (!esDhcp) {
@@ -899,15 +918,36 @@
 
         verificarConflictoIp();
 
+        if (txtSave) {
+            txtSave.innerText = esDhcp ? 'Aplicar Modo DHCP' : 'Guardar IP Fija';
+        }
+
         if (fueClicUsuario) {
             marcarRedEditada(null);
             const alertBox = document.getElementById('protoChangeAlert');
             const alertTxt = document.getElementById('protoChangeAlertTxt');
+            const btnAlert = document.getElementById('btnAlertAplicar');
             if (alertBox && alertTxt) {
                 alertBox.style.display = 'flex';
-                alertTxt.innerHTML = esDhcp
-                    ? '🔄 Cambiaste a <b>Modo Automático (DHCP)</b>. Presiona <b>Guardar Ahora</b> para aplicar en el minero.'
-                    : '📌 Cambiaste a <b>Modo IP Fija (Static)</b>. Revisa tu IP y presiona <b>Guardar Ahora</b>.';
+                if (esDhcp) {
+                    alertBox.style.background = 'rgba(192,132,252,0.14)';
+                    alertBox.style.borderColor = 'rgba(192,132,252,0.55)';
+                    alertTxt.innerHTML = '🔄 Seleccionaste <b>Modo Automático (DHCP)</b>. Presiona <b>Aplicar Ahora</b> para enviar la orden al minero.';
+                    if (btnAlert) {
+                        btnAlert.innerText = '⚡ Aplicar DHCP Ahora';
+                        btnAlert.style.background = '#7e22ce';
+                        btnAlert.style.borderColor = '#c084fc';
+                    }
+                } else {
+                    alertBox.style.background = 'rgba(56,189,248,0.14)';
+                    alertBox.style.borderColor = 'rgba(56,189,248,0.55)';
+                    alertTxt.innerHTML = '📌 Seleccionaste <b>Modo IP Fija (Static)</b>. Revisa los datos y presiona <b>Guardar Ahora</b>.';
+                    if (btnAlert) {
+                        btnAlert.innerText = '💾 Guardar IP Fija';
+                        btnAlert.style.background = '#0284c7';
+                        btnAlert.style.borderColor = '#38bdf8';
+                    }
+                }
             }
         }
     }
@@ -917,8 +957,9 @@
         if (inputEl) inputEl.classList.add('edited');
         const btn = document.getElementById('btnGuardarRedPro');
         const txt = document.getElementById('txtGuardarRed');
+        const proto = document.getElementById('net_proto')?.value || '2';
         if (btn) btn.classList.add('unsaved-pulse');
-        if (txt) txt.innerText = 'Aplicar Cambios de Red';
+        if (txt) txt.innerText = (proto === '1') ? 'Aplicar Modo DHCP' : 'Aplicar Cambios de Red';
     }
 
     function validarFormatoIpv4(ipStr) {
@@ -927,12 +968,12 @@
     }
 
     function guardarConfiguracionRed() {
-        const host = (document.getElementById('net_host').value || 'Antminer').trim();
-        const proto = document.getElementById('net_proto').value;
-        const nip = (document.getElementById('net_ip').value || '').trim();
-        const mask = (document.getElementById('net_mask').value || '').trim();
-        const gw = (document.getElementById('net_gw').value || '').trim();
-        const dns = (document.getElementById('net_dns').value || '8.8.8.8').trim();
+        const host = (document.getElementById('net_host')?.value || 'Antminer').trim();
+        const proto = document.getElementById('net_proto')?.value || '2';
+        const nip = (document.getElementById('net_ip')?.value || '').trim();
+        const mask = (document.getElementById('net_mask')?.value || '').trim();
+        const gw = (document.getElementById('net_gw')?.value || '').trim();
+        const dns = (document.getElementById('net_dns')?.value || '8.8.8.8').trim();
 
         if (proto === '2') {
             if (!validarFormatoIpv4(nip) || !validarFormatoIpv4(mask) || !validarFormatoIpv4(gw)) {
@@ -950,19 +991,18 @@
             }
         }
 
-        const msgConfirm = (proto === '1')
-            ? `¿Cambiar el minero {{ ip }} a modo DHCP automático?`
-            : `¿Aplicar IP Fija [${nip}] con Router [${gw}] en el minero {{ ip }}?`;
-
-        if (!confirm(msgConfirm)) return;
-
         const btn = document.getElementById('btnGuardarRedPro');
         const ico = document.getElementById('icoGuardarRed');
         const txt = document.getElementById('txtGuardarRed');
         const msg = document.getElementById('estadoRedMsg');
+        const btnAlert = document.getElementById('btnAlertAplicar');
 
         if (ico) ico.innerText = '⏳';
-        if (txt) txt.innerText = 'Enviando...';
+        if (txt) txt.innerText = (proto === '1') ? 'Aplicando DHCP...' : 'Guardando...';
+        if (btnAlert) {
+            btnAlert.innerText = '⏳ Enviando...';
+            btnAlert.disabled = true;
+        }
 
         const urlCmd = `/cmd/{{ ip }}/set_network?host=${encodeURIComponent(host)}&proto=${encodeURIComponent(proto)}&nip=${encodeURIComponent(nip)}&mask=${encodeURIComponent(mask)}&gw=${encodeURIComponent(gw)}&dns=${encodeURIComponent(dns)}`;
 
@@ -977,9 +1017,13 @@
             document.querySelectorAll('.input-net-pro.edited').forEach(el => el.classList.remove('edited'));
             if (btn) btn.classList.remove('unsaved-pulse');
             if (ico) ico.innerText = '✅';
-            if (txt) txt.innerText = '¡Red en Cola!';
+            if (txt) txt.innerText = (proto === '1') ? '¡DHCP en Cola!' : '¡Red en Cola!';
+            if (btnAlert) btnAlert.disabled = false;
             if (msg) {
-                if (proto === '2' && nip && nip !== IP_ACTUAL_MINERO) {
+                if (proto === '1') {
+                    msg.style.color = '#00e676';
+                    msg.innerText = '✅ Orden DHCP enviada con éxito. Tu router le asignará una IP dinámica en ~15s.';
+                } else if (nip && nip !== IP_ACTUAL_MINERO) {
                     msg.style.color = '#00e676';
                     msg.innerText = `✅ Nueva IP ${nip} enviada. Tu minero reiniciará su red y se redireccionará en 14s...`;
                     setTimeout(() => {
@@ -987,24 +1031,25 @@
                     }, 14000);
                 } else {
                     msg.style.color = '#00e676';
-                    msg.innerText = '✅ Orden enviada al Agente (se aplicará en ~15s)';
-                    setTimeout(() => {
-                        if (ico) ico.innerText = '💾';
-                        if (txt) txt.innerText = 'Guardar Red';
-                    }, 4500);
+                    msg.innerText = '✅ Configuración IP Fija enviada al Agente (se aplicará en ~15s)';
                 }
+                setTimeout(() => {
+                    if (ico) ico.innerText = '💾';
+                    if (txt) txt.innerText = (proto === '1') ? 'Aplicar Modo DHCP' : 'Guardar Red';
+                }, 5000);
             }
         })
         .catch(err => {
             if (ico) ico.innerText = '⚠️';
             if (txt) txt.innerText = 'Error';
+            if (btnAlert) btnAlert.disabled = false;
             if (msg) {
                 msg.style.color = '#ff5252';
                 msg.innerText = '⚠️ No se pudo enviar la orden de red al agente. Revisa la conexión.';
             }
             setTimeout(() => {
                 if (ico) ico.innerText = '💾';
-                if (txt) txt.innerText = 'Guardar Red';
+                if (txt) txt.innerText = (proto === '1') ? 'Aplicar Modo DHCP' : 'Guardar Red';
             }, 4500);
         });
     }
@@ -1029,7 +1074,7 @@
                 }
             });
             el.addEventListener('click', function(e) {
-                if (el.tagName !== 'BUTTON' && typeof mostrarSmartTooltip === 'function') {
+                if (el.tagName !== 'BUTTON' && el.tagName !== 'SELECT' && !el.classList.contains('proto-badge-pro') && typeof mostrarSmartTooltip === 'function') {
                     e.stopPropagation();
                     mostrarSmartTooltip(el, info);
                 }
