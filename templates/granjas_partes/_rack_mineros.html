@@ -12,7 +12,7 @@
              style="cursor:grab;"
              ondragstart='iniciarArrastreAsic(event, {{ m.ip | tojson }}, {{ m.nombre | tojson }}, {{ m.farm_id | tojson }})'
              ondragend="finalizarArrastreAsic(event)">
-            <a href="/minero/{{ m.ip }}" draggable="false" class="rack-tile {{ tile_cls }}" title="{{ m.nombre }} ({{ m.ip }}) - {{ m.hashrate }} {{ m.unidad }} - {{ m.temp_max }}°C">
+            <a href="/minero/{{ m.ip }}?farm={{ g.farm_id }}" draggable="false" class="rack-tile {{ tile_cls }}" title="{{ m.nombre }} ({{ m.ip }}) - {{ m.hashrate }} {{ m.unidad }} - {{ m.temp_max }}°C">
                 <span class="rack-tile-name">{{ m.nombre }}</span>
                 <span>{{ (m.temp_max ~ '°C') if m.online else 'OFF' }}</span>
             </a>

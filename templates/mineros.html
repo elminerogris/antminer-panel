@@ -612,7 +612,7 @@
                 
                 <!-- 1. Nombre + IP + Nombre de su Granja -->
                 <td data-sort-str="{{ m.nombre }}" translate="no">
-                    <a href="/minero/{{ m.ip }}" class="miner-link" title="IP: {{ m.ip }} · {{ m.modelo }}">{{ m.nombre }}</a>
+                    <a href="/minero/{{ m.ip }}{% if m.farm_id %}?farm={{ m.farm_id }}{% elif m.agent_id %}?agent={{ m.agent_id }}{% endif %}" class="miner-link" title="IP: {{ m.ip }} · {{ m.modelo }}">{{ m.nombre }}</a>
                     <div class="sub-txt" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:2px;">
                         <span style="font-family:monospace; color:#3b82f6; font-weight:700; font-size:0.86em;">{{ m.ip }}</span>
                         <span style="color:var(--text-muted); font-size:0.75em;">·</span>

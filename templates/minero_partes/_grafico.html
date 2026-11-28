@@ -3457,7 +3457,7 @@
         if (cargandoLiveGrafico) return;
         cargandoLiveGrafico = true;
         try {
-            const r = await fetch('/api/live/minero/{{ ip }}', { cache: 'no-store' });
+            const r = await fetch('/api/live/minero/{{ ip }}?farm={{ ultimo.farm_id or "" }}&agent={{ ultimo.agent_id or "" }}', { cache: 'no-store' });
             if (!r.ok) return;
             const data = await r.json();
             if (!data.ok || !data.puntos || data.puntos.length === 0) return;

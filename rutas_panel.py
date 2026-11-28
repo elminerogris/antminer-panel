@@ -566,21 +566,29 @@ def api_granjas_editar_minero():
     raw_nombre = data.get('nombre')
     nuevo_nombre = sanitizar_nombre_minero(raw_nombre, ip_defecto=ip) if raw_nombre is not None else ''
     nuevo_farm_id = str(data.get('farm_id') or '').strip()
+    farm_id_origen = str(data.get('farm_id_origen') or data.get('origen_farm_id') or '').strip()
 
     if not ip:
         return jsonify({"status": "error", "msg": "IP requerida"}), 400
 
     con = get_db(); con.autocommit = True; cur = con.cursor()
     if nuevo_nombre:
-        cur.execute(
-            "INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s) ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre",
-            (usr_actual, ip, nuevo_nombre)
-        )
+        cur.execute("""
+            INSERT INTO nombres_mineros (owner, farm_id, ip, nombre)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre, farm_id=EXCLUDED.farm_id
+        """, (usr_actual, nuevo_farm_id or farm_id_origen, ip, nuevo_nombre))
     if nuevo_farm_id:
-        cur.execute(
-            "UPDATE mineros_activos SET farm_id=%s WHERE owner=%s AND ip=%s",
-            (nuevo_farm_id, usr_actual, ip)
-        )
+        if farm_id_origen:
+            cur.execute(
+                "UPDATE mineros_activos SET farm_id=%s WHERE owner=%s AND ip=%s AND farm_id=%s",
+                (nuevo_farm_id, usr_actual, ip, farm_id_origen)
+            )
+        else:
+            cur.execute(
+                "UPDATE mineros_activos SET farm_id=%s WHERE owner=%s AND ip=%s",
+                (nuevo_farm_id, usr_actual, ip)
+            )
     return jsonify({"status": "ok", "ip": ip, "nombre": nuevo_nombre, "farm_id": nuevo_farm_id})
 
 @panel_bp.route('/api/red/verificar_ip_ocupada', methods=['POST'])
@@ -950,15 +958,29 @@ def detalle_minero(ip):
     plan_actual = session.get('plan', 'Gratis')
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT * FROM mineros_activos WHERE owner=%s AND ip=%s", (usr_actual, ip))
+
+    farm_filtro = request.args.get('farm', '').strip()
+    agent_filtro = request.args.get('agent', '').strip()
+    if farm_filtro:
+        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s AND ip=%s AND farm_id=%s ORDER BY ultima_act DESC LIMIT 1", (usr_actual, ip, farm_filtro))
+    elif agent_filtro:
+        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s AND ip=%s AND agent_id=%s ORDER BY ultima_act DESC LIMIT 1", (usr_actual, ip, agent_filtro))
+    else:
+        cur.execute("SELECT * FROM mineros_activos WHERE owner=%s AND ip=%s ORDER BY ultima_act DESC LIMIT 1", (usr_actual, ip))
     m = cur.fetchone()
     if not m: return redirect('/')
 
-    cur.execute("SELECT nombre FROM nombres_mineros WHERE owner=%s AND ip=%s", (usr_actual, ip))
+    fid_actual = str(m.get('farm_id') or '').strip()
+    ag_actual = str(m.get('agent_id') or 'default').strip()
+
+    cur.execute("SELECT nombre FROM nombres_mineros WHERE owner=%s AND ip=%s AND farm_id=%s", (usr_actual, ip, fid_actual))
     n_row = cur.fetchone()
+    if not n_row:
+        cur.execute("SELECT nombre FROM nombres_mineros WHERE owner=%s AND ip=%s", (usr_actual, ip))
+        n_row = cur.fetchone()
     nombres_dict = {ip: n_row['nombre']} if n_row and n_row.get('nombre') else {}
 
-    cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s AND ip != %s", (usr_actual, ip))
+    cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s AND NOT (farm_id=%s AND ip=%s)", (usr_actual, fid_actual, ip))
     ips_ocupadas = [row['ip'] for row in cur.fetchall()]
 
     limite_hist = 44000 if es_cuenta_pro(usr_actual, plan_actual) else 1440
@@ -967,12 +989,12 @@ def detalle_minero(ip):
         FROM (
             SELECT id, fecha, hashrate, temp_max, temp_amb, errores, cadenas 
             FROM historial_nube 
-            WHERE owner=%s AND ip=%s 
+            WHERE owner=%s AND ip=%s AND (farm_id=%s OR agent_id=%s OR (farm_id='' AND agent_id='default'))
             ORDER BY id DESC 
             LIMIT %s
         ) sub 
         ORDER BY id ASC
-    """, (usr_actual, ip, limite_hist))
+    """, (usr_actual, ip, fid_actual, ag_actual, limite_hist))
     hist = cur.fetchall()
 
     cur.execute("""
@@ -1218,11 +1240,18 @@ def mineros():
     tarifa_kwh = max(0.0, a_float_seguro(u_row.get('tarifa_kwh'), 0.0))
     comision_pool = min(100.0, max(0.0, a_float_seguro(u_row.get('comision_pool'), 0.0)))
 
-    cur.execute("SELECT DISTINCT ON (ip) * FROM mineros_activos WHERE owner=%s ORDER BY ip, ultima_act DESC", (usr_actual,))
+    cur.execute("""
+        SELECT DISTINCT ON (COALESCE(NULLIF(farm_id, ''), agent_id), ip) *
+        FROM mineros_activos
+        WHERE owner=%s
+        ORDER BY COALESCE(NULLIF(farm_id, ''), agent_id), ip, ultima_act DESC
+    """, (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
 
-    cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
-    nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
+    cur.execute("SELECT ip, farm_id, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
+    nombres_rows = cur.fetchall() or []
+    nombres_dict_farm = {(r.get('farm_id') or '', r['ip']): r['nombre'] for r in nombres_rows if r.get('nombre')}
+    nombres_dict = {row['ip']: row['nombre'] for row in nombres_rows if row.get('nombre')}
 
     cur.execute("SELECT farm_id, nombre, ciudad FROM granjas_sedes WHERE owner=%s", (usr_actual,))
     sedes_dict = {
@@ -1243,9 +1272,10 @@ def mineros():
         mon = m.get('moneda') or ('ZEC' if algo == 'Equihash' else 'BTC')
         unidad = m.get('unidad') or ('kSol/s' if 'z15' in str(mod).lower() else 'TH/s')
         unidad_efi = "J/kSol" if unidad == "kSol/s" else ("J/GH" if unidad == "GH/s" else "J/TH")
-        nombre = nombre_inteligente_minero(ip, nombres_dict, m.get('worker1'))
         ag_id = str(m.get('agent_id') or 'default').strip() or 'default'
         fid = str(m.get('farm_id') or ag_id).strip() or 'default'
+        nombre_farm = nombres_dict_farm.get((m.get('farm_id') or '', ip)) or nombres_dict_farm.get((fid, ip))
+        nombre = nombre_farm or nombre_inteligente_minero(ip, nombres_dict, m.get('worker1'))
         sede_info = sedes_dict.get(fid) or {}
         granja_nombre = str(sede_info.get('nombre') or '').strip()
         if not granja_nombre:
@@ -1323,11 +1353,18 @@ def granjas():
     cur.execute("SELECT * FROM granjas_sedes WHERE owner=%s ORDER BY id ASC", (usr_actual,))
     sedes_db = cur.fetchall()
 
-    cur.execute("SELECT DISTINCT ON (ip) * FROM mineros_activos WHERE owner=%s ORDER BY ip, ultima_act DESC", (usr_actual,))
+    cur.execute("""
+        SELECT DISTINCT ON (COALESCE(NULLIF(farm_id, ''), agent_id), ip) *
+        FROM mineros_activos
+        WHERE owner=%s
+        ORDER BY COALESCE(NULLIF(farm_id, ''), agent_id), ip, ultima_act DESC
+    """, (usr_actual,))
     filas = sorted(cur.fetchall(), key=ordenar_ip_key)
 
-    cur.execute("SELECT ip, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
-    nombres_dict = {row['ip']: row['nombre'] for row in cur.fetchall()}
+    cur.execute("SELECT ip, farm_id, nombre FROM nombres_mineros WHERE owner=%s", (usr_actual,))
+    nombres_rows = cur.fetchall() or []
+    nombres_dict_farm = {(r.get('farm_id') or '', r['ip']): r['nombre'] for r in nombres_rows if r.get('nombre')}
+    nombres_dict = {row['ip']: row['nombre'] for row in nombres_rows if row.get('nombre')}
 
     grupos = {}
     for s in sedes_db:
@@ -2594,28 +2631,57 @@ def ver_log(ip):
     log = cur.fetchone()
     return log[0] if log else "Esperando respuesta..."
 
+@panel_bp.route('/cmd/all/scan')
+@login_required
+def cmd_all_scan():
+    owner = session.get('usuario', 'Admin')
+    con = get_db(); con.autocommit = True
+    cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT agent_id, farm_id FROM granjas_sedes WHERE owner=%s", (owner,))
+    agentes = cur.fetchall() or []
+    ahora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    for ag in agentes:
+        ag_id = ag.get('agent_id') or 'default'
+        enviar_orden_tunel(owner, 'SCAN_NET', 'scan_now', agent_id=ag_id)
+        cur.execute(
+            "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, 'SCAN_NET', 'scan_now', 'enviado', %s)",
+            (owner, ag_id, ahora)
+        )
+    return jsonify({"status": "ok", "msg": "Escaneo solicitado"}), 200
+
 @panel_bp.route('/api/live/minero/<ip>')
 @login_required
 def api_live_minero(ip):
     usr_actual = session.get('usuario', 'Admin')
+    farm_filtro = request.args.get('farm', '').strip()
+    agent_filtro = request.args.get('agent', '').strip()
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cur.execute("SELECT hashrate, temp_max, temp_amb, errores, cadenas FROM mineros_activos WHERE owner=%s AND ip=%s", (usr_actual, ip))
+
+    if farm_filtro:
+        cur.execute("SELECT farm_id, agent_id, hashrate, temp_max, temp_amb, errores, cadenas FROM mineros_activos WHERE owner=%s AND ip=%s AND farm_id=%s ORDER BY ultima_act DESC LIMIT 1", (usr_actual, ip, farm_filtro))
+    elif agent_filtro:
+        cur.execute("SELECT farm_id, agent_id, hashrate, temp_max, temp_amb, errores, cadenas FROM mineros_activos WHERE owner=%s AND ip=%s AND agent_id=%s ORDER BY ultima_act DESC LIMIT 1", (usr_actual, ip, agent_filtro))
+    else:
+        cur.execute("SELECT farm_id, agent_id, hashrate, temp_max, temp_amb, errores, cadenas FROM mineros_activos WHERE owner=%s AND ip=%s ORDER BY ultima_act DESC LIMIT 1", (usr_actual, ip))
     m = cur.fetchone()
     if not m:
         return jsonify({"ok": False}), 404
+
+    fid_actual = str(m.get('farm_id') or '').strip()
+    ag_actual = str(m.get('agent_id') or 'default').strip()
 
     cur.execute("""
         SELECT fecha, hashrate, temp_max, temp_amb, errores, cadenas
         FROM (
             SELECT id, fecha, hashrate, temp_max, temp_amb, errores, cadenas
             FROM historial_nube
-            WHERE owner=%s AND ip=%s
+            WHERE owner=%s AND ip=%s AND (farm_id=%s OR agent_id=%s OR (farm_id='' AND agent_id='default'))
             ORDER BY id DESC
             LIMIT 7
         ) sub
         ORDER BY id ASC
-    """, (usr_actual, ip))
+    """, (usr_actual, ip, fid_actual, ag_actual))
     rows = cur.fetchall()
 
     puntos = []

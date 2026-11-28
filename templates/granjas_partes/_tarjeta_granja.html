@@ -85,7 +85,7 @@
 
     <!-- Acciones Rápidas por Granja -->
     <div class="farm-actions-bar">
-        <button type="button" class="btn-farm-cmd scan" onclick="escanearRedLocal(this)" title="Buscar equipos nuevos en {{ g.subred }}">🔍 Escanear</button>
+        <button type="button" class="btn-farm-cmd scan" onclick="abrirSmartScannerParaGranja({{ g.farm_id | tojson }}, {{ g.nombre | tojson }})" title="Buscar todos los dispositivos en {{ g.subred }}">🔍 Escanear</button>
         <button type="button" class="btn-farm-cmd eco" onclick='comandoGranja("profile|low", {{ ips_lista | tojson }}, {{ g.nombre | tojson }})'>❄️ Eco</button>
         <button type="button" class="btn-farm-cmd sleep" onclick='comandoGranja("sleep", {{ ips_lista | tojson }}, {{ g.nombre | tojson }})'>😴 Reposo</button>
         <button type="button" class="btn-farm-cmd" onclick='comandoGranja("normal", {{ ips_lista | tojson }}, {{ g.nombre | tojson }})'>▶ Normal</button>

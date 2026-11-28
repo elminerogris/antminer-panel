@@ -439,8 +439,10 @@
         z-index: 2000;
         align-items: center;
         justify-content: center;
-        padding: 15px;
+        padding: 16px 12px;
         backdrop-filter: blur(3px);
+        overflow-y: auto !important;
+        box-sizing: border-box;
     }
     .farm-modal-box {
         background: var(--bg-card);
@@ -450,6 +452,7 @@
         max-width: 450px;
         width: 100%;
         box-shadow: var(--shadow-card);
+        margin: auto;
     }
     .fm-group { margin-bottom: 13px; }
     .fm-group label { display: block; font-size: 0.74em; color: var(--text-muted); text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
@@ -473,12 +476,16 @@
         border: 1px solid rgba(56, 189, 248, 0.45);
         border-radius: 12px;
         padding: 20px;
-        max-width: 860px;
+        max-width: 920px;
         width: 100%;
-        max-height: 90vh;
+        max-height: 88vh;
+        min-height: 0;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
         box-shadow: var(--shadow-card);
+        box-sizing: border-box;
+        margin: auto;
     }
     .scan-controls-row {
         display: flex;
@@ -487,6 +494,34 @@
         justify-content: space-between;
         flex-wrap: wrap;
         margin-bottom: 12px;
+        flex-shrink: 0;
+    }
+    .scan-filter-pills {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .scan-pill-btn {
+        background: var(--bg-well);
+        border: 1px solid var(--border-color);
+        color: var(--text-muted);
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 0.78em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+    }
+    .scan-pill-btn:hover {
+        border-color: var(--accent-cyan);
+        color: var(--text-main);
+    }
+    .scan-pill-btn.active {
+        background: rgba(56, 189, 248, 0.16);
+        border-color: var(--accent-cyan);
+        color: var(--accent-cyan);
+        font-weight: bold;
     }
     .scan-search-inp {
         background: var(--bg-input);
@@ -508,6 +543,7 @@
         border-radius: 9px;
         padding: 12px 15px;
         margin-bottom: 12px;
+        flex-shrink: 0;
     }
     .scan-progress-top {
         display: flex;
@@ -554,16 +590,37 @@
         margin-bottom: 12px;
         font-size: 0.85em;
         font-weight: bold;
+        flex-shrink: 0;
     }
 
     /* Contenedor de Grupos y Tabla del Escáner */
     .scan-groups-wrap {
-        flex: 1;
-        overflow-y: auto;
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: calc(88vh - 170px);
+        overflow-y: auto !important;
+        overflow-x: hidden;
         display: flex;
         flex-direction: column;
         gap: 12px;
-        padding-right: 2px;
+        padding-right: 4px;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+    }
+    .scan-groups-wrap::-webkit-scrollbar {
+        width: 7px;
+    }
+    .scan-groups-wrap::-webkit-scrollbar-track {
+        background: var(--bg-well-deep);
+        border-radius: 4px;
+    }
+    .scan-groups-wrap::-webkit-scrollbar-thumb {
+        background: rgba(56, 189, 248, 0.45);
+        border-radius: 4px;
+    }
+    .scan-groups-wrap::-webkit-scrollbar-thumb:hover {
+        background: rgba(56, 189, 248, 0.8);
     }
     .scan-group-card {
         border: 1px solid var(--border-color);
@@ -729,7 +786,14 @@
 
         <!-- Controles superiores -->
         <div class="scan-controls-row">
-            <button type="button" id="btnTriggerScan" class="btn-open-scanner" style="padding:7px 14px; font-size:0.82em;" onclick="lanzarEscaneoRed()">🔄 Escanear Red Ahora</button>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <button type="button" id="btnTriggerScan" class="btn-open-scanner" style="padding:7px 14px; font-size:0.82em;" onclick="lanzarEscaneoRed()">🔄 Escanear Red Ahora</button>
+                <div class="scan-filter-pills" id="scanTipoFiltros">
+                    <button type="button" class="scan-pill-btn active" id="pillTodos" onclick="setFiltroTipoEscaner('todos')">Todos (<span id="cntTodos">0</span>)</button>
+                    <button type="button" class="scan-pill-btn" id="pillAsics" onclick="setFiltroTipoEscaner('asics')">⛏️ Solo ASICs (<span id="cntAsics">0</span>)</button>
+                    <button type="button" class="scan-pill-btn" id="pillNoAsics" onclick="setFiltroTipoEscaner('no_asics')">🌐 Equipos de Red (<span id="cntNoAsics">0</span>)</button>
+                </div>
+            </div>
             <input type="text" id="scanSearchInput" class="scan-search-inp" placeholder="🔎 Filtrar por IP, modelo o nombre..." oninput="renderizarEscaner()">
         </div>
 
@@ -772,6 +836,7 @@
         limite: 3,
         activosCount: 0,
         routersCount: 1,
+        filtroTipo: 'todos',
         granjas: [],
         grupos: [],
         descubiertos: [],
@@ -782,6 +847,15 @@
     };
     let scanPollTimer = null;
     let scanProgTimer = null;
+
+    function setFiltroTipoEscaner(tipo) {
+        scanState.filtroTipo = tipo || 'todos';
+        document.querySelectorAll('.scan-pill-btn').forEach(b => b.classList.remove('active'));
+        if (tipo === 'asics') document.getElementById('pillAsics')?.classList.add('active');
+        else if (tipo === 'no_asics') document.getElementById('pillNoAsics')?.classList.add('active');
+        else document.getElementById('pillTodos')?.classList.add('active');
+        renderizarEscaner();
+    }
 
     function mostrarToastScan(msg, ok = true) {
         const t = document.getElementById('farmToast');
@@ -807,8 +881,23 @@
         document.getElementById('scanProgressCard').style.display = 'none';
         document.getElementById('scanDoneBanner').style.display = 'none';
         document.getElementById('scanSearchInput').value = '';
+        scanState.filtroTipo = 'todos';
+        setFiltroTipoEscaner('todos');
         scanState.huboCambios = false;
         cargarResultadosEscaner();
+    }
+
+    function abrirSmartScannerParaGranja(farmId, farmNombre) {
+        abrirSmartScanner();
+        if (farmId) {
+            scanState.colapsados.clear();
+            if (scanState.grupos && scanState.grupos.length > 0) {
+                scanState.grupos.forEach(g => {
+                    if (g.farm_id !== farmId) scanState.colapsados.add(g.farm_id);
+                });
+            }
+            lanzarEscaneoRed(farmId);
+        }
     }
 
     function cerrarSmartScanner() {
@@ -829,15 +918,17 @@
 
     function mostrarResumenEscaneoCompleto() {
         const total = scanState.descubiertos.length;
+        const totalAsics = scanState.descubiertos.filter(d => d.es_asic !== false).length;
         const ya = scanState.descubiertos.filter(d => d.ya_agregado).length;
-        const nuevos = Math.max(0, total - ya);
+        const nuevos = Math.max(0, totalAsics - ya);
+        const otros = Math.max(0, total - totalAsics);
         const banner = document.getElementById('scanDoneBanner');
         const extraRouter = (scanState.routersCount > 1) ? ` en ${scanState.routersCount} routers` : '';
-        banner.innerText = `✅ Escaneo completo — se encontraron ${total} minero(s)${extraRouter} (${nuevos} nuevos, ${ya} ya añadidos)`;
+        banner.innerText = `✅ Escaneo completo — ${total} dispositivo(s)${extraRouter} (${totalAsics} ASIC, ${nuevos} nuevos, ${ya} añadidos, ${otros} equipos de red)`;
         banner.style.display = 'block';
     }
 
-    async function lanzarEscaneoRed() {
+    async function lanzarEscaneoRed(farmIdFiltro = '') {
         const btn = document.getElementById('btnTriggerScan');
         const card = document.getElementById('scanProgressCard');
         const banner = document.getElementById('scanDoneBanner');
@@ -883,7 +974,7 @@
             await fetch('/api/escaner/iniciar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
+                body: JSON.stringify({ farm_id: farmIdFiltro || '' })
             });
             let ticks = 0;
             scanPollTimer = setInterval(async () => {
@@ -929,11 +1020,12 @@
             }
 
             scanState.descubiertos.forEach(d => {
-                if (!(d.ip in scanState.nombres)) {
-                    scanState.nombres[d.ip] = d.nombre || '';
+                const itemKey = `${d.router_farm_id || d.farm_id || 'def'}_${d.ip}`;
+                if (!(itemKey in scanState.nombres)) {
+                    scanState.nombres[itemKey] = d.nombre || '';
                 }
-                if (!(d.ip in scanState.granjaPorIp)) {
-                    scanState.granjaPorIp[d.ip] = d.farm_id || d.router_farm_id || '';
+                if (!(itemKey in scanState.granjaPorIp)) {
+                    scanState.granjaPorIp[itemKey] = d.farm_id || d.router_farm_id || '';
                 }
             });
 
@@ -954,18 +1046,37 @@
         const q = (document.getElementById('scanSearchInput').value || '').toLowerCase().trim();
 
         if (!scanState.grupos || scanState.grupos.length === 0) {
-            wrap.innerHTML = '<div style="text-align:center; padding:28px; color:var(--text-muted); font-size:0.86em;">No hay mineros descubiertos aún. Presiona <b>🔄 Escanear Red Ahora</b> con tu agente encendido.</div>';
+            wrap.innerHTML = '<div style="text-align:center; padding:28px; color:var(--text-muted); font-size:0.86em;">No hay dispositivos descubiertos aún. Presiona <b>🔄 Escanear Red Ahora</b> con tu agente encendido.</div>';
             return;
         }
+
+        let totAll = 0, totAsics = 0, totNoAsics = 0;
+        scanState.grupos.forEach(g => {
+            (g.mineros || []).forEach(m => {
+                totAll++;
+                if (m.es_asic === false) totNoAsics++;
+                else totAsics++;
+            });
+        });
+
+        const elTodos = document.getElementById('cntTodos');
+        const elAsics = document.getElementById('cntAsics');
+        const elNoAsics = document.getElementById('cntNoAsics');
+        if (elTodos) elTodos.innerText = totAll;
+        if (elAsics) elAsics.innerText = totAsics;
+        if (elNoAsics) elNoAsics.innerText = totNoAsics;
 
         const multiRouter = scanState.grupos.length > 1;
         let html = '';
 
         scanState.grupos.forEach(g => {
             const minerosFiltrados = (g.mineros || []).filter(m => {
+                if (scanState.filtroTipo === 'asics' && m.es_asic === false) return false;
+                if (scanState.filtroTipo === 'no_asics' && m.es_asic !== false) return false;
                 if (!q) return true;
-                const nom = (scanState.nombres[m.ip] || m.nombre || '').toLowerCase();
-                return m.ip.toLowerCase().includes(q) || m.modelo.toLowerCase().includes(q) || nom.includes(q);
+                const itemKey = `${g.farm_id}_${m.ip}`;
+                const nom = (scanState.nombres[itemKey] || m.nombre || '').toLowerCase();
+                return m.ip.toLowerCase().includes(q) || (m.modelo || '').toLowerCase().includes(q) || nom.includes(q);
             });
 
             if (q && minerosFiltrados.length === 0) return;
@@ -978,29 +1089,52 @@
             }).join('');
 
             const filasHtml = minerosFiltrados.length === 0
-                ? '<tr><td colspan="4" style="text-align:center; padding:14px; color:var(--text-muted);">Sin mineros en esta red.</td></tr>'
+                ? '<tr><td colspan="4" style="text-align:center; padding:14px; color:var(--text-muted);">Sin dispositivos que coincidan en esta red.</td></tr>'
                 : minerosFiltrados.map(d => {
-                    const nomVal = (scanState.nombres[d.ip] !== undefined ? scanState.nombres[d.ip] : d.nombre || '').replace(/"/g, '&quot;');
-                    const fSel = scanState.granjaPorIp[d.ip] || d.farm_id || d.router_farm_id || '';
+                    const itemKey = `${g.farm_id}_${d.ip}`;
+                    const nomVal = (scanState.nombres[itemKey] !== undefined ? scanState.nombres[itemKey] : d.nombre || '').replace(/"/g, '&quot;');
+                    const fSel = scanState.granjaPorIp[itemKey] || d.farm_id || d.router_farm_id || g.farm_id || '';
                     const optsGranja = scanState.granjas.map(gr => {
                         const selAttr = (gr.farm_id === fSel) ? 'selected' : '';
                         return `<option value="${gr.farm_id}" ${selAttr}>${gr.nombre || gr.farm_id}</option>`;
                     }).join('');
 
+                    if (d.es_asic === false) {
+                        return `<tr>
+                            <td translate="no">
+                                <div style="color:var(--text-main); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                                    <span>🌐</span> <span>${d.modelo}</span>
+                                </div>
+                                <div style="font-size:0.84em; color:var(--accent-cyan); font-family:monospace; font-weight:bold;">${d.ip}</div>
+                            </td>
+                            <td>
+                                <span style="font-size:0.80em; color:var(--text-muted); font-style:italic;">Dispositivo en red</span>
+                            </td>
+                            <td>
+                                <span style="font-size:0.80em; color:var(--text-muted); font-family:monospace;">${g.farm_nombre}</span>
+                            </td>
+                            <td style="text-align:right;">
+                                <span class="scan-pill-btn" style="cursor:default; background:rgba(56,189,248,0.12); color:var(--accent-cyan); border-color:rgba(56,189,248,0.35); font-weight:bold;">📡 No ASIC</span>
+                            </td>
+                        </tr>`;
+                    }
+
                     const btnAccion = d.ya_agregado
-                        ? `<button type="button" class="btn-scan-row-added" title="Clic para quitar de tu granja" onclick="quitarMineroDesdeEscaner('${d.ip}', this)">✅ Añadido · ✕</button>`
-                        : `<button type="button" class="btn-scan-row-add" onclick="agregarMineroDesdeEscaner('${d.ip}', this)">➕ Agregar</button>`;
+                        ? `<button type="button" class="btn-scan-row-added" title="Clic para quitar de tu granja" onclick="quitarMineroDesdeEscaner('${d.ip}', '${g.farm_id}', this)">✅ Añadido · ✕</button>`
+                        : `<button type="button" class="btn-scan-row-add" onclick="agregarMineroDesdeEscaner('${d.ip}', '${fSel}', '${d.agent_id || ''}', '${itemKey}', this)">➕ Agregar</button>`;
 
                     return `<tr>
                         <td translate="no">
-                            <div style="color:var(--text-main); font-weight:bold;">${d.modelo}</div>
-                            <div style="font-size:0.82em; color:var(--accent-blue-light); font-family:monospace;">${d.ip}</div>
+                            <div style="color:var(--text-main); font-weight:bold; display:flex; align-items:center; gap:6px;">
+                                <span>⚡</span> <span>${d.modelo}</span>
+                            </div>
+                            <div style="font-size:0.84em; color:var(--accent-blue-light); font-family:monospace; font-weight:bold;">${d.ip}</div>
                         </td>
                         <td>
-                            <input type="text" class="scan-inp-name" maxlength="40" value="${nomVal}" placeholder="Nombre" oninput="scanState.nombres['${d.ip}']=this.value">
+                            <input type="text" class="scan-inp-name" maxlength="40" value="${nomVal}" placeholder="Nombre ASIC" oninput="scanState.nombres['${itemKey}']=this.value">
                         </td>
                         <td>
-                            <select class="scan-sel-farm" onchange="scanState.granjaPorIp['${d.ip}']=this.value">
+                            <select class="scan-sel-farm" onchange="scanState.granjaPorIp['${itemKey}']=this.value">
                                 ${optsGranja || '<option value="">Granja 001</option>'}
                             </select>
                         </td>
@@ -1025,7 +1159,7 @@
                         <table class="scan-table">
                             <thead>
                                 <tr>
-                                    <th>Modelo / IP</th>
+                                    <th>Equipo / IP</th>
                                     <th>Nombre</th>
                                     <th>Granja</th>
                                     <th style="text-align:right;">Acción</th>
@@ -1041,7 +1175,7 @@
         wrap.innerHTML = html || '<div style="text-align:center; padding:24px; color:var(--text-muted);">No hay coincidencias con tu búsqueda.</div>';
     }
 
-    async function agregarMineroDesdeEscaner(ip, btn) {
+    async function agregarMineroDesdeEscaner(ip, farmId, agentId, itemKey, btn) {
         if (!scanState.esPro && scanState.limite > 0 && scanState.activosCount >= scanState.limite) {
             mostrarAvisoLimitePlan(`Tu plan Gratis permite ${scanState.limite} mineros. Mejora tu plan para añadir más.`);
             return;
@@ -1051,14 +1185,14 @@
         btn.disabled = true;
         btn.innerText = '⏳ ...';
 
-        const nombre = (scanState.nombres[ip] || '').trim();
-        const farm_id = scanState.granjaPorIp[ip] || '';
+        const nombre = (scanState.nombres[itemKey] || '').trim();
+        const farm_id = scanState.granjaPorIp[itemKey] || farmId || '';
 
         try {
             const r = await fetch('/api/escaner/agregar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items: [{ ip, nombre, farm_id }] })
+                body: JSON.stringify({ items: [{ ip, nombre, farm_id, agent_id: agentId || '' }] })
             });
             const j = await r.json();
             if (r.status === 403 || j.limite_alcanzado) {
@@ -1086,14 +1220,14 @@
         }
     }
 
-    async function quitarMineroDesdeEscaner(ip, btn) {
+    async function quitarMineroDesdeEscaner(ip, farmId, btn) {
         btn.disabled = true;
         btn.innerText = '⏳ ...';
         try {
             const r = await fetch('/api/escaner/agregar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ eliminar_ips: [ip] })
+                body: JSON.stringify({ eliminar_ips: [{ ip, farm_id: farmId || '' }] })
             });
             const j = await r.json();
             if (j.ok) {

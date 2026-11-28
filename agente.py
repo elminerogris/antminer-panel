@@ -1455,26 +1455,94 @@ def extraer_todo(ip):
         "cred_defecto": "root / root"
     }
 
+def obtener_ips_arp_red():
+    ips = set()
+    try:
+        if os.path.exists('/proc/net/arp'):
+            with open('/proc/net/arp', 'r') as f:
+                for line in f.readlines()[1:]:
+                    parts = line.split()
+                    if len(parts) >= 4 and parts[3] != '00:00:00:00:00:00':
+                        ip_f = parts[0].strip()
+                        if ip_f.startswith(SUBNET + '.'):
+                            ips.add(ip_f)
+        else:
+            cmd = "arp -a"
+            res = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.DEVNULL)
+            for m in re.finditer(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', res):
+                ip_f = m.group(1).strip()
+                if ip_f.startswith(SUBNET + '.') and not ip_f.endswith('.255') and not ip_f.endswith('.0'):
+                    ips.add(ip_f)
+    except:
+        pass
+    return ips
+
+dispositivos_no_asic_detectados = {}
+
 def escanear_red():
-    print(f"Escaneando subred {SUBNET}.2 - {SUBNET}.254 (máx. {MAX_WORKERS} conexiones)...")
+    global dispositivos_no_asic_detectados
+    print(f"Escaneando subred {SUBNET}.1 - {SUBNET}.254 (máx. {MAX_WORKERS} conexiones)...")
     encontradas = list(IPS_BASE)
+    dispositivos_no_asic = {}
+
     def probar_ip(ip):
-        for port in (4028, 80):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.4)
+            s.connect((ip, 4028))
+            s.close()
+            return (ip, True, "Antminer")
+        except:
+            pass
+
+        for port, label in ((80, "HTTP"), (443, "HTTPS"), (22, "SSH"), (53, "DNS"), (8080, "Web")):
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(0.5)
+                s.settimeout(0.35)
                 s.connect((ip, port))
                 s.close()
-                return ip
+                return (ip, False, label)
             except:
                 pass
         return None
-    ips_a_probar = [f"{SUBNET}.{i}" for i in range(2, 255)]
+
+    ips_a_probar = [f"{SUBNET}.{i}" for i in range(1, 255)]
+    arp_ips = obtener_ips_arp_red()
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for res in executor.map(probar_ip, ips_a_probar):
-            if res and res not in encontradas:
-                encontradas.append(res)
-    print(f"Escaneo finalizado: {len(encontradas)} IP(s) monitoreadas: {encontradas}")
+            if res:
+                ip_res, es_min, lbl = res
+                if es_min or ip_res in IPS_BASE:
+                    if ip_res not in encontradas:
+                        encontradas.append(ip_res)
+                else:
+                    is_gw = ip_res.endswith('.1') or ip_res.endswith('.254')
+                    dispositivos_no_asic[ip_res] = {
+                        "ip": ip_res,
+                        "modelo": "Router / Gateway" if is_gw else "Dispositivo de Red",
+                        "marca": "Router / Gateway" if is_gw else "Equipo de Red",
+                        "es_asic": False,
+                        "tipo": "no_asic",
+                        "hashrate": 0.0,
+                        "temp": 0
+                    }
+
+    for a_ip in arp_ips:
+        if a_ip not in encontradas and a_ip not in dispositivos_no_asic:
+            is_gw = a_ip.endswith('.1') or a_ip.endswith('.254')
+            dispositivos_no_asic[a_ip] = {
+                "ip": a_ip,
+                "modelo": "Router / Gateway" if is_gw else "Dispositivo de Red",
+                "marca": "Router / Gateway" if is_gw else "Equipo de Red",
+                "es_asic": False,
+                "tipo": "no_asic",
+                "hashrate": 0.0,
+                "temp": 0
+            }
+
+    dispositivos_no_asic_detectados = dispositivos_no_asic
+    print(f"Escaneo finalizado: {len(encontradas)} mineros, {len(dispositivos_no_asic)} otros dispositivos de red.")
     return encontradas
 
 def actualizar_config_minero_segura(ip_dest, nuevos_campos):
@@ -1790,6 +1858,12 @@ def recolectar_y_enviar():
             if res:
                 print(f"[{res['ip']}] {res['modelo']} ({res['fw_tipo']}) | {res['hashrate']} {res['unidad']} | Temp: {res['temp']}°C")
                 datos["mineros"].append(res)
+
+    # Adjuntar dispositivos de red no-ASIC detectados durante el escaneo para que el usuario vea todo su router
+    mineros_ips_set = {m['ip'] for m in datos['mineros']}
+    for no_asic_dev in dispositivos_no_asic_detectados.values():
+        if no_asic_dev['ip'] not in mineros_ips_set:
+            datos["mineros"].append(no_asic_dev)
 
     try:
         r = requests.post(URL_NUBE, json=datos, timeout=15)
