@@ -161,21 +161,27 @@
         gap: 8px;
         margin-bottom: 8px;
         padding: 0 2px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
-    /* Barra de filtros temporales */
+    /* Barra de filtros temporales alineada a la derecha */
     .chart-floating-toolbar {
         display: flex;
         justify-content: flex-end;
         align-items: center;
         pointer-events: auto;
+        margin-left: auto;
+        flex-shrink: 0;
     }
 
-    /* Botonera de Rangos de Tiempo */
+    /* Botonera de Rangos de Tiempo (6h, 24h, 7d, 30d) */
     .chart-filters {
         pointer-events: auto;
         display: inline-flex;
         align-items: center;
+        justify-content: flex-end;
+        margin-left: auto;
         gap: 3px;
         background: var(--bg-tooltip);
         backdrop-filter: blur(8px);
@@ -265,7 +271,7 @@
         display: flex;
         gap: 6px;
         flex-wrap: wrap;
-        margin-bottom: 8px;
+        margin-bottom: 0;
         align-items: center;
     }
     .legend-pill {
@@ -723,11 +729,15 @@
         }
         .chart-floating-toolbar {
             width: 100%;
+            display: flex;
             justify-content: flex-end;
+            margin-left: auto;
             padding: 0;
         }
         .chart-filters {
             max-width: 100%;
+            margin-left: auto;
+            justify-content: flex-end;
             overflow-x: auto;
             scrollbar-width: none;
             -ms-overflow-style: none;
@@ -840,8 +850,8 @@
     <!-- Controles superiores: Leyendas de curvas a la izquierda y filtros de tiempo a la derecha -->
     <div class="chart-controls-row">
         <div class="chart-CustomLegends" id="customLegendsBar"></div>
-        <div class="chart-floating-toolbar">
-            <div class="chart-filters">
+        <div class="chart-floating-toolbar" style="margin-left: auto;">
+            <div class="chart-filters" style="margin-left: auto;">
                 <button class="btn-reset-zoom" id="btnResetZoom" data-filter-key="reset_zoom" onclick="resetearZoomGrafico()">🔍 <span translate="no">100%</span></button>
                 <span id="lodResolutionBadge" class="lod-badge" translate="no">⚡ 3m</span>
                 <span class="filter-divider"></span>
