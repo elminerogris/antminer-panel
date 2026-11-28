@@ -472,7 +472,7 @@
             <div class="info-header-pro">
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span class="info-header-title">🌐 Configuración de Red LAN</span>
-                    <span class="proto-badge-pro {{ 'dhcp' if es_dhcp else 'static' }}" id="badgeProtoRed" data-net-tt="net_proto_badge">
+                    <span class="proto-badge-pro {{ 'dhcp' if es_dhcp else 'static' }}" id="badgeProtoRed" data-net-tt="net_proto_badge" onclick="conmutarProtocoloRed()" style="cursor:pointer;" title="Toca aquí para alternar entre DHCP e IP Fija">
                         ● Modo {{ 'DHCP' if es_dhcp else 'IP Fija' }}
                     </span>
                 </div>
@@ -483,7 +483,10 @@
 
             <!-- Interruptor Visual Directo: IP Fija vs DHCP -->
             <div class="proto-switch-section">
-                <label class="net-field-label" data-net-tt="net_proto">Protocolo IP (Toca para cambiar)</label>
+                <label class="net-field-label" data-net-tt="net_proto" onclick="conmutarProtocoloRed()" style="cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                    <span>Protocolo de Asignación IP</span>
+                    <span style="font-size:0.80em; color:var(--accent-cyan); font-weight:normal;">(Toca aquí para alternar)</span>
+                </label>
                 <input type="hidden" id="net_proto" value="{{ '1' if es_dhcp else '2' }}">
                 <div class="proto-segmented-wrap">
                     <button type="button" id="btnProtoStatic" class="btn-proto-opt {{ '' if es_dhcp else 'active-static' }}" onclick="seleccionarProtocoloRed('2', true)">
@@ -494,6 +497,16 @@
                     </button>
                 </div>
                 <div id="protoHelperHint" class="proto-helper-hint"></div>
+
+                <!-- Aviso interactivo inmediato al cambiar de modo -->
+                <div id="protoChangeAlert" style="display:none; margin-top:8px; padding:10px 14px; background:rgba(59,130,246,0.14); border:1px solid rgba(59,130,246,0.45); border-radius:8px; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                    <div style="font-size:0.82em; color:var(--text-main);" id="protoChangeAlertTxt">
+                        ⚠️ Cambio de protocolo pendiente
+                    </div>
+                    <button type="button" class="btn-save-net-pro" style="padding:6px 14px; font-size:0.80em;" onclick="guardarConfiguracionRed()">
+                        💾 Guardar Ahora
+                    </button>
+                </div>
             </div>
 
             <!-- Alerta Inteligente si la IP escrita ya está ocupada -->
@@ -843,6 +856,12 @@
         }
     }
 
+    function conmutarProtocoloRed() {
+        const actual = document.getElementById('net_proto')?.value || '2';
+        const nuevo = (actual === '1') ? '2' : '1';
+        seleccionarProtocoloRed(nuevo, true);
+    }
+
     function seleccionarProtocoloRed(valor, fueClicUsuario) {
         const inpProto = document.getElementById('net_proto');
         if (inpProto) inpProto.value = valor;
@@ -871,8 +890,26 @@
             if (el) el.disabled = esDhcp;
         });
 
+        if (!esDhcp) {
+            const elIp = document.getElementById('net_ip');
+            if (elIp && !elIp.value.trim()) {
+                elIp.value = IP_ACTUAL_MINERO;
+            }
+        }
+
         verificarConflictoIp();
-        if (fueClicUsuario) marcarRedEditada(null);
+
+        if (fueClicUsuario) {
+            marcarRedEditada(null);
+            const alertBox = document.getElementById('protoChangeAlert');
+            const alertTxt = document.getElementById('protoChangeAlertTxt');
+            if (alertBox && alertTxt) {
+                alertBox.style.display = 'flex';
+                alertTxt.innerHTML = esDhcp
+                    ? '🔄 Cambiaste a <b>Modo Automático (DHCP)</b>. Presiona <b>Guardar Ahora</b> para aplicar en el minero.'
+                    : '📌 Cambiaste a <b>Modo IP Fija (Static)</b>. Revisa tu IP y presiona <b>Guardar Ahora</b>.';
+            }
+        }
     }
 
     function marcarRedEditada(inputEl) {
@@ -935,6 +972,8 @@
         })
         .then(r => {
             if (!r.ok) throw new Error('Error al enviar orden de red');
+            const alertBox = document.getElementById('protoChangeAlert');
+            if (alertBox) alertBox.style.display = 'none';
             document.querySelectorAll('.input-net-pro.edited').forEach(el => el.classList.remove('edited'));
             if (btn) btn.classList.remove('unsaved-pulse');
             if (ico) ico.innerText = '✅';

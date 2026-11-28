@@ -76,11 +76,10 @@ def despachar_comando(cur, owner, ip, comando, fecha=None):
     except Exception:
         pass
 
-    enviado = enviar_orden_tunel(owner, ip, comando, agent_id=agent_id)
-    estado = 'enviado' if enviado else 'pendiente'
+    enviar_orden_tunel(owner, ip, comando, agent_id=agent_id)
     cur.execute(
-        "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, %s, %s, %s, %s)",
-        (owner, agent_id, ip, comando, estado, ahora)
+        "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, %s, %s, 'pendiente', %s)",
+        (owner, agent_id, ip, comando, ahora)
     )
 
     # Registrar evento para trazar líneas verticales de estado en los gráficos de telemetría
