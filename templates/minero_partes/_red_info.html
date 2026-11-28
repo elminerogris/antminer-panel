@@ -547,13 +547,13 @@
 </div>
 
 <script>
-    const IPS_OCUPADAS_RED = {{ ips_ocupadas | default('[]') | safe }};
-    const IP_ACTUAL_MINERO = "{{ ip }}";
-    const GATEWAY_DETECTADO = "{{ extra.gateway | default('') }}";
-    let permitirIpForzada = false;
+    var IPS_OCUPADAS_RED = {{ ips_ocupadas | default('[]') | safe }};
+    var IP_ACTUAL_MINERO_RED = "{{ ip }}";
+    var GATEWAY_DETECTADO = "{{ extra.gateway | default('') }}";
+    var permitirIpForzada = false;
 
-    const SVG_COPY_ICON = `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
-    const SVG_CHECK_ICON = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    var SVG_COPY_ICON = `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+    var SVG_CHECK_ICON = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
 
     const INFO_TOOLTIPS_NET = {
         'btn_auto_ip': {
@@ -653,11 +653,11 @@
 
     function copiarFichaCompleta(btnEl) {
         const ficha = [
-            `Modelo: {{ modelo }}`,
-            `IP: {{ ip }}`,
-            `MAC: {{ extra.mac }}`,
-            `Serie: {{ extra.serial }}`,
-            `Firmware: {{ extra.firmware }}`
+            "Modelo: " + {{ modelo | tojson }},
+            "IP: " + {{ ip | tojson }},
+            "MAC: " + {{ (extra.mac | default('-')) | tojson }},
+            "Serie: " + {{ (extra.serial | default('-')) | tojson }},
+            "Firmware: " + {{ (extra.firmware | default('Desconocido')) | tojson }}
         ].join('\n');
         copiarTextoSpec(ficha, btnEl);
     }
@@ -676,7 +676,7 @@
     }
 
     function buscarSiguienteIpLibre(prefijo, desdeOcteto) {
-        const ocupadas = new Set(IPS_OCUPADAS_RED);
+        const ocupadas = new Set(Array.isArray(IPS_OCUPADAS_RED) ? IPS_OCUPADAS_RED : []);
         const gwActual = (document.getElementById('net_gw')?.value || '').trim();
         if (gwActual) ocupadas.add(gwActual);
         ocupadas.add(prefijo + '.1');
@@ -696,13 +696,13 @@
         permitirIpForzada = false;
         seleccionarProtocoloRed('2', true);
 
-        const prefijo = obtenerPrefijoSubred(IP_ACTUAL_MINERO);
+        const prefijo = obtenerPrefijoSubred(IP_ACTUAL_MINERO_RED);
         let routerIp = (GATEWAY_DETECTADO && GATEWAY_DETECTADO.startsWith(prefijo + '.'))
             ? GATEWAY_DETECTADO
             : `${prefijo}.1`;
 
-        const ipLibre = !IPS_OCUPADAS_RED.includes(IP_ACTUAL_MINERO) && IP_ACTUAL_MINERO !== routerIp
-            ? IP_ACTUAL_MINERO
+        const ipLibre = !IPS_OCUPADAS_RED.includes(IP_ACTUAL_MINERO_RED) && IP_ACTUAL_MINERO_RED !== routerIp
+            ? IP_ACTUAL_MINERO_RED
             : buscarSiguienteIpLibre(prefijo, 11);
 
         const octeto = ipLibre.split('.')[3] || '10';
@@ -742,7 +742,7 @@
 
         const ipVal = elIp.value.trim();
         const gwVal = (elGw?.value || '').trim();
-        const prefijo = obtenerPrefijoSubred(gwVal || IP_ACTUAL_MINERO);
+        const prefijo = obtenerPrefijoSubred(gwVal || IP_ACTUAL_MINERO_RED);
         const octActual = parseInt(ipVal.split('.')[3] || '11') || 11;
         const sugerida = buscarSiguienteIpLibre(prefijo, octActual + 1);
 
@@ -915,7 +915,7 @@
                 if (proto === '1') {
                     msg.style.color = '#00e676';
                     msg.innerText = '✅ Minero cambiado a DHCP automático. El router le asignará IP en ~20s.';
-                } else if (nip && nip !== IP_ACTUAL_MINERO) {
+                } else if (nip && nip !== IP_ACTUAL_MINERO_RED) {
                     msg.style.color = '#00e676';
                     msg.innerText = `✅ Nueva IP ${nip} asignada. Redirigiendo en 15s...`;
                     setTimeout(() => {
@@ -946,46 +946,81 @@
         });
     }
 
+    // Exponer todas las funciones a window para garantizar que los onclick de HTML siempre las encuentren
+    window.copiarTextoSpec = copiarTextoSpec;
+    window.copiarFichaCompleta = copiarFichaCompleta;
+    window.aplicarDnsRapido = aplicarDnsRapido;
+    window.obtenerPrefijoSubred = obtenerPrefijoSubred;
+    window.buscarSiguienteIpLibre = buscarSiguienteIpLibre;
+    window.autoConfigurarIpFija = autoConfigurarIpFija;
+    window.verificarConflictoIp = verificarConflictoIp;
+    window.aplicarIpSugerida = aplicarIpSugerida;
+    window.forzarIpOcupada = forzarIpOcupada;
+    window.seleccionarProtocoloRed = seleccionarProtocoloRed;
+    window.marcarRedEditada = marcarRedEditada;
+    window.validarFormatoIpv4 = validarFormatoIpv4;
+    window.guardarConfiguracionRed = guardarConfiguracionRed;
+
     function inicializarVistaRed() {
-        const valorInicial = document.getElementById('net_proto')?.value || '2';
-        seleccionarProtocoloRed(valorInicial, false);
-
-        const btnStatic = document.getElementById('btnProtoStatic');
-        const btnDhcp = document.getElementById('btnProtoDhcp');
-        if (btnStatic) {
-            btnStatic.onclick = function() { seleccionarProtocoloRed('2', true); };
-        }
-        if (btnDhcp) {
-            btnDhcp.onclick = function() { seleccionarProtocoloRed('1', true); };
+        try {
+            const valInp = document.getElementById('net_proto')?.value || '2';
+            seleccionarProtocoloRed(valInp, false);
+        } catch (e) {
+            console.error('Error al inicializar protocolo de red:', e);
         }
 
-        document.querySelectorAll('[data-net-tt]').forEach(el => {
-            const key = el.getAttribute('data-net-tt');
-            const info = INFO_TOOLTIPS_NET[key];
-            if (!info) return;
+        try {
+            const btnStatic = document.getElementById('btnProtoStatic');
+            const btnDhcp = document.getElementById('btnProtoDhcp');
+            if (btnStatic) {
+                btnStatic.onclick = function(e) {
+                    if (e) e.preventDefault();
+                    seleccionarProtocoloRed('2', true);
+                };
+            }
+            if (btnDhcp) {
+                btnDhcp.onclick = function(e) {
+                    if (e) e.preventDefault();
+                    seleccionarProtocoloRed('1', true);
+                };
+            }
+        } catch (e) {
+            console.error('Error al enlazar botones de red:', e);
+        }
 
-            el.addEventListener('mouseenter', function() {
-                if (typeof mostrarSmartTooltip === 'function') {
-                    mostrarSmartTooltip(el, info);
-                }
+        try {
+            document.querySelectorAll('[data-net-tt]').forEach(el => {
+                const key = el.getAttribute('data-net-tt');
+                const info = INFO_TOOLTIPS_NET[key];
+                if (!info) return;
+
+                el.addEventListener('mouseenter', function() {
+                    if (typeof mostrarSmartTooltip === 'function') {
+                        mostrarSmartTooltip(el, info);
+                    }
+                });
+                el.addEventListener('mouseleave', function() {
+                    if (typeof ocultarSmartTooltip === 'function') {
+                        ocultarSmartTooltip();
+                    }
+                });
+                el.addEventListener('click', function(e) {
+                    if (el.tagName !== 'BUTTON' && typeof mostrarSmartTooltip === 'function') {
+                        e.stopPropagation();
+                        mostrarSmartTooltip(el, info);
+                    }
+                });
             });
-            el.addEventListener('mouseleave', function() {
-                if (typeof ocultarSmartTooltip === 'function') {
-                    ocultarSmartTooltip();
-                }
-            });
-            el.addEventListener('click', function(e) {
-                if (el.tagName !== 'BUTTON' && typeof mostrarSmartTooltip === 'function') {
-                    e.stopPropagation();
-                    mostrarSmartTooltip(el, info);
-                }
-            });
-        });
+        } catch (e) {
+            console.error('Error al enlazar tooltips de red:', e);
+        }
     }
 
+    window.inicializarVistaRed = inicializarVistaRed;
+
+    // Ejecutar de inmediato y también asegurar en DOMContentLoaded
+    inicializarVistaRed();
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', inicializarVistaRed);
-    } else {
-        inicializarVistaRed();
     }
 </script>

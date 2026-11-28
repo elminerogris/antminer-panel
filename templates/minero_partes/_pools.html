@@ -1207,9 +1207,9 @@
     }
 
     // ==================== AUTOCOMPLETADO INTELIGENTE DE WORKERS DE LA GRANJA ====================
-    const WORKERS_GRANJA = {{ workers_granja_json|safe if workers_granja_json is defined else '[]' }};
-    const IP_ACTUAL_MINERO = "{{ ip }}";
-    let activeWorkerInput = null;
+    var WORKERS_GRANJA = {{ workers_granja_json|safe if workers_granja_json is defined else '[]' }};
+    var IP_ACTUAL_MINERO = "{{ ip }}";
+    var activeWorkerInput = null;
 
     function obtenerSugerenciasWorkers() {
         const res = [];
