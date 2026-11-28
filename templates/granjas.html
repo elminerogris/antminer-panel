@@ -776,7 +776,7 @@
     <div class="scan-modal-box">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <div>
-                <h2 style="margin:0; font-size:1.18em; color:var(--text-main);">🔍 Escanear Red</h2>
+                <h2 id="scanModalTitleText" style="margin:0; font-size:1.18em; color:var(--text-main);">🔍 Escanear Red</h2>
                 <div id="scanHeaderQuota" style="font-size:0.78em; color:var(--text-muted); margin-top:2px;">
                     Detecta los Antminer en tus redes conectadas y agrégalos a tu granja.
                 </div>
@@ -787,7 +787,7 @@
         <!-- Controles superiores -->
         <div class="scan-controls-row">
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <button type="button" id="btnTriggerScan" class="btn-open-scanner" style="padding:7px 14px; font-size:0.82em;" onclick="lanzarEscaneoRed()">🔄 Escanear Red Ahora</button>
+                <button type="button" id="btnTriggerScan" class="btn-open-scanner" style="padding:7px 14px; font-size:0.82em;" onclick="lanzarEscaneoRed(scanState.farmFiltroId)">🔄 Escanear Red Ahora</button>
                 <div class="scan-filter-pills" id="scanTipoFiltros">
                     <button type="button" class="scan-pill-btn active" id="pillTodos" onclick="setFiltroTipoEscaner('todos')">Todos (<span id="cntTodos">0</span>)</button>
                     <button type="button" class="scan-pill-btn" id="pillAsics" onclick="setFiltroTipoEscaner('asics')">⛏️ Solo ASICs (<span id="cntAsics">0</span>)</button>
@@ -837,6 +837,8 @@
         activosCount: 0,
         routersCount: 1,
         filtroTipo: 'todos',
+        farmFiltroId: '',
+        farmFiltroNombre: '',
         granjas: [],
         grupos: [],
         descubiertos: [],
@@ -877,6 +879,15 @@
     }
 
     function abrirSmartScanner() {
+        scanState.farmFiltroId = '';
+        scanState.farmFiltroNombre = '';
+        const titleEl = document.getElementById('scanModalTitleText');
+        if (titleEl) titleEl.innerText = '🔍 Escanear Red (Todas las Granjas)';
+        const btnTrigger = document.getElementById('btnTriggerScan');
+        if (btnTrigger) {
+            btnTrigger.disabled = false;
+            btnTrigger.innerText = '🔄 Escanear Red Ahora';
+        }
         document.getElementById('smartScannerModal').style.display = 'flex';
         document.getElementById('scanProgressCard').style.display = 'none';
         document.getElementById('scanDoneBanner').style.display = 'none';
@@ -884,20 +895,32 @@
         scanState.filtroTipo = 'todos';
         setFiltroTipoEscaner('todos');
         scanState.huboCambios = false;
-        cargarResultadosEscaner();
+        cargarResultadosEscaner('');
     }
 
     function abrirSmartScannerParaGranja(farmId, farmNombre) {
-        abrirSmartScanner();
-        if (farmId) {
-            scanState.colapsados.clear();
-            if (scanState.grupos && scanState.grupos.length > 0) {
-                scanState.grupos.forEach(g => {
-                    if (g.farm_id !== farmId) scanState.colapsados.add(g.farm_id);
-                });
-            }
-            lanzarEscaneoRed(farmId);
+        scanState.farmFiltroId = farmId || '';
+        scanState.farmFiltroNombre = farmNombre || farmId || '';
+
+        const titleEl = document.getElementById('scanModalTitleText');
+        if (titleEl) titleEl.innerText = `🔍 Escanear Red · ${scanState.farmFiltroNombre}`;
+        const btnTrigger = document.getElementById('btnTriggerScan');
+        if (btnTrigger) {
+            btnTrigger.disabled = false;
+            btnTrigger.innerText = `🔄 Escanear ${scanState.farmFiltroNombre}`;
         }
+
+        document.getElementById('smartScannerModal').style.display = 'flex';
+        document.getElementById('scanProgressCard').style.display = 'none';
+        document.getElementById('scanDoneBanner').style.display = 'none';
+        document.getElementById('scanSearchInput').value = '';
+        scanState.filtroTipo = 'todos';
+        setFiltroTipoEscaner('todos');
+        scanState.huboCambios = false;
+        scanState.colapsados.clear();
+
+        cargarResultadosEscaner(scanState.farmFiltroId);
+        lanzarEscaneoRed(scanState.farmFiltroId);
     }
 
     function cerrarSmartScanner() {
@@ -929,6 +952,9 @@
     }
 
     async function lanzarEscaneoRed(farmIdFiltro = '') {
+        const fid = (farmIdFiltro !== undefined && farmIdFiltro !== null && farmIdFiltro !== '')
+            ? farmIdFiltro
+            : (scanState.farmFiltroId || '');
         const btn = document.getElementById('btnTriggerScan');
         const card = document.getElementById('scanProgressCard');
         const banner = document.getElementById('scanDoneBanner');
@@ -965,7 +991,7 @@
                 scanProgTimer = null;
                 card.style.display = 'none';
                 btn.disabled = false;
-                btn.innerText = '🔄 Escanear Red Ahora';
+                btn.innerText = fid ? `🔄 Escanear ${scanState.farmFiltroNombre || 'Granja'}` : '🔄 Escanear Red Ahora';
                 mostrarResumenEscaneoCompleto();
             }
         }, 500);
@@ -974,12 +1000,12 @@
             await fetch('/api/escaner/iniciar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ farm_id: farmIdFiltro || '' })
+                body: JSON.stringify({ farm_id: fid || '' })
             });
             let ticks = 0;
             scanPollTimer = setInterval(async () => {
                 ticks++;
-                await cargarResultadosEscaner();
+                await cargarResultadosEscaner(fid);
                 if (ticks >= 5) {
                     clearInterval(scanPollTimer);
                     scanPollTimer = null;
@@ -988,15 +1014,19 @@
         } catch (e) {
             card.style.display = 'none';
             btn.disabled = false;
-            btn.innerText = '🔄 Escanear Red Ahora';
+            btn.innerText = fid ? `🔄 Escanear ${scanState.farmFiltroNombre || 'Granja'}` : '🔄 Escanear Red Ahora';
             mostrarToastScan('⚠️ Error al contactar al agente.', false);
         }
     }
 
-    async function cargarResultadosEscaner() {
+    async function cargarResultadosEscaner(farmIdFiltro = '') {
+        const fid = (farmIdFiltro !== undefined && farmIdFiltro !== null && farmIdFiltro !== '')
+            ? farmIdFiltro
+            : (scanState.farmFiltroId || '');
         const wrap = document.getElementById('scanGroupsWrap');
         try {
-            const r = await fetch('/api/escaner/resultados');
+            const url = fid ? `/api/escaner/resultados?farm_id=${encodeURIComponent(fid)}` : '/api/escaner/resultados';
+            const r = await fetch(url);
             const j = await r.json();
             if (!j.ok) {
                 wrap.innerHTML = '<div style="text-align:center; padding:20px; color:#ff8a80;">Error cargando resultados.</div>';
@@ -1025,7 +1055,7 @@
                     scanState.nombres[itemKey] = d.nombre || '';
                 }
                 if (!(itemKey in scanState.granjaPorIp)) {
-                    scanState.granjaPorIp[itemKey] = d.farm_id || d.router_farm_id || '';
+                    scanState.granjaPorIp[itemKey] = scanState.farmFiltroId || d.farm_id || d.router_farm_id || '';
                 }
             });
 
@@ -1204,7 +1234,7 @@
             if (j.ok) {
                 scanState.huboCambios = true;
                 mostrarToastScan(`✅ Minero ${nombre || ip} agregado a tu granja.`);
-                await cargarResultadosEscaner();
+                await cargarResultadosEscaner(scanState.farmFiltroId);
                 if (document.getElementById('scanDoneBanner').style.display === 'block') {
                     mostrarResumenEscaneoCompleto();
                 }
@@ -1233,7 +1263,7 @@
             if (j.ok) {
                 scanState.huboCambios = true;
                 mostrarToastScan(`✅ Minero ${ip} quitado de tu granja.`);
-                await cargarResultadosEscaner();
+                await cargarResultadosEscaner(scanState.farmFiltroId);
                 if (document.getElementById('scanDoneBanner').style.display === 'block') {
                     mostrarResumenEscaneoCompleto();
                 }

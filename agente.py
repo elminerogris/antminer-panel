@@ -1,4 +1,4 @@
-import socket, json, time, requests, concurrent.futures, re, os, sys, subprocess, shutil, uuid, platform
+import socket, json, time, requests, concurrent.futures, re, os, sys, subprocess, shutil, uuid, platform, threading
 from requests.auth import HTTPDigestAuth
 
 URL_NUBE = "https://elminerogris.com/api/recibir_datos"
@@ -1721,6 +1721,7 @@ def procesar_comandos(ordenes):
 
         if accion in ("scan", "scan_now"):
             ips_conocidas = escanear_red()
+            threading.Thread(target=recolectar_y_enviar, daemon=True).start()
         elif accion == "restart":
             if es_wm:
                 peticion_4028(ip_dest, "reboot")

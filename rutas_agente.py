@@ -1166,13 +1166,19 @@ def recibir_datos():
                         unidad, hashrate, temp_max, consumo_w, worker1, pool1, cred_defecto, es_asic, ultima_act
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (owner, agent_id, ip) DO UPDATE SET
-                        farm_id=EXCLUDED.farm_id,
+                        farm_id=CASE WHEN EXCLUDED.farm_id != '' THEN EXCLUDED.farm_id ELSE mineros_descubiertos.farm_id END,
                         mac=CASE WHEN EXCLUDED.mac != '-' AND EXCLUDED.mac != '' THEN EXCLUDED.mac ELSE mineros_descubiertos.mac END,
                         serial=CASE WHEN EXCLUDED.serial != '-' AND EXCLUDED.serial != '' THEN EXCLUDED.serial ELSE mineros_descubiertos.serial END,
-                        marca=EXCLUDED.marca, modelo=EXCLUDED.modelo, algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda,
-                        unidad=EXCLUDED.unidad, hashrate=EXCLUDED.hashrate, temp_max=EXCLUDED.temp_max,
+                        marca=CASE WHEN EXCLUDED.es_asic = 1 OR mineros_descubiertos.es_asic = 0 THEN EXCLUDED.marca ELSE mineros_descubiertos.marca END,
+                        modelo=CASE WHEN EXCLUDED.es_asic = 1 OR mineros_descubiertos.es_asic = 0 THEN EXCLUDED.modelo ELSE mineros_descubiertos.modelo END,
+                        algoritmo=EXCLUDED.algoritmo, moneda=EXCLUDED.moneda,
+                        unidad=EXCLUDED.unidad,
+                        hashrate=CASE WHEN EXCLUDED.es_asic = 1 OR mineros_descubiertos.es_asic = 0 THEN EXCLUDED.hashrate ELSE mineros_descubiertos.hashrate END,
+                        temp_max=CASE WHEN EXCLUDED.es_asic = 1 OR mineros_descubiertos.es_asic = 0 THEN EXCLUDED.temp_max ELSE mineros_descubiertos.temp_max END,
                         consumo_w=EXCLUDED.consumo_w, worker1=EXCLUDED.worker1, pool1=EXCLUDED.pool1,
-                        cred_defecto=EXCLUDED.cred_defecto, es_asic=EXCLUDED.es_asic, ultima_act=EXCLUDED.ultima_act
+                        cred_defecto=EXCLUDED.cred_defecto,
+                        es_asic=CASE WHEN EXCLUDED.es_asic = 1 THEN 1 ELSE mineros_descubiertos.es_asic END,
+                        ultima_act=EXCLUDED.ultima_act
                 """, (
                     owner_user, agent_id, farm_id_efectivo, ip_m, mc, sr,
                     marca_m, mod_m_desc, str(m.get('algoritmo') or 'SHA-256'),
@@ -1848,11 +1854,33 @@ def api_escaner_iniciar():
     con.autocommit = True
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+    cur.execute("""
+        SELECT farm_id, nombre, ciudad, subred, agent_id
+        FROM granjas_sedes
+        WHERE owner=%s
+        ORDER BY id ASC
+    """, (owner,))
+    granjas = cur.fetchall() or []
+    granjas_map = {g['farm_id']: g for g in granjas}
+
     agentes = _obtener_agentes_usuario(cur, owner)
+    agent_to_farm = {}
+    for g in granjas:
+        if g.get('agent_id'):
+            agent_to_farm[g['agent_id']] = g['farm_id']
+    for ag in agentes:
+        if ag.get('farm_id') and ag['farm_id'] in granjas_map:
+            agent_to_farm[ag['agent_id']] = ag['farm_id']
+        elif ag['agent_id'] in agent_to_farm:
+            ag['farm_id'] = agent_to_farm[ag['agent_id']]
+        elif len(granjas) == 1:
+            ag['farm_id'] = granjas[0]['farm_id']
+            agent_to_farm[ag['agent_id']] = granjas[0]['farm_id']
+
     if agent_id_filtro:
         agentes = [a for a in agentes if a['agent_id'] == agent_id_filtro]
     elif farm_id_filtro:
-        agentes_farm = [a for a in agentes if a.get('farm_id') == farm_id_filtro]
+        agentes_farm = [a for a in agentes if a.get('farm_id') == farm_id_filtro or agent_to_farm.get(a.get('agent_id')) == farm_id_filtro]
         if agentes_farm:
             agentes = agentes_farm
 
@@ -1882,6 +1910,7 @@ def api_escaner_iniciar():
 @login_required
 def api_escaner_resultados():
     owner = session.get('usuario', 'Admin')
+    farm_filtro = str(request.args.get('farm_id') or '').strip()
     con = get_db()
     cur = con.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -1911,6 +1940,18 @@ def api_escaner_resultados():
     granjas_map = {g['farm_id']: g for g in granjas}
 
     agentes = _obtener_agentes_usuario(cur, owner)
+    agent_to_farm = {}
+    for g in granjas:
+        if g.get('agent_id'):
+            agent_to_farm[g['agent_id']] = g['farm_id']
+    for ag in agentes:
+        if ag.get('farm_id') and ag['farm_id'] in granjas_map:
+            agent_to_farm[ag['agent_id']] = ag['farm_id']
+        elif ag['agent_id'] in agent_to_farm:
+            ag['farm_id'] = agent_to_farm[ag['agent_id']]
+        elif len(granjas) == 1:
+            ag['farm_id'] = granjas[0]['farm_id']
+            agent_to_farm[ag['agent_id']] = granjas[0]['farm_id']
 
     hace_7d = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
     cur.execute("""
@@ -1918,7 +1959,7 @@ def api_escaner_resultados():
                unidad, hashrate, temp_max, consumo_w, worker1, pool1, cred_defecto, es_asic, ultima_act
         FROM mineros_descubiertos
         WHERE owner=%s AND ultima_act >= %s
-        ORDER BY ultima_act DESC, ip ASC
+        ORDER BY es_asic DESC, ultima_act DESC, ip ASC
     """, (owner, hace_7d))
     descubiertos_raw = cur.fetchall() or []
 
@@ -1935,7 +1976,7 @@ def api_escaner_resultados():
         }
 
     for ag in agentes:
-        fid = ag['farm_id']
+        fid = ag.get('farm_id') or agent_to_farm.get(ag.get('agent_id')) or (granjas[0]['farm_id'] if len(granjas) == 1 else ag.get('agent_id') or 'default')
         if fid not in grupos_dict:
             grupos_dict[fid] = {
                 "farm_id": fid,
@@ -1947,19 +1988,47 @@ def api_escaner_resultados():
             }
         grupos_dict[fid]["agentes"].append(ag)
 
+    # Deduplicación estricta por router / granja
+    vistos_ip_por_granja = set()
+    vistos_mac_por_granja = set()
     vistos_global = set()
-    vistos_por_granja = set()
     lista_final = []
 
     for d in descubiertos_raw:
-        ip_d = d['ip']
+        ip_d = str(d.get('ip') or '').strip()
+        if not ip_d:
+            continue
         mac_d = normalizar_mac(d.get('mac'))
-        router_fid = str(d.get('farm_id') or d.get('agent_id') or 'default')
-        activo_row = activos_por_farm_ip.get((router_fid, ip_d)) or activos_por_agent_ip.get((d.get('agent_id') or '', ip_d)) or (activos_por_ip.get(ip_d) if len(granjas) <= 1 else None)
-        ya_agregado = (activo_row is not None) or (bool(mac_d) and mac_d in macs_activas)
-        modelo_d = d.get('modelo') or 'Antminer'
-        marca_d = d.get('marca') or ''
-        cred_d = d.get('cred_defecto') or ''
+        d_ag = str(d.get('agent_id') or 'default').strip()
+
+        raw_fid = str(d.get('farm_id') or '').strip()
+        if raw_fid and raw_fid in granjas_map:
+            router_fid = raw_fid
+        elif d_ag in agent_to_farm:
+            router_fid = agent_to_farm[d_ag]
+        elif len(granjas) == 1:
+            router_fid = granjas[0]['farm_id']
+        else:
+            router_fid = raw_fid or d_ag or 'default'
+
+        if farm_filtro and router_fid != farm_filtro:
+            continue
+
+        # Evitar duplicados de la misma IP dentro de la misma granja
+        if (router_fid, ip_d) in vistos_ip_por_granja:
+            continue
+
+        # Evitar duplicados de la misma MAC dentro de la misma granja
+        if mac_d and (router_fid, mac_d) in vistos_mac_por_granja:
+            continue
+
+        vistos_ip_por_granja.add((router_fid, ip_d))
+        if mac_d:
+            vistos_mac_por_granja.add((router_fid, mac_d))
+
+        modelo_d = str(d.get('modelo') or 'Antminer').strip()
+        marca_d = str(d.get('marca') or '').strip()
+        cred_d = str(d.get('cred_defecto') or '').strip()
 
         cred_info = determinar_credenciales_defecto(marca_d, modelo_d)
         if not marca_d:
@@ -1969,6 +2038,9 @@ def api_escaner_resultados():
 
         # Nombre: 1) guardado por granja/ip, 2) guardado por ip, 3) sufijo de worker1, 4) octeto IP
         nombre_defecto = nombres_map_farm.get((router_fid, ip_d)) or nombres_map.get(ip_d) or _extraer_nombre_desde_worker(d.get('worker1'), ip_d)
+
+        activo_row = activos_por_farm_ip.get((router_fid, ip_d)) or activos_por_agent_ip.get((d_ag, ip_d)) or (activos_por_ip.get(ip_d) if len(granjas) <= 1 else None)
+        ya_agregado = (activo_row is not None) or (bool(mac_d) and mac_d in macs_activas)
 
         farm_asignada = (activo_row.get('farm_id') if activo_row and activo_row.get('farm_id') else '') or router_fid
 
@@ -1983,16 +2055,11 @@ def api_escaner_resultados():
                 "mineros": []
             }
 
-        clave_g = (router_fid, mac_d if mac_d else ip_d)
-        if clave_g in vistos_por_granja:
-            continue
-        vistos_por_granja.add(clave_g)
-
         es_asic_val = bool(a_int_seguro(d.get('es_asic'), 1) == 1) and ('no asic' not in modelo_d.lower()) and ('dispositivo de red' not in modelo_d.lower())
 
         item = {
             "ip": ip_d,
-            "agent_id": d.get('agent_id') or 'default',
+            "agent_id": d_ag,
             "farm_id": farm_asignada,
             "router_farm_id": router_fid,
             "marca": marca_d,
@@ -2011,17 +2078,19 @@ def api_escaner_resultados():
         }
         grupos_dict[router_fid]["mineros"].append(item)
 
-        clave_global = (router_fid, mac_d if mac_d else ip_d)
+        clave_global = (router_fid, ip_d)
         if clave_global not in vistos_global:
             vistos_global.add(clave_global)
             lista_final.append(item)
 
     grupos_lista = []
     for g in grupos_dict.values():
+        if farm_filtro and g['farm_id'] != farm_filtro:
+            continue
         g["mineros"].sort(key=lambda x: (0 if not x['ya_agregado'] else 1, x['ip']))
         g["agentes"].sort(key=lambda a: (0 if a['online'] else 1, a['nombre']))
         g["online_count"] = sum(1 for a in g["agentes"] if a["online"])
-        if g["agentes"] or g["mineros"]:
+        if g["agentes"] or g["mineros"] or (farm_filtro and g['farm_id'] == farm_filtro):
             grupos_lista.append(g)
 
     grupos_lista.sort(key=lambda g: (0 if g["online_count"] > 0 else 1, -len(g["mineros"]), g["farm_nombre"]))
@@ -2136,21 +2205,21 @@ def api_escaner_agregar():
                 cur.execute("""
                     SELECT * FROM mineros_descubiertos
                     WHERE owner=%s AND ip=%s AND farm_id=%s
-                    ORDER BY ultima_act DESC LIMIT 1
+                    ORDER BY es_asic DESC, ultima_act DESC LIMIT 1
                 """, (owner, ip_c, farm_dest))
                 d = cur.fetchone()
             if not d and agent_src:
                 cur.execute("""
                     SELECT * FROM mineros_descubiertos
                     WHERE owner=%s AND ip=%s AND agent_id=%s
-                    ORDER BY ultima_act DESC LIMIT 1
+                    ORDER BY es_asic DESC, ultima_act DESC LIMIT 1
                 """, (owner, ip_c, agent_src))
                 d = cur.fetchone()
             if not d:
                 cur.execute("""
                     SELECT * FROM mineros_descubiertos
                     WHERE owner=%s AND ip=%s
-                    ORDER BY ultima_act DESC LIMIT 1
+                    ORDER BY es_asic DESC, ultima_act DESC LIMIT 1
                 """, (owner, ip_c))
                 d = cur.fetchone()
             if not d:
