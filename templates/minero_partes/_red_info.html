@@ -483,15 +483,9 @@
 
             <!-- Selector Visual Directo: IP Fija vs DHCP -->
             <div class="proto-switch-section">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
-                    <label class="net-field-label" style="cursor:pointer;" onclick="conmutarProtocoloRed()">
-                        Protocolo de Asignación IP
-                    </label>
-                    <select id="selProtoSelect" class="input-net-pro" style="width:auto; padding:4px 10px; font-size:0.80em; font-weight:bold; cursor:pointer;" onchange="seleccionarProtocoloRed(this.value, true)">
-                        <option value="2" {{ '' if es_dhcp else 'selected' }}>📌 IP Fija (Static)</option>
-                        <option value="1" {{ 'selected' if es_dhcp else '' }}>🔄 Automática (DHCP)</option>
-                    </select>
-                </div>
+                <label class="net-field-label" style="display:block; margin-bottom:6px;">
+                    Protocolo de Asignación IP
+                </label>
                 <input type="hidden" id="net_proto" value="{{ '1' if es_dhcp else '2' }}">
                 <div class="proto-segmented-wrap">
                     <button type="button" id="btnProtoStatic" class="btn-proto-opt {{ '' if es_dhcp else 'active-static' }}" onclick="seleccionarProtocoloRed('2', true)">
@@ -873,8 +867,6 @@
         valor = String(valor);
         const inpProto = document.getElementById('net_proto');
         if (inpProto) inpProto.value = valor;
-        const selProto = document.getElementById('selProtoSelect');
-        if (selProto) selProto.value = valor;
 
         const esDhcp = (valor === '1');
         const btnStatic = document.getElementById('btnProtoStatic');
@@ -1057,6 +1049,21 @@
     function inicializarVistaRed() {
         const valorInicial = document.getElementById('net_proto')?.value || '2';
         seleccionarProtocoloRed(valorInicial, false);
+
+        const bStatic = document.getElementById('btnProtoStatic');
+        const bDhcp = document.getElementById('btnProtoDhcp');
+        if (bStatic) {
+            bStatic.addEventListener('click', function(e) {
+                e.preventDefault();
+                seleccionarProtocoloRed('2', true);
+            });
+        }
+        if (bDhcp) {
+            bDhcp.addEventListener('click', function(e) {
+                e.preventDefault();
+                seleccionarProtocoloRed('1', true);
+            });
+        }
 
         document.querySelectorAll('[data-net-tt]').forEach(el => {
             const key = el.getAttribute('data-net-tt');
