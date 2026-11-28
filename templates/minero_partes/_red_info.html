@@ -467,7 +467,7 @@
     </div>
 
     <!-- TARJETA 2: CONFIGURACIÓN REMOTA DE RED (IP ESTÁTICA / DHCP) -->
-    <div class="info-card-pro">
+    <div class="info-card-pro" data-no-live-patch="1">
         <div>
             <div class="info-header-pro">
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -804,6 +804,10 @@
         const btnDhcp = document.getElementById('btnProtoDhcp');
         const hint = document.getElementById('protoHelperHint');
         const badge = document.getElementById('badgeProtoRed');
+        const btnGuardar = document.getElementById('btnGuardarRedPro');
+        const txtGuardar = document.getElementById('txtGuardarRed');
+        const icoGuardar = document.getElementById('icoGuardarRed');
+        const estadoMsg = document.getElementById('estadoRedMsg');
 
         if (btnStatic) btnStatic.className = 'btn-proto-opt' + (esDhcp ? '' : ' active-static');
         if (btnDhcp) btnDhcp.className = 'btn-proto-opt' + (esDhcp ? ' active-dhcp' : '');
@@ -814,8 +818,8 @@
         }
         if (hint) {
             hint.innerHTML = esDhcp
-                ? '🔄 <b>Modo Automático:</b> Tu router asignará la IP, máscara y DNS automáticamente (los campos de abajo quedan bloqueados).'
-                : '📌 <b>Recomendado:</b> El minero conservará siempre esta misma IP fija aunque se corte la luz o se reinicie el router.';
+                ? '🔄 <b>Modo Automático (DHCP):</b> El router asignará IP, máscara y DNS de forma automática. Presiona <b>"Aplicar Modo DHCP"</b> abajo para confirmar.'
+                : '📌 <b>Recomendado:</b> El minero conservará siempre esta misma IP fija permanente aunque se corte la luz o se reinicie el router.';
         }
 
         ['net_ip', 'net_mask', 'net_gw', 'net_dns'].forEach(id => {
@@ -824,7 +828,18 @@
         });
 
         verificarConflictoIp();
-        if (fueClicUsuario) marcarRedEditada(null);
+
+        if (fueClicUsuario) {
+            if (btnGuardar) btnGuardar.classList.add('unsaved-pulse');
+            if (icoGuardar) icoGuardar.innerText = esDhcp ? '⚡' : '💾';
+            if (txtGuardar) txtGuardar.innerText = esDhcp ? 'Aplicar Modo DHCP' : 'Aplicar IP Fija';
+            if (estadoMsg) {
+                estadoMsg.style.color = esDhcp ? '#c084fc' : '#38bdf8';
+                estadoMsg.innerText = esDhcp
+                    ? '🔄 DHCP seleccionado. Presiona "Aplicar Modo DHCP" para guardar.'
+                    : '📌 IP Fija seleccionada. Presiona "Aplicar IP Fija" para guardar.';
+            }
+        }
     }
 
     function marcarRedEditada(inputEl) {
@@ -832,8 +847,11 @@
         if (inputEl) inputEl.classList.add('edited');
         const btn = document.getElementById('btnGuardarRedPro');
         const txt = document.getElementById('txtGuardarRed');
+        const ico = document.getElementById('icoGuardarRed');
+        const proto = document.getElementById('net_proto')?.value || '2';
         if (btn) btn.classList.add('unsaved-pulse');
-        if (txt) txt.innerText = 'Aplicar Cambios de Red';
+        if (ico) ico.innerText = (proto === '1') ? '⚡' : '💾';
+        if (txt) txt.innerText = (proto === '1') ? 'Aplicar Modo DHCP' : 'Aplicar Cambios de Red';
     }
 
     function validarFormatoIpv4(ipStr) {
@@ -842,16 +860,16 @@
     }
 
     function guardarConfiguracionRed() {
-        const host = (document.getElementById('net_host').value || 'Antminer').trim();
-        const proto = document.getElementById('net_proto').value;
-        const nip = (document.getElementById('net_ip').value || '').trim();
-        const mask = (document.getElementById('net_mask').value || '').trim();
-        const gw = (document.getElementById('net_gw').value || '').trim();
-        const dns = (document.getElementById('net_dns').value || '8.8.8.8').trim();
+        const host = (document.getElementById('net_host')?.value || 'Antminer').trim();
+        const proto = document.getElementById('net_proto')?.value || '2';
+        const nip = (document.getElementById('net_ip')?.value || '').trim();
+        const mask = (document.getElementById('net_mask')?.value || '').trim();
+        const gw = (document.getElementById('net_gw')?.value || '').trim();
+        const dns = (document.getElementById('net_dns')?.value || '8.8.8.8').trim();
 
         if (proto === '2') {
             if (!validarFormatoIpv4(nip) || !validarFormatoIpv4(mask) || !validarFormatoIpv4(gw)) {
-                alert('⚠️ Verifica que la Dirección IP, Máscara de Subred y Puerta de Enlace tengan un formato IPv4 válido (ej: 192.168.100.15).');
+                alert('⚠️ Verifica que la Dirección IP, Máscara de Subred y Puerta de Enlace tengan un formato IPv4 válido (ej: 192.168.0.14).');
                 return;
             }
             const conflicto = verificarConflictoIp();
@@ -865,30 +883,61 @@
             }
         }
 
-        const msgConfirm = (proto === '1')
-            ? `¿Cambiar el minero {{ ip }} a modo DHCP automático?`
-            : `¿Aplicar IP Fija [${nip}] con Router [${gw}] en el minero {{ ip }}?`;
-
-        if (!confirm(msgConfirm)) return;
-
         const btn = document.getElementById('btnGuardarRedPro');
         const ico = document.getElementById('icoGuardarRed');
         const txt = document.getElementById('txtGuardarRed');
         const msg = document.getElementById('estadoRedMsg');
 
+        if (btn) btn.disabled = true;
         if (ico) ico.innerText = '⏳';
-        if (txt) txt.innerText = 'Enviando...';
+        if (txt) txt.innerText = 'Aplicando...';
+        if (msg) {
+            msg.style.color = 'var(--accent-blue-light)';
+            msg.innerText = (proto === '1') ? '⏳ Enviando orden DHCP al minero...' : '⏳ Aplicando IP Fija en el minero...';
+        }
 
         const urlCmd = `/cmd/{{ ip }}/set_network?host=${encodeURIComponent(host)}&proto=${encodeURIComponent(proto)}&nip=${encodeURIComponent(nip)}&mask=${encodeURIComponent(mask)}&gw=${encodeURIComponent(gw)}&dns=${encodeURIComponent(dns)}`;
 
-        fetch(urlCmd).then(() => {
+        fetch(urlCmd, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => {
+            if (!r.ok) throw new Error('Error de red');
             document.querySelectorAll('.input-net-pro.edited').forEach(el => el.classList.remove('edited'));
-            if (btn) btn.classList.remove('unsaved-pulse');
+            if (btn) {
+                btn.classList.remove('unsaved-pulse');
+                btn.disabled = false;
+            }
             if (ico) ico.innerText = '✅';
-            if (txt) txt.innerText = '¡Red en Cola!';
+            if (txt) txt.innerText = (proto === '1') ? '¡DHCP Aplicado!' : '¡Red Guardada!';
             if (msg) {
-                msg.style.color = '#00e676';
-                msg.innerText = '✅ Orden enviada al Agente (se aplicará en ~20s)';
+                if (proto === '1') {
+                    msg.style.color = '#00e676';
+                    msg.innerText = '✅ Minero cambiado a DHCP automático. El router le asignará IP en ~20s.';
+                } else if (nip && nip !== IP_ACTUAL_MINERO) {
+                    msg.style.color = '#00e676';
+                    msg.innerText = `✅ Nueva IP ${nip} asignada. Redirigiendo en 15s...`;
+                    setTimeout(() => {
+                        window.location.href = `/minero/${encodeURIComponent(nip)}`;
+                    }, 15000);
+                } else {
+                    msg.style.color = '#00e676';
+                    msg.innerText = '✅ Configuración de IP Fija guardada con éxito.';
+                }
+            }
+            setTimeout(() => {
+                if (ico) ico.innerText = '💾';
+                if (txt) txt.innerText = 'Guardar Red';
+            }, 4500);
+        })
+        .catch(err => {
+            if (btn) btn.disabled = false;
+            if (ico) ico.innerText = '⚠️';
+            if (txt) txt.innerText = 'Error';
+            if (msg) {
+                msg.style.color = '#ff5252';
+                msg.innerText = '⚠️ No se pudo enviar la orden de red. Revisa la conexión con el servidor.';
             }
             setTimeout(() => {
                 if (ico) ico.innerText = '💾';
@@ -897,9 +946,18 @@
         });
     }
 
-    window.addEventListener('load', function() {
+    function inicializarVistaRed() {
         const valorInicial = document.getElementById('net_proto')?.value || '2';
         seleccionarProtocoloRed(valorInicial, false);
+
+        const btnStatic = document.getElementById('btnProtoStatic');
+        const btnDhcp = document.getElementById('btnProtoDhcp');
+        if (btnStatic) {
+            btnStatic.onclick = function() { seleccionarProtocoloRed('2', true); };
+        }
+        if (btnDhcp) {
+            btnDhcp.onclick = function() { seleccionarProtocoloRed('1', true); };
+        }
 
         document.querySelectorAll('[data-net-tt]').forEach(el => {
             const key = el.getAttribute('data-net-tt');
@@ -923,5 +981,11 @@
                 }
             });
         });
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', inicializarVistaRed);
+    } else {
+        inicializarVistaRed();
+    }
 </script>
