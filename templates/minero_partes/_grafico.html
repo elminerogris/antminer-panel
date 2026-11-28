@@ -801,7 +801,7 @@
             <span id="hydroModeBadge" class="hydro-mode-badge">💧 Modo Hydro</span>
             <span id="btnGuiaGrafico" class="btn-help-guide">? Cómo leer</span>
             <span id="btnToggleTimezone" class="btn-tz-toggle" onclick="alternarZonaHorariaGrafico()">🕒 Hora Granja</span>
-            <button type="button" id="climaUbicacionBadge" class="farm-gps-btn" onclick="abrirModalUbicacionGranja()"></button>
+            <button type="button" id="climaUbicacionBadge" class="farm-gps-btn" style="display:none;" onclick="abrirModalUbicacionGranja()"></button>
         </div>
     </div>
 
@@ -823,7 +823,7 @@
             <span id="lblStatTempPico">Temp Máx/Mín:</span> <b id="statTempPico" style="color:#ffb300;" translate="no">0°/0°C</b>
             <span class="stat-info-icon">i</span>
         </div>
-        <div class="stat-item" data-stat-key="clima_hoy">
+        <div class="stat-item" data-stat-key="clima_hoy" style="display:none;">
             Clima Granja / Sensación: <b id="statClimaHoy" style="color:#38bdf8;" translate="no">--° / --°C</b>
             <span class="stat-info-icon">i</span>
         </div>
@@ -1847,16 +1847,12 @@
                 cacheClimaExterior.sort((a, b) => a.ts - b.ts);
 
                 const badge = document.getElementById('climaUbicacionBadge');
-                if (badge && cacheClimaExterior.length > 0) {
-                    const ultimoClima = cacheClimaExterior[cacheClimaExterior.length - 1];
-                    const tMostrar = tempRealHoy !== null ? tempRealHoy : ultimoClima.temp;
-                    const sMostrar = sensRealHoy !== null ? sensRealHoy : ultimoClima.sensacion;
-                    badge.innerHTML = `
-                        <span>📍 <span translate="no">${ciudad}</span>: <b style="color:#38bdf8;" translate="no">${tMostrar}°C</b> <span style="color:#c084fc;" translate="no">(${sMostrar}°C)</span></span>
-                        <span class="farm-gps-edit-tag">Editar GPS ✎</span>
-                    `;
-                    badge.style.display = 'inline-flex';
-                    document.getElementById('statClimaHoy').innerHTML = `${tMostrar}°C / <span style="color:#c084fc;">${sMostrar}°C</span>`;
+                if (badge) {
+                    badge.style.display = 'none';
+                }
+                const statClima = document.getElementById('statClimaHoy');
+                if (statClima && statClima.closest('.stat-item')) {
+                    statClima.closest('.stat-item').style.display = 'none';
                 }
                 updateChart(rangoActual, true);
             }
@@ -2212,10 +2208,10 @@
             let yH = null;
 
             if (tooltipFijado) {
-                // Modo CONGELADO / FIJADO: Líneas 100% inmóviles en las coordenadas fijadas
-                if (puntoFijadoActiveElements && puntoFijadoActiveElements.length > 0 && puntoFijadoActiveElements[0].element) {
-                    x = puntoFijadoActiveElements[0].element.x;
-                } else {
+                // Modo CONGELADO / FIJADO: Líneas vertical y horizontal 100% inmóviles en las coordenadas fijadas
+                if (puntoFijadoTs !== null && chart.scales && chart.scales.x) {
+                    x = chart.scales.x.getPixelForValue(puntoFijadoTs);
+                } else if (puntoFijadoX !== null && puntoFijadoX !== undefined) {
                     x = puntoFijadoX;
                 }
                 yH = puntoFijadoY;
@@ -2391,12 +2387,6 @@
                 if (meta.temp > 0) {
                     html += `<div class="${clsRow('tmax')}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${flechaFocus('tmax')}</div>`;
                 }
-                if (meta.sensacion !== null && meta.sensacion !== undefined) {
-                    html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
-                }
-                if (meta.clima !== null && meta.clima !== undefined) {
-                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
-                }
                 html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Encendido sin minar</div>`;
             } else {
                 let diffPromTxt = "";
@@ -2442,12 +2432,6 @@
                             }
                         }
                     }
-                }
-                if (meta.sensacion !== null && meta.sensacion !== undefined) {
-                    html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
-                }
-                if (meta.clima !== null && meta.clima !== undefined) {
-                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima (<span translate="no">${GRANJA_CIUDAD}</span>): <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
                 }
                 let errNuevos = meta.err || 0;
                 let ds = meta.deltaS || pasoAgrupacionActualSeg;
@@ -2806,6 +2790,10 @@
         }, { passive: true });
 
         canvas.addEventListener('mousemove', function(e) {
+            if (tooltipFijado) {
+                e.stopImmediatePropagation();
+                return;
+            }
             validarPosicionCursor(e.clientX, e.clientY);
             if (!zoomRuedaHabilitado && (Date.now() - ultimoScrollPaginaTs) > 450) {
                 if (mouseEntradaX === null || mouseEntradaY === null) {
@@ -2819,7 +2807,14 @@
                     }
                 }
             }
-        }, { passive: true });
+        }, { capture: true });
+
+        canvas.addEventListener('pointermove', function(e) {
+            if (tooltipFijado) {
+                e.stopImmediatePropagation();
+                return;
+            }
+        }, { capture: true });
 
         canvas.addEventListener('mouseleave', function() {
             zoomRuedaHabilitado = false;
@@ -2874,12 +2869,13 @@
                     
                     tooltipFijado = true;
                     puntoFijadoTs = ts;
-                    puntoFijadoX = x;
+                    if (chartInstance.scales && chartInstance.scales.x) {
+                        puntoFijadoX = chartInstance.scales.x.getPixelForValue(ts);
+                    } else {
+                        puntoFijadoX = x;
+                    }
                     puntoFijadoY = y;
                     contextoTooltipFijado = ultimoContextoTooltip;
-                    if (chartInstance.tooltip && chartInstance.tooltip._active && chartInstance.tooltip._active.length > 0) {
-                        puntoFijadoActiveElements = chartInstance.tooltip._active.slice();
-                    }
                     actualizarVisualPin(true);
                     renderizarTooltipExterno(ultimoContextoTooltip);
                     chartInstance.update('none');
@@ -2919,6 +2915,10 @@
         }, { passive: true });
 
         canvas.addEventListener('touchmove', function(e) {
+            if (tooltipFijado) {
+                e.stopImmediatePropagation();
+                return;
+            }
             if (e.touches && e.touches.length === 1) {
                 const tx = e.touches[0].clientX;
                 const ty = e.touches[0].clientY;
@@ -3331,22 +3331,7 @@
             });
         }
 
-        if (tieneClimaExt) {
-            datasetsList.push({
-                id: 'clima', type: 'line', label: '🌤️ Clima Granja °C', data: ptsClima,
-                borderColor: '#38bdf8',
-                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#38bdf8', pointHoverBackgroundColor: '#38bdf8',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
-                hidden: visibilidadCurvas['clima'] === false
-            });
-            datasetsList.push({
-                id: 'sensacion', type: 'line', label: '🥵 Sensación Térmica °C', data: ptsSens,
-                borderColor: '#c084fc',
-                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#c084fc', pointHoverBackgroundColor: '#c084fc',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
-                hidden: visibilidadCurvas['sensacion'] === false
-            });
-        }
+        /* Curvas de clima exterior y sensación térmica omitidas a solicitud del usuario para enfocar telemetría pura de hardware */
 
         datasetsList.push({
             id: 'err', type: 'bar', label: '⚠️ Errores HW', data: ptsE,
