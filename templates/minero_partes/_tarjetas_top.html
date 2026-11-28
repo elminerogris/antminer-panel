@@ -500,6 +500,9 @@
 {% set t_amb = ultimo.temp_amb | default(0) | int %}
 {% set err_hw = ultimo.errores | default(0) | int %}
 {% set efi_val = dispositivo.eficiencia | default(0) | float %}
+{% if efi_val <= 0 and hr_5s > 0 and (ultimo.consumo_w | default(0) | float) > 0 %}
+    {% set efi_val = (ultimo.consumo_w | float) / hr_5s %}
+{% endif %}
 {% if efi_val > 1000 %}{% set efi_val = efi_val / 1000.0 %}{% endif %}
 
 <!-- Cabecera del Dispositivo -->
@@ -645,9 +648,21 @@
     <div class="kpi-card-pro" data-top-tt="kpi_consumo">
         <div class="kpi-top-row">
             <h4 class="kpi-label">🔌 Consumo</h4>
-            <span class="kpi-mini-badge kpi-purple-txt" style="background:rgba(192,132,252,0.12);" translate="no">
-                {{ "%.1f"|format(efi_val) }} {{ ultimo.unidad_efi | default('J/TH') }}
-            </span>
+            {% if efi_val > 0 %}
+                {% if efi_val < 22 %}
+                    <span class="kpi-mini-badge" style="background:rgba(0,230,118,0.15); color:var(--accent-green); border:1px solid rgba(0,230,118,0.35);" title="Eficiencia de vanguardia (< 22 J/TH)" translate="no">🟢 {{ "%.1f"|format(efi_val) }} {{ ultimo.unidad_efi | default('J/TH') }}</span>
+                {% elif efi_val <= 31 %}
+                    <span class="kpi-mini-badge" style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.35);" title="Eficiencia óptima (22-31 J/TH)" translate="no">🔵 {{ "%.1f"|format(efi_val) }} {{ ultimo.unidad_efi | default('J/TH') }}</span>
+                {% elif efi_val <= 42 %}
+                    <span class="kpi-mini-badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.35);" title="Eficiencia estándar (31-42 J/TH)" translate="no">🟡 {{ "%.1f"|format(efi_val) }} {{ ultimo.unidad_efi | default('J/TH') }}</span>
+                {% else %}
+                    <span class="kpi-mini-badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.35);" title="Consumo alto (> 42 J/TH)" translate="no">🔴 {{ "%.1f"|format(efi_val) }} {{ ultimo.unidad_efi | default('J/TH') }}</span>
+                {% endif %}
+            {% else %}
+                <span class="kpi-mini-badge kpi-purple-txt" style="background:rgba(192,132,252,0.12);" translate="no">
+                    {{ "%.1f"|format(efi_val) }} {{ ultimo.unidad_efi | default('J/TH') }}
+                </span>
+            {% endif %}
         </div>
         <div class="kpi-val-main kpi-purple-txt" translate="no">
             {{ ultimo.consumo }}

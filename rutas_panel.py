@@ -1172,6 +1172,7 @@ def detalle_minero(ip):
         'watchdog_activo': watchdog_activo, 'wd_cuarentena': wd_cuarentena,
         'es_sleep': es_sleep,
         'errores': a_int_seguro(m.get('errores'), 0), 'consumo': f"{round(c_val/1000, 2)} kW",
+        'consumo_w': c_val,
         'fans': fans, 'uptime': uptime_val,
         'hashrate_c0': round(hr_val/len(cadenas), 2) if cadenas else 0,
         'farm_lat': farm_lat, 'farm_lon': farm_lon, 'farm_city': farm_city, 'farm_country': farm_country

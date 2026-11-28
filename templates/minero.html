@@ -1,6 +1,45 @@
 {% extends "layout.html" %}
 {% block content %}
 <style>
+    /* Pull-to-refresh táctil en móvil */
+    .ptr-indicator {
+        position: fixed;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(18, 21, 28, 0.96);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        color: var(--text-main);
+        padding: 7px 16px;
+        border-radius: 20px;
+        font-size: 0.82em;
+        font-weight: 600;
+        z-index: 999999;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+        transition: top 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28), opacity 0.2s ease;
+        opacity: 0;
+    }
+    .ptr-indicator.visible {
+        opacity: 1;
+    }
+    .ptr-indicator .ptr-spinner {
+        display: none;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(56, 189, 248, 0.25);
+        border-top-color: #38bdf8;
+        border-radius: 50%;
+        animation: ptr-spin 0.65s linear infinite;
+    }
+    .ptr-indicator.loading .ptr-icon { display: none; }
+    .ptr-indicator.loading .ptr-spinner { display: inline-block; }
+    @keyframes ptr-spin { to { transform: rotate(360deg); } }
+
     .miner-dashboard-stack {
         display: flex;
         flex-direction: column;
@@ -180,6 +219,12 @@
     }
 </style>
 
+<div id="ptrIndicator" class="ptr-indicator">
+    <span class="ptr-icon" id="ptrIcon">↓</span>
+    <span class="ptr-spinner" id="ptrSpinner"></span>
+    <span class="ptr-msg" id="ptrMsg">Desliza para actualizar</span>
+</div>
+
 <div class="miner-dashboard-stack">
     <!-- Acceso directo a la Web Local del Antminer vía túnel -->
     <div class="miner-section-wrap" data-no-live-patch="1">
@@ -287,5 +332,104 @@
             btnTop.style.display = (area.scrollTop > 420) ? 'inline-flex' : 'none';
         }, { passive: true });
     });
+
+    // Pull-to-refresh táctil en móvil
+    (function initMobilePullToRefresh() {
+        const ptr = document.getElementById('ptrIndicator');
+        const ptrMsg = document.getElementById('ptrMsg');
+        const ptrIcon = document.getElementById('ptrIcon');
+        if (!ptr) return;
+
+        let startY = 0;
+        let pullDist = 0;
+        let isPulling = false;
+        let isRefreshing = false;
+
+        function getScrollTop() {
+            const area = document.getElementById('mainScrollArea');
+            if (area) return area.scrollTop;
+            return window.scrollY || document.documentElement.scrollTop || 0;
+        }
+
+        window.addEventListener('touchstart', function(e) {
+            if (isRefreshing) return;
+            if (getScrollTop() <= 0 && e.touches && e.touches.length === 1) {
+                startY = e.touches[0].clientY;
+                isPulling = true;
+                pullDist = 0;
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchmove', function(e) {
+            if (!isPulling || isRefreshing) return;
+            if (getScrollTop() > 0) {
+                isPulling = false;
+                ptr.classList.remove('visible');
+                ptr.style.top = '-60px';
+                return;
+            }
+
+            const currentY = e.touches[0].clientY;
+            const diff = currentY - startY;
+
+            if (diff > 0) {
+                pullDist = Math.pow(diff, 0.85);
+                if (pullDist > 15) {
+                    ptr.classList.add('visible');
+                    const targetTop = Math.min(65, 12 + pullDist * 0.45);
+                    ptr.style.top = targetTop + 'px';
+
+                    if (pullDist >= 65) {
+                        ptrMsg.innerText = 'Suelta para actualizar';
+                        ptrIcon.style.transform = 'rotate(180deg)';
+                    } else {
+                        ptrMsg.innerText = 'Desliza para actualizar';
+                        ptrIcon.style.transform = 'rotate(0deg)';
+                    }
+                }
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchend', async function() {
+            if (!isPulling || isRefreshing) return;
+            isPulling = false;
+
+            if (pullDist >= 65) {
+                isRefreshing = true;
+                ptr.classList.add('loading');
+                ptrMsg.innerText = '⚡ Actualizando telemetría...';
+                if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                    try { navigator.vibrate(15); } catch(e) {}
+                }
+
+                try {
+                    if (typeof actualizacionSilenciosaEnVivo === 'function') {
+                        await actualizacionSilenciosaEnVivo();
+                    }
+                    if (typeof actualizarGraficoEnVivoJSON === 'function') {
+                        await actualizarGraficoEnVivoJSON();
+                    }
+                } catch(err) {
+                    console.log('Error en PTR:', err);
+                }
+
+                ptrMsg.innerText = '✔ Actualizado';
+                ptr.classList.remove('loading');
+                if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                    try { navigator.vibrate(10); } catch(e) {}
+                }
+
+                setTimeout(() => {
+                    ptr.classList.remove('visible');
+                    ptr.style.top = '-60px';
+                    setTimeout(() => { isRefreshing = false; pullDist = 0; }, 300);
+                }, 600);
+            } else {
+                ptr.classList.remove('visible');
+                ptr.style.top = '-60px';
+                pullDist = 0;
+            }
+        }, { passive: true });
+    })();
 </script>
 {% endblock %}

@@ -516,6 +516,34 @@
     }
     .mini-bar-fill { height: 100%; border-radius: 3px; }
 
+    .chips-pill.chips-warn {
+        background: rgba(239, 68, 68, 0.16);
+        border-color: #ef4444;
+        color: #ef4444;
+        font-weight: bold;
+    }
+    .delta-pill.delta-warn {
+        background: rgba(245, 158, 11, 0.20);
+        border-color: #f59e0b;
+        color: #fbbf24;
+        font-weight: bold;
+        box-shadow: 0 0 8px rgba(245, 158, 11, 0.25);
+    }
+    .btn-focus-err {
+        background: rgba(255, 82, 82, 0.18);
+        border: 1px solid rgba(255, 82, 82, 0.5);
+        color: #ff5252;
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.15s ease;
+    }
+    .btn-focus-err:hover {
+        background: #ff5252;
+        color: #fff;
+    }
     .delta-pill {
         display: inline-block;
         padding: 2px 7px;
@@ -602,9 +630,12 @@
     }
 </style>
 
-{% set ns = namespace(chips_tot=0, freq_sum=0, freq_cnt=0, hw_tot=0, dt_sum=0, dt_cnt=0, max_hr=1.0) %}
+{% set ns = namespace(chips_tot=0, freq_sum=0, freq_cnt=0, hw_tot=0, dt_sum=0, dt_cnt=0, max_hr=1.0, max_chips=0) %}
 {% for c in extra.cadenas %}
     {% set ns.chips_tot = ns.chips_tot + (c.chips | int) %}
+    {% if (c.chips | int) > ns.max_chips %}
+        {% set ns.max_chips = (c.chips | int) %}
+    {% endif %}
     {% if (c.freq | int) > 0 %}
         {% set ns.freq_sum = ns.freq_sum + (c.freq | int) %}
         {% set ns.freq_cnt = ns.freq_cnt + 1 %}
@@ -718,7 +749,12 @@
                             </div>
                         </td>
                         <td translate="no">
-                            <span class="chips-pill">● {{ c.chips }} chips</span>
+                            {% set c_chips = c.chips | int %}
+                            {% if ns.max_chips > 0 and c_chips > 0 and c_chips < ns.max_chips %}
+                                <span class="chips-pill chips-warn" title="⚠️ Placa incompleta: detecta {{ c_chips }} de {{ ns.max_chips }} chips (faltan {{ ns.max_chips - c_chips }} chips)">⚠️ {{ c_chips }}/{{ ns.max_chips }}</span>
+                            {% else %}
+                                <span class="chips-pill">● {{ c.chips }} chips</span>
+                            {% endif %}
                         </td>
                         <td style="font-family:monospace; font-weight:bold; color:var(--text-main);" translate="no">
                             {{ c.freq }} <span style="color:var(--text-muted); font-weight:normal;">MHz</span>
@@ -748,7 +784,11 @@
                             </div>
                         </td>
                         <td translate="no">
-                            <span class="delta-pill">ΔT {{ '+' if dt_c >= 0 else '' }}{{ dt_c }}°C</span>
+                            {% if dt_c >= 22 %}
+                                <span class="delta-pill delta-warn" title="🔥 Alerta Térmica: ΔT elevado (+{{ dt_c }}°C). La pasta térmica o thermal pads están perdiendo conductividad">🔥 ΔT +{{ dt_c }}°C (Pasta)</span>
+                            {% else %}
+                                <span class="delta-pill">ΔT {{ '+' if dt_c >= 0 else '' }}{{ dt_c }}°C</span>
+                            {% endif %}
                             <span style="font-family:monospace; color:{{ '#ff5252' if (c.hw | int) > 20 else 'var(--text-muted)' }}; font-weight:bold;">{{ c.hw }} HW</span>
                         </td>
                     </tr>
@@ -947,7 +987,7 @@
                     <div class="chips-matrix-bar">
                         <span>ASIC#: <b style="color:var(--text-main); font-family:monospace;">${numChips}</b></span>
                         <span style="color:#00e676; font-family:monospace; font-weight:600;">🟢 ${chipsOk} OK (o)</span>
-                        ${chipsErr > 0 ? `<span style="color:#ff5252; font-family:monospace; font-weight:bold;">🔴 ${chipsErr} Fallo (x)</span>` : `<span style="color:var(--text-muted); font-family:monospace;">🔴 0 Fallo (x)</span>`}
+                        ${chipsErr > 0 ? `<button type="button" class="btn-focus-err" onclick="resaltarChipsFallados()" title="Localizar y hacer parpadear chips defectuosos">🔴 ${chipsErr} Fallo (x) · Ver</button>` : `<span style="color:var(--text-muted); font-family:monospace;">🔴 0 Fallo (x)</span>`}
                         <span>HW: <b style="color:${hwVal > 20 ? '#ff5252' : 'var(--text-main)'}; font-family:monospace;">${hwVal}</b></span>
                     </div>
                     <div class="asic-status-console">
@@ -993,6 +1033,20 @@
             box.style.left = left + 'px';
             box.style.top = top + 'px';
         }
+
+        window.resaltarChipsFallados = function() {
+            const errs = document.querySelectorAll('#boardsSmartTooltip .asic-chip.chip-err');
+            if (!errs || errs.length === 0) return;
+            errs[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            errs.forEach(el => {
+                el.style.transform = 'scale(1.8)';
+                el.style.textShadow = '0 0 12px #ff5252';
+                setTimeout(() => {
+                    el.style.transform = '';
+                    el.style.textShadow = '';
+                }, 1400);
+            });
+        };
 
         function showTip(target) {
             const key = target.getAttribute('data-board-tip');

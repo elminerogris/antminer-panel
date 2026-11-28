@@ -494,6 +494,34 @@
         margin-bottom: 20px;
     }
 
+    /* Pantalla completa para celular o PC */
+    .chart-main-card.chart-card-fullscreen {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 999999 !important;
+        background: var(--bg-card, #12151c) !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        padding: 12px 16px !important;
+        box-sizing: border-box !important;
+        overflow-y: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    .chart-main-card.chart-card-fullscreen .chart-edge-container {
+        flex: 1 1 auto !important;
+        height: calc(100vh - 145px) !important;
+    }
+    .chart-main-card.chart-card-fullscreen .chart-canvas-box {
+        height: 100% !important;
+        min-height: 280px !important;
+    }
+
     /* Contenedor Full-Bleed de extremo a extremo sin espacios negros (estilo Binance) */
     .chart-edge-container {
         position: relative;
@@ -884,12 +912,14 @@
                 <button class="btn-reset-zoom" id="btnResetZoom" data-filter-key="reset_zoom" onclick="resetearZoomGrafico()">🔍 <span translate="no">100%</span></button>
                 <span id="lodResolutionBadge" class="lod-badge" translate="no">⚡ 3m</span>
                 <span class="filter-divider"></span>
+                <button class="btn-filter" id="btn-1h" data-filter-key="1h" onclick="updateChart('1h')" translate="no">1 h</button>
                 <button class="btn-filter" id="btn-6h" data-filter-key="6h" onclick="updateChart('6h')" translate="no">6 h</button>
                 <button class="btn-filter active" id="btn-24h" data-filter-key="24h" onclick="updateChart('24h')" translate="no">24 h</button>
                 <button class="btn-filter" id="btn-7d" data-filter-key="7d" onclick="updateChart('7d')" translate="no">7 d</button>
                 <button class="btn-filter" id="btn-30d" data-filter-key="30d" onclick="updateChart('30d')" translate="no">30 d</button>
                 <span class="filter-divider"></span>
-                <button class="btn-filter" id="btnCamara" data-filter-key="camara" onclick="descargarCapturaGrafico()">📷</button>
+                <button class="btn-filter" id="btnCamara" data-filter-key="camara" onclick="descargarCapturaGrafico()" title="Guardar foto">📷</button>
+                <button class="btn-filter" id="btnFullscreenChart" data-filter-key="fullscreen" onclick="toggleFullscreenGrafico()" title="Pantalla completa horizontal">⛶</button>
             </div>
         </div>
     </div>
@@ -1260,12 +1290,14 @@
     function obtenerInfoTooltipFiltro(key) {
         const txtHist = diasRealesGrabados >= 1 ? `Historial guardado: ${diasRealesGrabados} días.` : `Historial guardado: ${horasRealesGrabadas} horas.`;
         const dicFiltros = {
+            '1h': { titulo: '⚡ Última Hora (1h)', desc: 'Máxima resolución inmediata para observar estabilidad minuto a minuto tras overclock o cambios de frecuencia.', rango: `Detalle cada 1 min | ${txtHist}` },
             '6h': { titulo: '⏱️ Últimas 6 Horas', desc: 'Ideal para revisar cambios recientes, reinicios o ajustes que acabas de hacer.', rango: `Detalle cada 3 min (con zoom llega a 1 min) | ${txtHist}` },
             '24h': { titulo: '🕒 Últimas 24 Horas (Día Completo)', desc: 'Vista recomendada para comparar cómo trabaja tu minero con el calor del día frente a la noche.', rango: `Detalle cada 3 min (con zoom llega a 1 min) | ${txtHist}` },
             '7d': { titulo: '📅 Últimos 7 Días (Semana)', desc: 'Muestra la estabilidad de toda la semana con hora y fecha. Los días previos a conectar el equipo aparecen vacíos a la izquierda.', rango: `Detalle cada 15 min | ${txtHist}` },
             '30d': { titulo: '🗓️ Últimos 30 Días (Mes)', desc: 'Resumen mensual completo para detectar desgaste gradual, suciedad o tendencias de calor.', rango: `Detalle cada 30 min | ${txtHist}` },
             'reset_zoom': { titulo: '🔍 Volver al Tamaño Normal (100%)', desc: 'Quita el acercamiento actual y vuelve a mostrar todo el periodo seleccionado.', rango: 'Atajo rápido: doble clic o doble toque sobre el gráfico' },
-            'camara': { titulo: '📷 Guardar Foto del Gráfico', desc: 'Descarga una imagen limpia (PNG) lista para compartir por WhatsApp o enviar a soporte técnico.', rango: 'Se guarda automáticamente en tus descargas' }
+            'camara': { titulo: '📷 Guardar Foto del Gráfico', desc: 'Descarga una imagen limpia (PNG) lista para compartir por WhatsApp o enviar a soporte técnico.', rango: 'Se guarda automáticamente en tus descargas' },
+            'fullscreen': { titulo: '⛶ Pantalla Completa', desc: 'Amplía el gráfico a toda la pantalla en tu celular o PC para un análisis panorámico y detallado.', rango: 'Toca de nuevo para volver a la vista normal' }
         };
         return dicFiltros[key];
     }
@@ -2198,8 +2230,8 @@
                         ? ((corteCfg.activo || esMineroHydro) ? 'rgba(220, 38, 38, 0.92)' : 'rgba(220, 38, 38, 0.52)')
                         : ((corteCfg.activo || esMineroHydro) ? 'rgba(255, 110, 110, 0.92)' : 'rgba(255, 110, 110, 0.50)');
                     const lblCorte = esMineroHydro
-                        ? `Límite Hydro ${corteCfg.temp}°C`
-                        : `Corte ${corteCfg.temp}°C${corteCfg.activo ? '' : ' (OFF)'}`;
+                        ? `🛡️ Límite Hydro ${corteCfg.temp}°C`
+                        : `🛡️ Corte: ${corteCfg.temp}°C${corteCfg.activo ? '' : ' (OFF)'}`;
                     ctx.strokeText(lblCorte, ca.right - 34, yCorte - 4);
                     ctx.fillText(lblCorte, ca.right - 34, yCorte - 4);
                 }
@@ -2852,6 +2884,57 @@
         link.click();
     }
 
+    function toggleFullscreenGrafico() {
+        const card = document.querySelector('.chart-main-card');
+        const btnFs = document.getElementById('btnFullscreenChart');
+        if (!card) return;
+        if (!document.fullscreenElement && !card.classList.contains('chart-card-fullscreen')) {
+            if (card.requestFullscreen) {
+                card.requestFullscreen().catch(() => {
+                    card.classList.add('chart-card-fullscreen');
+                    if (btnFs) btnFs.innerHTML = '🗗';
+                });
+            } else if (card.webkitRequestFullscreen) {
+                card.webkitRequestFullscreen();
+            } else {
+                card.classList.add('chart-card-fullscreen');
+                if (btnFs) btnFs.innerHTML = '🗗';
+            }
+        } else {
+            if (document.fullscreenElement) {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }
+            card.classList.remove('chart-card-fullscreen');
+            if (btnFs) btnFs.innerHTML = '⛶';
+        }
+        setTimeout(() => { if (chartInstance) chartInstance.resize(); }, 120);
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+        const card = document.querySelector('.chart-main-card');
+        const btnFs = document.getElementById('btnFullscreenChart');
+        if (card) {
+            if (document.fullscreenElement) {
+                card.classList.add('chart-card-fullscreen');
+                if (btnFs) btnFs.innerHTML = '🗗';
+            } else {
+                card.classList.remove('chart-card-fullscreen');
+                if (btnFs) btnFs.innerHTML = '⛶';
+            }
+            setTimeout(() => { if (chartInstance) chartInstance.resize(); }, 120);
+        }
+    });
+
+    let ultimoHapticoTs = 0;
+    function vibrarHapticoSuave(ms = 8) {
+        const ahora = Date.now();
+        if (ahora - ultimoHapticoTs > 45 && typeof navigator !== 'undefined' && navigator.vibrate) {
+            ultimoHapticoTs = ahora;
+            try { navigator.vibrate(ms); } catch (e) {}
+        }
+    }
+
     function configurarEventosLimitesCanvas() {
         const canvas = document.getElementById('hashrateChart');
         const wrapper = document.getElementById('chartWrapper');
@@ -2875,6 +2958,7 @@
                 cursorDentroArea = true;
                 cursorCanvasX = x;
                 cursorCanvasY = y;
+                vibrarHapticoSuave(8);
                 if (ultimoContextoTooltip) {
                     renderizarTooltipExterno(ultimoContextoTooltip);
                 }
@@ -2989,6 +3073,7 @@
             ocultarSmartTooltip();
             actualizarRectCache();
             descongelarGrafico();
+            vibrarHapticoSuave(10);
             if (e.touches && e.touches.length === 1) {
                 let ahora = Date.now();
                 if (ahora - ultimoToqueTs < 280) resetearZoomGrafico();
@@ -3295,6 +3380,7 @@
         }
 
         let segundosRango = 24 * 3600;
+        if (rango === '1h') segundosRango = 3600;
         if (rango === '6h') segundosRango = 6 * 3600;
         if (rango === '24h') segundosRango = 24 * 3600;
         if (rango === '7d') segundosRango = 7 * 86400;
