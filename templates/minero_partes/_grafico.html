@@ -505,6 +505,7 @@
         overflow: hidden;
     }
     .chart-canvas-box { height: 312px; position: relative; width: 100%; }
+    #hashrateChart { cursor: crosshair; }
 
     /* Brillo de tope derecho (En vivo) e izquierdo (Inicio del periodo) + Botón Ir a Ahora */
     .edge-live-glow {
@@ -927,6 +928,11 @@
     let lineaParadaFijadaX = null;
     let lineaEchadaFijadaY = null;
     let tooltipFijado = false;
+    let isMouseDown = false;
+    let isDraggingChart = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let justFinishedDrag = false;
     let puntoFijadoTs = null;
     let puntoFijadoY = null;
     let puntoFijadoX = null;
@@ -2835,7 +2841,7 @@
         }
 
         function validarPosicionCursor(clientX, clientY) {
-            if (lineasCongeladas) return;
+            if (isDraggingChart) return;
             if (!chartInstance || !chartInstance.chartArea) return;
             if (!rectCanvasCache) actualizarRectCache();
             const x = clientX - rectCanvasCache.left;
@@ -2881,12 +2887,27 @@
             }
         }, { passive: true });
 
+        canvas.addEventListener('mousedown', function(e) {
+            isMouseDown = true;
+            isDraggingChart = false;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            descongelarGrafico();
+        });
+
         canvas.addEventListener('mousemove', function(e) {
-            if (lineasCongeladas) {
-                e.stopImmediatePropagation();
-                return;
+            if (isMouseDown) {
+                const dist = Math.hypot(e.clientX - dragStartX, e.clientY - dragStartY);
+                if (dist >= 4) {
+                    isDraggingChart = true;
+                    canvas.style.cursor = 'grabbing';
+                    ocultarTooltipGris();
+                }
             }
-            validarPosicionCursor(e.clientX, e.clientY);
+            if (!isDraggingChart) {
+                canvas.style.cursor = 'crosshair';
+                validarPosicionCursor(e.clientX, e.clientY);
+            }
             if (!zoomRuedaHabilitado && (Date.now() - ultimoScrollPaginaTs) > 450) {
                 if (mouseEntradaX === null || mouseEntradaY === null) {
                     mouseEntradaX = e.clientX;
@@ -2899,80 +2920,43 @@
                     }
                 }
             }
-        }, { capture: true });
+        });
 
-        canvas.addEventListener('pointermove', function(e) {
-            if (lineasCongeladas) {
-                e.stopImmediatePropagation();
-                return;
+        window.addEventListener('mouseup', function(e) {
+            if (isDraggingChart) {
+                justFinishedDrag = true;
+                setTimeout(() => {
+                    justFinishedDrag = false;
+                    isDraggingChart = false;
+                }, 100);
             }
-        }, { capture: true });
+            isMouseDown = false;
+            if (canvas) canvas.style.cursor = 'crosshair';
+        });
 
         canvas.addEventListener('mouseleave', function() {
             zoomRuedaHabilitado = false;
             mouseEntradaX = null;
             mouseEntradaY = null;
             clearTimeout(timerDesbloqueoZoom);
-            if (!lineasCongeladas) {
+            if (!isDraggingChart) {
                 ocultarTooltipGris();
             }
         }, { passive: true });
 
-        // Clic para fijar / congelar la información o soltarla (estilo Binance: 1er clic congela, 2do clic descongela)
+        // Clic en el gráfico estilo profesional (TradingView / Binance).
+        // Si el usuario estaba deslizando/arrastrando el gráfico, se descarta el clic.
+        // Si fue un clic simple en un punto, NO congela ni bloquea el gráfico:
+        // simplemente posiciona la lectura en dicho punto y el gráfico sigue 100% vivo y dinámico.
         canvas.addEventListener('click', function(e) {
-            if (!chartInstance || !chartInstance.chartArea) return;
+            if (isDraggingChart || justFinishedDrag) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                return;
+            }
+            descongelarGrafico();
             actualizarRectCache();
-            const x = e.clientX - rectCanvasCache.left;
-            const y = e.clientY - rectCanvasCache.top;
-            const ca = chartInstance.chartArea;
-
-            // Verificar si el clic fue dentro del área del gráfico
-            if (x < ca.left || x > ca.right || y < ca.top || y > ca.bottom) {
-                if (lineasCongeladas) {
-                    descongelarGrafico();
-                    ocultarTooltipGris();
-                }
-                return;
-            }
-
-            // Si ya estaba congelado: EL SEGUNDO CLIC SIEMPRE DESCONGELA LAS 2 LÍNEAS
-            if (lineasCongeladas) {
-                descongelarGrafico(x, y);
-                return;
-            }
-
-            // Primer clic: CONGELAR LAS 2 LÍNEAS PUNTEADAS (PARADA Y ECHADA)
-            lineasCongeladas = true;
-            tooltipFijado = true;
-
-            // Determinar posición X fija de la línea parada (snap al punto si existe; si no, X del clic)
-            let posX = x;
-            if (chartInstance.tooltip && chartInstance.tooltip._active && chartInstance.tooltip._active.length > 0) {
-                const act = chartInstance.tooltip._active[0];
-                if (act && act.element && !isNaN(act.element.x)) {
-                    posX = act.element.x;
-                }
-            }
-            lineaParadaFijadaX = posX;
-            lineaEchadaFijadaY = y;
-
-            let tsClick = (chartInstance.scales && chartInstance.scales.x) ? chartInstance.scales.x.getValueForPixel(posX) : null;
-            if (!tsClick && rawFechas && rawFechas.length > 0) {
-                tsClick = rawFechas[rawFechas.length - 1];
-            }
-            puntoFijadoTs = tsClick;
-
-            actualizarVisualPin(true);
-            renderizarTooltipEnPunto(tsClick, posX, y);
-            chartInstance.update('none');
-        });
-
-        // Clic fuera del gráfico: si estaba congelado, descongelar y ocultar
-        document.addEventListener('click', function(e) {
-            if (lineasCongeladas && !canvas.contains(e.target) && !document.getElementById('customChartTooltip')?.contains(e.target) && !e.target.closest('#btnCamara')) {
-                descongelarGrafico();
-                ocultarTooltipGris();
-            }
+            validarPosicionCursor(e.clientX, e.clientY);
         });
 
         canvas.addEventListener('dblclick', function() { resetearZoomGrafico(); });
@@ -2983,7 +2967,7 @@
         canvas.addEventListener('touchstart', function(e) {
             ocultarSmartTooltip();
             actualizarRectCache();
-            if (lineasCongeladas) return;
+            descongelarGrafico();
             if (e.touches && e.touches.length === 1) {
                 let ahora = Date.now();
                 if (ahora - ultimoToqueTs < 280) resetearZoomGrafico();
@@ -2992,15 +2976,11 @@
                 const ty = e.touches[0].clientY;
                 validarPosicionCursor(tx, ty);
             } else {
-                if (!lineasCongeladas) ocultarTooltipGris();
+                ocultarTooltipGris();
             }
         }, { passive: true });
 
         canvas.addEventListener('touchmove', function(e) {
-            if (lineasCongeladas) {
-                e.stopImmediatePropagation();
-                return;
-            }
             if (e.touches && e.touches.length === 1) {
                 const tx = e.touches[0].clientX;
                 const ty = e.touches[0].clientY;
@@ -3011,8 +2991,12 @@
                     });
                 }
             } else {
-                if (!lineasCongeladas) ocultarTooltipGris();
+                ocultarTooltipGris();
             }
+        }, { passive: true });
+
+        canvas.addEventListener('touchend', function(e) {
+            // Touch release
         }, { passive: true });
     }
 
@@ -3483,13 +3467,25 @@
                             pan: {
                                 enabled: true, mode: 'x',
                                 onPanStart: function({chart}) {
+                                    isDraggingChart = true;
+                                    ocultarTooltipGris();
+                                    const cv = document.getElementById('hashrateChart');
+                                    if (cv) cv.style.cursor = 'grabbing';
                                     return estaGraficoConZoom(chart);
                                 },
-                                onPan: function({chart}) { forzarLimitesSinEspacioVacio(chart, true); },
+                                onPan: function({chart}) {
+                                    isDraggingChart = true;
+                                    forzarLimitesSinEspacioVacio(chart, true);
+                                },
                                 onPanComplete: function({chart}) {
                                     actualizarPuntosYResolucionSegunZoom(chart);
                                     chart.update('none');
                                     actualizarControlesZoomYScroll(chart);
+                                    setTimeout(() => {
+                                        isDraggingChart = false;
+                                        const cv = document.getElementById('hashrateChart');
+                                        if (cv) cv.style.cursor = 'crosshair';
+                                    }, 80);
                                 }
                             },
                             zoom: {
