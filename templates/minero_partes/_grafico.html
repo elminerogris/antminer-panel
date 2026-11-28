@@ -913,7 +913,11 @@
     let cursorCanvasX = null;
     let cursorCanvasY = null;
     let ladoTooltipBinance = 'right';
+    let lineasCongeladas = false;
+    let lineaParadaFijadaX = null;
+    let lineaEchadaFijadaY = null;
     let tooltipFijado = false;
+    let puntoFijadoTs = null;
     let puntoFijadoY = null;
     let puntoFijadoX = null;
     let puntoFijadoActiveElements = null;
@@ -1351,12 +1355,7 @@
             const btnCam = document.getElementById('btnCamara');
             const ttEl = document.getElementById('customChartTooltip');
             if (canvas && e.target !== canvas && (!btnCam || !btnCam.contains(e.target)) && (!ttEl || !ttEl.contains(e.target))) {
-                tooltipFijado = false;
-                puntoFijadoTs = null;
-                puntoFijadoX = null;
-                puntoFijadoY = null;
-                puntoFijadoActiveElements = null;
-                actualizarVisualPin(false);
+                if (typeof descongelarGrafico === 'function') descongelarGrafico();
                 ocultarTooltipGris();
             }
         });
@@ -1366,12 +1365,7 @@
             const btnCam = document.getElementById('btnCamara');
             const ttEl = document.getElementById('customChartTooltip');
             if (canvas && e.target !== canvas && !canvas.contains(e.target) && (!btnCam || !btnCam.contains(e.target)) && (!ttEl || !ttEl.contains(e.target))) {
-                tooltipFijado = false;
-                puntoFijadoTs = null;
-                puntoFijadoX = null;
-                puntoFijadoY = null;
-                puntoFijadoActiveElements = null;
-                actualizarVisualPin(false);
+                if (typeof descongelarGrafico === 'function') descongelarGrafico();
                 ocultarTooltipGris();
             }
         }, { passive: true });
@@ -2202,44 +2196,43 @@
     const pluginCrosshairVertical = {
         id: 'crosshairVertical',
         afterDraw: function(chart) {
-            if (!cursorDentroArea && !tooltipFijado) return;
+            if (!lineasCongeladas && !cursorDentroArea) return;
 
             let x = null;
             let yH = null;
 
-            if (tooltipFijado) {
-                // Modo CONGELADO / FIJADO: Líneas vertical y horizontal 100% inmóviles en las coordenadas fijadas
-                if (puntoFijadoTs !== null && chart.scales && chart.scales.x) {
-                    x = chart.scales.x.getPixelForValue(puntoFijadoTs);
-                } else if (puntoFijadoX !== null && puntoFijadoX !== undefined) {
-                    x = puntoFijadoX;
-                }
-                yH = puntoFijadoY;
+            if (lineasCongeladas) {
+                // Modo CONGELADO: Las 2 líneas punteadas permanecen 100% inmóviles en las coordenadas fijadas
+                x = lineaParadaFijadaX;
+                yH = lineaEchadaFijadaY;
             } else {
-                // Modo VIVO: sigue la posición del cursor
+                // Modo VIVO: siguen la posición del cursor en tiempo real
                 const hasActive = chart.tooltip && chart.tooltip._active && chart.tooltip._active.length > 0;
-                if (!hasActive) return;
-                const activePoint = chart.tooltip._active[0];
-                x = (activePoint && activePoint.element) ? activePoint.element.x : cursorCanvasX;
+                const activePoint = hasActive ? chart.tooltip._active[0] : null;
+                x = (activePoint && activePoint.element && !isNaN(activePoint.element.x)) ? activePoint.element.x : cursorCanvasX;
                 yH = cursorCanvasY;
-                if (yH === null && activePoint && activePoint.element) yH = activePoint.element.y;
+                if (yH === null && activePoint && activePoint.element && !isNaN(activePoint.element.y)) yH = activePoint.element.y;
             }
 
             if (x === null || x === undefined || isNaN(x)) return;
 
-            const topY = chart.chartArea.top;
-            const bottomY = chart.chartArea.bottom;
-            const leftX = chart.chartArea.left;
-            const rightX = chart.chartArea.right;
+            const ca = chart.chartArea;
+            if (!ca) return;
+            const topY = ca.top;
+            const bottomY = ca.bottom;
+            const leftX = ca.left;
+            const rightX = ca.right;
+
+            if (x < leftX || x > rightX) return;
 
             const ctx = chart.ctx;
             ctx.save();
             ctx.beginPath();
             ctx.setLineDash([4, 4]);
-            ctx.lineWidth = tooltipFijado ? 1.5 : 1;
+            ctx.lineWidth = lineasCongeladas ? 1.5 : 1;
             ctx.strokeStyle = (document.documentElement.getAttribute('data-theme') === 'light') 
-                ? (tooltipFijado ? 'rgba(2, 132, 199, 0.85)' : 'rgba(15, 23, 42, 0.40)') 
-                : (tooltipFijado ? 'rgba(56, 189, 248, 0.95)' : 'rgba(255, 255, 255, 0.45)');
+                ? (lineasCongeladas ? 'rgba(2, 132, 199, 0.90)' : 'rgba(15, 23, 42, 0.40)') 
+                : (lineasCongeladas ? 'rgba(56, 189, 248, 0.95)' : 'rgba(255, 255, 255, 0.45)');
 
             // 1. Línea parada (vertical estilo Binance)
             ctx.moveTo(x, topY);
@@ -2266,8 +2259,74 @@
         }
     }
 
+    function renderizarTooltipEnPunto(ts, posX, posY) {
+        const ttEl = document.getElementById('customChartTooltip');
+        if (!ttEl || !chartInstance) return;
+        if (!mapaMetaPuntos || Object.keys(mapaMetaPuntos).length === 0) return;
+
+        let tsEfectivo = ts;
+        if (!mapaMetaPuntos[tsEfectivo]) {
+            const keys = Object.keys(mapaMetaPuntos).map(Number).sort((a,b) => a - b);
+            if (keys.length > 0) {
+                let menorDiff = Infinity;
+                for (let i = 0; i < keys.length; i++) {
+                    let diff = Math.abs(keys[i] - ts);
+                    if (diff < menorDiff) {
+                        menorDiff = diff;
+                        tsEfectivo = keys[i];
+                    }
+                }
+            }
+        }
+        const meta = mapaMetaPuntos[tsEfectivo];
+        if (!meta) return;
+
+        const syntheticCtx = {
+            chart: chartInstance,
+            tooltip: {
+                opacity: 1,
+                caretX: posX,
+                caretY: posY,
+                dataPoints: [{
+                    parsed: { x: tsEfectivo, y: meta.hr },
+                    datasetIndex: 0
+                }]
+            }
+        };
+        contextoTooltipFijado = syntheticCtx;
+        ultimoContextoTooltip = syntheticCtx;
+        renderizarTooltipExterno(syntheticCtx);
+    }
+
+    function descongelarGrafico(nuevoX, nuevoY) {
+        lineasCongeladas = false;
+        tooltipFijado = false;
+        lineaParadaFijadaX = null;
+        lineaEchadaFijadaY = null;
+        puntoFijadoTs = null;
+        puntoFijadoX = null;
+        puntoFijadoY = null;
+        puntoFijadoActiveElements = null;
+        contextoTooltipFijado = null;
+        actualizarVisualPin(false);
+
+        if (nuevoX !== undefined && nuevoY !== undefined && chartInstance && chartInstance.chartArea) {
+            const ca = chartInstance.chartArea;
+            if (nuevoX >= ca.left && nuevoX <= ca.right && nuevoY >= ca.top && nuevoY <= ca.bottom) {
+                cursorDentroArea = true;
+                cursorCanvasX = nuevoX;
+                cursorCanvasY = nuevoY;
+                let tsNow = (chartInstance.scales && chartInstance.scales.x) ? chartInstance.scales.x.getValueForPixel(nuevoX) : null;
+                renderizarTooltipEnPunto(tsNow, nuevoX, nuevoY);
+            }
+        }
+        if (chartInstance) {
+            chartInstance.update('none');
+        }
+    }
+
     function ocultarTooltipGris() {
-        if (tooltipFijado) return;
+        if (lineasCongeladas || tooltipFijado) return;
         cursorDentroArea = false;
         cursorCanvasX = null;
         cursorCanvasY = null;
@@ -2316,15 +2375,15 @@
         const ttEl = document.getElementById('customChartTooltip');
         if (!ttEl) return;
 
-        // Si el gráfico está fijado/congelado, IGNORAR llamadas de movimiento del mouse para mantener datos paralizados
-        if (tooltipFijado && contextoTooltipFijado && context !== contextoTooltipFijado) {
+        // Si el gráfico está congelado, IGNORAR llamadas de movimiento del mouse para mantener datos y líneas paralizados
+        if (lineasCongeladas && context !== contextoTooltipFijado) {
             return;
         }
 
-        const ctxEfectivo = (tooltipFijado && contextoTooltipFijado) ? contextoTooltipFijado : context;
+        const ctxEfectivo = (lineasCongeladas && contextoTooltipFijado) ? contextoTooltipFijado : context;
         const { chart, tooltip } = ctxEfectivo;
 
-        if (!tooltipFijado && (tooltip.opacity === 0 || !cursorDentroArea || !tooltip.dataPoints || tooltip.dataPoints.length === 0)) {
+        if (!lineasCongeladas && (tooltip.opacity === 0 || !cursorDentroArea || !tooltip.dataPoints || tooltip.dataPoints.length === 0)) {
             ttEl.style.display = 'none';
             ttEl.classList.remove('tt-pinned');
             ultimoContextoTooltip = null;
@@ -2337,7 +2396,7 @@
         const meta = mapaMetaPuntos[tsSegundos];
 
         if (!meta || meta.esSeparadorCorte) {
-            if (!tooltipFijado) {
+            if (!lineasCongeladas) {
                 ttEl.style.display = 'none';
                 ttEl.classList.remove('tt-pinned');
                 ultimoContextoTooltip = null;
@@ -2346,12 +2405,12 @@
             return;
         }
 
-        if (!tooltipFijado) {
+        if (!lineasCongeladas) {
             ultimoContextoTooltip = { chart, tooltip };
         }
 
         const focusId = detectarCurvaEnfocada(chart, tooltip.dataPoints);
-        const renderKey = tsSegundos + '|' + (focusId || '') + '|' + (tooltipFijado ? 'pin' : 'no');
+        const renderKey = tsSegundos + '|' + (focusId || '') + '|' + ((lineasCongeladas || tooltipFijado) ? 'pin' : 'no');
 
         function clsRow(ids) {
             if (!focusId) return 'tt-row';
@@ -2682,7 +2741,7 @@
             tCtx.fillText((evBox.textContent || '').trim(), x + padX + (6 * scale), curY + (evH / 2));
         }
 
-        if (tooltipFijado) {
+        if (lineasCongeladas || tooltipFijado) {
             tCtx.font = `bold ${8.5 * scale}px sans-serif`;
             tCtx.fillStyle = '#38bdf8';
             tCtx.textAlign = 'right';
@@ -2713,17 +2772,17 @@
             restaurarDisplayDespues = true;
         }
 
-        if (chartInstance && (tooltipFijado || cursorDentroArea || ultimoContextoTooltip)) {
+        if (chartInstance && (lineasCongeladas || tooltipFijado || cursorDentroArea || ultimoContextoTooltip)) {
             chartInstance.update('none');
         }
 
         tCtx.drawImage(srcCanvas, 0, 0);
 
-        if (ttEl && (ttEl.style.display !== 'none' || tooltipFijado || ultimoContextoTooltip)) {
+        if (ttEl && (ttEl.style.display !== 'none' || lineasCongeladas || tooltipFijado || ultimoContextoTooltip)) {
             dibujarHudEnCanvasCaptura(tCtx, srcCanvas, ttEl);
         }
 
-        if (restaurarDisplayDespues && !tooltipFijado && ttEl) {
+        if (restaurarDisplayDespues && !lineasCongeladas && !tooltipFijado && ttEl) {
             ttEl.style.display = 'none';
         }
 
@@ -2743,7 +2802,7 @@
         }
 
         function validarPosicionCursor(clientX, clientY) {
-            if (tooltipFijado) return;
+            if (lineasCongeladas) return;
             if (!chartInstance || !chartInstance.chartArea) return;
             if (!rectCanvasCache) actualizarRectCache();
             const x = clientX - rectCanvasCache.left;
@@ -2790,7 +2849,7 @@
         }, { passive: true });
 
         canvas.addEventListener('mousemove', function(e) {
-            if (tooltipFijado) {
+            if (lineasCongeladas) {
                 e.stopImmediatePropagation();
                 return;
             }
@@ -2810,7 +2869,7 @@
         }, { capture: true });
 
         canvas.addEventListener('pointermove', function(e) {
-            if (tooltipFijado) {
+            if (lineasCongeladas) {
                 e.stopImmediatePropagation();
                 return;
             }
@@ -2821,74 +2880,63 @@
             mouseEntradaX = null;
             mouseEntradaY = null;
             clearTimeout(timerDesbloqueoZoom);
-            if (!tooltipFijado) {
+            if (!lineasCongeladas) {
                 ocultarTooltipGris();
             }
         }, { passive: true });
 
-        function descongelarGrafico() {
-            tooltipFijado = false;
-            puntoFijadoTs = null;
-            puntoFijadoX = null;
-            puntoFijadoY = null;
-            puntoFijadoActiveElements = null;
-            contextoTooltipFijado = null;
-            actualizarVisualPin(false);
-            if (chartInstance) {
-                chartInstance.update('none');
-            }
-        }
-
         // Clic para fijar / congelar la información o soltarla (estilo Binance: 1er clic congela, 2do clic descongela)
         canvas.addEventListener('click', function(e) {
             if (!chartInstance || !chartInstance.chartArea) return;
-            if (!rectCanvasCache) actualizarRectCache();
+            actualizarRectCache();
             const x = e.clientX - rectCanvasCache.left;
             const y = e.clientY - rectCanvasCache.top;
             const ca = chartInstance.chartArea;
 
-            // Si ya estaba congelado: el segundo clic SIEMPRE descongela
-            if (tooltipFijado) {
-                descongelarGrafico();
-                // Si el clic fue dentro del área del gráfico, retomar inmediatamente la detección en ese punto
-                if (x >= ca.left && x <= ca.right && y >= ca.top && y <= ca.bottom) {
-                    validarPosicionCursor(e.clientX, e.clientY);
-                } else {
+            // Verificar si el clic fue dentro del área del gráfico
+            if (x < ca.left || x > ca.right || y < ca.top || y > ca.bottom) {
+                if (lineasCongeladas) {
+                    descongelarGrafico();
                     ocultarTooltipGris();
                 }
                 return;
             }
 
-            // Primer clic: congelar la información y ambas líneas en las coordenadas actuales
-            if (x >= ca.left && x <= ca.right && y >= ca.top && y <= ca.bottom) {
-                validarPosicionCursor(e.clientX, e.clientY);
-
-                if (ultimoContextoTooltip && ultimoContextoTooltip.tooltip && ultimoContextoTooltip.tooltip.dataPoints && ultimoContextoTooltip.tooltip.dataPoints.length > 0) {
-                    const dp0 = ultimoContextoTooltip.tooltip.dataPoints[0];
-                    const ts = dp0.parsed.x;
-                    
-                    tooltipFijado = true;
-                    puntoFijadoTs = ts;
-                    if (chartInstance.scales && chartInstance.scales.x) {
-                        puntoFijadoX = chartInstance.scales.x.getPixelForValue(ts);
-                    } else {
-                        puntoFijadoX = x;
-                    }
-                    puntoFijadoY = y;
-                    contextoTooltipFijado = ultimoContextoTooltip;
-                    actualizarVisualPin(true);
-                    renderizarTooltipExterno(ultimoContextoTooltip);
-                    chartInstance.update('none');
-                }
-            } else {
-                descongelarGrafico();
-                ocultarTooltipGris();
+            // Si ya estaba congelado: EL SEGUNDO CLIC SIEMPRE DESCONGELA LAS 2 LÍNEAS
+            if (lineasCongeladas) {
+                descongelarGrafico(x, y);
+                return;
             }
+
+            // Primer clic: CONGELAR LAS 2 LÍNEAS PUNTEADAS (PARADA Y ECHADA)
+            lineasCongeladas = true;
+            tooltipFijado = true;
+
+            // Determinar posición X fija de la línea parada (snap al punto si existe; si no, X del clic)
+            let posX = x;
+            if (chartInstance.tooltip && chartInstance.tooltip._active && chartInstance.tooltip._active.length > 0) {
+                const act = chartInstance.tooltip._active[0];
+                if (act && act.element && !isNaN(act.element.x)) {
+                    posX = act.element.x;
+                }
+            }
+            lineaParadaFijadaX = posX;
+            lineaEchadaFijadaY = y;
+
+            let tsClick = (chartInstance.scales && chartInstance.scales.x) ? chartInstance.scales.x.getValueForPixel(posX) : null;
+            if (!tsClick && rawFechas && rawFechas.length > 0) {
+                tsClick = rawFechas[rawFechas.length - 1];
+            }
+            puntoFijadoTs = tsClick;
+
+            actualizarVisualPin(true);
+            renderizarTooltipEnPunto(tsClick, posX, y);
+            chartInstance.update('none');
         });
 
         // Clic fuera del gráfico: si estaba congelado, descongelar y ocultar
         document.addEventListener('click', function(e) {
-            if (tooltipFijado && !canvas.contains(e.target) && !document.getElementById('customChartTooltip')?.contains(e.target) && !e.target.closest('#btnCamara')) {
+            if (lineasCongeladas && !canvas.contains(e.target) && !document.getElementById('customChartTooltip')?.contains(e.target) && !e.target.closest('#btnCamara')) {
                 descongelarGrafico();
                 ocultarTooltipGris();
             }
@@ -2902,6 +2950,7 @@
         canvas.addEventListener('touchstart', function(e) {
             ocultarSmartTooltip();
             actualizarRectCache();
+            if (lineasCongeladas) return;
             if (e.touches && e.touches.length === 1) {
                 let ahora = Date.now();
                 if (ahora - ultimoToqueTs < 280) resetearZoomGrafico();
@@ -2910,12 +2959,12 @@
                 const ty = e.touches[0].clientY;
                 validarPosicionCursor(tx, ty);
             } else {
-                if (!tooltipFijado) ocultarTooltipGris();
+                if (!lineasCongeladas) ocultarTooltipGris();
             }
         }, { passive: true });
 
         canvas.addEventListener('touchmove', function(e) {
-            if (tooltipFijado) {
+            if (lineasCongeladas) {
                 e.stopImmediatePropagation();
                 return;
             }
@@ -2929,7 +2978,7 @@
                     });
                 }
             } else {
-                if (!tooltipFijado) ocultarTooltipGris();
+                if (!lineasCongeladas) ocultarTooltipGris();
             }
         }, { passive: true });
     }
