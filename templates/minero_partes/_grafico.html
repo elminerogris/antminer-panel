@@ -1859,6 +1859,7 @@
                     }
                 }
                 updateChart(rangoActual, true);
+                construirLeyendasPildora();
             }
         } catch (err) {
             console.log("Clima de la granja no disponible:", err);
@@ -2456,10 +2457,10 @@
                 if (meta.temp > 0) {
                     html += `<div class="${clsRow('tmax')}"><span class="tt-box" style="background:#ffb300;"></span>🌡️ Temp Máx: <b translate="no">${meta.temp}°C</b>${flechaFocus('tmax')}</div>`;
                 }
-                if (meta.sensacion !== null && meta.sensacion !== undefined) {
+                if (visibilidadCurvas['sensacion'] !== false && meta.sensacion !== null && meta.sensacion !== undefined) {
                     html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
                 }
-                if (meta.clima !== null && meta.clima !== undefined) {
+                if (visibilidadCurvas['clima'] !== false && meta.clima !== null && meta.clima !== undefined) {
                     html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima: <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
                 }
                 html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Encendido sin minar</div>`;
@@ -2508,10 +2509,10 @@
                         }
                     }
                 }
-                if (meta.sensacion !== null && meta.sensacion !== undefined) {
+                if (visibilidadCurvas['sensacion'] !== false && meta.sensacion !== null && meta.sensacion !== undefined) {
                     html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
                 }
-                if (meta.clima !== null && meta.clima !== undefined) {
+                if (visibilidadCurvas['clima'] !== false && meta.clima !== null && meta.clima !== undefined) {
                     html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima: <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
                 }
                 let errNuevos = meta.err || 0;
@@ -3402,22 +3403,20 @@
             });
         }
 
-        if (tieneClimaExt) {
-            datasetsList.push({
-                id: 'clima', type: 'line', label: '🌤️ Clima Granja °C', data: ptsClima,
-                borderColor: '#38bdf8',
-                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#38bdf8', pointHoverBackgroundColor: '#38bdf8',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
-                hidden: visibilidadCurvas['clima'] === false
-            });
-            datasetsList.push({
-                id: 'sensacion', type: 'line', label: '🥵 Sensación Térmica °C', data: ptsSens,
-                borderColor: '#c084fc',
-                tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#c084fc', pointHoverBackgroundColor: '#c084fc',
-                borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
-                hidden: visibilidadCurvas['sensacion'] === false
-            });
-        }
+        datasetsList.push({
+            id: 'clima', type: 'line', label: '🌤️ Clima Granja °C', data: ptsClima,
+            borderColor: '#38bdf8',
+            tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#38bdf8', pointHoverBackgroundColor: '#38bdf8',
+            borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
+            hidden: visibilidadCurvas['clima'] === false
+        });
+        datasetsList.push({
+            id: 'sensacion', type: 'line', label: '🥵 Sensación Térmica °C', data: ptsSens,
+            borderColor: '#c084fc',
+            tension: 0.2, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: '#c084fc', pointHoverBackgroundColor: '#c084fc',
+            borderWidth: 1.5, yAxisID: 'y1', spanGaps: true,
+            hidden: visibilidadCurvas['sensacion'] === false
+        });
 
         datasetsList.push({
             id: 'err', type: 'bar', label: '⚠️ Errores HW', data: ptsE,
@@ -3447,7 +3446,10 @@
             actualizarPuntosYResolucionSegunZoom(chartInstance);
             chartInstance.update('none');
             actualizarControlesZoomYScroll(chartInstance);
-            if (!esActualizacionEnVivo) construirLeyendasPildora();
+            const contPildoras = document.getElementById('customLegendsBar');
+            if (!contPildoras || contPildoras.children.length !== datasetsList.length || !esActualizacionEnVivo) {
+                construirLeyendasPildora();
+            }
         } else {
             chartInstance = new Chart(ctx, {
                 type: 'line',
