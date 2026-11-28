@@ -2460,7 +2460,7 @@
                     html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
                 }
                 if (meta.clima !== null && meta.clima !== undefined) {
-                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima Granja: <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
+                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima: <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
                 }
                 html += `<div class="tt-badge-status" style="background:rgba(255,82,82,0.18); color:#ff5252;">⚠️ Encendido sin minar</div>`;
             } else {
@@ -2512,7 +2512,7 @@
                     html += `<div class="${clsRow('sensacion')}"><span class="tt-box" style="background:#c084fc;"></span>🥵 Sensación: <b translate="no">${meta.sensacion}°C</b>${flechaFocus('sensacion')}</div>`;
                 }
                 if (meta.clima !== null && meta.clima !== undefined) {
-                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima (<span translate="no">${GRANJA_CIUDAD}</span>): <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
+                    html += `<div class="${clsRow('clima')}"><span class="tt-box" style="background:#38bdf8;"></span>🌤️ Clima: <b translate="no">${meta.clima}°C</b>${flechaFocus('clima')}</div>`;
                 }
                 let errNuevos = meta.err || 0;
                 let ds = meta.deltaS || pasoAgrupacionActualSeg;
