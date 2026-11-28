@@ -356,11 +356,11 @@
     }
     .chain-dot.off { background: var(--accent-red); box-shadow: none; }
 
-    /* Ventana Matriz de Chips Estilo Bitmain Antminer */
+    /* Consola Oficial Bitmain Antminer para ASIC Status */
     .chips-matrix-container {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px;
     }
     .chips-matrix-bar {
         display: flex;
@@ -368,30 +368,63 @@
         justify-content: space-between;
         font-size: 11px;
         color: var(--text-muted);
-        padding-bottom: 4px;
+        padding-bottom: 5px;
         border-bottom: 1px solid var(--border-subtle);
     }
-    .chips-grid-bitmain {
-        display: grid;
-        gap: 3.5px;
+    .asic-status-console {
+        background: rgba(8, 12, 20, 0.90);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-family: 'SF Mono', 'Roboto Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.5;
         max-height: 250px;
         overflow-y: auto;
-        padding: 8px 10px;
-        background: rgba(0, 0, 0, 0.45);
-        border: 1px solid var(--border-subtle);
-        border-radius: 6px;
-        justify-content: center;
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
     }
-    .chip-cell {
-        width: 14px;
-        height: 14px;
-        border-radius: 2.5px;
+    :root[data-theme="light"] .asic-status-console {
+        background: #f8fafc;
+        border-color: rgba(59, 130, 246, 0.3);
+        box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+    .asic-row {
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 8px;
+        gap: 6px;
+        margin: 2px 0;
+        white-space: nowrap;
+    }
+    .asic-row-idx {
+        color: var(--text-muted, #94a3b8);
+        font-size: 11px;
         font-family: monospace;
-        font-weight: bold;
+        font-weight: 600;
+        min-width: 24px;
+        text-align: right;
+        user-select: none;
+        opacity: 0.75;
+    }
+    .asic-row-chips {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .asic-block {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+    }
+    .asic-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 13px;
+        height: 16px;
+        font-family: monospace;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
         user-select: none;
         transition: transform 0.12s ease;
     }
@@ -404,24 +437,42 @@
         box-shadow: none !important;
         transform: none !important;
     }
-    .chip-cell:hover {
-        transform: scale(1.35);
-        z-index: 2;
+    .asic-chip:hover {
+        transform: scale(1.4);
+        text-shadow: 0 0 6px currentColor;
     }
-    .chip-cell.chip-ok {
-        background: #00e676;
-        color: #052e16;
-        box-shadow: 0 0 3px rgba(0, 230, 118, 0.6);
+    .asic-chip.chip-ok {
+        color: #00e676;
     }
-    .chip-cell.chip-err {
-        background: #ff5252;
-        color: #ffffff;
-        box-shadow: 0 0 4px rgba(255, 82, 82, 0.8);
+    .asic-chip.chip-err {
+        color: #ff5252;
         animation: pulseErrChip 1.2s infinite;
     }
-    .chip-cell.chip-off {
-        background: #475569;
-        color: #94a3b8;
+    .asic-chip.chip-off {
+        color: #64748b;
+    }
+    @media (max-width: 480px) {
+        .asic-status-console {
+            padding: 6px 8px;
+        }
+        .asic-row {
+            gap: 4px;
+        }
+        .asic-row-idx {
+            min-width: 20px;
+            font-size: 10px;
+        }
+        .asic-row-chips {
+            gap: 6px;
+        }
+        .asic-block {
+            gap: 2px;
+        }
+        .asic-chip {
+            width: 12px;
+            height: 14px;
+            font-size: 11.5px;
+        }
     }
     @keyframes pulseErrChip {
         0%, 100% { filter: brightness(1); }
@@ -837,54 +888,75 @@
             activeEl = target;
             target.classList.add('btt-active');
 
-            // Calcular columnas simétricas exactas para que todas las filas queden perfectas y ordenadas
-            let cols = 16;
-            if (numChips % 19 === 0) cols = 19;
-            else if (numChips % 14 === 0) cols = 14;
-            else if (numChips % 15 === 0) cols = 15;
-            else if (numChips % 16 === 0) cols = 16;
-            else if (numChips % 12 === 0) cols = 12;
-            else if (numChips % 10 === 0) cols = 10;
-
-            // Determinar salud de chips: si hay muchos errores HW o la placa está caída
+            // Formato oficial Bitmain Antminer (BMminer / CGMiner ASIC Status):
+            // Filas ordenadas de 16 chips numeradas al inicio (1:, 17:, 33:, ...),
+            // separadas en bloques simétricos de 8 chips con caracteres 'o' (OK) y 'x' (Error)
             let chipsHtml = '';
             let chipsOk = 0;
             let chipsErr = 0;
 
-            for (let i = 1; i <= numChips; i++) {
-                let cls = 'chip-ok';
-                let sym = '●';
-                if (!esOnline) {
-                    cls = 'chip-off';
-                    sym = '○';
-                } else if (hwVal > 15 && (i % Math.max(8, Math.floor(numChips / Math.min(hwVal, 6)))) === 0) {
-                    cls = 'chip-err';
-                    sym = '✕';
-                    chipsErr++;
-                } else {
-                    chipsOk++;
+            const chipsPerRow = 16;
+            const totalRows = Math.ceil(numChips / chipsPerRow);
+
+            for (let r = 0; r < totalRows; r++) {
+                const startIdx = (r * chipsPerRow) + 1;
+                const endIdx = Math.min(numChips, (r + 1) * chipsPerRow);
+                let b1Html = '';
+                let b2Html = '';
+
+                for (let i = startIdx; i <= endIdx; i++) {
+                    let cls = 'chip-ok';
+                    let sym = 'o';
+                    if (!esOnline) {
+                        cls = 'chip-off';
+                        sym = '-';
+                    } else if (hwVal > 15 && (i % Math.max(8, Math.floor(numChips / Math.min(hwVal, 6)))) === 0) {
+                        cls = 'chip-err';
+                        sym = 'x';
+                        chipsErr++;
+                    } else {
+                        chipsOk++;
+                    }
+
+                    const chipSpan = `<span class="asic-chip ${cls}" title="Chip #${i}: ${cls === 'chip-ok' ? 'Activo (OK)' : (cls === 'chip-err' ? 'Falla / Error HW' : 'Apagado')}">${sym}</span>`;
+
+                    if (i - startIdx < 8) {
+                        b1Html += chipSpan;
+                    } else {
+                        b2Html += chipSpan;
+                    }
                 }
-                chipsHtml += `<span class="chip-cell ${cls}" title="Chip #${i}: ${cls === 'chip-ok' ? 'Activo (OK)' : (cls === 'chip-err' ? 'Falla/Error HW' : 'Apagado')}">${sym}</span>`;
+
+                let rowChipsHtml = `<span class="asic-block">${b1Html}</span>`;
+                if (b2Html) {
+                    rowChipsHtml += `<span class="asic-block">${b2Html}</span>`;
+                }
+
+                chipsHtml += `<div class="asic-row">
+                    <span class="asic-row-idx">${startIdx}:</span>
+                    <div class="asic-row-chips">${rowChipsHtml}</div>
+                </div>`;
             }
 
             box.innerHTML = `
-                <div class="btt-header" style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>⚡ Matriz de Chips — Cadena #${chainId}</span>
-                    <span style="font-size:10px; color:${esOnline ? '#00e676' : '#ff5252'}; font-weight:bold;">${esOnline ? 'OPERANDO' : 'DETENIDA'}</span>
+                <div class="btt-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle); padding-bottom:5px; margin-bottom:7px;">
+                    <span style="font-weight:700;">⚡ ASIC Status — Cadena #${chainId}</span>
+                    <span style="font-size:10px; padding:2px 6px; border-radius:4px; background:${esOnline ? 'rgba(0,230,118,0.15)' : 'rgba(255,82,82,0.15)'}; color:${esOnline ? '#00e676' : '#ff5252'}; font-weight:bold;">${esOnline ? 'OPERANDO' : 'DETENIDA'}</span>
                 </div>
                 <div class="chips-matrix-container">
                     <div class="chips-matrix-bar">
-                        <span>Total: <b style="color:var(--text-main); font-family:monospace;">${numChips} Chips</b></span>
-                        <span style="color:#00e676;">🟢 ${chipsOk} OK</span>
-                        ${chipsErr > 0 ? `<span style="color:#ff5252; font-weight:bold;">🔴 ${chipsErr} Fallo</span>` : `<span style="color:var(--text-muted);">🔴 0 Fallo</span>`}
+                        <span>ASIC#: <b style="color:var(--text-main); font-family:monospace;">${numChips}</b></span>
+                        <span style="color:#00e676; font-family:monospace; font-weight:600;">🟢 ${chipsOk} OK (o)</span>
+                        ${chipsErr > 0 ? `<span style="color:#ff5252; font-family:monospace; font-weight:bold;">🔴 ${chipsErr} Fallo (x)</span>` : `<span style="color:var(--text-muted); font-family:monospace;">🔴 0 Fallo (x)</span>`}
                         <span>HW: <b style="color:${hwVal > 20 ? '#ff5252' : 'var(--text-main)'}; font-family:monospace;">${hwVal}</b></span>
                     </div>
-                    <div class="chips-grid-bitmain" style="grid-template-columns: repeat(${cols}, 14px);">
+                    <div class="asic-status-console">
                         ${chipsHtml}
                     </div>
-                    <div style="font-size:9.5px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-                        <span>🟢 Verde: Chip Óptimo</span>
-                        <span>🔴 Rojo: Chip con Error / Fallo</span>
+                    <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; margin-top:5px; font-family:monospace;">
+                        <span><b style="color:#00e676;">o</b> = Normal (OK)</span>
+                        <span><b style="color:#ff5252;">x</b> = Error HW</span>
+                        <span><b style="color:#64748b;">-</b> = Apagado</span>
                     </div>
                 </div>
                 <div id="bttArrow" class="btt-arrow bottom"></div>
@@ -892,7 +964,7 @@
             box.style.display = 'block';
 
             const rect = target.getBoundingClientRect();
-            const boxW = Math.min(Math.max(300, (cols * 18) + 38), window.innerWidth - 16);
+            const boxW = Math.min(315, window.innerWidth - 20);
             box.style.width = boxW + 'px';
             const boxH = box.offsetHeight || 220;
             const margin = 10;
