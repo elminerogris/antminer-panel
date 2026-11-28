@@ -1150,6 +1150,57 @@ def recibir_datos():
 
             es_minero_nuevo = (prev_m is None)
 
+            # Detección de cambio de hardware físico en la misma IP (reemplazo de máquina):
+            # Si en esta IP existía otro equipo con diferente dirección MAC o Serial,
+            # limpiamos el historial anterior de esa IP para que la nueva máquina empiece desde cero.
+            if es_minero_nuevo and (mac_norm or sn_norm):
+                antiguo_en_ip = por_ip_agent.get((agent_id, ip_m)) or por_ip_solo.get(ip_m)
+                antiguo_mac = normalizar_mac(antiguo_en_ip.get('mac')) if antiguo_en_ip else None
+                antiguo_sn = normalizar_sn(antiguo_en_ip.get('serial')) if antiguo_en_ip else None
+
+                es_cambio_hw = False
+                if mac_norm and antiguo_mac and mac_norm != antiguo_mac:
+                    es_cambio_hw = True
+                elif sn_norm and antiguo_sn and sn_norm != antiguo_sn:
+                    es_cambio_hw = True
+
+                if not es_cambio_hw:
+                    try:
+                        cur.execute(
+                            "SELECT mac, serial FROM mineros_descubiertos WHERE owner=%s AND agent_id=%s AND ip=%s",
+                            (owner_user, agent_id, ip_m)
+                        )
+                        r_desc = cur.fetchone()
+                        if r_desc:
+                            d_mac = normalizar_mac(r_desc.get('mac'))
+                            d_sn = normalizar_sn(r_desc.get('serial'))
+                            if mac_norm and d_mac and mac_norm != d_mac:
+                                es_cambio_hw = True
+                            elif sn_norm and d_sn and sn_norm != d_sn:
+                                es_cambio_hw = True
+                    except Exception as e_check:
+                        print(f"Error comprobando cambio hw en descubiertos {ip_m}: {e_check}")
+
+                if es_cambio_hw:
+                    try:
+                        print(f"🔄 [CAMBIO_HARDWARE] Detectado nuevo ASIC en IP {ip_m} (MAC anterior: {antiguo_mac or 'N/A'} -> nueva: {mac_norm}). Reiniciando historial y logs para el nuevo equipo.")
+                        cur.execute(
+                            "DELETE FROM historial_nube WHERE owner=%s AND ip=%s AND (farm_id=%s OR agent_id=%s OR (farm_id='' AND agent_id='default'))",
+                            (owner_user, ip_m, farm_id_efectivo, agent_id)
+                        )
+                        cur.execute("DELETE FROM logs_mineros WHERE owner=%s AND ip=%s", (owner_user, ip_m))
+                        cur.execute("DELETE FROM registro_alertas WHERE owner=%s AND ip=%s", (owner_user, ip_m))
+                        cur.execute("DELETE FROM nombres_mineros WHERE owner=%s AND ip=%s", (owner_user, ip_m))
+                        cur.execute("DELETE FROM mineros_activos WHERE owner=%s AND agent_id=%s AND ip=%s", (owner_user, agent_id, ip_m))
+                        if ip_m in nombres_map:
+                            del nombres_map[ip_m]
+                        if (agent_id, ip_m) in por_ip_agent:
+                            del por_ip_agent[(agent_id, ip_m)]
+                        if ip_m in por_ip_solo:
+                            del por_ip_solo[ip_m]
+                    except Exception as err_reset:
+                        print(f"Error reiniciando historial por cambio hw en {ip_m}: {err_reset}")
+
             marca_m = str(m.get('marca') or '').strip()
             mod_m_desc = str(m.get('modelo') or 'Antminer').strip()
             es_asic_item = not (m.get('es_asic') is False or m.get('tipo') == 'no_asic' or 'no asic' in mod_m_desc.lower() or 'dispositivo de red' in mod_m_desc.lower())
