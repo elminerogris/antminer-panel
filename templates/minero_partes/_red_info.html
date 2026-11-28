@@ -754,13 +754,13 @@
             return 'router';
         }
 
-        if (IPS_OCUPADAS_RED.includes(ipVal) && !permitirIpForzada) {
+        if (ipVal !== IP_ACTUAL_MINERO_RED && IPS_OCUPADAS_RED.includes(ipVal) && !permitirIpForzada) {
             elIp.classList.add('conflict');
             banner.style.display = 'block';
-            msgDiv.innerHTML = `⚠️ <b>La IP <code>${ipVal}</code> ya está en uso por otro equipo.</b><br>Lo más seguro es usar una IP libre. Si prefieres quedarte con <code>${ipVal}</code>, tendrás que cambiar el otro equipo o reiniciar el router.`;
+            msgDiv.innerHTML = `⚠️ <b>La IP <code>${ipVal}</code> ya está en uso por otro equipo en este router/red.</b><br>Lo más seguro es usar una IP libre. Si prefieres quedarte con <code>${ipVal}</code>, puedes forzar la asignación si ya desconectaste el otro equipo.`;
             actDiv.innerHTML = `
                 <button type="button" class="btn-fix-ip" onclick="aplicarIpSugerida('${sugerida}')">✨ Usar ${sugerida} (Recomendado)</button>
-                <button type="button" class="btn-force-ip" onclick="forzarIpOcupada('${ipVal}')">⚠️ Forzar ${ipVal} (Reiniciaré el router)</button>
+                <button type="button" class="btn-force-ip" onclick="forzarIpOcupada('${ipVal}')">⚠️ Forzar ${ipVal}</button>
             `;
             return 'occupied';
         }
@@ -896,7 +896,7 @@
             msg.innerText = (proto === '1') ? '⏳ Enviando orden DHCP al minero...' : '⏳ Aplicando IP Fija en el minero...';
         }
 
-        const urlCmd = `/cmd/{{ ip }}/set_network?host=${encodeURIComponent(host)}&proto=${encodeURIComponent(proto)}&nip=${encodeURIComponent(nip)}&mask=${encodeURIComponent(mask)}&gw=${encodeURIComponent(gw)}&dns=${encodeURIComponent(dns)}`;
+        const urlCmd = `/cmd/{{ ip }}/set_network?host=${encodeURIComponent(host)}&proto=${encodeURIComponent(proto)}&nip=${encodeURIComponent(nip)}&mask=${encodeURIComponent(mask)}&gw=${encodeURIComponent(gw)}&dns=${encodeURIComponent(dns)}&farm=${encodeURIComponent('{{ extra.farm_id | default("") }}')}&agent=${encodeURIComponent('{{ extra.agent_id | default("") }}')}`;
 
         fetch(urlCmd, {
             method: 'GET',

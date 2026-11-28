@@ -63,23 +63,26 @@ def _validar_origen_csrf():
             return False
     return True
 
-def despachar_comando(cur, owner, ip, comando, fecha=None):
+def despachar_comando(cur, owner, ip, comando, fecha=None, agent_id=None):
     ahora = fecha or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    agent_id = 'default'
-    try:
-        cur.execute("SELECT agent_id FROM mineros_activos WHERE owner=%s AND ip=%s LIMIT 1", (owner, ip))
-        row_ag = cur.fetchone()
-        if row_ag:
-            ag_val = row_ag['agent_id'] if isinstance(row_ag, dict) else row_ag[0]
-            if ag_val:
-                agent_id = str(ag_val).strip()
-    except Exception:
-        pass
+    ag_dest = str(agent_id or '').strip()
+    if not ag_dest or ag_dest == 'default':
+        try:
+            cur.execute("SELECT agent_id FROM mineros_activos WHERE owner=%s AND ip=%s ORDER BY ultima_act DESC LIMIT 1", (owner, ip))
+            row_ag = cur.fetchone()
+            if row_ag:
+                ag_val = row_ag['agent_id'] if isinstance(row_ag, dict) else row_ag[0]
+                if ag_val:
+                    ag_dest = str(ag_val).strip()
+        except Exception:
+            pass
+    if not ag_dest:
+        ag_dest = 'default'
 
-    enviar_orden_tunel(owner, ip, comando, agent_id=agent_id)
+    enviar_orden_tunel(owner, ip, comando, agent_id=ag_dest)
     cur.execute(
         "INSERT INTO cola_comandos (owner, agent_id, ip, comando, estado, fecha) VALUES (%s, %s, %s, %s, 'pendiente', %s)",
-        (owner, agent_id, ip, comando, ahora)
+        (owner, ag_dest, ip, comando, ahora)
     )
 
     # Registrar evento para trazar líneas verticales de estado en los gráficos de telemetría
@@ -997,12 +1000,56 @@ def detalle_minero(ip):
         n_row = cur.fetchone()
     nombres_dict = {ip: n_row['nombre']} if n_row and n_row.get('nombre') else {}
 
-    cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s AND NOT (farm_id=%s AND ip=%s)", (usr_actual, fid_actual, ip))
-    ips_ocupadas = [row['ip'] for row in cur.fetchall() if row.get('ip') and row['ip'] != ip]
-    cur.execute("SELECT ip FROM mineros_descubiertos WHERE owner=%s AND ip!=%s", (usr_actual, ip))
-    for row in cur.fetchall():
+    gw_actual = str(m.get('gateway') or '').strip()
+    ip_prefix = ".".join(ip.split(".")[:3]) + "." if ip.count(".") == 3 else ""
+
+    # Determinar qué mineros comparten el mismo router / red local que este equipo
+    conds_act = ["owner = %s", "ip != %s"]
+    params_act = [usr_actual, ip]
+
+    conds_desc = ["owner = %s", "ip != %s"]
+    params_desc = [usr_actual, ip]
+
+    if fid_actual and ag_actual and ag_actual != 'default':
+        conds_act.append("farm_id = %s AND agent_id = %s")
+        params_act.extend([fid_actual, ag_actual])
+        conds_desc.append("farm_id = %s AND agent_id = %s")
+        params_desc.extend([fid_actual, ag_actual])
+    elif fid_actual:
+        conds_act.append("farm_id = %s")
+        params_act.append(fid_actual)
+        conds_desc.append("farm_id = %s")
+        params_desc.append(fid_actual)
+    elif ag_actual and ag_actual != 'default':
+        conds_act.append("agent_id = %s")
+        params_act.append(ag_actual)
+        conds_desc.append("agent_id = %s")
+        params_desc.append(ag_actual)
+    else:
+        # Mineros sin sede ni agente diferenciado: aislar por router gateway o subred
+        if gw_actual and '.' in gw_actual:
+            gw_pfx = ".".join(gw_actual.split(".")[:3]) + "."
+            conds_act.append("(farm_id = '' OR farm_id IS NULL) AND (agent_id = 'default' OR agent_id = '' OR agent_id IS NULL) AND (gateway = %s OR ip LIKE %s)")
+            params_act.extend([gw_actual, gw_pfx + '%'])
+            conds_desc.append("(farm_id = '' OR farm_id IS NULL) AND (agent_id = 'default' OR agent_id = '' OR agent_id IS NULL) AND ip LIKE %s")
+            params_desc.append(gw_pfx + '%')
+        elif ip_prefix:
+            conds_act.append("(farm_id = '' OR farm_id IS NULL) AND (agent_id = 'default' OR agent_id = '' OR agent_id IS NULL) AND ip LIKE %s")
+            params_act.append(ip_prefix + '%')
+            conds_desc.append("(farm_id = '' OR farm_id IS NULL) AND (agent_id = 'default' OR agent_id = '' OR agent_id IS NULL) AND ip LIKE %s")
+            params_desc.append(ip_prefix + '%')
+        else:
+            conds_act.append("(farm_id = '' OR farm_id IS NULL) AND (agent_id = 'default' OR agent_id = '' OR agent_id IS NULL)")
+            conds_desc.append("(farm_id = '' OR farm_id IS NULL) AND (agent_id = 'default' OR agent_id = '' OR agent_id IS NULL)")
+
+    cur.execute(f"SELECT ip FROM mineros_activos WHERE {' AND '.join(conds_act)}", tuple(params_act))
+    ips_ocupadas = [row['ip'] for row in (cur.fetchall() or []) if row.get('ip') and row['ip'] != ip]
+
+    cur.execute(f"SELECT ip FROM mineros_descubiertos WHERE {' AND '.join(conds_desc)}", tuple(params_desc))
+    for row in (cur.fetchall() or []):
         if row.get('ip') and row['ip'] != ip:
             ips_ocupadas.append(row['ip'])
+
     ips_ocupadas = sorted(list(set(ips_ocupadas)))
 
     limite_hist = 44000 if es_cuenta_pro(usr_actual, plan_actual) else 1440
@@ -1189,7 +1236,8 @@ def detalle_minero(ip):
         'worker2': worker2, 'pool2': pool2, 'pass2': pass2, 'status2': status2, 'acc2': acc2, 'rej2': rej2,
         'worker3': worker3, 'pool3': pool3, 'pass3': pass3, 'status3': status3, 'acc3': acc3, 'rej3': rej3,
         'mac': mac, 'serial': serial, 'firmware': fw, 'cadenas': cadenas,
-        'hostname': hostname, 'net_proto': net_proto, 'netmask': netmask, 'gateway': gateway, 'dns': dns
+        'hostname': hostname, 'net_proto': net_proto, 'netmask': netmask, 'gateway': gateway, 'dns': dns,
+        'farm_id': fid_actual, 'agent_id': ag_actual
     }
 
     eficiencia_val = round(c_val / hr_val, 2) if hr_val > 0 else 0
@@ -2496,21 +2544,42 @@ def comando_minero(ip, accion):
         mask = str(request.args.get('mask', '255.255.255.0')).replace('|', '').strip()
         gw = str(request.args.get('gw', '192.168.0.1')).replace('|', '').strip()
         dns = str(request.args.get('dns', '8.8.8.8')).replace('|', '').strip()
+        farm_cmd = str(request.args.get('farm', '')).strip()
+        agent_cmd = str(request.args.get('agent', '')).strip()
         cmd_str = f"set_network|{host}|{proto}|{nip}|{mask}|{gw}|{dns}"
         try:
-            cur.execute("""
-                UPDATE mineros_activos
-                SET hostname=%s, net_proto=%s, netmask=%s, gateway=%s, dns=%s
-                WHERE owner=%s AND ip=%s
-            """, (host, 'DHCP' if proto == '1' else 'Static', mask, gw, dns, usr_actual, ip))
+            if farm_cmd and agent_cmd and agent_cmd != 'default':
+                cur.execute("""
+                    UPDATE mineros_activos
+                    SET hostname=%s, net_proto=%s, netmask=%s, gateway=%s, dns=%s
+                    WHERE owner=%s AND ip=%s AND farm_id=%s AND agent_id=%s
+                """, (host, 'DHCP' if proto == '1' else 'Static', mask, gw, dns, usr_actual, ip, farm_cmd, agent_cmd))
+            elif farm_cmd:
+                cur.execute("""
+                    UPDATE mineros_activos
+                    SET hostname=%s, net_proto=%s, netmask=%s, gateway=%s, dns=%s
+                    WHERE owner=%s AND ip=%s AND farm_id=%s
+                """, (host, 'DHCP' if proto == '1' else 'Static', mask, gw, dns, usr_actual, ip, farm_cmd))
+            elif agent_cmd and agent_cmd != 'default':
+                cur.execute("""
+                    UPDATE mineros_activos
+                    SET hostname=%s, net_proto=%s, netmask=%s, gateway=%s, dns=%s
+                    WHERE owner=%s AND ip=%s AND agent_id=%s
+                """, (host, 'DHCP' if proto == '1' else 'Static', mask, gw, dns, usr_actual, ip, agent_cmd))
+            else:
+                cur.execute("""
+                    UPDATE mineros_activos
+                    SET hostname=%s, net_proto=%s, netmask=%s, gateway=%s, dns=%s
+                    WHERE owner=%s AND ip=%s
+                """, (host, 'DHCP' if proto == '1' else 'Static', mask, gw, dns, usr_actual, ip))
             if nip and nip != ip:
                 cur.execute("SELECT nombre FROM nombres_mineros WHERE owner=%s AND ip=%s", (usr_actual, ip))
                 n_row = cur.fetchone()
                 if n_row and n_row.get('nombre'):
                     cur.execute("""
-                        INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s)
-                        ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre
-                    """, (usr_actual, nip, n_row['nombre']))
+                        INSERT INTO nombres_mineros (owner, ip, nombre, farm_id) VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre, farm_id=EXCLUDED.farm_id
+                    """, (usr_actual, nip, n_row['nombre'], farm_cmd))
         except Exception:
             pass
     elif accion == 'guardar_pools':
@@ -2547,7 +2616,8 @@ def comando_minero(ip, accion):
                 m_ip = r_m['ip'] if isinstance(r_m, dict) else r_m[0]
                 despachar_comando(cur, usr_actual, m_ip, cmd_str)
         else:
-            despachar_comando(cur, usr_actual, ip, cmd_str)
+            agent_cmd = str(request.args.get('agent', '')).strip()
+            despachar_comando(cur, usr_actual, ip, cmd_str, agent_id=agent_cmd if (agent_cmd and agent_cmd != 'default') else None)
     return "OK"
 
 @panel_bp.route('/exportar_csv')
