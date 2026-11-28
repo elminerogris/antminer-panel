@@ -622,8 +622,26 @@ def api_red_verificar_ip_ocupada():
             "msg": f"La IP {ip_probar} ya está asignada a tu minero '{nom_txt}'."
         }), 200
 
-    # 2. Chequeo en la red LAN a través de socket/ping (si el servidor está en la misma LAN o puede alcanzar la IP)
-    # Probamos puertos comunes de dispositivos de red (HTTP 80, SSH 22, HTTPS 443, DNS 53, ASIC 4028, RTSP 554)
+    # 2. Chequeo contra dispositivos descubiertos en la red LAN (celulares, Smart TVs, routers, consolas)
+    cur.execute("""
+        SELECT ip, modelo, marca, es_asic FROM mineros_descubiertos
+        WHERE owner=%s AND ip=%s AND ip!=%s
+        ORDER BY es_asic DESC, ultima_act DESC LIMIT 1
+    """, (usr_actual, ip_probar, ip_actual_minero))
+    d_ocup = cur.fetchone()
+    if d_ocup:
+        es_asic_dev = (d_ocup.get('es_asic') == 1)
+        tipo_dev = "minero" if es_asic_dev else "lan_device"
+        nom_txt = d_ocup.get('modelo') or ('Minero ASIC' if es_asic_dev else 'Dispositivo de Red (celular, TV, router)')
+        return jsonify({
+            "ok": True,
+            "ocupada": True,
+            "tipo": tipo_dev,
+            "nombre": nom_txt,
+            "msg": f"La IP {ip_probar} ya está ocupada por '{nom_txt}' en tu red local."
+        }), 200
+
+    # 3. Chequeo en la red local por sockets si el agente/servidor comparte subred
     es_ocupada_socket = False
     puertos_probar = [4028, 80, 443, 22, 53, 8080, 554]
     for port in puertos_probar:
@@ -981,7 +999,12 @@ def detalle_minero(ip):
     nombres_dict = {ip: n_row['nombre']} if n_row and n_row.get('nombre') else {}
 
     cur.execute("SELECT ip FROM mineros_activos WHERE owner=%s AND NOT (farm_id=%s AND ip=%s)", (usr_actual, fid_actual, ip))
-    ips_ocupadas = [row['ip'] for row in cur.fetchall()]
+    ips_ocupadas = [row['ip'] for row in cur.fetchall() if row.get('ip') and row['ip'] != ip]
+    cur.execute("SELECT ip FROM mineros_descubiertos WHERE owner=%s AND ip!=%s", (usr_actual, ip))
+    for row in cur.fetchall():
+        if row.get('ip') and row['ip'] != ip:
+            ips_ocupadas.append(row['ip'])
+    ips_ocupadas = sorted(list(set(ips_ocupadas)))
 
     limite_hist = 44000 if es_cuenta_pro(usr_actual, plan_actual) else 1440
     cur.execute("""
@@ -2474,6 +2497,22 @@ def comando_minero(ip, accion):
         gw = str(request.args.get('gw', '192.168.0.1')).replace('|', '').strip()
         dns = str(request.args.get('dns', '8.8.8.8')).replace('|', '').strip()
         cmd_str = f"set_network|{host}|{proto}|{nip}|{mask}|{gw}|{dns}"
+        try:
+            cur.execute("""
+                UPDATE mineros_activos
+                SET hostname=%s, net_proto=%s, netmask=%s, gateway=%s, dns=%s
+                WHERE owner=%s AND ip=%s
+            """, (host, 'DHCP' if proto == '1' else 'Static', mask, gw, dns, usr_actual, ip))
+            if nip and nip != ip:
+                cur.execute("SELECT nombre FROM nombres_mineros WHERE owner=%s AND ip=%s", (usr_actual, ip))
+                n_row = cur.fetchone()
+                if n_row and n_row.get('nombre'):
+                    cur.execute("""
+                        INSERT INTO nombres_mineros (owner, ip, nombre) VALUES (%s, %s, %s)
+                        ON CONFLICT (owner, ip) DO UPDATE SET nombre=EXCLUDED.nombre
+                    """, (usr_actual, nip, n_row['nombre']))
+        except Exception:
+            pass
     elif accion == 'guardar_pools':
         u1 = str(request.args.get('u1', '')).replace('|', '').strip()
         w1 = str(request.args.get('w1', '')).replace('|', '').strip()

@@ -551,6 +551,7 @@
     const IP_ACTUAL_MINERO = "{{ ip }}";
     const GATEWAY_DETECTADO = "{{ extra.gateway | default('') }}";
     let permitirIpForzada = false;
+    let ipRemotaOcupada = null;
 
     const SVG_COPY_ICON = `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
     const SVG_CHECK_ICON = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
@@ -748,7 +749,8 @@
         const octActual = parseInt(ipVal.split('.')[3] || '11') || 11;
         const sugerida = buscarSiguienteIpLibre(prefijo, octActual + 1);
 
-        if (ipVal && (ipVal === gwVal || ipVal.endsWith('.1'))) {
+        // Conflicto con IP del router
+        if (ipVal && gwVal && ipVal === gwVal) {
             elIp.classList.add('conflict');
             banner.style.display = 'block';
             msgDiv.innerHTML = `⛔ <b>Conflicto con el Router:</b> La dirección <code>${ipVal}</code> pertenece a tu router. No puedes asignársela a un minero.`;
@@ -756,7 +758,8 @@
             return 'router';
         }
 
-        if (IPS_OCUPADAS_RED.includes(ipVal) && !permitirIpForzada) {
+        // Conflicto con lista conocida de equipos en la red (excluyendo la IP actual de este minero)
+        if (ipVal !== IP_ACTUAL_MINERO && IPS_OCUPADAS_RED.includes(ipVal) && !permitirIpForzada) {
             elIp.classList.add('conflict');
             banner.style.display = 'block';
             msgDiv.innerHTML = `⚠️ <b>La IP <code>${ipVal}</code> ya está ocupada en tu red.</b><br>Pertenece a otro equipo activo (puede ser un minero, un celular o un televisor en la red). Elige una IP libre para evitar conflictos.`;
@@ -764,6 +767,13 @@
                 <button type="button" class="btn-fix-ip" onclick="aplicarIpSugerida('${sugerida}')">✨ Usar ${sugerida} (Recomendado)</button>
                 <button type="button" class="btn-force-ip" onclick="forzarIpOcupada('${ipVal}')">⚠️ Forzar ${ipVal} (Reiniciaré el router)</button>
             `;
+            return 'occupied';
+        }
+
+        // Si ya fue detectada como ocupada remotamente
+        if (ipVal !== IP_ACTUAL_MINERO && ipRemotaOcupada === ipVal && !permitirIpForzada) {
+            elIp.classList.add('conflict');
+            banner.style.display = 'block';
             return 'occupied';
         }
 
@@ -779,6 +789,7 @@
                 .then(r => r.json())
                 .then(res => {
                     if (res && res.ocupada && !permitirIpForzada) {
+                        ipRemotaOcupada = ipVal;
                         elIp.classList.add('conflict');
                         banner.style.display = 'block';
                         msgDiv.innerHTML = `⚠️ <b>La IP <code>${ipVal}</code> está OCUPADA en la red LAN.</b><br>${res.msg || 'Detectamos otro dispositivo usando esta IP (puede ser un celular, TV u otro equipo).'}`;
@@ -786,19 +797,28 @@
                             <button type="button" class="btn-fix-ip" onclick="aplicarIpSugerida('${sugerida}')">✨ Usar ${sugerida} (Libre)</button>
                             <button type="button" class="btn-force-ip" onclick="forzarIpOcupada('${ipVal}')">⚠️ Forzar asignación</button>
                         `;
+                    } else if (res && !res.ocupada) {
+                        if (ipRemotaOcupada === ipVal) {
+                            ipRemotaOcupada = null;
+                            elIp.classList.remove('conflict');
+                            banner.style.display = 'none';
+                        }
                     }
                 })
                 .catch(() => {});
             }, 400);
         }
 
-        elIp.classList.remove('conflict');
-        banner.style.display = 'none';
+        if (ipRemotaOcupada !== ipVal) {
+            elIp.classList.remove('conflict');
+            banner.style.display = 'none';
+        }
         return false;
     }
 
     function aplicarIpSugerida(ipNueva) {
         permitirIpForzada = false;
+        ipRemotaOcupada = null;
         const elIp = document.getElementById('net_ip');
         if (elIp) {
             elIp.value = ipNueva;
@@ -814,6 +834,7 @@
 
     function forzarIpOcupada(ipVal) {
         permitirIpForzada = true;
+        ipRemotaOcupada = null;
         verificarConflictoIp();
         const msg = document.getElementById('estadoRedMsg');
         if (msg) {
@@ -908,14 +929,39 @@
 
         const urlCmd = `/cmd/{{ ip }}/set_network?host=${encodeURIComponent(host)}&proto=${encodeURIComponent(proto)}&nip=${encodeURIComponent(nip)}&mask=${encodeURIComponent(mask)}&gw=${encodeURIComponent(gw)}&dns=${encodeURIComponent(dns)}`;
 
-        fetch(urlCmd).then(() => {
+        fetch(urlCmd, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => {
+            if (!r.ok) throw new Error('Error al enviar orden de red');
             document.querySelectorAll('.input-net-pro.edited').forEach(el => el.classList.remove('edited'));
             if (btn) btn.classList.remove('unsaved-pulse');
             if (ico) ico.innerText = '✅';
             if (txt) txt.innerText = '¡Red en Cola!';
             if (msg) {
-                msg.style.color = '#00e676';
-                msg.innerText = '✅ Orden enviada al Agente (se aplicará en ~20s)';
+                if (proto === '2' && nip && nip !== IP_ACTUAL_MINERO) {
+                    msg.style.color = '#00e676';
+                    msg.innerText = `✅ Nueva IP ${nip} enviada. Tu minero reiniciará su red y se redireccionará en 14s...`;
+                    setTimeout(() => {
+                        window.location.href = `/minero/${encodeURIComponent(nip)}`;
+                    }, 14000);
+                } else {
+                    msg.style.color = '#00e676';
+                    msg.innerText = '✅ Orden enviada al Agente (se aplicará en ~15s)';
+                    setTimeout(() => {
+                        if (ico) ico.innerText = '💾';
+                        if (txt) txt.innerText = 'Guardar Red';
+                    }, 4500);
+                }
+            }
+        })
+        .catch(err => {
+            if (ico) ico.innerText = '⚠️';
+            if (txt) txt.innerText = 'Error';
+            if (msg) {
+                msg.style.color = '#ff5252';
+                msg.innerText = '⚠️ No se pudo enviar la orden de red al agente. Revisa la conexión.';
             }
             setTimeout(() => {
                 if (ico) ico.innerText = '💾';
@@ -924,7 +970,7 @@
         });
     }
 
-    window.addEventListener('load', function() {
+    function inicializarVistaRed() {
         const valorInicial = document.getElementById('net_proto')?.value || '2';
         seleccionarProtocoloRed(valorInicial, false);
 
@@ -950,5 +996,11 @@
                 }
             });
         });
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', inicializarVistaRed);
+    } else {
+        inicializarVistaRed();
+    }
 </script>

@@ -1766,12 +1766,44 @@ def procesar_comandos(ordenes):
             partes = accion.split('|')
             if len(partes) >= 7 and not es_wm:
                 host, proto, nip, mask, gw, dns = partes[1], partes[2], partes[3], partes[4], partes[5], partes[6]
-                payload_json = {"ipHost": host, "ipPro": int(proto) if proto.isdigit() else 2, "ipAddress": nip, "ipSub": mask, "ipGateway": gw, "ipDns": dns}
-                payload_form = {"_ant_conf_hostname": host, "_ant_conf_nettype": "DHCP" if proto == "1" else "Static", "_ant_conf_ipaddress": nip, "_ant_conf_netmask": mask, "_ant_conf_gateway": gw, "_ant_conf_dnsservers": dns}
-                peticion_http(ip_dest, "set_network_conf.cgi", "POST", payload_json, timeout_sec=5.0)
-                peticion_http(ip_dest, "set_network_conf.cgi", "POST_FORM", payload_form, timeout_sec=5.0)
-                if nip and nip not in ips_conocidas:
-                    ips_conocidas.append(nip)
+                p_proto_int = int(proto) if proto.isdigit() else 2
+                es_dhcp_mode = (proto == "1" or proto.lower() == "dhcp")
+                payload_json = {
+                    "ipHost": host, "conf_hostname": host,
+                    "ipPro": 1 if es_dhcp_mode else 2,
+                    "conf_nettype": "DHCP" if es_dhcp_mode else "Static",
+                    "nettype": "DHCP" if es_dhcp_mode else "Static",
+                    "ipAddress": nip, "conf_ipaddress": nip,
+                    "ipSub": mask, "conf_netmask": mask,
+                    "ipGateway": gw, "conf_gateway": gw,
+                    "ipDns": dns, "conf_dnsservers": dns
+                }
+                payload_form = {
+                    "_ant_conf_hostname": host, "conf_hostname": host,
+                    "_ant_conf_nettype": "DHCP" if es_dhcp_mode else "Static",
+                    "conf_nettype": "DHCP" if es_dhcp_mode else "Static",
+                    "_ant_conf_ipaddress": nip, "conf_ipaddress": nip,
+                    "_ant_conf_netmask": mask, "conf_netmask": mask,
+                    "_ant_conf_gateway": gw, "conf_gateway": gw,
+                    "_ant_conf_dnsservers": dns, "conf_dnsservers": dns
+                }
+                print(f"[RED LAN] Aplicando configuración en {ip_dest} -> Modo: {'DHCP' if es_dhcp_mode else f'Fija {nip}'}")
+                res_net = peticion_http(ip_dest, "set_network_conf.cgi", "POST", payload_json, timeout_sec=5.0)
+                if not res_net:
+                    res_net = peticion_http(ip_dest, "set_network_conf.cgi", "POST_FORM", payload_form, timeout_sec=5.0)
+
+                if nip and nip != ip_dest and not es_dhcp_mode:
+                    if nip not in ips_conocidas:
+                        ips_conocidas.append(nip)
+                    if ip_dest in ips_conocidas:
+                        try: ips_conocidas.remove(ip_dest)
+                        except ValueError: pass
+                    cache_info_estatica.pop(ip_dest, None)
+
+                def _reporte_post_red():
+                    time.sleep(6)
+                    recolectar_y_enviar()
+                threading.Thread(target=_reporte_post_red, daemon=True).start()
         elif accion.startswith("guardar_pools|"):
             partes = accion.split('|')
             if len(partes) >= 10:
